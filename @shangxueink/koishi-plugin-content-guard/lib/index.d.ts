@@ -1,1 +1,16 @@
-//拿来吧你
+import { Context, Schema } from 'koishi';
+export declare const name = "content-guard";
+export declare const usage = "\n---\n\n## \u8FDD\u7981\u8BCD\u5E93\n\n\u8FDD\u7981\u8BCD\u5E93\u6765\u81EA [Sensitive-lexicon](https://github.com/konsheng/Sensitive-lexicon)\u3002\n\n\u611F\u8C22\u8BE5\u9879\u76EE\u63D0\u4F9B\u7684\u8FDD\u7981\u8BCD\u8D44\u6E90\u3002\n\n---\n\n## \u514D\u8D23\u8BF4\u660E\n\n\u672C\u63D2\u4EF6\u4EC5\u7528\u4E8E\u6F14\u793A\u548C\u5B66\u4E60\u76EE\u7684\u3002\n\n\u4F7F\u7528\u8005\u5E94\u81EA\u884C\u627F\u62C5\u4F7F\u7528\u672C\u63D2\u4EF6\u6240\u5E26\u6765\u7684\u98CE\u9669\u548C\u8D23\u4EFB\u3002\n\n\u8FDD\u7981\u8BCD\u5E93\u6765\u6E90\u4E8E\u7B2C\u4E09\u65B9\u9879\u76EE\uFF0C\u63D2\u4EF6\u5F00\u53D1\u8005\u5BF9\u5176\u5185\u5BB9\u4E0D\u627F\u62C5\u4EFB\u4F55\u8D23\u4EFB\u3002\n\n\u8BF7\u786E\u4FDD\u5728\u9075\u5B88\u76F8\u5173\u6CD5\u5F8B\u6CD5\u89C4\u7684\u524D\u63D0\u4E0B\u4F7F\u7528\u672C\u63D2\u4EF6\u3002\n\n---\n\n\u672C\u63D2\u4EF6\u4EC5\u9002\u7528\u4E8E\u7531\u7528\u6237\u8FDB\u884C\u6307\u4EE4\u8C03\u7528\u8F93\u5165\u53C2\u6570\u7684\u6587\u672C\u5BA1\u6838\n\n\u4EC5\u9700\u5728 Audit_Configuration \u914D\u7F6E\u9879\u91CC\u586B\u5165\u5BF9\u5E94\u7684\u7279\u5F81\u524D\u7F00\u548C\u53F3\u4FA7\u7684\u8FD4\u56DE\u6587\u672C\uFF0C\u5373\u53EF\u5BF9\u5E94\u7684\u5F00\u542F\u5BA1\u6838\u3002\n\n";
+interface AuditConfig {
+    Audit: boolean;
+    Audit_Configuration: Record<string, string>;
+    Return_Audit_Result_true: boolean;
+    Return_Audit_Result_false: boolean;
+    Whitelist_input: string[];
+    Blacklist_input: string[];
+    removeLeadingBrackets: boolean;
+    loggerinfo: boolean;
+}
+export declare const Config: Schema<AuditConfig>;
+export declare function apply(ctx: Context, config: AuditConfig): void;
+export {};
