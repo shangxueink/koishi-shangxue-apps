@@ -1,0 +1,55 @@
+{
+  "name": "koishi-plugin-beta-dxl-bert-vits",
+  "description": "或许这是better-dxl-bert-vits呢（内置了gsvits和魔塔社区的语音合成api，同时支持自行添加bert-vits2后端api地址到/data/bert-vits/speakers.json中）",
+  "version": "1.1.6",
+  "main": "lib/index.js",
+  "typings": "lib/index.d.ts",
+  "files": [
+    "lib",
+    "resources"
+  ],
+  "dependencies": {
+    "@initencounter/vits": "^0.0.3"
+  },
+  "devDependencies": {
+    "@koishijs/translator": "^1.1.1",
+    "franc-min": "^6.2.0"
+  },
+  "peerDependenciesMeta": {
+    "franc-min": {
+      "optional": true
+    }
+  },
+  "license": "MIT",
+  "koishi": {
+    "service": {
+      "implements": [
+        "vits"
+      ],
+      "optional": [
+        "translator"
+      ]
+    }
+  },
+  "keywords": [
+    "chatbot",
+    "koishi",
+    "plugin",
+    "dxl",
+    "东雪莲",
+    "塔菲",
+    "AI东雪莲",
+    "AI塔菲",
+    "vit",
+    "bertVit",
+    "ModelScope",
+    "魔塔",
+    "语音",
+    "audio",
+    "ai语音"
+  ],
+  "peerDependencies": {
+    "franc-min": "^6.2.0",
+    "koishi": "^4.16.8"
+  }
+}
