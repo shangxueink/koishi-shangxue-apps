@@ -1,7 +1,7 @@
 {
   "name": "koishi-plugin-beta-dxl-bert-vits",
   "description": "或许这是better-dxl-bert-vits呢（内置了gsvits和魔塔社区的语音合成api，同时支持自行添加bert-vits2后端api地址到/data/bert-vits/speakers.json中）",
-  "version": "1.1.6",
+  "version": "1.2.1",
   "main": "lib/index.js",
   "typings": "lib/index.d.ts",
   "files": [
