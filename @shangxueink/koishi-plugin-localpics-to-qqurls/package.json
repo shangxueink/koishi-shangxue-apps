@@ -1,0 +1,25 @@
+{
+  "name": "@shangxueink/koishi-plugin-localpics-to-qqurls",
+  "version": "0.1.6",
+  "description": "QQ频道图床？将一个图包文件夹，通过QQ官方机器人上传至QQ频道",
+  "main": "lib/index.js",
+  "typings": "lib/index.d.ts",
+  "files": [
+    "lib",
+    "dist"
+  ],
+  "scripts": {},
+  "keywords": [
+    "koishi",
+    "plugin",
+    "pics",
+    "图床"
+  ],
+  "license": "MIT",
+  "peerDependencies": {
+    "koishi": "^4.16.0"
+  },
+  "koishi": {
+    "browser": true
+  }
+}
