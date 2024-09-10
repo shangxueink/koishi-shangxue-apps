@@ -1,0 +1,22 @@
+{
+  "name": "koishi-plugin-name-composition",
+  "description": "/*组成查询*/😇查询你是由什么组成的~🥴好像都是很温柔的语录呢~",
+  "version": "0.2.0",
+  "main": "lib/index.js",
+  "typings": "lib/index.d.ts",
+  "files": [
+    "lib",
+    "dist"
+  ],
+  "license": "MIT",
+  "scripts": {},
+  "keywords": [
+    "chatbot",
+    "koishi",
+    "查询由什么组成的",
+    "plugin"
+  ],
+  "peerDependencies": {
+    "koishi": "^4.13.8"
+  }
+}

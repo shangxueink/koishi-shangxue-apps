@@ -1,0 +1,31 @@
+{
+  "name": "koishi-plugin-miyoushe-meme",
+  "description": "获取随机米游社表情包，支持指定id的表情包。使用方法见readme~",
+  "version": "0.0.4",
+  "main": "lib/index.js",
+  "typings": "lib/index.d.ts",
+  "files": [
+    "lib",
+    "dist"
+  ],
+  "author": "shangxue <1919892171@qq.com>",
+  "license": "MIT",
+  "keywords": [
+    "chatbot",
+    "koishi",
+    "plugin",
+    "miyoushe-meme"
+  ],
+  "koishi": {
+    "browser": true,
+    "description": {
+      "zh": "获取随机米游社表情包，支持指定id的表情包。使用方法见readme~"
+    }
+  },
+  "peerDependencies": {
+    "koishi": "^4.13.8"
+  },
+  "dependencies": {
+    "axios": "^1.6.7"
+  }
+}

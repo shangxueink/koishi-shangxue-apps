@@ -1,0 +1,33 @@
+{
+  "name": "koishi-plugin-numpics-meow",
+  "description": "/*猫猫人，举数字*/ 可以生成28位正整数的猫猫举牌人！很可爱呢~",
+  "version": "0.1.1",
+  "main": "lib/index.js",
+  "typings": "lib/index.d.ts",
+  "files": [
+    "lib",
+    "dist"
+  ],
+  "author": "Shangxue <1919892171@qq.com>",
+  "license": "MIT",
+  "scripts": {},
+  "keywords": [
+    "bot",
+    "chatbot",
+    "koishi",
+    "meow",
+    "举牌"
+  ],
+
+  "koishi": {
+    "description": {
+      "en": "meow~ cats and numbers",
+      "zh": "/*猫猫人，举数字*/ 可以生成28位正整数的猫猫举牌人！很可爱呢~"
+    }
+  },
+  "peerDependencies": {
+    "koishi": "^4.16.0",
+    "koishi-plugin-puppeteer": "^3.7.3"
+  }
+
+}
