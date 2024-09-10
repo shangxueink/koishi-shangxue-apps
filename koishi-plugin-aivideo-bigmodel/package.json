@@ -1,0 +1,27 @@
+{
+  "name": "koishi-plugin-aivideo-bigmodel",
+  "description": "智普AI视频生成插件 免费白嫖咪~ 根据一张图和预设词生成视频 很生草咪~",
+  "version": "0.2.0",
+  "main": "lib/index.js",
+  "keywords": [
+    "ai",
+    "chatbot",
+    "koishi",
+    "plugin",
+    "免费"
+  ],
+  "files": [
+    "lib"
+  ],
+  "license": "MIT",
+  "scripts": {},
+  "peerDependencies": {
+    "koishi": "^4.16.0"
+  },
+  "koishi": {
+    "description": {
+      "en": "aivideo-bigmodel plugin",
+      "zh": "智普AI视频生成插件 免费白嫖咪~ 根据一张图和预设词生成视频 很生草咪~"
+    }
+  }
+}
