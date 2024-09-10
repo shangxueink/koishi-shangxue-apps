@@ -1,0 +1,26 @@
+{
+  "name": "koishi-plugin-quiz-master",
+  "version": "0.2.1",
+  "description": "/*知识问答*/知识问答💪选择题。[玩法详见这里哦](https://www.npmjs.com/package/koishi-plugin-quiz-master)。",
+  "main": "lib/index.js",
+  "typings": "lib/index.d.ts",
+  "files": [
+    "lib",
+    "dist"
+  ],
+  "scripts": {},
+  "keywords": [
+  "koishi",
+  "plugin",
+  "chat",
+  "answer",
+  "quiz",
+  "master",
+  "question"
+  ],
+  "author": "shangxue",
+  "license": "MIT",
+  "peerDependencies": {
+    "koishi": "^4.13.8" 
+  }
+}
