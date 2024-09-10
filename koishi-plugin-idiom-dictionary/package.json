@@ -1,0 +1,39 @@
+{
+  "name": "koishi-plugin-idiom-dictionary",
+  "version": "0.2.3",
+  "description": "[成语字典查询插件](https://www.npmjs.com/package/koishi-plugin-idiom-dictionary) 📖，可以指定位置查询成语，近义词查询...🚀为您提供精准、迅速的四字成语解释服务，📈或许是[词影游戏](/market?keyword=wordle-game)的秘籍哦~",
+  "main": "lib/index.js",
+  "typings": "lib/index.d.ts",
+  "files": [
+    "lib",
+    "dist"
+  ],
+  "scripts": {},
+  "keywords": [
+    "koishi",
+    "plugin",
+    "chat",
+    "字典",
+    "图片",
+    "成语字典查询",
+    "成语",
+    "近义词",
+    "idiom",
+    "dictionary",
+    "四字成语",
+    "查询"
+  ],
+  "license": "MIT",
+  "peerDependencies": {
+    "koishi": "^4.13.8"
+  },
+  "devDependencies": {
+    "koishi-plugin-puppeteer": "^3.8.3"
+  },
+  "service": {
+    "optional": ["puppeteer"]          
+  },
+  "koishi": {
+    "browser": true
+  }
+}
