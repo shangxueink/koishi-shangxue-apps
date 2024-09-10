@@ -1,0 +1,24 @@
+{
+  "name": "koishi-plugin-weather-qq-rainbowsky",
+  "version": "0.1.0",
+  "description": "/*天气查询*/未来15天的天气预报？☁️🌧️☀️实时天气、今明天气，文字返回~ ",
+  "main": "lib/index.js",
+  "typings": "lib/index.d.ts",
+  "files": [
+    "lib",
+    "dist"
+  ],
+  "scripts": {},
+  "keywords": [
+    "koishi",
+    "plugin",
+    "weather",
+    "天气查询",
+    "sky"
+  ],
+  "author": "shangxue",
+  "license": "MIT",
+  "peerDependencies": {
+    "koishi": "^4.13.8"
+  }
+}
