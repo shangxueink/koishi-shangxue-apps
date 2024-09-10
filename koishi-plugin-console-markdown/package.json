@@ -1,0 +1,25 @@
+{
+  "name": "koishi-plugin-console-markdown",
+  "version": "1.0.1",
+  "description": "/*[看看markdown](https://www.npmjs.com/package/koishi-plugin-console-markdown)*/🥰通过控制台与配置项，查看markdown的效果",
+  "main": "lib/index.js",
+  "typings": "lib/index.d.ts",
+  "files": [
+    "lib",
+    "dist"
+  ],
+  "scripts": {},
+  "keywords": [
+    "koishi",
+    "plugin",
+    "markdown",
+    "console",
+    "md",
+    "编辑器"
+  ],
+  "author": "shangxue",
+  "license": "MIT",
+  "peerDependencies": {
+    "koishi": "^4.13.8"
+  }
+}
