@@ -1,0 +1,35 @@
+
+
+{
+  "name": "koishi-plugin-jm-week-recommendation",
+  "version": "0.2.8",
+  "description": "/*[一本好书](https://www.npmjs.com/package/koishi-plugin-jm-week-recommendation)*/图片封面支持！👍精选 JmComic 周排行top10，品鉴高人气漫画【random-jm-book】得到随机推荐书籍，【jm-book-search  白】搜索关键词白，并获得随即一本相关的书",
+  "main": "lib/index.js",
+  "typings": "lib/index.d.ts",
+  "files": [
+    "lib",
+    "dist"
+  ],
+  "scripts": {},
+  "keywords": [
+  "koishi",
+  "plugin",
+  "book",
+  "JmComic",
+  "JM",
+  "书籍",
+  "一本好书",
+  "排行",
+  "色色",
+  "书籍搜索",
+  "text"
+  ],
+  "contributors": [    
+    "Shangxue <1919892171@qq.com>",
+    "mmzzxx <bluearchivemx@outlook.com>"
+  ],
+  "license": "MIT",
+  "peerDependencies": {
+    "koishi": "^4.13.8" 
+  }
+}
