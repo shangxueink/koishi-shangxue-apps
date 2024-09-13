@@ -444,8 +444,8 @@ ${dJson.unsignText}
 
         logInfo(`触发用户: ${session.event.user?.id}`);
         if (session.platform === 'qq') {
-          exports.logger.error(`QQ官方：bot: ${session.bot.config.id}`);
-          exports.logger.error(`QQ官方：用户头像: http://q.qlogo.cn/qqapp/${session.bot.config.id}/${session.event.user?.id}/640`);
+          logInfo(`QQ官方：bot: ${session.bot.config.id}`);
+          logInfo(`QQ官方：用户头像: http://q.qlogo.cn/qqapp/${session.bot.config.id}/${session.event.user?.id}/640`);
         }
         logInfo(`使用背景URL: ${BackgroundURL}`);
 
@@ -499,18 +499,18 @@ ${dJson.unsignText}
                 const hintText2_encodedMessageTime = `${config.command2} ${encodedMessageTime}`;
                 const hintText2 = session.text(".Getbackgroundimage", [hintText2_encodedMessageTime]);
                 const combinedMessage2 = `${imageMessage}\n${hintText2}`;
-                if (config.consoleinfo) {
-                  exports.logger.info(`获取原图：\n${encodedMessageTime}`);
-                }
+
+                logInfo(`获取原图：\n${encodedMessageTime}`);
+
                 sentMessage = await session.send(combinedMessage2);
                 break;
 
               case '3': // 返回文字提示，且为单独发送的文字消息
                 const hintText3_encodedMessageTime = `${config.command2} ${encodedMessageTime}`;
                 const hintText3 = session.text(".Getbackgroundimage", [hintText3_encodedMessageTime]);
-                if (config.consoleinfo) {
-                  exports.logger.info(`获取原图：\n${encodedMessageTime}`);
-                }
+
+                logInfo(`获取原图：\n${encodedMessageTime}`);
+
                 sentMessage = await session.send(imageMessage); // 先发送图片消息
                 await session.send(hintText3); // 再单独发送提示
                 break;
