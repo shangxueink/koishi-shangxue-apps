@@ -62,6 +62,7 @@ const defaultMoreEmojiHub = [   // 下面实际有效为 40套
   { command: '狗妈表情包', source_url: path_1.join(__dirname, 'txts/狗妈.txt') },
   { command: '滑稽表情包', source_url: path_1.join(__dirname, 'txts/滑稽.txt') },
   { command: '疾旋鼬表情包', source_url: path_1.join(__dirname, 'txts/疾旋鼬.txt') },
+  { command: '卡拉彼丘表情包', source_url: path_1.join(__dirname, 'txts/卡拉彼丘.txt') },
   { command: '流萤表情包', source_url: path_1.join(__dirname, 'txts/流萤.txt') },
   { command: '龙图表情包', source_url: path_1.join(__dirname, 'txts/龙图.txt') },
   { command: '鹿乃子表情包', source_url: path_1.join(__dirname, 'txts/鹿乃子.txt') },
@@ -499,7 +500,8 @@ async function getRandomImageUrlFromFile(txtPath, config, channelId, command, ct
 
   // 没有前缀 "https://" ，添加前缀
   if (!txtUrl.startsWith("https://") && !txtUrl.startsWith("http://")) {
-    const koishiPrefix = "https://koishi-meme.itzdrli.com/meme/";
+    //const koishiPrefix = "https://koishi-meme.itzdrli.com/meme/";
+    const koishiPrefix = "https://memes.none.bot/meme/";
     const prefix = txtPath.includes("koimeme.txt") ? koishiPrefix : bilibiliPrefix;
     txtUrl = prefix + txtUrl;
   }

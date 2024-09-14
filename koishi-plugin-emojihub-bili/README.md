@@ -204,6 +204,11 @@ url         (https://koishi.chat/logo.png)
 <details>
 <summary>点击此处————查看更新日志</summary>
 
+- **1.0.0**
+   -  新增`卡拉彼丘`表情包
+   -  修复`koishi-meme`表情包链接
+   -  完善反馈渠道
+
 - **0.9.9**
    -  新增`藤田琴音`、`鹿乃子`表情包
 
