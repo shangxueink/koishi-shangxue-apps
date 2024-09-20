@@ -6,43 +6,49 @@ export const usage = `
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-  <meta charset="UTF-8">
-  <title>Bigjpg 图片放大插件使用说明</title>
+<meta charset="UTF-8">
+<title>Bigjpg 图片放大插件使用说明</title>
 </head>
 <body>
-  <h2>bigjpg 图片放大</h2>
-  <ul>
-    <li>支持将图片通过指定的风格进行放大，支持风格化和降噪处理</li>
-    <li>支持自动查询任务状态，根据配置返回放大后的图片链接、图片或者原始 JSON 数据</li>
-    <li>提供灵活的配置选项，包括超时时间、自动查询间隔、自定义提示信息等</li>
-    <li>提供日志调试功能，帮助用户追踪和解决问题</li>
-  </ul>
+<h2>bigjpg 图片放大</h2>
+<ul>
+<li>支持将图片通过指定的风格进行放大，支持风格化和降噪处理</li>
+<li>支持自动查询任务状态，根据配置返回放大后的图片链接、图片或者原始 JSON 数据</li>
+<li>提供灵活的配置选项，包括超时时间、自动查询间隔、自定义提示信息等</li>
+<li>提供日志调试功能，帮助用户追踪和解决问题</li>
+</ul>
 
-  <h2>使用方法</h2>
-  <h3>图片放大指令</h3>
-  <p>用户可以通过 <code>放大图片</code> 命令来上传并放大图片。可以指定放大风格、降噪程度和放大倍数：</p>
-  <ul>
-    <li><strong>指令格式</strong>：</li>
-  </ul>
-  <pre><code>/放大图片 -s &lt;style&gt; -n &lt;noise&gt; -x &lt;x2&gt;</code></pre>
-  <ul>
-    <li><code>-s &lt;style&gt;</code>：指定放大风格，支持 <code>art</code>（卡通插画）和 <code>photo</code>（照片）。</li>
-    <li><code>-n &lt;noise&gt;</code>：指定降噪程度，支持 <code>-1</code>（无降噪）和 <code>0</code>（低降噪）。</li>
-    <li><code>-x &lt;x2&gt;</code>：指定放大倍数，支持 <code>1</code>（2x）、<code>2</code>（4x）、<code>3</code>（8x）、<code>4</code>（16x）。</li>
-  </ul>
-  <p>例子：</p>
-  <pre><code>/放大图片 -s art -n 0 -x 2</code></pre>
+---
 
-  <h3>查询任务状态</h3>
-  <p>用户可以使用 <code>查询任务状态 &lt;taskIds...&gt;</code> 来查询已提交任务的状态。任务状态会根据配置返回图片、链接或者 JSON 数据。</p>
-  <p>例子：</p>
-  <pre><code>/查询任务状态 dfed390aaa154bf7a9e10dabf93fd7a9</code></pre>
+<h2>使用方法</h2>
+<h3>图片放大指令</h3>
+<p>用户可以通过 <code>放大图片</code> 命令来上传并放大图片。可以指定放大风格、降噪程度和放大倍数：</p>
+<ul>
+<li><strong>指令格式</strong>：</li>
+</ul>
+<pre><code>/放大图片 -s &lt;style&gt; -n &lt;noise&gt; -x &lt;x2&gt;</code></pre>
+<ul>
+<li><code>-s &lt;style&gt;</code>：指定放大风格，支持 <code>art</code>（卡通插画）和 <code>photo</code>（照片）。</li>
+<li><code>-n &lt;noise&gt;</code>：指定降噪程度，支持 <code>-1</code>（无降噪）和 <code>0</code>（低降噪）。</li>
+<li><code>-x &lt;x2&gt;</code>：指定放大倍数，支持 <code>1</code>（2x）、<code>2</code>（4x）、<code>3</code>（8x）、<code>4</code>（16x）。</li>
+</ul>
+<p>例子：</p>
+<pre><code>/放大图片 -s art -n 0 -x 2</code></pre>
 
-  <h2>获取 API 密钥</h2>
-  <p>在使用本插件之前，你需要前往 <a href="https://bigjpg.com/zh" target="_blank">Bigjpg 官网 https://bigjpg.com/zh</a> 注册并获取 API 密钥。此密钥是调用图片放大服务的必需参数。</p>
-  <p><a href="" target="_blank">点击查看图解</a></p>
+<h3>查询任务状态</h3>
+<p>用户可以使用 <code>查询任务状态 &lt;taskIds...&gt;</code> 来查询已提交任务的状态。任务状态会根据配置返回图片、链接或者 JSON 数据。</p>
+<p>例子：</p>
+<pre><code>/查询任务状态 dfed390aaa154bf7a9e10dabf93fd7a9</code></pre>
 
-  <hr>
+---
+
+<h2>获取 API 密钥</h2>
+<p>在使用本插件之前，你需要前往 <a href="https://bigjpg.com/zh" target="_blank">Bigjpg 官网 https://bigjpg.com/zh</a> 注册并获取 API 密钥。此密钥是调用图片放大服务的必需参数。</p>
+<p><a href="https://ghp.ci/https://raw.githubusercontent.com/shangxueink/koishi-shangxue-apps/main/koishi-plugin-image-upscale-bigjpg/2024-09-21_00-23-48.png" target="_blank">点击查看获取 API KEY 图解</a></p>
+
+<p><a href="https://ghp.ci/https://raw.githubusercontent.com/shangxueink/koishi-shangxue-apps/main/koishi-plugin-image-upscale-bigjpg/2024-09-21_00-43-39.png" target="_blank">点击查看 Bigjpg 价格表</a></p>
+
+<hr>
 </body>
 </html>
 

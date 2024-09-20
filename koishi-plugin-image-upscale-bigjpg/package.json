@@ -1,17 +1,23 @@
 {
   "name": "koishi-plugin-image-upscale-bigjpg",
-  "description": "",
-  "version": "0.0.1",
+  "description": "/*bigjpg 图片放大服务*/使用bigjpg来放大你的图片吧！支持最高16倍放大。[bigjpg价格表](https://ghp.ci/https://raw.githubusercontent.com/shangxueink/koishi-shangxue-apps/main/koishi-plugin-image-upscale-bigjpg/2024-09-21_00-43-39.png) 每月免费20次放大，支持付费服务。[点我查看详细使用说明](https://www.npmjs.com/package/koishi-plugin-image-upscale-bigjpg)",
+  "version": "1.0.0",
   "main": "lib/index.js",
   "typings": "lib/index.d.ts",
   "files": [
     "lib",
     "dist"
   ],
+  "homepage": "https://github.com/shangxueink/koishi-shangxue-apps/tree/main/",
+  "bugs": {
+    "url": "https://github.com/shangxueink/koishi-shangxue-apps/issues"
+  },
   "license": "MIT",
   "keywords": [
     "chatbot",
     "koishi",
+    "图片放大服务",
+    "bigjpg",
     "plugin"
   ],
   "peerDependencies": {
