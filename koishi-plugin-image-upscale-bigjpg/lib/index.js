@@ -55,7 +55,7 @@ var usage = `
 <pre><code>/放大图片 -s &lt;style&gt; -n &lt;noise&gt; -x &lt;x2&gt;</code></pre>
 <ul>
 <li><code>-s &lt;style&gt;</code>：指定放大风格，支持 <code>art</code>（卡通插画）和 <code>photo</code>（照片）。</li>
-<li><code>-n &lt;noise&gt;</code>：指定降噪程度，支持 <code>-1</code>（无降噪）和 <code>0</code>（低降噪）。</li>
+<li><code>-n &lt;noise&gt;</code>：指定降噪程度，支持 <code>-1</code>（无降噪）、<code>0</code>（低降噪）、<code>1</code>（中降噪）、<code>2</code>（高降噪）、<code>3</code>（最高降噪）。</li>
 <li><code>-x &lt;x2&gt;</code>：指定放大倍数，支持 <code>1</code>（2x）、<code>2</code>（4x）、<code>3</code>（8x）、<code>4</code>（16x）。</li>
 </ul>
 <p>例子：</p>
@@ -77,7 +77,6 @@ var usage = `
 <hr>
 </body>
 </html>
-
 `;
 var Config = import_koishi.Schema.intersect([
   import_koishi.Schema.object({
@@ -92,7 +91,10 @@ var Config = import_koishi.Schema.intersect([
     ]).role("radio").default("art").description("指定放大风格"),
     bigjpg_noise: import_koishi.Schema.union([
       import_koishi.Schema.const("-1").description("无降噪"),
-      import_koishi.Schema.const("0").description("低降噪")
+      import_koishi.Schema.const("0").description("低降噪"),
+      import_koishi.Schema.const("1").description("中降噪"),
+      import_koishi.Schema.const("2").description("高降噪"),
+      import_koishi.Schema.const("3").description("最高降噪")
     ]).role("radio").default("0").description("指定降噪程度"),
     bigjpg_x2: import_koishi.Schema.union([
       import_koishi.Schema.const("1").description("2x"),

@@ -29,7 +29,7 @@ export const usage = `
 <pre><code>/放大图片 -s &lt;style&gt; -n &lt;noise&gt; -x &lt;x2&gt;</code></pre>
 <ul>
 <li><code>-s &lt;style&gt;</code>：指定放大风格，支持 <code>art</code>（卡通插画）和 <code>photo</code>（照片）。</li>
-<li><code>-n &lt;noise&gt;</code>：指定降噪程度，支持 <code>-1</code>（无降噪）和 <code>0</code>（低降噪）。</li>
+<li><code>-n &lt;noise&gt;</code>：指定降噪程度，支持 <code>-1</code>（无降噪）、<code>0</code>（低降噪）、<code>1</code>（中降噪）、<code>2</code>（高降噪）、<code>3</code>（最高降噪）。</li>
 <li><code>-x &lt;x2&gt;</code>：指定放大倍数，支持 <code>1</code>（2x）、<code>2</code>（4x）、<code>3</code>（8x）、<code>4</code>（16x）。</li>
 </ul>
 <p>例子：</p>
@@ -51,9 +51,7 @@ export const usage = `
 <hr>
 </body>
 </html>
-
 `;
-
 
 export interface Config {
   timeout: number;
@@ -64,7 +62,7 @@ export interface Config {
   loggerinfo: boolean;
   wait_text_tip: string;
   bigjpg_style: 'art' | 'photo';
-  bigjpg_noise: '-1' | '0';
+  bigjpg_noise: '-1' | '0' | '1' | '2' | '3';
   bigjpg_x2: '1' | '2' | '3' | '4';
 }
 
@@ -72,7 +70,7 @@ export const Config: Schema<Config> = Schema.intersect([
   Schema.object({
     apiKey: Schema.string().description('API 密钥').required(),
     timeout: Schema.number().description('等待上传图片的超时时间（单位：秒）').default(30).min(5).max(90),
-    wait_text_tip: Schema.string().description('提交任务后返回的 文字提示').default('已经提交任务咯\~ 任务ID为： '),
+    wait_text_tip: Schema.string().description('提交任务后返回的 文字提示').default('已经提交任务咯~ 任务ID为： '),
   }).description('基础设置'),
   Schema.object({
     bigjpg_style: Schema.union([
@@ -82,6 +80,9 @@ export const Config: Schema<Config> = Schema.intersect([
     bigjpg_noise: Schema.union([
       Schema.const('-1').description('无降噪'),
       Schema.const('0').description('低降噪'),
+      Schema.const('1').description('中降噪'),
+      Schema.const('2').description('高降噪'),
+      Schema.const('3').description('最高降噪'),
     ]).role('radio').default('0').description('指定降噪程度'),
     bigjpg_x2: Schema.union([
       Schema.const('1').description('2x'),
@@ -115,7 +116,7 @@ export function apply(ctx: Context, config: Config) {
   }
 
   // 放大图片函数
-  async function upscaleImage(style: 'art' | 'photo', noise: '-1' | '0', x2: '1' | '2' | '3' | '4', input: string) {
+  async function upscaleImage(style: 'art' | 'photo', noise: '-1' | '0' | '1' | '2' | '3', x2: '1' | '2' | '3' | '4', input: string) {
     logInfo(`开始放大图片，参数: style=${style}, noise=${noise}, x2=${x2}, input=${input}`);
     try {
       const response = await fetch(UPSCALE_URL, {
@@ -188,7 +189,7 @@ export function apply(ctx: Context, config: Config) {
       logInfo(`放大参数：风格：${options.style}，降噪程度：${options.noise}，放大倍数：${options.x2}`);
       const response = await upscaleImage(
         options.style as 'art' | 'photo',
-        options.noise as '-1' | '0',
+        options.noise as '-1' | '0' | '1' | '2' | '3',
         options.x2 as '1' | '2' | '3' | '4',
         input
       );
