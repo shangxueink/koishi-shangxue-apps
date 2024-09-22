@@ -219,7 +219,7 @@ function apply(ctx, config) {
     const elements = h.parse(reply);
     logInfo('Parsed elements:  ' + elements)
     const replyData = await Promise.all(elements.map(async element => {
-      if (element.type === 'img') {
+      if (element.type === 'img' || element.type === 'image') {
         let localPath;
         switch (config.picture_save_to_local_send) {
           case '1':
@@ -238,7 +238,7 @@ function apply(ctx, config) {
             localPath = element.attrs.src;
         }
         return {
-          type: 'img',
+          type: 'image',
           text: `${localPath}`,
           fileSize: element.attrs.fileSize
         };
@@ -639,14 +639,14 @@ function apply(ctx, config) {
           const formattedReply = await formatReply(reply, true);
           result.children.push(formattedReply);
         }
-        logInfo(result);       
+        logInfo(result);
         await session.send(result); // 发送合并转发消息
       }
     };
 
     const formatReply = async (reply, returnElement = false) => {
       let formattedReply;
-      if (reply.type === 'img') {
+      if (reply.type === 'img' || reply.type === 'image') {
         if (config.picture_save_to_local_send === '3') {
           const base64fileData = await downloadImageAsBase64(reply.text);
           formattedReply = returnElement ?

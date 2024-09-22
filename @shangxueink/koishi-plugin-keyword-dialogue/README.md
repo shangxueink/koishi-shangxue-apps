@@ -67,6 +67,11 @@
 <details>
 <summary>点击此处————查看更新日志</summary>
 
+-  **0.6.1**
+    -   进一步兼容喵喵插件的json
+    -   优化图片回复type字段为image，兼容处理img
+    -   完善package.json反馈地址
+
 -  **0.6.0**
     -   重构`middlewareFunction`中间件函数
     -   优化日志输出函数，避免代码重复
