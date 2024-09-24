@@ -87,7 +87,7 @@ exports.Config = Schema.intersect([
       Schema.const('4').description('保存图片为base64到json，发送时使用base64 `json会变得好长唔，不推荐`'),
     ]).role('radio').default('2').description('开启后 图片回复保存到本地路径`防止平台图片链接失效`'),
 
-    Prompt: Schema.string().default('请输入回复内容（输入 取消添加 以取消，输入 结束添加 以结束）：').description('添加时，返回的文字提示'),
+    Prompt: Schema.string().role('textarea', { rows: [2, 4] }).default('请输入回复内容（输入 取消添加 以取消，输入 结束添加 以结束）：').description('添加时，返回的文字提示'),
     MatchPatternForExit: Schema.union([
       Schema.const('1').description('不使用KeywordOfEnd（不使用多段输入），仅接受一次性的输入'),
       Schema.const('2').description('完全匹配KeywordOfEnd时退出'),
@@ -121,7 +121,7 @@ exports.Config = Schema.intersect([
     Search_Range: Schema.union([
       Schema.const('1').description('仅在当前频道搜索问答'),
       Schema.const('2').description('搜索全部问答'),
-    ]).role('radio').default('2').description("搜索范围"),
+    ]).role('radio').default('1').description("搜索范围"),
     Find_Return_Preset: Schema.union([
       Schema.const('1').description('仅返回问答的内容'),
       Schema.const('2').description('仅返回问答所在的频道ID/位置'),
@@ -454,6 +454,45 @@ function apply(ctx, config) {
     }
   }
 
+  async function formatReply(reply, returnElement = false) {
+    let formattedReply;
+    if (reply.type === 'img' || reply.type === 'image') {
+      if (config.picture_save_to_local_send === '3') {
+        const base64fileData = await downloadImageAsBase64(reply.text);
+        formattedReply = returnElement ?
+          (0, h)('image', { url: 'data:image/png;base64,' + base64fileData }) :
+          `${h('image', { url: 'data:image/png;base64,' + base64fileData })}\n`;
+      } else if (config.picture_save_to_local_send === '4') {
+        formattedReply = returnElement ?
+          (0, h)('image', { url: 'data:image/png;base64,' + reply.text }) :
+          `${h('image', { url: 'data:image/png;base64,' + reply.text })}\n`;
+      } else {
+        formattedReply = returnElement ?
+          (0, h)('image', { url: reply.text }) :
+          `${h.image(reply.text)}\n`;
+      }
+    } else if (reply.type === 'text') {
+      formattedReply = returnElement ?
+        (0, h)('text', { content: reply.text }) :
+        `${h.text(reply.text)}\n`;
+    } else if (reply.type === 'audio') {
+      formattedReply = returnElement ?
+        (0, h)('audio', { url: reply.text }) :
+        `${h.audio(reply.text)}\n`;
+    } else if (reply.type === 'video') {
+      formattedReply = returnElement ?
+        (0, h)('video', { url: reply.text }) :
+        `${h.video(reply.text)}\n`;
+    } else if (reply.type === 'unknown') {
+      formattedReply = returnElement ?
+        (0, h)('text', { content: reply.text }) :
+        `${reply.text}\n`;
+    }
+    const returnformatReply = returnElement ? (0, h)('message', {}, formattedReply) : formattedReply;
+    logInfo(returnformatReply)
+    return returnformatReply;
+  };
+
   // 搜索关键词
   ctx.command(`keyword-dialogue/${KeywordOfSearch} [Keyword]`)
     .action(async ({ session }, Keyword) => {
@@ -461,7 +500,6 @@ function apply(ctx, config) {
         await session.send(h.text(session.text(`.Only_admin_auth`)));
         return;
       }
-
       if (!Keyword) {
         await session.send(h.text(session.text(`.no_Valid_Keyword`)));
         return;
@@ -470,29 +508,40 @@ function apply(ctx, config) {
       const searchRange = config.Search_Range;
       const returnPreset = config.Find_Return_Preset;
       const returnLimit = config.Return_Limit;
-
       const searchFiles = searchRange === '2'
         ? fs.readdirSync(root).filter(file => file.endsWith('.json'))
         : [`${session.channelId}.json`];
 
       let results = [];
-
       for (const file of searchFiles) {
         const filePath = path.join(root, file);
         if (fs.existsSync(filePath)) {
+          // 读取文件内容
           const data = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+
+          // 搜索关键词
           for (const key in data) {
             const normalizedKey = config.Treat_all_as_lowercase ? key.toLowerCase() : key;
             if (normalizedKey.includes(Keyword.toLowerCase())) {
               const channelId = file.replace('.json', '');
-              const replies = data[key].map(replyGroup => replyGroup.map(reply => reply.text).join('\n')).join('\n\n');
+
+              // 使用 formatReply 处理每个回复组，确保图片和文字格式化正确
+              const formattedReplies = await Promise.all(data[key].map(async replyGroup => {
+                let combinedReply = '';
+                for (const reply of replyGroup) {
+                  combinedReply += await formatReply(reply, false); // 使用 formatReply 函数处理图片和文本
+                }
+                return combinedReply.trim();
+              }));
+
               if (returnPreset === '1') {
-                results.push(session.text(`.Keyword_found_content_only`, [key, replies]));
+                results.push(h.unescape(session.text(`.Keyword_found_content_only`, [key, formattedReplies.join('\n\n')])));
               } else if (returnPreset === '2') {
-                results.push(session.text(`.Keyword_found_in_channel`, [channelId, key]));
+                results.push(h.unescape(session.text(`.Keyword_found_in_channel`, [channelId, key])));
               } else if (returnPreset === '3') {
-                results.push(session.text(`.Keyword_found`, [channelId, key, replies]));
+                results.push(h.unescape(session.text(`.Keyword_found`, [channelId, key, formattedReplies.join('\n\n')])));
               }
+
               if (returnLimit === '2') {
                 break;
               }
@@ -510,6 +559,8 @@ function apply(ctx, config) {
         await session.send(results.join('\n\n'));
       }
     });
+
+
 
   // 删除关键词
   ctx.command(`keyword-dialogue/${delete_command} [Keyword]`)
@@ -642,44 +693,6 @@ function apply(ctx, config) {
         logInfo(result);
         await session.send(result); // 发送合并转发消息
       }
-    };
-
-    const formatReply = async (reply, returnElement = false) => {
-      let formattedReply;
-      if (reply.type === 'img' || reply.type === 'image') {
-        if (config.picture_save_to_local_send === '3') {
-          const base64fileData = await downloadImageAsBase64(reply.text);
-          formattedReply = returnElement ?
-            (0, h)('image', { url: 'data:image/png;base64,' + base64fileData }) :
-            `${h('image', { url: 'data:image/png;base64,' + base64fileData })}\n`;
-        } else if (config.picture_save_to_local_send === '4') {
-          formattedReply = returnElement ?
-            (0, h)('image', { url: 'data:image/png;base64,' + reply.text }) :
-            `${h('image', { url: 'data:image/png;base64,' + reply.text })}\n`;
-        } else {
-          formattedReply = returnElement ?
-            (0, h)('image', { url: reply.text }) :
-            `${h.image(reply.text)}\n`;
-        }
-      } else if (reply.type === 'text') {
-        formattedReply = returnElement ?
-          (0, h)('text', { content: reply.text }) :
-          `${h.text(reply.text)}\n`;
-      } else if (reply.type === 'audio') {
-        formattedReply = returnElement ?
-          (0, h)('audio', { url: reply.text }) :
-          `${h.audio(reply.text)}\n`;
-      } else if (reply.type === 'video') {
-        formattedReply = returnElement ?
-          (0, h)('video', { url: reply.text }) :
-          `${h.video(reply.text)}\n`;
-      } else if (reply.type === 'unknown') {
-        formattedReply = returnElement ?
-          (0, h)('text', { content: reply.text }) :
-          `${reply.text}\n`;
-      }
-
-      return returnElement ? (0, h)('message', {}, formattedReply) : formattedReply;
     };
 
 
