@@ -310,6 +310,15 @@ function apply(ctx, config) {
     await session.send(h.unescape(session.text(`.Reply_deleted`, [keyword])));
   }
 
+  function escapeRegExp(string) {
+    // 使用正则表达式匹配所有正则元字符，并进行转义
+    return string.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')
+      // 处理特殊的空白字符，例如 \s, \n, \r 这种情况
+      .replace(/\s/g, '\\s')
+      // 避免多次转义已经存在的 \\
+      .replace(/\\\\/g, '\\');
+  }
+
   async function addKeywordReply(session, filePath, keyword, config, isRegex, isGlobal) {
     let data;
     try {
@@ -322,7 +331,9 @@ function apply(ctx, config) {
       keyword = keyword.toLowerCase();
     }
 
-    const key = isRegex ? `regex:${keyword}` : keyword;
+    //const key = isRegex ? `regex:${keyword}` : keyword;
+    const key = isRegex ? `regex:${escapeRegExp(keyword)}` : keyword;
+
     if (!data[key]) {
       data[key] = [];
     }
