@@ -518,16 +518,26 @@ async function apply(ctx, config) {
     }
 
     // 首先检查是否为指定用户对指定指令的调用
-    const commandUserIdCheck = config.command_userId_list.find(item => item.command === userCommand && item.userId === session.userId);
+    const commandUserIdCheck = config.command_userId_list.find(item => item.command === userCommand);
+
     if (commandUserIdCheck) {
-      if (commandUserIdCheck.enable === '黑名单') {
+      if (commandUserIdCheck.enable === '黑名单' && commandUserIdCheck.userId === session.userId) {
+        // 如果用户在黑名单中，阻止执行
         logInfo(`用户 ${session.userId} 尝试调用指令 ${commandUserIdCheck.command}，但在黑名单中，阻止执行`);
-        return; // 黑名单中的用户，不允许执行该指令
+        return; // 黑名单中的用户不允许执行该指令
       } else if (commandUserIdCheck.enable === '白名单') {
-        logInfo(`用户 ${session.userId} 调用指令 ${commandUserIdCheck.command}，且在白名单中，允许执行`);
-        return next(); // 白名单中的用户，允许执行
+        if (commandUserIdCheck.userId === session.userId) {
+          // 用户在白名单中，允许执行
+          logInfo(`用户 ${session.userId} 调用指令 ${commandUserIdCheck.command}，且在白名单中，允许执行`);
+          return next(); // 白名单中的用户允许执行
+        } else {
+          // 用户不在白名单中，阻止执行
+          logInfo(`用户 ${session.userId} 调用指令 ${commandUserIdCheck.command}，但不在白名单中，不允许执行`);
+          return; // 非白名单用户不允许执行该指令
+        }
       }
     }
+
 
     if (config.Allow_trigger) {
       // 允许通过某些指令      
