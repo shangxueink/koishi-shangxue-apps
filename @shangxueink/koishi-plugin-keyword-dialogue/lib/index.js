@@ -77,6 +77,7 @@ exports.Config = Schema.intersect([
     addKeywordTime: Schema.number().role('slider').min(1).max(30).step(1).default(5).description('添加回复的输入时限，超过则视为超时，取消添加。`单位 分钟`'),
     defaultImageExtension: Schema.union(['jpg', 'png', 'gif']).default('png').description('输入图片保存的后缀名'),
   }).description('基础设置'),
+
   Schema.object({
     Only_admin_auth: Schema.boolean().default(false).description('开启后 仅允许 管理员/群主 使用本插件的指令 `须确保适配器支持获取群员角色`'),
     Treat_all_as_lowercase: Schema.boolean().default(true).description('开启后 英文关键词匹配无视大写字母`解决英文大小写匹配问题`'),
@@ -103,13 +104,18 @@ exports.Config = Schema.intersect([
       Schema.const('1').description('不返回文字提示，直接替换/覆盖'),
       Schema.const('2').description('不返回文字提示，直接在原关键词回答上添加并列回答（每次仅从中选择随机一种回复）'),
       Schema.const('3').description('返回文字提示，不允许重复添加（删除后才可添加）'),
-    ]).role('radio').default('3').description("如何处理待添加的重复关键词"),
+    ]).role('radio').default('2').description("如何处理待添加的重复关键词"),
     MultisegmentAdditionRecoveryEffect: Schema.union([
       Schema.const('1').description('按照原版输入，原版输出（多段消息发送）'),
       Schema.const('2').description('合为图文消息/多行消息（一次发出，不是合并转发）'),
       Schema.const('3').description('合并转发发送 `需要适配器支持哦~`'),
     ]).role('radio').default('2').description("多段添加的回复效果"),
   }).description('进阶设置'),
+
+  Schema.object({
+    prefix: Schema.array(String).role('table').default(["", "/", "#"]).description('指令前缀。将被用于指令的匹配。<br>与全局设置的那个，效果差不多，但是仅针对本插件的关键词。'),
+  }).description('关键词设置'),
+
   Schema.object({
     Frequency_limitation: Schema.number().description('同一问答的最小触发间隔 单位：秒').default(0),
     Type_of_restriction: Schema.union([
@@ -117,6 +123,7 @@ exports.Config = Schema.intersect([
       Schema.const('2').description('仅对同一个频道（不同频道独立记数间隔）'),
     ]).role('radio').default('2').description("最小间隔时间的限制对象"),
   }).description('回复设置'),
+
   Schema.object({
     Search_Range: Schema.union([
       Schema.const('1').description('仅在当前频道搜索问答'),
@@ -132,6 +139,7 @@ exports.Config = Schema.intersect([
       Schema.const('2').description('仅返回一条问答（模糊匹配）'),
     ]).role('radio').default('2').description("返回限制"),
   }).description('查找问答设置'),
+
   Schema.object({
     Preposition_middleware: Schema.boolean().default(false).description('开启后 使用前置中间件`匹配到关键词后，不会触发 同实例下 同名称的指令`<br>可以实现回复“指令正在维护中”的效果'),
     consoleInfo: Schema.boolean().default(false).description('日志调试模式')
@@ -680,6 +688,11 @@ function apply(ctx, config) {
     const channelFilePath = path.join(root, `${channelId}.json`);
     let combinedReply = '';
 
+    // 添加前缀处理逻辑
+    const getPrefixedKeywords = (keyword, prefixes) => {
+      return prefixes.map(prefix => prefix + keyword);
+    };
+
     const sendReplies = async (session, replyGroup) => {
       if (config.MultisegmentAdditionRecoveryEffect === '1') {
         for (const reply of replyGroup) {
@@ -713,12 +726,23 @@ function apply(ctx, config) {
         for (const keyword in data) {
           const replies = data[keyword];
           let isMatch = false;
-          if (keyword.startsWith('regex:')) {
+          /*if (keyword.startsWith('regex:')) {
             const regexPattern = keyword.substring(6);
             const regex = new RegExp(regexPattern);
             isMatch = regex.test(anothercontent);
           } else {
             isMatch = anothercontent === keyword;
+          }*/
+          // 获取当前关键词对应的所有可能的带前缀的关键词
+          const prefixedKeywords = getPrefixedKeywords(keyword, config.prefix || ["", "/", "#"]);
+
+          if (keyword.startsWith('regex:')) {
+            const regexPattern = keyword.substring(6);
+            const regex = new RegExp(regexPattern);
+            isMatch = regex.test(anothercontent);
+          } else {
+            // 遍历所有带前缀的关键词，看是否匹配
+            isMatch = prefixedKeywords.some(prefixedKeyword => anothercontent === prefixedKeyword);
           }
           if (isMatch) {
             const now = Date.now();
