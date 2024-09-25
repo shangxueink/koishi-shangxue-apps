@@ -363,6 +363,11 @@ function apply(ctx, config) {
       const timeout = config.addKeywordTime * 60000; // 转换为毫秒
       const reply = await session.prompt(timeout);
 
+      if (reply.includes(config.KeywordOfEsc)) {
+        await session.send(h.text(session.text(`.Cancel_operation`)));
+        return;
+      }
+
       if (!reply) {
         await session.send(h.text(session.text(`.Input_Timeout`)));
         return;
