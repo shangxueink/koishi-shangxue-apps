@@ -58,13 +58,15 @@ var Config = import_koishi.Schema.intersect([
     ).description("API Key 和请求地址列表").disabled()
       .default([["https://api.mhimg.cn/", "是免费小学喵？"]]),
     Interface_Selection: import_koishi.Schema.union([
-      import_koishi.Schema.const('Gpt_renshe').description('热心网友'),
-      import_koishi.Schema.const('gpt_semao').description('涩猫'),
-      import_koishi.Schema.const('gpt_aimaoniang').description('猫娘'),
-      import_koishi.Schema.const('gpt_lianaiqiluo').description('女友绮罗'),
-      import_koishi.Schema.const('gpt_aojiaojj').description('傲娇姐姐'),
+      import_koishi.Schema.const('gpt_baidu').description('百度文心千帆模型'),
+      //import_koishi.Schema.const('gpt__openai').description('OpenAI-3.5模型'), //接口有问题 //[code：-1, msg：未提交Key！]
+      import_koishi.Schema.const('Gpt_renshe').description('热心网友模型'),
+      import_koishi.Schema.const('gpt_semao').description('涩猫模型'),
+      import_koishi.Schema.const('gpt_aimaoniang').description('猫娘模型'),
+      import_koishi.Schema.const('gpt_lianaiqiluo').description('女友绮罗模型'),
+      import_koishi.Schema.const('gpt_aojiaojj').description('傲娇姐姐模型'),
       //import_koishi.Schema.const('').description('),
-    ]).role('radio').description('使用的API接口(模型)').default('Gpt_renshe'),
+    ]).role('radio').description('使用的API接口(模型)<br>此处仅选择接口，预设请在chatluna主插件最下方选择').default('Gpt_renshe'),
   }).description("请求设置"),
   import_koishi.Schema.object({
     maxTokens: import_koishi.Schema.number().description(
@@ -436,6 +438,12 @@ function apply(ctx, config) {
 
       let requestUrl;
       switch (config.Interface_Selection) {
+        case 'gpt_baidu':
+          requestUrl = `https://api.mhimg.cn/api/gpt_baidu/?prompt=${encodeURIComponent(prompt)}`;
+          break;
+        //case 'gpt__openai':
+        //requestUrl = `https://api.mhimg.cn/api/gpt__openai/?prompt=${encodeURIComponent(prompt)}`; //[code：-1, msg：未提交Key！]
+        //break;
         case 'Gpt_renshe':
           requestUrl = `https://api.mhimg.cn/api/Gpt_renshe/?coder=%E7%83%AD%E5%BF%83%E7%BD%91%E5%8F%8B&prompt=${encodeURIComponent(prompt)}`;
           //https://api.mhimg.cn/api/gpt_aimaoniang/?coder=热心网友&prompt=${encodeURIComponent(prompt)}
@@ -456,8 +464,8 @@ function apply(ctx, config) {
           requestUrl = `https://api.mhimg.cn/api/gpt_aimaoniang/?prompt=${encodeURIComponent(prompt)}`;
       }
       logInfo(`使用模型： ${config.Interface_Selection}`);
-      logInfo(`prompt: ${prompt}`);
-      logInfo(`Making GET request to URL: ${requestUrl}`);
+      //logInfo(`prompt: ${prompt}`);
+      //logInfo(`Making GET request to URL: ${requestUrl}`);
 
       return this._plugin.fetch(requestUrl, {
         method: "GET",
@@ -554,7 +562,7 @@ function apply(ctx, config) {
         }
       }
 
-      logInfo(`Request URL: ${fullUrl}`);
+      //logInfo(`Request URL: ${fullUrl}`);
       return fullUrl;
     }
   };

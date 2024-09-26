@@ -1,7 +1,7 @@
 {
   "name": "koishi-plugin-chatluna-freexiaoxue-adapter",
   "description": "/freexiaoxue adapter for chatluna/ 免费小学？ 整合一些免费AI接口咪~",
-  "version": "1.1.2",
+  "version": "1.1.3",
   "main": "lib/index.cjs",
   "module": "lib/index.mjs",
   "typings": "lib/index.d.ts",
@@ -18,8 +18,9 @@
   },
   "type": "module",
   "license": "AGPL-3.0",
+  "homepage": "https://github.com/shangxueink/koishi-shangxue-apps/tree/main/",
   "bugs": {
-    "url": "https://github.com/ChatLunaLab/chatluna/issues"
+    "url": "https://github.com/shangxueink/koishi-shangxue-apps/issues"
   },
   "scripts": {
     "build": "atsc -b"
