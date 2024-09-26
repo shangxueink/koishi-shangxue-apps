@@ -111,6 +111,11 @@ var usage = `
 
 ---
 
+<h2>开发理念</h2>
+<p>本插件秉持为用户提供便捷、免费服务的理念而开发。若您在使用过程中发现免费服务不能满足您的需求，欢迎选择付费服务。</p>
+<p>我们推荐访问 <a href="https://uurzzcoaegnw.gzg.sealos.run/" target="_blank">https://uurzzcoaegnw.gzg.sealos.run/</a>，并结合 <code>chatluna-openai-like-adapter</code> 进行使用，以获得更优质的体验。（该站点开发者在chatluna群，出问题可以拷打）</p>
+
+
 `;
 /*
 ---
