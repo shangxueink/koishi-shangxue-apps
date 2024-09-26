@@ -19,7 +19,6 @@ exports.usage = `
 <h1>插件使用说明</h1>
 <p>本插件是专门为图文教程和问答场景设计的，能让你的机器人根据关键词自动回复内容哦。</p>
 <p>如果你使用过云崽的喵喵插件的添加/删除功能，那你会更容易上手本插件的！</p>
-
 <h2>核心功能</h2>
 <ul>
 <li><strong>关键词管理：</strong>你可以通过指令添加或删除关键词及其回复内容。</li>
@@ -29,10 +28,11 @@ exports.usage = `
 <li>全局添加/删除：使用指令 <code>全局添加 [关键词]</code> 和 <code>全局删除 [关键词]</code> 来在全局范围内管理关键词。</li>
 </ul>
 <li><strong>回复内容：</strong>支持文本和图片回复，图片会被保存到本地，避免失效。</li>
-<li><strong>正则表达式支持：</strong>你可以使用正则表达式来匹配关键词。例如，输入 <code>添加 你好 -x</code>，可以匹配任何包含“你好”的消息，如“你好啊啊啊啊”。</li>
+<li><strong>正则表达式支持：</strong>你可以使用正则表达式来匹配关键词。例如，输入 <code>添加 你好 -x</code>，可以匹配任何包含“你好”的消息，如“你好，包含了你好的句子就可以触发哦”。</li>
 <li><strong>自定义输入时限：</strong>你可以设置添加回复的输入时限，超过时限将视为超时，自动取消添加操作。</li>
 <li><strong>多段回复效果：</strong>你可以选择多段输入的回复效果，支持逐条发送或合并为一条消息。</li>
-</ul>
+<li><strong>后缀支持空格匹配：</strong>使用数字指定回复序号，空格和无空格都能正常匹配。例如，<code>你好 2</code> 和 <code>你好2</code> 都会触发【你好】的第二个回复。</li>
+<li><strong>修改指定序号的回复内容：</strong>使用 <code>修改 [关键词] -q [序号]</code>，可以修改某个关键词的指定回复。例如，输入 <code>修改 你好 -q 2</code>，将会修改“你好”的第二条回复，并显示当前内容，供你确认后再输入新的回复内容。暂时仅支持修改指令一次性输入回复，暂不支持多段添加。</li>
 
 <h2>使用示例</h2>
 <ul>
@@ -41,28 +41,28 @@ exports.usage = `
 <li>删除关键词：<code>删除 你好</code></li>
 <li>全局添加关键词：<code>全局添加 你好</code></li>
 <li>全局删除关键词：<code>全局删除 你好</code></li>
+<li>修改指定回复：<code>修改 你好 -q 2</code>（修改“你好”的第二条回复）</li>
 </ul>
 
 <hr>
-
 <h2>修改插件回复内容</h2>
-<p>如果你需要修改这个插件的回复内容，你需要具备一定的编辑json的能力。</p>
+<p>如果你需要修改这个插件的回复内容，你需要具备一定的编辑 JSON 文件的能力。</p>
 <p>你可以在 Koishi 控制台左侧的活动栏找到【资源管理器】页面，</p>
 <p>然后依次找到文件夹【data】-&gt;【keyword-dialogue】文件夹下的各种【***（群号）***.json】文件。</p>
 <p>你可以在里面编辑和修改 JSON 内容。</p>
 
 <hr>
-
 <h2>注意事项</h2>
 <ul>
 <li>默认情况下，<code>添加/删除</code> 的问答是按群组分隔的。只有 <code>全局添加/删除</code> 才支持多群组同样的回复。</li>
 <li>请确保解析到的图片链接是可以访问的。</li>
 <li>这个插件需要确保 接入平台 端和 koishi 端运行在同一台机器上，以确保本地图片能够正确保存和发送。</li>
 <li>在使用正则表达式时，请确保输入的模式是有效的，以避免匹配错误。</li>
-<li>如果你添加了语音/视频消息回复，请确保已经安装了silk、ffmpeg等服务！</li>
+<li>如果你添加了语音/视频消息回复，请确保已经安装了 silk、ffmpeg 等服务！</li>
 </ul>
 </body>
 </html>
+
 `;
 
 exports.Config = Schema.intersect([
@@ -74,6 +74,7 @@ exports.Config = Schema.intersect([
     GlobalTriggerPrefix: Schema.string().default('全局添加').description('触发`全局添加关键词`功能的指令（可在全局范围内生效）'),
     GlobalDeleteKeyword: Schema.string().default('全局删除').description('触发`全局删除关键词`功能的指令'),
     KeywordOfSearch: Schema.string().default('查找关键词').description('触发`搜索关键词`功能的关键词'),
+    KeywordOfFix: Schema.string().default('修改').description('触发`修改问答`功能的关键词'),
     addKeywordTime: Schema.number().role('slider').min(1).max(30).step(1).default(5).description('添加回复的输入时限，超过则视为超时，取消添加。`单位 分钟`'),
     defaultImageExtension: Schema.union(['jpg', 'png', 'gif']).default('png').description('输入图片保存的后缀名'),
   }).description('基础设置'),
@@ -152,6 +153,7 @@ function apply(ctx, config) {
   const delete_command = config.DeleteKeyword;  //  删除
   const global_delete_command = config.GlobalDeleteKeyword; //  全局删除
   const KeywordOfSearch = config.KeywordOfSearch; //  搜索关键词
+  const KeywordOfFix = config.KeywordOfFix; // 修改
 
   const zh_CN_default = {
     commands: {
@@ -204,6 +206,21 @@ function apply(ctx, config) {
           "Keyword_found": "在 {0} 下找到：\n关键词：{1}\n回复：\n{2}",
           "Keyword_found_in_channel": "在 {0} 下找到关键词：{1}",
           "Keyword_found_content_only": "关键词：{0}\n回复：\n{1}"
+        }
+      },
+      [KeywordOfFix]: {
+        description: `查找关键词`,
+        messages: {
+          "Only_admin_auth": "仅允许群组管理员操作。",
+          "no_Valid_Keyword": "请提供一个有效的关键词。",
+          "Keyword_not_found": "未找到关键词 \"{0}\" 的相关问答。",
+          "Keyword_found": "在 {0} 下找到：\n关键词：{1}\n回复：\n{2}",
+          "Keyword_found_in_channel": "在 {0} 下找到关键词：{1}",
+          "Keyword_found_content_only": "关键词：{0}\n回复：\n{1}",
+          "Input_Timeout": "输入超时。",
+          "Cancel_operation": "添加操作已取消。",
+          "Keyword_exists": "关键词 \"{0}\" 已存在，不能添加重复的关键词。\n或者请删除这个关键词后重新添加。",
+          "Reply_added": "关键词 \"{0}\" 的回复已修改。"
         }
       }
     }
@@ -673,6 +690,68 @@ function apply(ctx, config) {
       await addKeywordReply(session, filePath, Keyword.trim(), config, options.regex, isGlobal);
     });
 
+  // 修改问答
+  ctx.command(`keyword-dialogue/${KeywordOfFix} [Keyword]`)
+    .option('question', '-q [number] 指定回复序号')
+    .action(async ({ session, options }, Keyword) => {
+      if (config.Only_admin_auth && !isAdmin(session)) {
+        await session.send(h.text(session.text(`.Only_admin_auth`)));
+        return;
+      }
+
+      if (!isValidKeyword(Keyword)) {
+        await session.send(h.text(session.text(`.no_Valid_Keyword`)));
+        return;
+      }
+
+      const filePath = options.global
+        ? path.join(root, 'global.json')
+        : path.join(root, `${session.channelId}.json`);
+      if (!fs.existsSync(filePath)) {
+        await session.send(h.text("未找到相关问答数据。"));
+        return;
+      }
+
+      const data = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+      const key = config.Treat_all_as_lowercase ? Keyword.toLowerCase() : Keyword;
+      const replies = data[key];
+
+      if (!replies) {
+        await session.send(h.text(`关键词 "${Keyword}" 不存在。`));
+        return;
+      }
+
+      const index = options.question ? options.question - 1 : 0;
+      if (index < 0 || index >= replies.length) {
+        await session.send(h.text(`指定的回复序号无效，请提供正确的序号。`));
+        return;
+      }
+
+      // 提示用户正在修改哪一条回复以及显示该回复内容
+      const currentReply = replies[index];
+      await session.send(h.text(`您正在修改的是【${Keyword}】的第【${index + 1}】条回复\n回复内容为：`));
+      await session.send(h.text(`${currentReply[0].text}`));  // 分开发，方便用户复制
+
+      await session.send(h.text("请一次性将回复内容完整输入以修改：\n➣输入 取消添加 以取消"));
+
+      const timeout = config.addKeywordTime * 60000; // 转换为毫秒
+      const reply = await session.prompt(timeout);
+
+      if (reply.includes(config.KeywordOfEsc)) {
+        await session.send(h.text(session.text(`.Cancel_operation`)));
+        return;
+      }
+      if (!reply) {
+        await session.send(h.text(session.text(`.Input_Timeout`)));
+        return;
+      }
+
+      const replyData = await parseReplyContent(reply, root, session, options.global);
+      data[key][index] = replyData; // 修改指定的回复
+      fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf-8');
+      await session.send(h.unescape((session.text(`.Reply_added`, [Keyword]))));
+    });
+
   const middlewareFunction = async (session, next) => {
     let { content, channelId, platform } = session;
     let anothercontent = unescapeHtml(content).trim();
@@ -691,12 +770,22 @@ function apply(ctx, config) {
 
     const globalFilePath = path.join(root, 'global.json');
     const channelFilePath = path.join(root, `${channelId}.json`);
-    let combinedReply = '';
 
     // 添加前缀处理逻辑
     const getPrefixedKeywords = (keyword, prefixes) => {
       return prefixes.map(prefix => prefix + keyword);
     };
+
+    // 获取关键词的指定后缀，支持【关键词+序号】与【关键词+空格+序号】来指定触发回复的第几条
+    const getSuffixIndex = (inputKeyword, baseKeyword) => {
+      const suffixPattern = new RegExp(`^${escapeRegExp(baseKeyword)}\\s*(\\d+)$`);
+      const match = inputKeyword.match(suffixPattern);
+      if (match) {
+        return parseInt(match[1], 10); // 返回指定的序号
+      }
+      return null; // 没有匹配后缀
+    };
+
 
     const sendReplies = async (session, replyGroup) => {
       if (config.MultisegmentAdditionRecoveryEffect === '1') {
@@ -731,35 +820,41 @@ function apply(ctx, config) {
         for (const keyword in data) {
           const replies = data[keyword];
           let isMatch = false;
-          /*if (keyword.startsWith('regex:')) {
-            const regexPattern = keyword.substring(6);
-            const regex = new RegExp(regexPattern);
-            isMatch = regex.test(anothercontent);
-          } else {
-            isMatch = anothercontent === keyword;
-          }*/
+
           // 获取当前关键词对应的所有可能的带前缀的关键词
           const prefixedKeywords = getPrefixedKeywords(keyword, config.prefix || ["", "/", "#"]);
 
-          if (keyword.startsWith('regex:')) {
-            const regexPattern = keyword.substring(6);
-            const regex = new RegExp(regexPattern);
-            isMatch = regex.test(anothercontent);
-          } else {
-            // 遍历所有带前缀的关键词，看是否匹配
-            isMatch = prefixedKeywords.some(prefixedKeyword => anothercontent === prefixedKeyword);
-          }
-          if (isMatch) {
-            const now = Date.now();
-            const key = config.Type_of_restriction === '2' ? `${keyword}:${channelId}` : keyword;
-            if (lastTriggerTimes[key] && now - lastTriggerTimes[key] < config.Frequency_limitation * 1000) {
-              logInfo("间隔时间未到，不触发回复");
-              return true; // 间隔时间未到，不触发回复
+          // 遍历所有带前缀的关键词，看是否匹配
+          for (const prefixedKeyword of prefixedKeywords) {
+            const suffixIndex = getSuffixIndex(anothercontent, prefixedKeyword);
+
+            if (keyword.startsWith('regex:')) {
+              const regexPattern = keyword.substring(6);
+              const regex = new RegExp(regexPattern);
+              isMatch = regex.test(anothercontent);
+            } else {
+              // 新增：根据后缀序号来判断匹配情况
+              if (anothercontent === prefixedKeyword) {
+                isMatch = true; // 直接匹配
+              } else if (suffixIndex !== null && suffixIndex > 0 && suffixIndex <= replies.length) {
+                // 指定序号范围内
+                await sendReplies(session, replies[suffixIndex - 1]);
+                return true;
+              }
             }
-            lastTriggerTimes[key] = now;
-            const randomReplyGroup = replies[Math.floor(Math.random() * replies.length)];
-            await sendReplies(session, randomReplyGroup);
-            return true;
+
+            if (isMatch) {
+              const now = Date.now();
+              const key = config.Type_of_restriction === '2' ? `${keyword}:${channelId}` : keyword;
+              if (lastTriggerTimes[key] && now - lastTriggerTimes[key] < config.Frequency_limitation * 1000) {
+                logInfo("间隔时间未到，不触发回复");
+                return true; // 间隔时间未到，不触发回复
+              }
+              lastTriggerTimes[key] = now;
+              const randomReplyGroup = replies[Math.floor(Math.random() * replies.length)];
+              await sendReplies(session, randomReplyGroup);
+              return true;
+            }
           }
         }
       }
