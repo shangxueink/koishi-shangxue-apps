@@ -283,7 +283,7 @@ function apply(ctx, config) {
   // 判断是否为管理员
   function isAdmin(session) {
     const sessionRoles = session.event.member.roles;
-    if (sessionRoles && sessionRoles.includes('admin')) {
+    if (sessionRoles && (sessionRoles.includes('admin')) || (sessionRoles.includes('owner'))) {
       return true;
     }
     return false;
