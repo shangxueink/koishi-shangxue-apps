@@ -336,13 +336,12 @@ function apply(ctx, config) {
   }
 
   function escapeRegExp(string) {
-    // 使用正则表达式匹配所有正则元字符，并进行转义
-    return string.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')
-      // 处理特殊的空白字符，例如 \s, \n, \r 这种情况
-      .replace(/\s/g, '\\s')
-      // 避免多次转义已经存在的 \\
-      .replace(/\\\\/g, '\\');
+    return string
+      .replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')  // 转义正则元字符
+      .replace(/\s/g, '\\s')                     // 转义空白字符
+      .replace(/\\\\/g, '\\\\');                 // 双反斜杠只处理一次
   }
+
 
   async function addKeywordReply(session, filePath, keyword, config, isRegex, isGlobal) {
     let data;
