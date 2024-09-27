@@ -28,7 +28,7 @@ Koishi插件市场搜索并安装`emojihub-bili`
 <summary>点击此处————查看更多指令</summary>
     
 | 随机emojihub表情包 |
-| ----------------- |
+| ------------------ |
 | 本地图库示例       |
 | 网络图片示例       |
 | 2233娘小剧场表情包 |
@@ -75,33 +75,33 @@ Koishi插件市场搜索并安装`emojihub-bili`
 ---
 
 
-| 功能/设置 | 详细说明 |
-|-----------|------------------------------------------------------------------------------------------------------------------|
-| **表情包设置** | |
-| `deleteMsg` | 开启后自动撤回表情包 |
-| `deleteMsgtime` | 自动撤回的秒数 |
-| `emojihub_bili_command` | 自定义表情包指令的父级指令 |
-| `MoreEmojiHub` | 配置您自定义的表情包指令和对应的表情包文件地址。<br />支持多个指令和地址。<br />也可以自定义文件夹路径，从文件夹发图。 |
-| `searchSubfolders` | 是否递归搜索文件夹。开启后 对于本地文件夹地址 会搜索其子文件夹内全部的图片 |
-| **进阶设置** | |
-| `autoEmoji` | 开启自动表情包功能。<br />当消息数量达到一定阈值时，将自动触发表情包发送。 |
-| `count` | 触发自动表情包的消息数量阈值。 |
-| `triggerprobability` | 触发自动发送表情包的概率，范围是 0 到 1。 |
-| `groupListmapping` | 配置哪些群组ID将开启自动表情包功能，可以为每个群组指定默认的表情包。 |
-| `allgroupautoEmoji` | 配置全部的群组开启自动表情包功能 |
-| `allgroupemojicommand` | 自定义全部群组的默认表情包内容 |
-| **QQ官方bot设置** | |
-| `mdid` | 用于定义QQ bot 的MD模板id |
-| `zlmdtext_1`, `zlmdtext_2` | Markdown中`文本`参数。 |
-| `zltext_1`, `zltext_2` | 包含多个文本选项，每次从这些预设文本中随机选择一个发送。 |
-| `zlmdp_1`, `zlmdp_2` | 定义在Markdown消息中使用的`图片`参数。<br />无需设置图片的具体尺寸。 |
-| `ButtonText1`, `ButtonText2` | 设置消息框中按钮的文本，例如“再来一张”和“返回列表”，方便用户操作。 |
-| `MinimumBoundary`, `Magnifymultiple` | 定义图片处理的边界条件，自动调整小于设定界限的图片尺寸，保证图片的清晰度和可视效果。 |
-| `QQPicToChannelUrl` | 本地图片通过频道URL作为群聊MD的图片链接 |
-| `QQbots` | 配置转换URL使用的机器人信息和频道 |
-| **调试设置** | |
-| `consoleinfo` | 启用日志调试模式，便于排查问题。 |
-| `allfileinfo` | 输出详细的`MoreEmojiHub 列表内容` |
+| 功能/设置                            | 详细说明                                                                                                               |
+| ------------------------------------ | ---------------------------------------------------------------------------------------------------------------------- |
+| **表情包设置**                       |                                                                                                                        |
+| `deleteMsg`                          | 开启后自动撤回表情包                                                                                                   |
+| `deleteMsgtime`                      | 自动撤回的秒数                                                                                                         |
+| `emojihub_bili_command`              | 自定义表情包指令的父级指令                                                                                             |
+| `MoreEmojiHub`                       | 配置您自定义的表情包指令和对应的表情包文件地址。<br />支持多个指令和地址。<br />也可以自定义文件夹路径，从文件夹发图。 |
+| `searchSubfolders`                   | 是否递归搜索文件夹。开启后 对于本地文件夹地址 会搜索其子文件夹内全部的图片                                             |
+| **进阶设置**                         |                                                                                                                        |
+| `autoEmoji`                          | 开启自动表情包功能。<br />当消息数量达到一定阈值时，将自动触发表情包发送。                                             |
+| `count`                              | 触发自动表情包的消息数量阈值。                                                                                         |
+| `triggerprobability`                 | 触发自动发送表情包的概率，范围是 0 到 1。                                                                              |
+| `groupListmapping`                   | 配置哪些群组ID将开启自动表情包功能，可以为每个群组指定默认的表情包。                                                   |
+| `allgroupautoEmoji`                  | 配置全部的群组开启自动表情包功能                                                                                       |
+| `allgroupemojicommand`               | 自定义全部群组的默认表情包内容                                                                                         |
+| **QQ官方bot设置**                    |                                                                                                                        |
+| `mdid`                               | 用于定义QQ bot 的MD模板id                                                                                              |
+| `zlmdtext_1`, `zlmdtext_2`           | Markdown中`文本`参数。                                                                                                 |
+| `zltext_1`, `zltext_2`               | 包含多个文本选项，每次从这些预设文本中随机选择一个发送。                                                               |
+| `zlmdp_1`, `zlmdp_2`                 | 定义在Markdown消息中使用的`图片`参数。<br />无需设置图片的具体尺寸。                                                   |
+| `ButtonText1`, `ButtonText2`         | 设置消息框中按钮的文本，例如“再来一张”和“返回列表”，方便用户操作。                                                     |
+| `MinimumBoundary`, `Magnifymultiple` | 定义图片处理的边界条件，自动调整小于设定界限的图片尺寸，保证图片的清晰度和可视效果。                                   |
+| `QQPicToChannelUrl`                  | 本地图片通过频道URL作为群聊MD的图片链接                                                                                |
+| `QQbots`                             | 配置转换URL使用的机器人信息和频道                                                                                      |
+| **调试设置**                         |                                                                                                                        |
+| `consoleinfo`                        | 启用日志调试模式，便于排查问题。                                                                                       |
+| `allfileinfo`                        | 输出详细的`MoreEmojiHub 列表内容`                                                                                      |
 
 ---
 
@@ -111,9 +111,9 @@ Koishi插件市场搜索并安装`emojihub-bili`
 
 比如配置的是
 
-| 指令名称 | 地址 |
-|-----|-------|
-| 本地文件夹 |   D:\pics\emojihub  |
+| 指令名称   | 地址             |
+| ---------- | ---------------- |
+| 本地文件夹 | D:\pics\emojihub |
 
 那你就可以使用 `本地文件夹 关键词` 来搜索是否存在 `关键词`这张图片
 
@@ -191,10 +191,10 @@ url         (https://koishi.chat/logo.png)
 本免责声明的最终解释权归插件开发者所有。如有疑问或需要进一步信息，请联系插件开发者。🌈 
 -  email： 1919892171@qq.com
 
-| 贡献者 | 项目鸣谢：（按首字母排序，不分先后） |
-|--------|------|
-| **Alin** | [https://github.com/Alin-sky](https://github.com/Alin-sky) |
-| **itzdrli** | [https://www.npmjs.com/\~itzdrli](https://www.npmjs.com/\~itzdrli) |
+| 贡献者       | 项目鸣谢：（按首字母排序，不分先后）                                 |
+| ------------ | -------------------------------------------------------------------- |
+| **Alin**     | [https://github.com/Alin-sky](https://github.com/Alin-sky)           |
+| **itzdrli**  | [https://www.npmjs.com/\~itzdrli](https://www.npmjs.com/\~itzdrli)   |
 | **sparkuix** | [https://www.npmjs.com/\~sparkuix](https://www.npmjs.com/\~sparkuix) |
 
 
@@ -203,6 +203,9 @@ url         (https://koishi.chat/logo.png)
 
 <details>
 <summary>点击此处————查看更新日志</summary>
+
+- **1.0.1**
+   -  兼容私聊markdown的发送
 
 - **1.0.0**
    -  新增`卡拉彼丘`表情包
