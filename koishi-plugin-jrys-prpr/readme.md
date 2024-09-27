@@ -27,42 +27,42 @@
 
 ### 插件配置说明
 #### FortuneProbabilityAdjustmentTable（运势抽取概率调节表）
-| 配置项 | 说明 |
-| --- | --- |
-| Fortune | 运势种类 |
-| luckValue（隐藏） | 种类数值（隐藏） |
-| Probability | 抽取权重，滑动选择0-100 |
+| 配置项            | 说明                    |
+| ----------------- | ----------------------- |
+| Fortune           | 运势种类                |
+| luckValue（隐藏） | 种类数值（隐藏）        |
+| Probability       | 抽取权重，滑动选择0-100 |
 注：权重均为0时使用默认配置项。
 #### BackgroundURL（背景图片设置）
-| 配置项 | 说明 |
-| --- | --- |
+| 配置项        | 说明                                              |
+| ------------- | ------------------------------------------------- |
 | BackgroundURL | 背景图片，可以是本地路径、文件夹路径或网络图片URL |
 
 需要注意的是：`原图`指令只会获取对于运势图的背景图链接，若使用随机图API作为背景图，会导致无法返回正确的背景图。
 
 因此我们推荐此处的背景图片，建议参考[emojihub-bili](https://www.npmjs.com/package/koishi-plugin-emojihub-bili)的图片方法。
 #### HTML_setting（渲染页面设置）
-| 配置项 | 说明 |
-| --- | --- |
-| UserNameColor | 用户名称的颜色 |
-| MaskColor | 蒙版的颜色 |
-| HoroscopeTextColor | 运势文字颜色 |
-| luckyStarGradientColor | 开启后运势星星使用彩色渐变 |
-| HoroscopeDescriptionTextColor | 运势说明文字颜色 |
-| DashedboxThickn | 虚线框的粗细，滑动选择0-20 |
-| Dashedboxcolor | 虚线框的颜色 |
-| textfont | 字体文件的绝对路径 |
+| 配置项                        | 说明                       |
+| ----------------------------- | -------------------------- |
+| UserNameColor                 | 用户名称的颜色             |
+| MaskColor                     | 蒙版的颜色                 |
+| HoroscopeTextColor            | 运势文字颜色               |
+| luckyStarGradientColor        | 开启后运势星星使用彩色渐变 |
+| HoroscopeDescriptionTextColor | 运势说明文字颜色           |
+| DashedboxThickn               | 虚线框的粗细，滑动选择0-20 |
+| Dashedboxcolor                | 虚线框的颜色               |
+| textfont                      | 字体文件的绝对路径         |
 #### markdown_setting（QQ官方机器人的markdown设置）
-| 配置项 | 说明 |
-| --- | --- |
-| mdid | QQ官方bot 的 MarkDown模板ID，格式为数字_数字 |
-| zlmdtext_1 | 指令MD参数MD文字参数1 |
-| zlmdtext_2 | 指令MD参数MD文字参数2 |
-| zltext_1 | 指令MD显示文字内容1，每次随机选一个发送 |
-| zltext_2 | 指令MD显示文字内容2，每次随机选一个发送 |
-| zlmdp_1 | 指令MD参数MD图片参数1，不需要设定图片宽高 |
-| zlmdp_2 | 指令MD参数MD图片参数2 |
-| ButtonText | 指令MD按钮上再来一张功能显示的文字 |
+| 配置项     | 说明                                         |
+| ---------- | -------------------------------------------- |
+| mdid       | QQ官方bot 的 MarkDown模板ID，格式为数字_数字 |
+| zlmdtext_1 | 指令MD参数MD文字参数1                        |
+| zlmdtext_2 | 指令MD参数MD文字参数2                        |
+| zltext_1   | 指令MD显示文字内容1，每次随机选一个发送      |
+| zltext_2   | 指令MD显示文字内容2，每次随机选一个发送      |
+| zlmdp_1    | 指令MD参数MD图片参数1，不需要设定图片宽高    |
+| zlmdp_2    | 指令MD参数MD图片参数2                        |
+| ButtonText | 指令MD按钮上再来一张功能显示的文字           |
 
 
 ## 更新日志
@@ -70,6 +70,9 @@
 
 <details>
 <summary>点击此处————查看更新日志</summary>
+
+- **0.6.2**
+    -   兼容私聊markdown发送
 
 - **0.6.1**
     -   优化qq平台的私聊，使用图文返回而不是markdown
