@@ -124,13 +124,19 @@ exports.Config = koishi_1.Schema.intersect([
 
   // Alin---ba-plugin 配置项
   koishi_1.Schema.object({
-    json_button_switch: koishi_1.Schema.boolean().description("`被动json按钮总开关，开启后`QQ官方配置项才生效（json按钮）<br>注意不要与下面被动md同时开，优先内容为发送json按钮").default(false),
-    json_button_mdid_emojilist: koishi_1.Schema.string().description('展示表情包列表的按钮<br>QQ官方bot 的 MarkDown模板ID<br>20个群即可使用的按钮！使用方法请见[README](https://www.npmjs.com/package/koishi-plugin-emojihub-bili)').pattern(/^\d+_\d+$/), // 102069859_1725953918
-    json_button_mdid_command: koishi_1.Schema.string().description('触发具体表情后发送的按钮<br>QQ官方bot 的 MarkDown模板ID<br>20个群即可使用的按钮！使用方法请见[README](https://www.npmjs.com/package/koishi-plugin-emojihub-bili)').pattern(/^\d+_\d+$/), // 102069859_1725953918
+    //------------------------------------json按钮---------20个群-------------------------------------------------------------------------------
+    json_button_switch: koishi_1.Schema.boolean().description("`被动json按钮总开关`开启后以生效JSON按钮配置项（json按钮）<br>注意不要与下面的其他模式同时开，优先发送json按钮").default(false),
+    json_setting: koishi_1.Schema.object({
 
-    //----------------------------------------------------------------------------------------------------------------------------
+      json_button_mdid_emojilist: koishi_1.Schema.string().description('展示表情包列表的按钮<br>QQ官方bot 的 JSON按钮模板ID<br>20个群即可使用的按钮！使用方法请见[README](https://www.npmjs.com/package/koishi-plugin-emojihub-bili)').pattern(/^\d+_\d+$/), // 102069859_1725953918
+      json_button_mdid_command: koishi_1.Schema.string().description('触发具体表情后发送的按钮<br>QQ官方bot 的 JSON按钮模板ID<br>20个群即可使用的按钮！使用方法请见[README](https://www.npmjs.com/package/koishi-plugin-emojihub-bili)').pattern(/^\d+_\d+$/), // 102069859_1725953918
 
-    MDswitch: koishi_1.Schema.boolean().description("`被动模板md总开关，开启后`QQ官方配置项才生效（被动markdown，模板md发送的）").default(false),
+    }).collapse().description('实现QQ官方bot `再来一张`和`返回列表`的按钮效果（JSON 按钮）'),
+
+
+    //--------------------------------------------被动md模板---2000上行消息人数-----------------------------------------------------------------------------
+
+    MDswitch: koishi_1.Schema.boolean().description("`被动模板md总开关 `开启后以生效被动md配置项（被动markdown，模板md发送的）").default(false),
     markdown_setting: koishi_1.Schema.object({
 
       mdid: koishi_1.Schema.string().description('QQ官方bot 的 MarkDown模板ID').pattern(/^\d+_\d+$/),
@@ -153,11 +159,27 @@ exports.Config = koishi_1.Schema.intersect([
 
       MinimumBoundary: koishi_1.Schema.number().default(200).description('`指令MD`过小图片的界限，宽或者高小于这个值就会自动放大到`Magnifymultiple`'),
       Magnifymultiple: koishi_1.Schema.number().default(1000).description('`指令MD`对于过小图片（宽/高小于`MinimumBoundary`）的放大目标的标准，默认放大到1000px'),
+
+      QQPicToChannelUrl: koishi_1.Schema.boolean().description("`开启后` 本地图片通过频道URL作为群聊MD的图片链接`须填写下方的 QQchannelId`").experimental().default(false),
+
+      QQchannelId: koishi_1.Schema.string().description('`填入QQ频道的频道ID`，将该ID的频道作为中转频道 <br> 频道ID可以用[inspect插件来查看](/market?keyword=inspect) `频道ID应为纯数字`').experimental().pattern(/^\S+$/),
+
+
     }).collapse().description('实现QQ官方bot `再来一张`和`返回列表`的按钮效果，需要`canvas`服务。<br> [适用本插件的QQ官方bot MD示例模版 可点击这里参考](https://www.npmjs.com/package/koishi-plugin-emojihub-bili)'),
 
-    QQPicToChannelUrl: koishi_1.Schema.boolean().description("`开启后` 本地图片通过频道URL作为群聊MD的图片链接`须填写下方的 QQchannelId`").experimental().default(false),
 
-    QQchannelId: koishi_1.Schema.string().description('`填入QQ频道的频道ID`，将该ID的频道作为中转频道 <br> 频道ID可以用[inspect插件来查看](/market?keyword=inspect) `频道ID应为纯数字`').experimental().pattern(/^\S+$/),
+    //----------------------------------------原生md-------10000上行消息人数-------钻石机器人----------------------------------------------------------------------
+    RAW_MD_switch: koishi_1.Schema.boolean().description("`原生md总开关` 开启后以生效原生markdown配置项").default(false),
+    RAW_MD_setting: koishi_1.Schema.object({
+
+      RAW_MD_emojilist_markdown: koishi_1.Schema.path({
+        filters: ['.json', '.JSON'],
+      }).description('原生markdown表情包指令列表<br>建议参考原文件，重写该文件').default(path_1.join(__dirname, 'qq/raw_markdown/RAW_MD_emojilist_markdown.json')),
+
+      RAW_MD_command_markdown: koishi_1.Schema.path({
+        filters: ['.json', '.JSON'],
+      }).description('原生markdown返回的表情包内容<br>建议参考原文件，重写该文件').default(path_1.join(__dirname, 'qq/raw_markdown/RAW_MD_command_markdown.json')),
+    }).collapse().description('实现QQ官方bot `再来一张`和`返回列表`的按钮效果'),
 
   }).description('QQ官方bot设置'),
 
@@ -247,97 +269,6 @@ async function getImageAsBase64(imagePath) {
   }
 }
 
-/**
- * 发送列表按钮
- * @param session 
- * @param command_list 指令数组，类型为字符串 
- * @returns 
- */
-function command_list_markdown(session, command_list, config) {
-  const mdid = config.markdown_setting.mdid;
-  let zllbmdtext_1 = config.markdown_setting.zllbmdtext_1;
-  let zllbmdtext_2 = config.markdown_setting.zllbmdtext_2;
-
-  const zllbtext_1_options = config.markdown_setting.zllbtext_1;
-  const zllbtext_2_options = config.markdown_setting.zllbtext_2;
-
-  const zllbtext_1 = zllbtext_1_options[Math.floor(Math.random() * zllbtext_1_options.length)];
-  const zllbtext_2 = zllbtext_2_options[Math.floor(Math.random() * zllbtext_2_options.length)];
-
-  const l1 = []
-  const l2 = []
-  const l3 = []
-  const l4 = []
-  const l5 = []
-  const l6 = []
-  const alllist = [l1, l2, l3, l4, l5, l6]
-  // 遍历x中的每个元素，平均分配到arrays中的每个数组
-  let cindex = 0; // 当前数组的索引
-  let itemCount = 0; // 当前数组已接收的元素数量
-  for (let i = 0; i < command_list.length; i++) {
-    alllist[cindex].push(
-      {
-        render_data: { label: command_list[i], style: 1 },
-        action: {
-          type: 2, // 指令按钮
-          permission: { type: 2 }, // 所有人可点击
-          data: `/${command_list[i]}`, // 点击后发送
-          enter: true, // 若 false 则填入输入框
-        },
-      }
-    );
-    itemCount++;
-    if (itemCount === 4) {
-      // 移动到下一个数组
-      cindex++;
-      // 重置元素计数器
-      itemCount = 0;
-      // 如果已经是最后一个数组，则从头开始
-      if (cindex === alllist.length) {
-        cindex = 0;
-      }
-    }
-  }
-
-  return {
-    msg_type: 2,
-    msg_id: session.messageId,
-    markdown: {
-      custom_template_id: mdid,//mdid
-      params: [
-        {
-          key: zllbmdtext_1,
-          values: [zllbtext_1],//这是第一段文字
-        },
-        {
-          key: zllbmdtext_2,
-          values: [zllbtext_2],//这是第二段文字
-        },
-      ]
-    },
-    keyboard: {
-      content: {
-        rows: [
-          {
-            buttons: l1,
-          },
-          {
-            buttons: l2,
-          },
-          {
-            buttons: l3,
-          },
-          {
-            buttons: l4,
-          },
-          {
-            buttons: l5,
-          },
-        ],
-      },
-    },
-  }
-}
 
 async function determineImagePath(txtPath, config, channelId, command, ctx, local_picture_name = null) {
   // 判断是否是直接的图片链接
@@ -610,6 +541,129 @@ function apply(ctx, config) {
   var zh_CN_default = applyI18n(emojihub_bili_codecommand)
   ctx.i18n.define("zh-CN", zh_CN_default);
 
+
+  function logInfomessage(message) {
+    if (config.consoleinfo) {
+      logger.info(message);
+    }
+  }
+
+
+  /**
+ * 发送列表按钮
+ * @param session 
+ * @param command_list 指令数组，类型为字符串 
+ * @returns 
+ */
+  function command_list_markdown(session, command_list) {
+    if (config.MDswitch && !config.RAW_MD_switch) {
+      const mdid = config.markdown_setting.mdid;
+      let zllbmdtext_1 = config.markdown_setting.zllbmdtext_1;
+      let zllbmdtext_2 = config.markdown_setting.zllbmdtext_2;
+
+      const zllbtext_1_options = config.markdown_setting.zllbtext_1;
+      const zllbtext_2_options = config.markdown_setting.zllbtext_2;
+
+      const zllbtext_1 = zllbtext_1_options[Math.floor(Math.random() * zllbtext_1_options.length)];
+      const zllbtext_2 = zllbtext_2_options[Math.floor(Math.random() * zllbtext_2_options.length)];
+
+      const l1 = []
+      const l2 = []
+      const l3 = []
+      const l4 = []
+      const l5 = []
+      const l6 = []
+      const alllist = [l1, l2, l3, l4, l5, l6]
+      // 遍历x中的每个元素，平均分配到arrays中的每个数组
+      let cindex = 0; // 当前数组的索引
+      let itemCount = 0; // 当前数组已接收的元素数量
+      for (let i = 0; i < command_list.length; i++) {
+        alllist[cindex].push(
+          {
+            render_data: { label: command_list[i], style: 1 },
+            action: {
+              type: 2, // 指令按钮
+              permission: { type: 2 }, // 所有人可点击
+              data: `/${command_list[i]}`, // 点击后发送
+              enter: true, // 若 false 则填入输入框
+            },
+          }
+        );
+        itemCount++;
+        if (itemCount === 4) {
+          // 移动到下一个数组
+          cindex++;
+          // 重置元素计数器
+          itemCount = 0;
+          // 如果已经是最后一个数组，则从头开始
+          if (cindex === alllist.length) {
+            cindex = 0;
+          }
+        }
+      }
+
+      return {
+        msg_type: 2,
+        msg_id: session.messageId,
+        markdown: {
+          custom_template_id: mdid,//mdid
+          params: [
+            {
+              key: zllbmdtext_1,
+              values: [zllbtext_1],//这是第一段文字
+            },
+            {
+              key: zllbmdtext_2,
+              values: [zllbtext_2],//这是第二段文字
+            },
+          ]
+        },
+        keyboard: {
+          content: {
+            rows: [
+              {
+                buttons: l1,
+              },
+              {
+                buttons: l2,
+              },
+              {
+                buttons: l3,
+              },
+              {
+                buttons: l4,
+              },
+              {
+                buttons: l5,
+              },
+            ],
+          },
+        },
+      }
+    }
+    if (config.RAW_MD_switch && !config.MDswitch) { // 原生 markdown  //RAW_MD_emojilist_markdown
+
+      try {
+        // 读取 JSON 文件内容
+        const rawMarkdownFilePath = config.RAW_MD_setting.RAW_MD_emojilist_markdown;
+        const rawMarkdownData = fs.readFileSync(rawMarkdownFilePath, 'utf-8');
+        // 使用正则表达式替换占位符
+        const replacedMarkdownData = rawMarkdownData
+          .replace(/\$\{session\.messageId\}/g, session.messageId);
+
+        // 将替换后的字符串转换回对象
+        const rawMarkdownCommand = JSON.parse(replacedMarkdownData);
+
+        logInfomessage(rawMarkdownCommand);
+        // 返回最终的结果
+        return rawMarkdownCommand
+      } catch (error) {
+        logInfomessage(`解析 RAW_MD_emojilist_markdown 出错: ${error}`);
+        return null;
+      }
+    }
+  }
+
   /**
    * 发送md
    * @param session 
@@ -618,92 +672,137 @@ function apply(ctx, config) {
    * @returns 
    */
   async function markdown(session, command, imageUrl) {
-    const mdid = config.markdown_setting.mdid;
-    const mdkey1 = config.markdown_setting.zlmdp_1;
-    const mdkey2 = config.markdown_setting.zlmdp_2;
+    if (config.MDswitch && !config.RAW_MD_switch) {  // 被动markdown发送
+      const mdid = config.markdown_setting.mdid;
+      const mdkey1 = config.markdown_setting.zlmdp_1;
+      const mdkey2 = config.markdown_setting.zlmdp_2;
 
-    const zltext_1_options = config.markdown_setting.zltext_1;
-    const zltext_2_options = config.markdown_setting.zltext_2;
+      const zltext_1_options = config.markdown_setting.zltext_1;
+      const zltext_2_options = config.markdown_setting.zltext_2;
 
-    const zltext_1 = zltext_1_options[Math.floor(Math.random() * zltext_1_options.length)];
-    const zltext_2 = zltext_2_options[Math.floor(Math.random() * zltext_2_options.length)];
+      const zltext_1 = zltext_1_options[Math.floor(Math.random() * zltext_1_options.length)];
+      const zltext_2 = zltext_2_options[Math.floor(Math.random() * zltext_2_options.length)];
 
-    let zlmdtext_1 = config.markdown_setting.zlmdtext_1;
-    let zlmdtext_2 = config.markdown_setting.zlmdtext_2;
+      let zlmdtext_1 = config.markdown_setting.zlmdtext_1;
+      let zlmdtext_2 = config.markdown_setting.zlmdtext_2;
 
-    const ButtonText1 = config.markdown_setting.ButtonText1;
-    const ButtonText2 = config.markdown_setting.ButtonText2;
+      const ButtonText1 = config.markdown_setting.ButtonText1;
+      const ButtonText2 = config.markdown_setting.ButtonText2;
 
-    const emojihub_bili_command = config.emojihub_bili_command;
+      const emojihub_bili_command = config.emojihub_bili_command;
 
-    const canvasimage = await ctx.canvas.loadImage(imageUrl);
-    let originalWidth = canvasimage.naturalWidth || canvasimage.width;
-    let originalHeight = canvasimage.naturalHeight || canvasimage.height;
+      const canvasimage = await ctx.canvas.loadImage(imageUrl);
+      let originalWidth = canvasimage.naturalWidth || canvasimage.width;
+      let originalHeight = canvasimage.naturalHeight || canvasimage.height;
 
-    const MinimumTarget = config.markdown_setting.MinimumBoundary;
-    const magnifyTarget = config.markdown_setting.Magnifymultiple;
-    // 等比放大图片
-    if (originalWidth < MinimumTarget || originalHeight < MinimumTarget) {
-      const scale = magnifyTarget / Math.min(originalWidth, originalHeight);
-      originalWidth = Math.round(originalWidth * scale);
-      originalHeight = Math.round(originalHeight * scale);
-      if (config.consoleinfo) { logger.info(`宽度放大到了 ${originalWidth} 高度放大到了 ${originalHeight}`); }
-    }
+      const MinimumTarget = config.markdown_setting.MinimumBoundary;
+      const magnifyTarget = config.markdown_setting.Magnifymultiple;
+      // 等比放大图片
+      if (originalWidth < MinimumTarget || originalHeight < MinimumTarget) {
+        const scale = magnifyTarget / Math.min(originalWidth, originalHeight);
+        originalWidth = Math.round(originalWidth * scale);
+        originalHeight = Math.round(originalHeight * scale);
+        logInfomessage(`宽度放大到了 ${originalWidth} 高度放大到了 ${originalHeight}`);
+      }
 
-    return {
-      msg_type: 2,
-      msg_id: session.messageId,
-      markdown: {
-        custom_template_id: mdid, //md的模版id
-        params: [
-          {
-            key: zlmdtext_1,
-            values: [zltext_1],//这是第一段文字
-          },
-          {
-            key: zlmdtext_2,
-            values: [zltext_2],//这是第二段文字
-          },
-          {
-            key: mdkey1,  //md参数1
-            values: [`![img#${originalWidth}px #${originalHeight}px]`],
-          },
-          {
-            key: mdkey2,  //md参数2
-            values: [`(${imageUrl})`],
-          },
-        ]
-      },
-      keyboard: {
-        content: {
-          rows: [
+      const functionmarkdownreturn = {
+        msg_type: 2,
+        msg_id: session.messageId,
+        markdown: {
+          custom_template_id: mdid, //md的模版id
+          params: [
             {
-              buttons: [
-                {
-                  render_data: { label: `${ButtonText1}`, style: 2 },// 按钮显示的文字。style是按钮样式，有0、1、2
-                  action: {
-                    type: 2, // 指令按钮
-                    permission: { type: 2 }, // 所有人可点击
-                    data: `/${command}`, // 点击后发送
-                    enter: true, // 若 false 则填入输入框
-                  },
-                },
-                {
-                  render_data: { label: `${ButtonText2}`, style: 2 },
-                  action: {
-                    type: 2,
-                    permission: { type: 2 },
-                    data: `/${emojihub_bili_command}`,
-                    enter: true,
-                  },
-                },
-              ]
+              key: zlmdtext_1,
+              values: [zltext_1],//这是第一段文字
             },
-          ],
+            {
+              key: zlmdtext_2,
+              values: [zltext_2],//这是第二段文字
+            },
+            {
+              key: mdkey1,  //md参数1
+              values: [`![img#${originalWidth}px #${originalHeight}px]`],
+            },
+            {
+              key: mdkey2,  //md参数2
+              values: [`(${imageUrl})`],
+            },
+          ]
         },
-      },
+        keyboard: {
+          content: {
+            rows: [
+              {
+                buttons: [
+                  {
+                    render_data: { label: `${ButtonText1}`, style: 2 },// 按钮显示的文字。style是按钮样式，有0、1、2
+                    action: {
+                      type: 2, // 指令按钮
+                      permission: { type: 2 }, // 所有人可点击
+                      data: `/${command}`, // 点击后发送
+                      enter: true, // 若 false 则填入输入框
+                    },
+                  },
+                  {
+                    render_data: { label: `${ButtonText2}`, style: 2 },
+                    action: {
+                      type: 2,
+                      permission: { type: 2 },
+                      data: `/${emojihub_bili_command}`,
+                      enter: true,
+                    },
+                  },
+                ]
+              },
+            ],
+          },
+        },
+      }
+      logInfomessage(functionmarkdownreturn)
+      return functionmarkdownreturn
+
+    }
+    if (config.RAW_MD_switch && !config.MDswitch) { // 原生 markdown
+      const canvasimage = await ctx.canvas.loadImage(imageUrl);
+      let originalWidth = canvasimage.naturalWidth || canvasimage.width;
+      let originalHeight = canvasimage.naturalHeight || canvasimage.height;
+      const MinimumTarget = config.markdown_setting.MinimumBoundary;
+      const magnifyTarget = config.markdown_setting.Magnifymultiple;
+
+      // 等比放大图片
+      if (originalWidth < MinimumTarget || originalHeight < MinimumTarget) {
+        const scale = magnifyTarget / Math.min(originalWidth, originalHeight);
+        originalWidth = Math.round(originalWidth * scale);
+        originalHeight = Math.round(originalHeight * scale);
+        logInfomessage(`宽度放大到了 ${originalWidth} 高度放大到了 ${originalHeight}`);
+      }
+
+      try {
+        // 读取 JSON 文件内容
+        const rawMarkdownFilePath = config.RAW_MD_setting.RAW_MD_command_markdown;
+        const rawMarkdownData = fs.readFileSync(rawMarkdownFilePath, 'utf-8');
+        // 使用正则表达式替换占位符
+        const replacedMarkdownData = rawMarkdownData
+          .replace(/\$\{session\.messageId\}/g, session.messageId)
+          .replace(/\$\{imageurl\}/g, imageUrl)
+          .replace(/\$\{originalWidth\}/g, originalWidth)
+          .replace(/\$\{originalHeight\}/g, originalHeight)
+          .replace(/\$\{command\}/g, command)
+          .replace(/\$\{config\.emojihub_bili_command\}/g, config.emojihub_bili_command);
+
+        // 将替换后的字符串转换回对象
+        const rawMarkdownCommand = JSON.parse(replacedMarkdownData);
+
+        logInfomessage(rawMarkdownCommand);
+        // 返回最终的结果
+        return rawMarkdownCommand
+      } catch (error) {
+        logInfomessage(`解析 RAW_MD_command_markdown 出错: ${error}`);
+        return null;
+      }
     }
   }
+
 
   let acmd = []
   config.MoreEmojiHub.forEach(({ command, source_url }) => {
@@ -712,17 +811,17 @@ function apply(ctx, config) {
       .usage('emojihub父级指令 触发后列出全部的子指令!')
       .action(async ({ session }) => {
         const txtCommandList = listAllCommands(config);
-        if (config.consoleinfo) {
-          logger.info(`指令列表txtCommandList：  ` + txtCommandList);
-        }
 
-        if (config.json_button_switch && config.json_button_mdid_emojilist) {
+        logInfomessage(`指令列表txtCommandList：  ` + txtCommandList);
+
+
+        if (config.json_button_switch && config.json_setting.json_button_mdid_emojilist) {
           let markdownMessage = {
             msg_id: session.event.message.id,
             msg_type: 2,
             content: "", // content可传入不进去哦~  只能发按钮
             keyboard: {
-              id: config.json_button_mdid_emojilist
+              id: config.json_setting.json_button_mdid_emojilist
             },
           }
 
@@ -732,12 +831,12 @@ function apply(ctx, config) {
             await session.qq.sendPrivateMessage(session.event.user?.id, markdownMessage);
           }
 
-        } else if (config.MDswitch && config.markdown_setting.mdid &&
+        } else if ((config.MDswitch && config.markdown_setting.mdid &&
           config.markdown_setting.zlmdp_1 && config.markdown_setting.zlmdp_2 &&
-          session.platform === 'qq') {
+          session.platform === 'qq') || config.RAW_MD_switch) {
           // 使用 Markdown 发送命令列表 
 
-          let markdownMessage = command_list_markdown(session, txtCommandList, config);
+          let markdownMessage = command_list_markdown(session, txtCommandList);
           if (session.event.guild?.id) {
             await session.qq.sendMessage(session.channelId, markdownMessage);
           } else {
@@ -763,9 +862,9 @@ function apply(ctx, config) {
 
         try {
           let message;
-          if (config.MDswitch && config.markdown_setting.mdid &&
+          if ((config.MDswitch && config.markdown_setting.mdid &&
             config.markdown_setting.zlmdp_1 && config.markdown_setting.zlmdp_2 &&
-            session.platform === 'qq') {
+            session.platform === 'qq') || config.RAW_MD_switch) {
             // MD发送图片的逻辑
             //logger.info(`MD发送图片`);
             if (imageResult.isLocal) {
@@ -783,9 +882,9 @@ function apply(ctx, config) {
                   message = session.qq.sendPrivateMessage(session.event.user?.id, await markdown(session, command, MDimagebase64));
                 }
 
-              } else if (config.QQPicToChannelUrl) {
+              } else if (config.markdown_setting.QQPicToChannelUrl) {
 
-                const uploadedImageURL = await uploadImageToChannel(ctx, config.consoleinfo, url_1.pathToFileURL(imageResult.imageUrl).href, session.bot.config.id, session.bot.config.secret, config.QQchannelId);
+                const uploadedImageURL = await uploadImageToChannel(ctx, config.consoleinfo, url_1.pathToFileURL(imageResult.imageUrl).href, session.bot.config.id, session.bot.config.secret, config.markdown_setting.QQchannelId);
 
 
                 if (session.event.guild?.id) {
@@ -822,13 +921,13 @@ function apply(ctx, config) {
                 //logger.info(imagebase64)
                 message = await session.send(koishi_1.h('image', { url: 'data:image/png;base64,' + imagebase64 }));
 
-                if (config.json_button_switch && config.json_button_mdid_command && session.platform === 'qq') { // 发送图片后，发送json按钮
+                if (config.json_button_switch && config.json_setting.json_button_mdid_command && session.platform === 'qq') { // 发送图片后，发送json按钮
                   let markdownMessage = {
                     msg_id: session.event.message.id,
                     msg_type: 2,
                     content: "", // content可传入不进去哦~  只能发按钮
                     keyboard: {
-                      id: config.json_button_mdid_emojilist
+                      id: config.json_setting.json_button_mdid_command
                     },
                   }
                   if (session.event.guild?.id) {
@@ -841,13 +940,13 @@ function apply(ctx, config) {
                 //正常本地文件发图
                 const imageUrl = url_1.pathToFileURL(imageResult.imageUrl).href;
                 message = await session.send(koishi_1.h.image(imageUrl));
-                if (config.json_button_switch && config.json_button_mdid_command && session.platform === 'qq') { // 发送图片后，发送json按钮
+                if (config.json_button_switch && config.json_setting.json_button_mdid_command && session.platform === 'qq') { // 发送图片后，发送json按钮
                   let markdownMessage = {
                     msg_id: session.event.message.id,
                     msg_type: 2,
                     content: "", // content可传入不进去哦~  只能发按钮
                     keyboard: {
-                      id: config.json_button_mdid_emojilist
+                      id: config.json_setting.json_button_mdid_command
                     },
                   }
                   if (session.event.guild?.id) {
@@ -860,13 +959,13 @@ function apply(ctx, config) {
             } else {
               // 网络URL
               message = await session.send(koishi_1.h.image(imageResult.imageUrl));
-              if (config.json_button_switch && config.json_button_mdid_command && session.platform === 'qq') { // 发送图片后，发送json按钮
+              if (config.json_button_switch && config.json_setting.json_button_mdid_command && session.platform === 'qq') { // 发送图片后，发送json按钮
                 let markdownMessage = {
                   msg_id: session.event.message.id,
                   msg_type: 2,
                   content: "", // content可传入不进去哦~  只能发按钮
                   keyboard: {
-                    id: config.json_button_mdid_emojilist
+                    id: config.json_setting.json_button_mdid_command
                   },
                 }
                 if (session.event.guild?.id) {
