@@ -1034,7 +1034,7 @@ url         (https://koishi.chat/logo.png)
 <details>
 <summary>点击此处————查看更新日志</summary>
 
-- **1.0.4**
+- **1.0.5**
    -  适配原生markdown发送逻辑
    -  优化 markdown 发送逻辑
    -  优化QQ官方机器人配置项排列

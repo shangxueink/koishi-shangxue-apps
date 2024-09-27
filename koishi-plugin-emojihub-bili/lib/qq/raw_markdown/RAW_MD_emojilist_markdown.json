@@ -184,66 +184,66 @@
                                 "data": "/柴郡",
                                 "enter": true
                             }
+                        }
+                    ]
+                },
+                {
+                    "buttons": [
+                        {
+                            "render_data": {
+                                "label": "初音Q版",
+                                "style": 1
+                            },
+                            "action": {
+                                "type": 2,
+                                "permission": {
+                                    "type": 2
+                                },
+                                "data": "/初音Q版",
+                                "enter": true
+                            }
                         },
                         {
-                            "buttons": [
-                                {
-                                    "render_data": {
-                                        "label": "初音Q版",
-                                        "style": 1
-                                    },
-                                    "action": {
-                                        "type": 2,
-                                        "permission": {
-                                            "type": 2
-                                        },
-                                        "data": "/初音Q版",
-                                        "enter": true
-                                    }
+                            "render_data": {
+                                "label": "甘城猫猫",
+                                "style": 1
+                            },
+                            "action": {
+                                "type": 2,
+                                "permission": {
+                                    "type": 2
                                 },
-                                {
-                                    "render_data": {
-                                        "label": "甘城猫猫",
-                                        "style": 1
-                                    },
-                                    "action": {
-                                        "type": 2,
-                                        "permission": {
-                                            "type": 2
-                                        },
-                                        "data": "/甘城猫猫",
-                                        "enter": true
-                                    }
+                                "data": "/甘城猫猫",
+                                "enter": true
+                            }
+                        },
+                        {
+                            "render_data": {
+                                "label": "疾旋鼬",
+                                "style": 1
+                            },
+                            "action": {
+                                "type": 2,
+                                "permission": {
+                                    "type": 2
                                 },
-                                {
-                                    "render_data": {
-                                        "label": "疾旋鼬",
-                                        "style": 1
-                                    },
-                                    "action": {
-                                        "type": 2,
-                                        "permission": {
-                                            "type": 2
-                                        },
-                                        "data": "/疾旋鼬",
-                                        "enter": true
-                                    }
+                                "data": "/疾旋鼬",
+                                "enter": true
+                            }
+                        },
+                        {
+                            "render_data": {
+                                "label": "流萤",
+                                "style": 1
+                            },
+                            "action": {
+                                "type": 2,
+                                "permission": {
+                                    "type": 2
                                 },
-                                {
-                                    "render_data": {
-                                        "label": "流萤",
-                                        "style": 1
-                                    },
-                                    "action": {
-                                        "type": 2,
-                                        "permission": {
-                                            "type": 2
-                                        },
-                                        "data": "/流萤",
-                                        "enter": true
-                                    }
-                                }
-                            ]
+                                "data": "/流萤",
+                                "enter": true
+                            }
                         }
                     ]
                 },
