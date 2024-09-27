@@ -24,8 +24,8 @@ exports.usage = `
 <li><strong>关键词管理：</strong>你可以通过指令添加或删除关键词及其回复内容。</li>
 <ul>
 <li>添加关键词：使用指令 <code>添加 [关键词]</code> 来添加关键词。</li>
-<li>删除关键词：使用指令 <code>删除 [关键词]</code> 来删除关键词。</li>
-<li>全局添加/删除：使用指令 <code>全局添加 [关键词]</code> 和 <code>全局删除 [关键词]</code> 来在全局范围内管理关键词。</li>
+<li>删除关键词：使用指令 <code>删除 [关键词]</code> 来删除关键词。<code>删除 -q 2 你好 </code>来删除“你好”的第二条回复</li>
+<li>全局添加/删除：使用指令 <code>全局添加 [关键词]</code> 和 <code>全局删除 [关键词]</code> 来在全局范围内管理关键词。<code>全局删除 -q 2 你好 </code>来删除“你好”的第二条回复。</li>
 </ul>
 <li><strong>回复内容：</strong>支持文本和图片回复，图片会被保存到本地，避免失效。</li>
 <li><strong>正则表达式支持：</strong>你可以使用正则表达式来匹配关键词。例如，输入 <code>添加 你好 -x</code>，可以匹配任何包含“你好”的消息，如“你好，包含了你好的句子就可以触发哦”。</li>
@@ -38,10 +38,10 @@ exports.usage = `
 <ul>
 <li>添加关键词：<code>添加 你好</code></li>
 <li>添加正则关键词：<code>添加 你好 -x</code></li>
-<li>删除关键词：<code>删除 你好</code></li>
+<li>删除关键词：<code>删除 你好</code>、<code>删除 -q 2 你好 </code>（删除“你好”的第二条回复）</li>
 <li>全局添加关键词：<code>全局添加 你好</code></li>
-<li>全局删除关键词：<code>全局删除 你好</code></li>
-<li>修改指定回复：<code>修改 你好 -q 2</code>（修改“你好”的第二条回复）</li>
+<li>全局删除关键词：<code>全局删除 你好</code>、<code>全局删除 -q 2 你好 </code>（删除“你好”的第二条回复）</li>
+<li>修改指定回复：<code>修改 -q 2 你好 </code>（修改“你好”的第二条回复）</li>
 </ul>
 
 <hr>
@@ -81,6 +81,7 @@ exports.Config = Schema.intersect([
 
   Schema.object({
     Only_admin_auth: Schema.boolean().default(false).description('开启后 仅允许 管理员/群主 使用本插件的指令 `须确保适配器支持获取群员角色`'),
+    Delete_Branch_Only: Schema.boolean().default(true).description('开启后 在删除多段回复的关键词时，必须指定需要删除的序号，而不会直接删除掉这个关键词'),
     Treat_all_as_lowercase: Schema.boolean().default(true).description('开启后 英文关键词匹配无视大写字母`解决英文大小写匹配问题`'),
     picture_save_to_local_send: Schema.union([
       Schema.const('1').description('不保存图片，使用平台的图片链接'),
@@ -306,34 +307,71 @@ function apply(ctx, config) {
     return false;
   }
 
-  // 删除关键词
-  async function deleteKeywordReply(session, filePath, keyword) {
+  // 删除关键词回复分支
+  async function deleteKeywordReply(session, filePath, keyword, config, specifiedIndex) {
     if (!fs.existsSync(filePath)) {
       await session.send(h.unescape(session.text(`.Keyword_does_not_exist`)));
       return;
     }
+
     let data = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
-    // 将关键词转换为小写
+
+    // 转换关键词为小写
     if (config.Treat_all_as_lowercase) {
       keyword = keyword.toLowerCase();
     }
-    // 查找并删除匹配的关键词（忽略大小写）
+
+    // 查找关键词
     let found = false;
+    let replies;
     for (const key in data) {
       const normalizedKey = config.Treat_all_as_lowercase ? key.toLowerCase() : key;
       if (normalizedKey === keyword || normalizedKey === `regex:${keyword}`) {
-        delete data[key];
+        replies = data[key];
         found = true;
         break;
       }
     }
+
     if (!found) {
       await session.send(h.unescape(session.text(`.Keyword_does_not_exist`, [keyword])));
       return;
     }
-    fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf-8');
-    await session.send(h.unescape(session.text(`.Reply_deleted`, [keyword])));
+
+    // 检查多段回复时，是否要求删除指定序号
+    if (config.Delete_Branch_Only && replies.length > 1) {
+      if (specifiedIndex === null || specifiedIndex === undefined) {
+        // 未指定删除的分支，直接提示用户使用删除命令
+        await session.send(`关键词 "${keyword}" 有多个回复，请指定需要删除的分支。\n可以使用请使用如下指令来删除指定序号的回复：\n删除 -q [数字] ${keyword}`);
+        return;
+      } else if (specifiedIndex > 0 && specifiedIndex <= replies.length) {
+        // 删除指定序号的回复
+        replies.splice(specifiedIndex - 1, 1);
+
+        // 如果删除后没有回复了，则删除整个关键词
+        if (replies.length === 0) {
+          delete data[keyword];
+          await session.send(h.unescape(session.text(`.Reply_deleted`, [keyword])));
+        } else {
+          await session.send(h.unescape(`已删除关键词 "${keyword}" 的第 ${specifiedIndex} 条回复。`));
+        }
+
+        fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf-8');
+        return;
+      } else {
+        await session.send(`无效的回复序号，请指定正确的序号。`);
+        return;
+      }
+    } else {
+      // 不使用分支删除，直接删除整个关键词
+      delete data[keyword];
+      fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf-8');
+      await session.send(h.unescape(session.text(`.Reply_deleted`, [keyword])));
+    }
   }
+
+
+
 
   function escapeRegExp(string) {
     return string
@@ -605,7 +643,8 @@ function apply(ctx, config) {
   // 删除关键词
   ctx.command(`keyword-dialogue/${delete_command} [Keyword]`)
     .alias('删除关键词')
-    .action(async ({ session }, Keyword) => {
+    .option('question', '-q [number] 指定删除回复的序号')
+    .action(async ({ session, options }, Keyword) => {
       if (config.Only_admin_auth && !isAdmin(session)) {
         await session.send(h.text(session.text(`.Only_admin_auth`)));
         return;
@@ -615,14 +654,19 @@ function apply(ctx, config) {
         await session.send(h.text(session.text(`.no_Valid_Keyword`)));
         return;
       }
+
       const filePath = path.join(root, `${session.channelId}.json`);
-      await deleteKeywordReply(session, filePath, Keyword);
+      const specifiedIndex = options.question ? options.question : null;
+
+      await deleteKeywordReply(session, filePath, Keyword, config, specifiedIndex);
     });
+
 
   // 全局删除关键词
   ctx.command(`keyword-dialogue/${global_delete_command} [Keyword]`)
     .alias('全局删除关键词')
-    .action(async ({ session }, Keyword) => {
+    .option('question', '-q [number] 指定删除回复的序号')
+    .action(async ({ session, options }, Keyword) => {
       if (config.Only_admin_auth && !isAdmin(session)) {
         await session.send(h.text(session.text(`.Only_admin_auth`)));
         return;
@@ -632,9 +676,13 @@ function apply(ctx, config) {
         await session.send(h.text(session.text(`.no_Valid_Keyword`)));
         return;
       }
+
       const filePath = path.join(root, 'global.json');
-      await deleteKeywordReply(session, filePath, Keyword);
+      const specifiedIndex = options.question ? options.question : null;
+
+      await deleteKeywordReply(session, filePath, Keyword, config, specifiedIndex);
     });
+
 
   function isValidKeyword(keyword) {
     return keyword && keyword.trim().length > 0;
