@@ -484,13 +484,21 @@ ${dJson.unsignText}
           const messageTime = new Date().toISOString(); // 获取当前时间的ISO格式
           const encodedMessageTime = encodeTimestamp(messageTime); // 对时间戳进行简单编码
 
-          if (config.MDswitch && config.markdown_setting.mdid && session.platform === 'qq' && session.guild?.guildId) { //logInfo(session.guild?.guildId)  //判断是否是群聊，如果是undefined就是私聊了，不应该发markdown
+          if (config.MDswitch && config.markdown_setting.mdid && session.platform === 'qq') {
+
             // 保存截图并上传
             const screenshotPath = path_1.resolve(__dirname, 'temp_screenshot.png');
             fs.writeFileSync(screenshotPath, imageBuffer);
             const uploadedImageURL = await uploadImageToChannel(screenshotPath, session.bot.config.id, session.bot.config.secret, config.QQchannelId);
             const qqmarkdownmessage = await markdown(session, uploadedImageURL.url, encodedMessageTime);
-            sentMessage = await session.qq.sendMessage(session.channelId, qqmarkdownmessage);
+
+            //logInfo(session.event.guild?.id)  // 是群聊，markdown  
+            //sentMessage = await session.qq.sendMessage(session.channelId, qqmarkdownmessage);
+            if (session.event.guild?.id) {
+              sentMessage = await session.qq.sendMessage(session.channelId, qqmarkdownmessage);
+            } else {
+              sentMessage = await session.qq.sendPrivateMessage(session.event.user?.id, qqmarkdownmessage);
+            }
           } else {
             // 根据不同的配置发送不同类型的消息
             const imageMessage = koishi_1.h.image(imageBuffer, "image/png");
