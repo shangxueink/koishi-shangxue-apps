@@ -708,8 +708,11 @@ function apply(ctx, config) {
           session.platform === 'qq') {
           // 使用 Markdown 发送命令列表
           const markdownMessage = command_list_markdown(session, txtCommandList, config);
-          //await session.send(markdownMessage);
-          await session.qq.sendMessage(session.channelId, markdownMessage);
+          if (session.event.guild?.id) {
+            await session.qq.sendMessage(session.channelId, markdownMessage);
+          } else {
+            await session.qq.sendPrivateMessage(session.event.user?.id, markdownMessage);
+          }
         } else {
           // 否则，发送文本列表
           const commandText = txtCommandList.join('\n');
@@ -743,22 +746,45 @@ function apply(ctx, config) {
                 //logger.info(imagebase64)
 
                 let MDimagebase64 = 'data:image/png;base64,' + imagebase64;
-                message = session.qq.sendMessage(session.channelId, await markdown(session, command, MDimagebase64));
+
+                //message = session.qq.sendMessage(session.channelId, await markdown(session, command, MDimagebase64));
+                if (session.event.guild?.id) {
+                  message = session.qq.sendMessage(session.channelId, await markdown(session, command, MDimagebase64));
+                } else {
+                  //await session.qq.sendPrivateMessage(session.event.user?.id, markdownMessage);
+                  message = session.qq.sendPrivateMessage(session.event.user?.id, await markdown(session, command, MDimagebase64));
+                }
 
               } else if (config.QQPicToChannelUrl) {
 
                 const uploadedImageURL = await uploadImageToChannel(ctx, config.consoleinfo, url_1.pathToFileURL(imageResult.imageUrl).href, session.bot.config.id, session.bot.config.secret, config.QQchannelId);
 
-                message = session.qq.sendMessage(session.channelId, await markdown(session, command, uploadedImageURL.url));
+                //message = session.qq.sendMessage(session.channelId, await markdown(session, command, uploadedImageURL.url));
+
+                if (session.event.guild?.id) {
+                  message = session.qq.sendMessage(session.channelId, await markdown(session, command, uploadedImageURL.url));
+                } else {
+                  message = session.qq.sendPrivateMessage(session.event.user?.id, await markdown(session, command, uploadedImageURL.url));
+                }
 
               } else {
                 //正常本地文件发图
                 const imageUrl = url_1.pathToFileURL(imageResult.imageUrl).href;
-                message = session.qq.sendMessage(session.channelId, await markdown(session, command, imageUrl));
+                //message = session.qq.sendMessage(session.channelId, await markdown(session, command, imageUrl));
+                if (session.event.guild?.id) {
+                  message = session.qq.sendMessage(session.channelId, await markdown(session, command, imageUrl));
+                } else {
+                  message = session.qq.sendPrivateMessage(session.event.user?.id, await markdown(session, command, imageUrl));
+                }
               }
             } else {
               // 网络URL
-              message = session.qq.sendMessage(session.channelId, await markdown(session, command, imageResult.imageUrl));
+              //message = session.qq.sendMessage(session.channelId, await markdown(session, command, imageResult.imageUrl));
+              if (session.event.guild?.id) {
+                message = session.qq.sendMessage(session.channelId, await markdown(session, command, imageResult.imageUrl));
+              } else {
+                message = session.qq.sendPrivateMessage(session.event.user?.id, await markdown(session, command, imageResult.imageUrl));
+              }
             }
           } else {
             //logger.info(`正常情况`);
