@@ -729,8 +729,8 @@ function apply(ctx, config) {
 
       // 提示用户正在修改哪一条回复以及显示该回复内容
       const currentReply = replies[index];
-      await session.send(h.text(`您正在修改的是【${Keyword}】的第【${index + 1}】条回复\n回复内容为：`));
-      await session.send(h.text(`${currentReply[0].text}`));  // 分开发，方便用户复制
+      await session.send(h.unescape(h.text(`您正在修改的是【${Keyword}】的第【${index + 1}】条回复\n回复内容为：`)));
+      await session.send(h.unescape(h.text(`${currentReply[0].text}`)));  // 分开发，方便用户复制
 
       await session.send(h.text("请一次性将回复内容完整输入以修改：\n➣输入 取消添加 以取消"));
 
