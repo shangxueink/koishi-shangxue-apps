@@ -728,11 +728,26 @@ function apply(ctx, config) {
       }
 
       // 提示用户正在修改哪一条回复以及显示该回复内容
-      const currentReply = replies[index];
-      await session.send(h.unescape(h.text(`您正在修改的是【${Keyword}】的第【${index + 1}】条回复\n回复内容为：`)));
-      await session.send(h.unescape(h.text(`${currentReply[0].text}`)));  // 分开发，方便用户复制
+      await session.send(h.unescape(`您正在修改的是【${Keyword}】的第【${index + 1}】条回复`));
 
+      // 获取当前需要修改的回复内容
+      const currentReply = replies[index];
+
+      // 定义一个变量存储完整的格式化内容
+      let fullReplyContent = '';
+
+      // 遍历所有的回复段落并格式化显示
+      for (const replyPart of currentReply) {
+        const formattedReply = await formatReply(replyPart, false);
+        fullReplyContent += formattedReply;
+      }
+
+      // 将完整的内容发送给用户
+      await session.send(fullReplyContent.trim());
+
+      // 提示用户输入新的回复内容
       await session.send(h.text("请一次性将回复内容完整输入以修改：\n➣输入 取消添加 以取消"));
+
 
       const timeout = config.addKeywordTime * 60000; // 转换为毫秒
       const reply = await session.prompt(timeout);
