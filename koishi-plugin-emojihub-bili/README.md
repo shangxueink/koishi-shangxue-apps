@@ -122,8 +122,461 @@ Koishi插件市场搜索并安装`emojihub-bili`
 
 ---
 
+
+### 默认JSON按钮模板示例
+
+此外，以下是一个默认的JSON按钮的指令按钮模板示例，可供参考：
+<details>
+<summary>点击此处————查看源码</summary>
+
+```
+{
+  "rows": [
+    {
+      "buttons": [
+        {
+          "render_data": {
+            "label": "再来一张😽",
+            "style": 2
+          },
+          "action": {
+            "type": 2,
+            "permission": {
+              "type": 2
+            },
+            "data": "/emojihub ",
+            "enter": false
+          }
+        },
+        {
+          "render_data": {
+            "label": "随机一张😼",
+            "style": 2
+          },
+          "action": {
+            "type": 2,
+            "permission": {
+              "type": 2
+            },
+            "data": "/随机表情包",
+            "enter": true
+          }
+        },
+        {
+          "render_data": {
+            "label": "返回列表😸",
+            "style": 2
+          },
+          "action": {
+            "type": 2,
+            "permission": {
+              "type": 2
+            },
+            "data": "/表情包列表",
+            "enter": true
+          }
+        }
+      ]
+    }
+  ]
+}
+
+```
+</details>
+
+此外，以下是一个默认的JSON按钮的指令列表按钮模板示例，可供参考：
+
+<details>
+<summary>点击此处————查看源码</summary>
+
+```
+
+{
+  "rows": [
+    {
+      "buttons": [
+        {
+          "render_data": {
+            "label": "2233小剧场表情包",
+            "style": 2
+          },
+          "action": {
+            "type": 2,
+            "permission": {
+              "type": 2
+            },
+            "data": "/2233小剧场表情包",
+            "enter": true
+          }
+        },
+        {
+          "render_data": {
+            "label": "acomu414表情包",
+            "style": 2
+          },
+          "action": {
+            "type": 2,
+            "permission": {
+              "type": 2
+            },
+            "data": "/acomu414表情包",
+            "enter": true
+          }
+        },
+        {
+          "render_data": {
+            "label": "ba表情包",
+            "style": 2
+          },
+          "action": {
+            "type": 2,
+            "permission": {
+              "type": 2
+            },
+            "data": "/ba表情包",
+            "enter": true
+          }
+        },
+        {
+          "render_data": {
+            "label": "capoo表情包",
+            "style": 2
+          },
+          "action": {
+            "type": 2,
+            "permission": {
+              "type": 2
+            },
+            "data": "/capoo表情包",
+            "enter": true
+          }
+        },
+        {
+          "render_data": {
+            "label": "chiikawa表情包",
+            "style": 2
+          },
+          "action": {
+            "type": 2,
+            "permission": {
+              "type": 2
+            },
+            "data": "/chiikawa表情包",
+            "enter": true
+          }
+        }
+      ]
+    },
+    {
+      "buttons": [
+        {
+          "render_data": {
+            "label": "downvote表情包",
+            "style": 2
+          },
+          "action": {
+            "type": 2,
+            "permission": {
+              "type": 2
+            },
+            "data": "/downvote表情包",
+            "enter": true
+          }
+        },
+        {
+          "render_data": {
+            "label": "doro表情包",
+            "style": 2
+          },
+          "action": {
+            "type": 2,
+            "permission": {
+              "type": 2
+            },
+            "data": "/doro表情包",
+            "enter": true
+          }
+        },
+        {
+          "render_data": {
+            "label": "eveonecat表情包",
+            "style": 2
+          },
+          "action": {
+            "type": 2,
+            "permission": {
+              "type": 2
+            },
+            "data": "/eveonecat表情包",
+            "enter": true
+          }
+        },
+        {
+          "render_data": {
+            "label": "fufu表情包",
+            "style": 2
+          },
+          "action": {
+            "type": 2,
+            "permission": {
+              "type": 2
+            },
+            "data": "/fufu表情包",
+            "enter": true
+          }
+        },
+        {
+          "render_data": {
+            "label": "girlsbandcry",
+            "style": 2
+          },
+          "action": {
+            "type": 2,
+            "permission": {
+              "type": 2
+            },
+            "data": "/girlsbandcry",
+            "enter": true
+          }
+        }
+      ]
+    },
+    {
+      "buttons": [
+        {
+          "render_data": {
+            "label": "kemomimi表情包",
+            "style": 2
+          },
+          "action": {
+            "type": 2,
+            "permission": {
+              "type": 2
+            },
+            "data": "/kemomimi表情包",
+            "enter": true
+          }
+        },
+        {
+          "render_data": {
+            "label": "koishi-meme表情包",
+            "style": 2
+          },
+          "action": {
+            "type": 2,
+            "permission": {
+              "type": 2
+            },
+            "data": "/koishi-meme表情包",
+            "enter": true
+          }
+        },
+        {
+          "render_data": {
+            "label": "mygo表情包",
+            "style": 2
+          },
+          "action": {
+            "type": 2,
+            "permission": {
+              "type": 2
+            },
+            "data": "/mygo表情包",
+            "enter": true
+          }
+        },
+        {
+          "render_data": {
+            "label": "seseren表情包",
+            "style": 2
+          },
+          "action": {
+            "type": 2,
+            "permission": {
+              "type": 2
+            },
+            "data": "/seseren表情包",
+            "enter": true
+          }
+        },
+        {
+          "render_data": {
+            "label": "阿夸表情包",
+            "style": 2
+          },
+          "action": {
+            "type": 2,
+            "permission": {
+              "type": 2
+            },
+            "data": "/阿夸表情包",
+            "enter": true
+          }
+        }
+      ]
+    },
+    {
+      "buttons": [
+        {
+          "render_data": {
+            "label": "阿尼亚表情包",
+            "style": 2
+          },
+          "action": {
+            "type": 2,
+            "permission": {
+              "type": 2
+            },
+            "data": "/阿尼亚表情包",
+            "enter": true
+          }
+        },
+        {
+          "render_data": {
+            "label": "白圣女表情包",
+            "style": 2
+          },
+          "action": {
+            "type": 2,
+            "permission": {
+              "type": 2
+            },
+            "data": "/白圣女表情包",
+            "enter": true
+          }
+        },
+        {
+          "render_data": {
+            "label": "白圣女漫画表情包",
+            "style": 2
+          },
+          "action": {
+            "type": 2,
+            "permission": {
+              "type": 2
+            },
+            "data": "/白圣女漫画表情包",
+            "enter": true
+          }
+        },
+        {
+          "render_data": {
+            "label": "柴郡表情包",
+            "style": 2
+          },
+          "action": {
+            "type": 2,
+            "permission": {
+              "type": 2
+            },
+            "data": "/柴郡表情包",
+            "enter": true
+          }
+        },
+        {
+          "render_data": {
+            "label": "初音Q版表情包",
+            "style": 2
+          },
+          "action": {
+            "type": 2,
+            "permission": {
+              "type": 2
+            },
+            "data": "/初音Q版表情包",
+            "enter": true
+          }
+        }
+      ]
+    },
+    {
+      "buttons": [
+        {
+          "render_data": {
+            "label": "甘城猫猫表情包",
+            "style": 2
+          },
+          "action": {
+            "type": 2,
+            "permission": {
+              "type": 2
+            },
+            "data": "/甘城猫猫表情包",
+            "enter": true
+          }
+        },
+        {
+          "render_data": {
+            "label": "孤独摇滚表情包",
+            "style": 2
+          },
+          "action": {
+            "type": 2,
+            "permission": {
+              "type": 2
+            },
+            "data": "/孤独摇滚表情包",
+            "enter": true
+          }
+        },
+        {
+          "render_data": {
+            "label": "狗妈表情包",
+            "style": 2
+          },
+          "action": {
+            "type": 2,
+            "permission": {
+              "type": 2
+            },
+            "data": "/狗妈表情包",
+            "enter": true
+          }
+        },
+        {
+          "render_data": {
+            "label": "滑稽表情包",
+            "style": 2
+          },
+          "action": {
+            "type": 2,
+            "permission": {
+              "type": 2
+            },
+            "data": "/滑稽表情包",
+            "enter": true
+          }
+        },
+        {
+          "render_data": {
+            "label": "流萤表情包",
+            "style": 2
+          },
+          "action": {
+            "type": 2,
+            "permission": {
+              "type": 2
+            },
+            "data": "/流萤表情包",
+            "enter": true
+          }
+        }
+      ]
+    }
+  ]
+}
+```
+</details>
+
+---
+
 ### 默认Markdown模板示例
 此外，以下是一个默认的Markdown模板示例，可供参考：
+
+<details>
+<summary>点击此处————查看源码</summary>
+
+
 ```
 {{.text1}}
 {{.text2}}
@@ -139,7 +592,8 @@ text2       这是第二段文字
 img         ![img]
 url         (https://koishi.chat/logo.png)
 ```
-
+    
+</details>
 
 ## 如何添加自己喜欢的表情包
 
@@ -203,6 +657,12 @@ url         (https://koishi.chat/logo.png)
 
 <details>
 <summary>点击此处————查看更新日志</summary>
+
+- **1.0.2**
+   -  优化 markdown 发送逻辑
+   -  新增 json按钮 发送实现
+   -  优化 readme 有关官方qq机器人的使用说明
+   -  新增`再来一张`指令
 
 - **1.0.1**
    -  兼容私聊markdown的发送

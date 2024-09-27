@@ -124,7 +124,13 @@ exports.Config = koishi_1.Schema.intersect([
 
   // Alin---ba-plugin 配置项
   koishi_1.Schema.object({
-    MDswitch: koishi_1.Schema.boolean().description("`总开关，开启后`QQ官方配置项才生效").default(false),
+    json_button_switch: koishi_1.Schema.boolean().description("`被动json按钮总开关，开启后`QQ官方配置项才生效（json按钮）<br>注意不要与下面被动md同时开，优先内容为发送json按钮").default(false),
+    json_button_mdid_emojilist: koishi_1.Schema.string().description('展示表情包列表的按钮<br>QQ官方bot 的 MarkDown模板ID<br>20个群即可使用的按钮！使用方法请见[README](https://www.npmjs.com/package/koishi-plugin-emojihub-bili)').pattern(/^\d+_\d+$/), // 102069859_1725953918
+    json_button_mdid_command: koishi_1.Schema.string().description('触发具体表情后发送的按钮<br>QQ官方bot 的 MarkDown模板ID<br>20个群即可使用的按钮！使用方法请见[README](https://www.npmjs.com/package/koishi-plugin-emojihub-bili)').pattern(/^\d+_\d+$/), // 102069859_1725953918
+
+    //----------------------------------------------------------------------------------------------------------------------------
+
+    MDswitch: koishi_1.Schema.boolean().description("`被动模板md总开关，开启后`QQ官方配置项才生效（被动markdown，模板md发送的）").default(false),
     markdown_setting: koishi_1.Schema.object({
 
       mdid: koishi_1.Schema.string().description('QQ官方bot 的 MarkDown模板ID').pattern(/^\d+_\d+$/),
@@ -589,6 +595,12 @@ function apply(ctx, config) {
             "List_of_emojis": "表情包列表：",
             //"emojihub_bili_codecommand_usage" : "emojihub父级指令 触发后列出全部的子指令"
           }
+        },
+        '再来一张': {
+          description: `指定表情包`,
+          messages: {
+            "nocommand": "请输入一个表情包名称哦~\n➣例如： 再来一张 白圣女表情包",
+          }
         }
       }
     };
@@ -703,11 +715,29 @@ function apply(ctx, config) {
         if (config.consoleinfo) {
           logger.info(`指令列表txtCommandList：  ` + txtCommandList);
         }
-        if (config.MDswitch && config.markdown_setting.mdid &&
+
+        if (config.json_button_switch && config.json_button_mdid_emojilist) {
+          let markdownMessage = {
+            msg_id: session.event.message.id,
+            msg_type: 2,
+            content: "", // content可传入不进去哦~  只能发按钮
+            keyboard: {
+              id: config.json_button_mdid_emojilist
+            },
+          }
+
+          if (session.event.guild?.id) {
+            await session.qq.sendMessage(session.channelId, markdownMessage);
+          } else {
+            await session.qq.sendPrivateMessage(session.event.user?.id, markdownMessage);
+          }
+
+        } else if (config.MDswitch && config.markdown_setting.mdid &&
           config.markdown_setting.zlmdp_1 && config.markdown_setting.zlmdp_2 &&
           session.platform === 'qq') {
-          // 使用 Markdown 发送命令列表
-          const markdownMessage = command_list_markdown(session, txtCommandList, config);
+          // 使用 Markdown 发送命令列表 
+
+          let markdownMessage = command_list_markdown(session, txtCommandList, config);
           if (session.event.guild?.id) {
             await session.qq.sendMessage(session.channelId, markdownMessage);
           } else {
@@ -747,11 +777,9 @@ function apply(ctx, config) {
 
                 let MDimagebase64 = 'data:image/png;base64,' + imagebase64;
 
-                //message = session.qq.sendMessage(session.channelId, await markdown(session, command, MDimagebase64));
                 if (session.event.guild?.id) {
                   message = session.qq.sendMessage(session.channelId, await markdown(session, command, MDimagebase64));
                 } else {
-                  //await session.qq.sendPrivateMessage(session.event.user?.id, markdownMessage);
                   message = session.qq.sendPrivateMessage(session.event.user?.id, await markdown(session, command, MDimagebase64));
                 }
 
@@ -759,7 +787,6 @@ function apply(ctx, config) {
 
                 const uploadedImageURL = await uploadImageToChannel(ctx, config.consoleinfo, url_1.pathToFileURL(imageResult.imageUrl).href, session.bot.config.id, session.bot.config.secret, config.QQchannelId);
 
-                //message = session.qq.sendMessage(session.channelId, await markdown(session, command, uploadedImageURL.url));
 
                 if (session.event.guild?.id) {
                   message = session.qq.sendMessage(session.channelId, await markdown(session, command, uploadedImageURL.url));
@@ -770,7 +797,6 @@ function apply(ctx, config) {
               } else {
                 //正常本地文件发图
                 const imageUrl = url_1.pathToFileURL(imageResult.imageUrl).href;
-                //message = session.qq.sendMessage(session.channelId, await markdown(session, command, imageUrl));
                 if (session.event.guild?.id) {
                   message = session.qq.sendMessage(session.channelId, await markdown(session, command, imageUrl));
                 } else {
@@ -779,7 +805,6 @@ function apply(ctx, config) {
               }
             } else {
               // 网络URL
-              //message = session.qq.sendMessage(session.channelId, await markdown(session, command, imageResult.imageUrl));
               if (session.event.guild?.id) {
                 message = session.qq.sendMessage(session.channelId, await markdown(session, command, imageResult.imageUrl));
               } else {
@@ -788,7 +813,6 @@ function apply(ctx, config) {
             }
           } else {
             //logger.info(`正常情况`);
-            //message = await session.send(koishi_1.h.image(imageUrl));
             // 根据图片是否为本地图片选择发送方式
             if (imageResult.isLocal) {
               // 如果是本地图片，使用本地图片的逻辑
@@ -798,14 +822,59 @@ function apply(ctx, config) {
                 //logger.info(imagebase64)
                 message = await session.send(koishi_1.h('image', { url: 'data:image/png;base64,' + imagebase64 }));
 
+                if (config.json_button_switch && config.json_button_mdid_command && session.platform === 'qq') { // 发送图片后，发送json按钮
+                  let markdownMessage = {
+                    msg_id: session.event.message.id,
+                    msg_type: 2,
+                    content: "", // content可传入不进去哦~  只能发按钮
+                    keyboard: {
+                      id: config.json_button_mdid_emojilist
+                    },
+                  }
+                  if (session.event.guild?.id) {
+                    await session.qq.sendMessage(session.channelId, markdownMessage);
+                  } else {
+                    await session.qq.sendPrivateMessage(session.event.user?.id, markdownMessage);
+                  }
+                }
               } else {
                 //正常本地文件发图
                 const imageUrl = url_1.pathToFileURL(imageResult.imageUrl).href;
                 message = await session.send(koishi_1.h.image(imageUrl));
+                if (config.json_button_switch && config.json_button_mdid_command && session.platform === 'qq') { // 发送图片后，发送json按钮
+                  let markdownMessage = {
+                    msg_id: session.event.message.id,
+                    msg_type: 2,
+                    content: "", // content可传入不进去哦~  只能发按钮
+                    keyboard: {
+                      id: config.json_button_mdid_emojilist
+                    },
+                  }
+                  if (session.event.guild?.id) {
+                    await session.qq.sendMessage(session.channelId, markdownMessage);
+                  } else {
+                    await session.qq.sendPrivateMessage(session.event.user?.id, markdownMessage);
+                  }
+                }
               }
             } else {
               // 网络URL
               message = await session.send(koishi_1.h.image(imageResult.imageUrl));
+              if (config.json_button_switch && config.json_button_mdid_command && session.platform === 'qq') { // 发送图片后，发送json按钮
+                let markdownMessage = {
+                  msg_id: session.event.message.id,
+                  msg_type: 2,
+                  content: "", // content可传入不进去哦~  只能发按钮
+                  keyboard: {
+                    id: config.json_button_mdid_emojilist
+                  },
+                }
+                if (session.event.guild?.id) {
+                  await session.qq.sendMessage(session.channelId, markdownMessage);
+                } else {
+                  await session.qq.sendPrivateMessage(session.event.user?.id, markdownMessage);
+                }
+              }
             }
           }
           if (config.deleteMsg && config.deleteMsgtime > 0) {
@@ -823,6 +892,14 @@ function apply(ctx, config) {
       });
   });
 
+  ctx.command(`${config.emojihub_bili_command}/再来一张 <command>`)
+    .action(async ({ session }, command) => {
+      if (!command) {
+        await session.send(session.text('.nocommand'));
+        return;
+      }
+      await session.execute(`${command}`);
+    })
 
   if (config.autoEmoji && (config.groupListmapping.length || config.allgroupautoEmoji)) {
     const groups = {};
