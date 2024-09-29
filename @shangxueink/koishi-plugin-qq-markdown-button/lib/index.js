@@ -136,13 +136,12 @@ function apply(ctx, config) {
             function processMarkdownCommand(jsonFilePath, mdFilePath, session, config, variables = {}) {
                 try {
                     const rawJsonData = fs.readFileSync(jsonFilePath, 'utf-8');
-                    const markdownContent = mdFilePath ? fs.readFileSync(mdFilePath, 'utf-8').replace(/\n/g, '') : '';
+                    let markdownContent = mdFilePath ? fs.readFileSync(mdFilePath, 'utf-8') : '';
 
                     const allVariables = {
                         ...variables,
                         session,
-                        config,
-                        markdown: markdownContent
+                        config
                     };
 
                     const replacePlaceholders = (data) => {
@@ -160,6 +159,12 @@ function apply(ctx, config) {
                         }
                         return data;
                     };
+
+                    // Replace variables in markdown content
+                    markdownContent = replacePlaceholders(markdownContent).replace(/\n/g, '');
+
+                    // Add the replaced markdown content to the variables
+                    allVariables.markdown = markdownContent;
 
                     const rawJsonObject = JSON.parse(rawJsonData);
                     const replacedJsonObject = replacePlaceholders(rawJsonObject);
