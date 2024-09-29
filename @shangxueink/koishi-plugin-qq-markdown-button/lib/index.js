@@ -5,7 +5,7 @@ const koishi_1 = require("koishi");
 const fs = require('fs');
 const path = require('path');
 
-exports.name = 'qq-markdown-button';
+exports.reusable = true; // 声明此插件可重用
 exports.inject = [];
 exports.usage = `
 ---
@@ -25,11 +25,19 @@ exports.usage = `
 
 无需手动修改这些变量，它们将在运行时自动替换为相应的真实值。
 
+支持重用，你可以开多个这个插件，然后改成不同的指令名称/文件夹名称，以注册多个按钮菜单功能
+
 ---
+
 赶快选择你需要的配置，开始自定义你的菜单吧！
+
+
+
 `;
 
 exports.Config = koishi_1.Schema.object({
+    file_name: koishi_1.Schema.string().default('qq-markdown-button').description('存储文件的文件夹名称'),
+    command_name: koishi_1.Schema.string().default('按钮菜单').description('注册的指令名称'),
     type_switch: koishi_1.Schema.union([
         koishi_1.Schema.const('json').description('json按钮'),
         koishi_1.Schema.const('markdown').description('被动md，模板md'),
@@ -62,8 +70,16 @@ exports.Config = koishi_1.Schema.object({
 }).description('QQ官方bot设置');
 
 function apply(ctx, config) {
+    // 允许命名使用的安全名称
+    function sanitizeFileName(fileName) {
+        // 替换非法字符为下划线
+        return fileName.replace(/[^a-z0-9_\-]/gi, '_');
+    }
     // 初始化时自动复制文件到 ctx.baseDir 下
-    const baseDir = path.join(ctx.baseDir, 'data/qq-markdown-button/qq');
+    const rawFileName = config.file_name;
+    exports.name = config.file_name;
+    const fileName = sanitizeFileName(rawFileName);
+    const baseDir = path.join(ctx.baseDir, `data/${fileName}/qq`);
     if (!fs.existsSync(baseDir)) {
         fs.mkdirSync(baseDir, { recursive: true });
     }
@@ -78,8 +94,7 @@ function apply(ctx, config) {
     });
 
     // 定义命令
-    ctx.command('markdown-button', '发送Markdown或JSON按钮菜单')
-        .alias('按钮菜单')
+    ctx.command(`${config.command_name}`, '发送Markdown或JSON按钮菜单')
         .action(async ({ session }) => {
             const type = config.type_switch;
             let Menu_message;
@@ -156,5 +171,6 @@ function apply(ctx, config) {
                 }
             }
         });
+
 }
 exports.apply = apply;
