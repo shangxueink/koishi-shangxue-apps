@@ -280,7 +280,7 @@ function apply(ctx, config) {
         };
       } else if (element.type === 'video') {
         return {
-          type: 'audio',
+          type: 'video',
           text: element.attrs.src
         };
         /*} else if (element.type === 'mface') {
