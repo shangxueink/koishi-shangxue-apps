@@ -7,6 +7,9 @@ const { pathToFileURL } = require('node:url');
 const { Schema, Logger, h } = require("koishi");
 const path = require("node:path");
 const logger = new Logger('keyword-dialogue');
+exports.inject = {
+  optional: ['puppeteer']
+};
 
 exports.usage = `
 <!DOCTYPE html>
@@ -67,30 +70,40 @@ exports.usage = `
 
 exports.Config = Schema.intersect([
   Schema.object({
-    TriggerPrefix: Schema.string().default('添加').description('触发`添加关键词`功能的指令'),
-    DeleteKeyword: Schema.string().default('删除').description('触发`删除关键词`功能的指令'),
-    KeywordOfEsc: Schema.string().default('取消添加').description('取消`添加关键词`功能的关键词'),
-    KeywordOfEnd: Schema.string().default('结束添加').description('退出`添加关键词`功能的关键词'),
-    GlobalTriggerPrefix: Schema.string().default('全局添加').description('触发`全局添加关键词`功能的指令（可在全局范围内生效）'),
-    GlobalDeleteKeyword: Schema.string().default('全局删除').description('触发`全局删除关键词`功能的指令'),
-    KeywordOfSearch: Schema.string().default('查找关键词').description('触发`搜索关键词`功能的关键词'),
-    KeywordOfFix: Schema.string().default('修改').description('触发`修改问答`功能的关键词'),
+    command: Schema.object({
+      TriggerPrefix: Schema.string().default('添加').description('触发`添加关键词`功能的指令'),
+      DeleteKeyword: Schema.string().default('删除').description('触发`删除关键词`功能的指令'),
+      KeywordOfEsc: Schema.string().default('取消添加').description('取消`添加关键词`功能的关键词'),
+      KeywordOfEnd: Schema.string().default('结束添加').description('退出`添加关键词`功能的关键词'),
+      GlobalTriggerPrefix: Schema.string().default('全局添加').description('触发`全局添加关键词`功能的指令（可在全局范围内生效）'),
+      GlobalDeleteKeyword: Schema.string().default('全局删除').description('触发`全局删除关键词`功能的指令'),
+      KeywordOfSearch: Schema.string().default('查找关键词').description('触发`搜索关键词`功能的指令'),
+      KeywordOfFix: Schema.string().default('修改').description('触发`修改问答`功能的指令'),
+      ViewKeywordList: Schema.string().default('查看关键词列表').description('触发`查看关键词列表`功能的指令（仅返回当前群组的关键词）'),
+    }).collapse().description('指令注册设置'),
     addKeywordTime: Schema.number().role('slider').min(1).max(30).step(1).default(5).description('添加回复的输入时限，超过则视为超时，取消添加。`单位 分钟`'),
     defaultImageExtension: Schema.union(['jpg', 'png', 'gif']).default('png').description('输入图片保存的后缀名'),
   }).description('基础设置'),
 
   Schema.object({
     Only_admin_auth: Schema.boolean().default(false).description('开启后 仅允许 管理员/群主 使用本插件的指令 `须确保适配器支持获取群员角色`'),
+    admin_list: Schema.array(Schema.object({
+      adminID: Schema.string().description('管理员用户ID'),
+      allowcommand: Schema.array(Schema.union(['添加', '删除', '全局添加', '全局删除', '查找关键词', '修改', '查看关键词列表'])).default(['添加', '删除', '修改', '查找关键词', '查看关键词列表']).description('可以使用的指令'),
+    })).role('table').description('额外的管理员列表（ 0 代表所有用户）').default([
+      {
+        "adminID": "0"
+      }
+    ]),
     Delete_Branch_Only: Schema.boolean().default(true).description('开启后 在删除多段回复的关键词时，必须指定需要删除的序号，而不会直接删除掉这个关键词'),
     Treat_all_as_lowercase: Schema.boolean().default(true).description('开启后 英文关键词匹配无视大写字母`解决英文大小写匹配问题`'),
+    Prompt: Schema.string().role('textarea', { rows: [2, 4] }).default('请输入回复内容（输入 取消添加 以取消，输入 结束添加 以结束）：').description('添加时，返回的文字提示'),
     picture_save_to_local_send: Schema.union([
       Schema.const('1').description('不保存图片，使用平台的图片链接'),
       Schema.const('2').description('保存图片为文件，发送时使用图片文件绝对路径'),
       Schema.const('3').description('保存图片为文件，发送时图片文件转换为base64'),
       Schema.const('4').description('保存图片为base64到json，发送时使用base64 `json会变得好长唔，不推荐`'),
     ]).role('radio').default('2').description('开启后 图片回复保存到本地路径`防止平台图片链接失效`'),
-
-    Prompt: Schema.string().role('textarea', { rows: [2, 4] }).default('请输入回复内容（输入 取消添加 以取消，输入 结束添加 以结束）：').description('添加时，返回的文字提示'),
     MatchPatternForExit: Schema.union([
       Schema.const('1').description('不使用KeywordOfEnd（不使用多段输入），仅接受一次性的输入'),
       Schema.const('2').description('完全匹配KeywordOfEnd时退出'),
@@ -124,6 +137,10 @@ exports.Config = Schema.intersect([
       Schema.const('1').description('对同一个问题（全部对象）'),
       Schema.const('2').description('仅对同一个频道（不同频道独立记数间隔）'),
     ]).role('radio').default('2').description("最小间隔时间的限制对象"),
+    Type_of_ViewKeywordList: Schema.union([
+      Schema.const('1').description('返回文字列表'),
+      Schema.const('2').description('返回图片列表（需要puppeteer服务）'),
+    ]).role('radio').default('2').description("`查看关键词列表`的返回设置"),
   }).description('回复设置'),
 
   Schema.object({
@@ -149,12 +166,17 @@ exports.Config = Schema.intersect([
 ]);
 const lastTriggerTimes = {}; // 用于记录每个关键词的最后触发时间
 function apply(ctx, config) {
-  const add_command = config.TriggerPrefix; // 添加
-  const global_add_command = config.GlobalTriggerPrefix;  //  全局添加
-  const delete_command = config.DeleteKeyword;  //  删除
-  const global_delete_command = config.GlobalDeleteKeyword; //  全局删除
-  const KeywordOfSearch = config.KeywordOfSearch; //  搜索关键词
-  const KeywordOfFix = config.KeywordOfFix; // 修改
+  const add_command = config.command.TriggerPrefix; // 添加
+  const global_add_command = config.command.GlobalTriggerPrefix;  //  全局添加
+  const delete_command = config.command.DeleteKeyword;  //  删除
+  const global_delete_command = config.command.GlobalDeleteKeyword; //  全局删除
+
+  const KeywordOfEsc = config.command.KeywordOfEsc;
+  const KeywordOfEnd = config.command.KeywordOfEnd;
+
+  const KeywordOfSearch = config.command.KeywordOfSearch; //  搜索关键词
+  const KeywordOfFix = config.command.KeywordOfFix; // 修改
+  const ViewKeywordList = config.command.ViewKeywordList; // 查看关键词列表
 
   const zh_CN_default = {
     commands: {
@@ -210,7 +232,7 @@ function apply(ctx, config) {
         }
       },
       [KeywordOfFix]: {
-        description: `查找关键词`,
+        description: `修改关键词`,
         messages: {
           "Only_admin_auth": "仅允许群组管理员操作。",
           "no_Valid_Keyword": "请提供一个有效的关键词。",
@@ -307,6 +329,36 @@ function apply(ctx, config) {
     return false;
   }
 
+  // 检查用户是否有权限执行该指令
+  function hasPermission(session, command) {
+    const userId = session.userId;
+
+    // 如果 Only_admin_auth 开启，默认管理员拥有所有权限
+    if (config.Only_admin_auth && isAdmin(session)) {
+      // 查找特定用户的权限配置
+      const adminConfig = config.admin_list.find(admin => admin.adminID === userId);
+      // 如果配置中有该管理员，则以配置为准
+      if (adminConfig) {
+        return adminConfig.allowcommand.includes(command);
+      }
+      return true; // 默认管理员拥有所有权限
+    }
+
+    // 查找 adminID 为 0 的配置，表示所有用户的默认权限
+    const defaultConfig = config.admin_list.find(admin => admin.adminID === '0');
+    if (defaultConfig && defaultConfig.allowcommand.includes(command)) {
+      return true;
+    }
+
+    // 查找特定用户的权限配置
+    const adminConfig = config.admin_list.find(admin => admin.adminID === userId);
+    if (adminConfig) {
+      return adminConfig.allowcommand.includes(command);
+    }
+
+    return false;
+  }
+
   // 删除关键词回复分支
   async function deleteKeywordReply(session, filePath, keyword, config, specifiedIndex) {
     if (!fs.existsSync(filePath)) {
@@ -370,16 +422,12 @@ function apply(ctx, config) {
     }
   }
 
-
-
-
   function escapeRegExp(string) {
     return string
       .replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')  // 转义正则元字符
       .replace(/\s/g, '\\s')                     // 转义空白字符
       .replace(/\\\\/g, '\\\\');                 // 双反斜杠只处理一次
   }
-
 
   async function addKeywordReply(session, filePath, keyword, config, isRegex, isGlobal) {
     let data;
@@ -417,7 +465,7 @@ function apply(ctx, config) {
       const timeout = config.addKeywordTime * 60000; // 转换为毫秒
       const reply = await session.prompt(timeout);
 
-      if (reply.includes(config.KeywordOfEsc)) {
+      if (reply.includes(KeywordOfEsc)) {
         await session.send(h.text(session.text(`.Cancel_operation`)));
         return;
       }
@@ -444,13 +492,13 @@ function apply(ctx, config) {
       const timeout = config.addKeywordTime * 60000; // 转换为毫秒
       const reply = await session.prompt(timeout);
       // 检查是否输入了取消添加的关键词
-      if (reply.includes(config.KeywordOfEsc)) {
+      if (reply.includes(KeywordOfEsc)) {
         await session.send(h.text(session.text(`.Cancel_operation`)));
         return;
       }
-      if ((config.MatchPatternForExit === '2' && reply === config.KeywordOfEnd) ||
-        (config.MatchPatternForExit === '3' && reply.includes(config.KeywordOfEnd)) ||
-        (config.MatchPatternForExit === '4' && (reply === config.KeywordOfEnd || reply.includes(config.KeywordOfEnd)))) {
+      if ((config.MatchPatternForExit === '2' && reply === KeywordOfEnd) ||
+        (config.MatchPatternForExit === '3' && reply.includes(KeywordOfEnd)) ||
+        (config.MatchPatternForExit === '4' && (reply === KeywordOfEnd || reply.includes(KeywordOfEnd)))) {
         break;
       }
       if (!reply) {
@@ -466,7 +514,6 @@ function apply(ctx, config) {
     fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf-8');
     await session.send(h.unescape((session.text(`.Reply_added`, [keyword]))));
   }
-
 
   async function downloadImage(url, outputPath, session, isGlobal) {
     try {
@@ -571,11 +618,126 @@ function apply(ctx, config) {
     return returnformatReply;
   };
 
+  function isValidKeyword(keyword) {
+    return keyword && keyword.trim().length > 0;
+  }
+
+  function calculateFontSize(numKeywords, maxFontSize, minFontSize) {
+    const m = (minFontSize - maxFontSize) / (40 - 1);
+    const b = maxFontSize - m * 1;
+    return m * numKeywords + b;
+  }
+
+  // 查看关键词列表指令
+  ctx.command(`keyword-dialogue/${config.command.ViewKeywordList}`)
+    .alias('查看关键词列表')
+    .action(async ({ session }) => {
+      const onlyAdminAuth = config.Only_admin_auth;
+      if (onlyAdminAuth && !isAdmin(session)) {
+        await session.send('你没有权限执行此操作。');
+        return;
+      }
+
+      if (!hasPermission(session, '查看关键词列表')) {
+        await session.send('你没有权限执行此操作。');
+        return;
+      }
+
+      const filePath = path.join(root, `${session.channelId}.json`);
+      if (!fs.existsSync(filePath)) {
+        await session.send('没有找到关键词数据。');
+        return;
+      }
+
+      const data = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+      const keywords = Object.keys(data);
+
+      if (keywords.length === 0) {
+        await session.send('当前没有关键词。');
+        return;
+      }
+      if (config.Type_of_ViewKeywordList === '1') {
+        // 返回文字列表
+        const message = keywords.map(keyword => `${keyword}`).join('\n');
+        await session.send(h.text(message));
+      } else if (config.Type_of_ViewKeywordList === '2') {
+        // 分页处理
+        const pages = [];
+        for (let i = 0; i < keywords.length; i += 40) {
+          pages.push(keywords.slice(i, i + 40));
+        }
+
+        for (const pageKeywords of pages) {
+          const page = await ctx.puppeteer.page();
+
+          // 设置页面内容
+          const fontSize = calculateFontSize(pageKeywords.length, 120, 40);
+
+          const content = `
+<html>
+<head>
+<style>
+body {
+background-color: black;
+color: white;
+font-family: Arial, sans-serif;
+display: flex;
+justify-content: center;
+align-items: center;
+height: 100vh;
+margin: 0;
+}
+.container {
+display: grid;
+grid-template-columns: 1fr 1fr;
+gap: 10px;
+padding: 20px;
+width: 1080px;
+height: 1920px;
+box-sizing: border-box;
+}
+.keyword {
+word-wrap: break-word;
+text-align: left;
+white-space: pre-wrap;
+background-color: #333;
+padding: 10px;
+border-radius: 5px;
+font-size: ${fontSize}px; /* 使用计算出的字体大小 */
+}
+</style>
+</head>
+<body>
+<div class="container">
+${pageKeywords.map(keyword => `<div class="keyword">${keyword}</div>`).join('')}
+</div>
+</body>
+</html>
+        `;
+
+
+          await page.setContent(content);
+          await page.setViewport({ width: 1080, height: 1920 });
+
+          const imageBuffer = await page.screenshot({ encoding: "binary" });
+          await page.close();
+
+          const imageMessage = h.image(imageBuffer, "image/png");
+          await session.send(imageMessage);
+        }
+      }
+    });
+
+
   // 搜索关键词
   ctx.command(`keyword-dialogue/${KeywordOfSearch} [Keyword]`)
     .action(async ({ session }, Keyword) => {
       if (config.Only_admin_auth && !isAdmin(session)) {
         await session.send(h.text(session.text(`.Only_admin_auth`)));
+        return;
+      }
+      if (!hasPermission(session, '查找关键词')) {
+        await session.send('你没有权限执行此操作。');
         return;
       }
       if (!Keyword) {
@@ -638,8 +800,6 @@ function apply(ctx, config) {
       }
     });
 
-
-
   // 删除关键词
   ctx.command(`keyword-dialogue/${delete_command} [Keyword]`)
     .alias('删除关键词')
@@ -649,7 +809,10 @@ function apply(ctx, config) {
         await session.send(h.text(session.text(`.Only_admin_auth`)));
         return;
       }
-
+      if (!hasPermission(session, '删除')) {
+        await session.send('你没有权限执行此操作。');
+        return;
+      }
       if (!Keyword) {
         await session.send(h.text(session.text(`.no_Valid_Keyword`)));
         return;
@@ -661,7 +824,6 @@ function apply(ctx, config) {
       await deleteKeywordReply(session, filePath, Keyword, config, specifiedIndex);
     });
 
-
   // 全局删除关键词
   ctx.command(`keyword-dialogue/${global_delete_command} [Keyword]`)
     .alias('全局删除关键词')
@@ -671,7 +833,10 @@ function apply(ctx, config) {
         await session.send(h.text(session.text(`.Only_admin_auth`)));
         return;
       }
-
+      if (!hasPermission(session, '全局删除')) {
+        await session.send('你没有权限执行此操作。');
+        return;
+      }
       if (!Keyword) {
         await session.send(h.text(session.text(`.no_Valid_Keyword`)));
         return;
@@ -683,11 +848,6 @@ function apply(ctx, config) {
       await deleteKeywordReply(session, filePath, Keyword, config, specifiedIndex);
     });
 
-
-  function isValidKeyword(keyword) {
-    return keyword && keyword.trim().length > 0;
-  }
-
   // 全局添加关键词
   ctx.command(`keyword-dialogue/${global_add_command} [Keyword]`)
     .alias('全局添加关键词')
@@ -697,7 +857,10 @@ function apply(ctx, config) {
         await session.send(h.text(session.text(`.Only_admin_auth`)));
         return;
       }
-
+      if (!hasPermission(session, '全局添加')) {
+        await session.send('你没有权限执行此操作。');
+        return;
+      }
       if (!isValidKeyword(Keyword)) {
         await session.send(h.text(session.text(`.no_Valid_Keyword`)));
         return;
@@ -720,7 +883,10 @@ function apply(ctx, config) {
         await session.send(h.text(session.text(`.Only_admin_auth`)));
         return;
       }
-
+      if (!hasPermission(session, '添加')) {
+        await session.send('你没有权限执行此操作。');
+        return;
+      }
       if (!isValidKeyword(Keyword)) {
         await session.send(h.text(session.text(`.no_Valid_Keyword`)));
         return;
@@ -745,7 +911,10 @@ function apply(ctx, config) {
         await session.send(h.text(session.text(`.Only_admin_auth`)));
         return;
       }
-
+      if (!hasPermission(session, '修改')) {
+        await session.send('你没有权限执行此操作。');
+        return;
+      }
       if (!isValidKeyword(Keyword)) {
         await session.send(h.text(session.text(`.no_Valid_Keyword`)));
         return;
@@ -799,7 +968,7 @@ function apply(ctx, config) {
       const timeout = config.addKeywordTime * 60000; // 转换为毫秒
       const reply = await session.prompt(timeout);
 
-      if (reply.includes(config.KeywordOfEsc)) {
+      if (reply.includes(KeywordOfEsc)) {
         await session.send(h.text(session.text(`.Cancel_operation`)));
         return;
       }
