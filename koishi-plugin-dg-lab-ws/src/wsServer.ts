@@ -21,21 +21,21 @@ export class WsServer {
         public readonly punishmentDuration = 5
         public readonly punishmentTime = 1
         public readonly heartbeatMsg = {
-            type: "heartbeat",
-            clientId: "",
-            targetId: "",
-            message: "200"
+                type: "heartbeat",
+                clientId: "",
+                targetId: "",
+                message: "200"
         }
 
         public heartbeatInterval: any
         public logger: Logger
         public wsServer?: WebSocket.Server
-      
+
         constructor(ctx: Context, port: number) {
                 this.logger = ctx.logger('dg-lab-ws')
 
                 this.wsServer = new WebSocket.Server({ port: port })
-                
+
                 this.wsServer.on('connection', (socket) => {
                         // 生成唯一的标识符
                         const clientId = uuidv4()
@@ -47,11 +47,11 @@ export class WsServer {
 
                         // 发送标识符给客户端（格式固定，双方都必须获取才可以进行后续通信：比如浏览器和APP）
                         socket.send(
-                                JSON.stringify({ 
-                                        type: 'bind', 
-                                        clientId, 
-                                        message: 'targetId', 
-                                        targetId: '' 
+                                JSON.stringify({
+                                        type: 'bind',
+                                        clientId,
+                                        message: 'targetId',
+                                        targetId: ''
                                 })
                         )
 
@@ -80,11 +80,11 @@ export class WsServer {
                         catch (e) {
                                 // 非JSON数据处理
                                 socket.send(
-                                        JSON.stringify({ 
-                                                type: 'msg', 
-                                                clientId: "", 
-                                                targetId: "", 
-                                                message: '403' 
+                                        JSON.stringify({
+                                                type: 'msg',
+                                                clientId: "",
+                                                targetId: "",
+                                                message: '403'
                                         })
                                 )
                                 return
@@ -92,15 +92,15 @@ export class WsServer {
 
                         // 非法消息来源拒绝
                         if (
-                                this.clients.get(data.clientId) !== socket && 
+                                this.clients.get(data.clientId) !== socket &&
                                 this.clients.get(data.targetId) !== socket
                         ) {
                                 socket.send(
-                                        JSON.stringify({ 
+                                        JSON.stringify({
                                                 type: 'msg',
-                                                 clientId: "", 
-                                                 targetId: "", 
-                                                 message: '404' 
+                                                clientId: "",
+                                                targetId: "",
+                                                message: '404'
                                         })
                                 )
                                 return
@@ -108,7 +108,7 @@ export class WsServer {
 
                         if (
                                 !data.type ||
-                                !data.clientId || 
+                                !data.clientId ||
                                 !data.message ||
                                 !data.targetId
                         ) {
@@ -121,7 +121,7 @@ export class WsServer {
                                 case "bind":
                                         // 服务器下发绑定关系
                                         if (
-                                                this.clients.has(clientId) && 
+                                                this.clients.has(clientId) &&
                                                 this.clients.has(targetId)
                                         ) {
                                                 // relations的双方都不存在这俩id
@@ -195,40 +195,40 @@ export class WsServer {
                                                 const sendData = { type: "msg", clientId, targetId, message: "pulse-" + data.message }
                                                 let totalSends = this.punishmentTime * sendtime
                                                 const timeSpace = 1000 / this.punishmentTime
-                        
+
                                                 if (this.clientTimers.has(clientId + "-" + data.channel)) {
-                                                // A通道计时器尚未工作完毕, 清除计时器且发送清除APP队列消息，延迟150ms重新发送新数据
-                                                // 新消息覆盖旧消息逻辑
-                                                this.logger.info("通道" + data.channel + "覆盖消息发送中，总消息数：" + totalSends + "持续时间A：" + sendtime)
-                                                socket.send("当前通道" + data.channel + "有正在发送的消息，覆盖之前的消息")
-                        
-                                                const timerId = this.clientTimers.get(clientId + "-" + data.channel)
-                                                clearInterval(timerId) // 清除定时器
-                                                this.clientTimers.delete(clientId + "-" + data.channel) // 清除 Map 中的对应项
-                        
-                                                // 发送APP波形队列清除指令
-                                                switch (data.channel) {
-                                                        case "A":
-                                                        const clearDataA = { clientId, targetId, message: "clear-1", type: "msg" }
-                                                        target.send(JSON.stringify(clearDataA))
-                                                        break
-                        
-                                                        case "B":
-                                                        const clearDataB = { clientId, targetId, message: "clear-2", type: "msg" }
-                                                        target.send(JSON.stringify(clearDataB))
-                                                        break
-                                                        default:
-                                                        break
-                                                }
-                        
+                                                        // A通道计时器尚未工作完毕, 清除计时器且发送清除APP队列消息，延迟150ms重新发送新数据
+                                                        // 新消息覆盖旧消息逻辑
+                                                        this.logger.info("通道" + data.channel + "覆盖消息发送中，总消息数：" + totalSends + "持续时间A：" + sendtime)
+                                                        socket.send("当前通道" + data.channel + "有正在发送的消息，覆盖之前的消息")
+
+                                                        const timerId = this.clientTimers.get(clientId + "-" + data.channel)
+                                                        clearInterval(timerId) // 清除定时器
+                                                        this.clientTimers.delete(clientId + "-" + data.channel) // 清除 Map 中的对应项
+
+                                                        // 发送APP波形队列清除指令
+                                                        switch (data.channel) {
+                                                                case "A":
+                                                                        const clearDataA = { clientId, targetId, message: "clear-1", type: "msg" }
+                                                                        target.send(JSON.stringify(clearDataA))
+                                                                        break
+
+                                                                case "B":
+                                                                        const clearDataB = { clientId, targetId, message: "clear-2", type: "msg" }
+                                                                        target.send(JSON.stringify(clearDataB))
+                                                                        break
+                                                                default:
+                                                                        break
+                                                        }
+
                                                         setTimeout(() => {
                                                                 this.delaySendMsg(clientId, socket, target, sendData, totalSends, timeSpace, data.channel)
                                                         }, 150)
-                                                } 
+                                                }
                                                 else {
                                                         // 不存在未发完的消息 直接发送
                                                         this.delaySendMsg(clientId, socket, target, sendData, totalSends, timeSpace, data.channel)
-                                                        this.logger.info("通道" + data.channel +"消息发送中，总消息数：" + totalSends + "持续时间：" + sendtime)
+                                                        this.logger.info("通道" + data.channel + "消息发送中，总消息数：" + totalSends + "持续时间：" + sendtime)
                                                 }
                                         } else {
                                                 this.logger.info(`未找到匹配的客户端，clientId: ${clientId}`)
@@ -294,7 +294,7 @@ export class WsServer {
                         this.clients.delete(clientId) //清除ws客户端
                         this.logger.info("已清除" + clientId + " ,当前size: " + this.clients.size)
                 })
-        }       
+        }
 
         ErrorOn(socket: WebSocket) {
                 socket.on('error', (error) => {
@@ -336,11 +336,11 @@ export class WsServer {
         }
 
         delaySendMsg(
-                clientId: string, 
-                client: WebSocket, 
-                target: Target, sendData: SendData, 
-                totalSends: number, 
-                timeSpace: number, 
+                clientId: string,
+                client: WebSocket,
+                target: Target, sendData: SendData,
+                totalSends: number,
+                timeSpace: number,
                 channel: string
         ) {
                 // 发信计时器 通道会分别发送不同的消息和不同的数量 必须等全部发送完才会取消这个消息 新消息可以覆盖
@@ -362,7 +362,7 @@ export class WsServer {
                                                 resolve()
                                         }
                                 }, timeSpace) // 每隔频率倒数触发一次定时器
-                        
+
                                 // 存储clientId与其对应的timerId和通道
                                 this.clientTimers.set(clientId + "-" + channel, timerId)
                         })

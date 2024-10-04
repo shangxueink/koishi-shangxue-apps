@@ -1,7 +1,7 @@
 {
   "name": "koishi-plugin-dg-lab-ws",
   "description": "[<ruby>DG-LAB<rp>（</rp><rt>点我查看README</rt><rp>）</rp></ruby>](https://www.npmjs.com/package/koishi-plugin-dg-lab-ws)郊狼的ws服务插件，让你的koishi变成郊狼websocket服务器！转发命令、管理连接...一起在koishi里玩郊狼吧！",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "main": "lib/index.js",
   "typings": "lib/index.d.ts",
   "files": [
@@ -22,6 +22,7 @@
   },
   "dependencies": {
     "coffeescript": "^2.7.0",
-    "uuid": "^10.0.0"
+    "uuid": "^10.0.0",
+    "ws": "^8.18.0"
   }
 }
