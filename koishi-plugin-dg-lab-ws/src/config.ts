@@ -1,9 +1,9 @@
 import { Schema } from "koishi";
 
 export interface Config {
-        path: string
+        port: string
 }
 
 export const Config: Schema<Config> = Schema.object({
-        path: Schema.string().default("/dglab").description("Ws服务器监听路径")
+        port: Schema.string().default("5555").description("Ws服务器监听端口")
 }).description("Ws服务器配置")
