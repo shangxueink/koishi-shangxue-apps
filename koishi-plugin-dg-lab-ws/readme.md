@@ -27,8 +27,13 @@
 
 `koishi-plugin-dg-lab-ws` 插件接受以下配置选项：
 
-- `path`：WebSocket 服务器的路径。
+- `poty`：WebSocket 服务器的路径。
 
+## TODO
+
+- `Auth`: 可选的连接认证功能
+  
+- `command`: 通过指令查看管理Ws连接
 
 ## 许可证
 
