@@ -1,4 +1,3 @@
-import { WebSocketLayer } from "@koishijs/plugin-server"
 import WebSocket from 'ws'
 import { Context, Logger } from "koishi"
 import { v4 as uuidv4 } from 'uuid'
@@ -30,12 +29,14 @@ export class WsServer {
 
         public heartbeatInterval: any
         public logger: Logger
-        public wsServer?: WebSocketLayer
+        public wsServer?: WebSocket.Server
       
-        constructor(ctx: Context, path: string) {
+        constructor(ctx: Context, port: number) {
                 this.logger = ctx.logger('dg-lab-ws')
+
+                this.wsServer = new WebSocket.Server({ port: port })
                 
-                this.wsServer = ctx.server.ws(path, (socket) => {
+                this.wsServer.on('connection', (socket) => {
                         // 生成唯一的标识符
                         const clientId = uuidv4()
 
@@ -59,7 +60,7 @@ export class WsServer {
                         this.ErrorOn(socket)
                 })
 
-                this.logger.info('WebSocket 正在监听:', path)
+                this.logger.info('WebSocket 正在监听:', port)
 
                 ctx.on('dispose', () => {
                         this.logger.debug('ws server closing')
@@ -67,7 +68,7 @@ export class WsServer {
                 })
         }
 
-        MessageOn(socket: WebSocket.WebSocket) {
+        MessageOn(socket: WebSocket) {
                 socket.on('message', (Message: string) => {
                         this.logger.info("收到消息：" + Message)
 
@@ -256,7 +257,7 @@ export class WsServer {
                 })
         }
 
-        CloseOn(socket: WebSocket.WebSocket) {
+        CloseOn(socket: WebSocket) {
                 socket.on('close', () => {
                         // 连接关闭时，清除对应的 clientId 和 WebSocket 实例
                         this.logger.info('WebSocket 连接已关闭')
@@ -295,7 +296,7 @@ export class WsServer {
                 })
         }       
 
-        ErrorOn(socket: WebSocket.WebSocket) {
+        ErrorOn(socket: WebSocket) {
                 socket.on('error', (error) => {
                         // 错误处理
                         this.logger.error('WebSocket 异常:', error.message);
@@ -336,7 +337,7 @@ export class WsServer {
 
         delaySendMsg(
                 clientId: string, 
-                client: WebSocket.WebSocket, 
+                client: WebSocket, 
                 target: Target, sendData: SendData, 
                 totalSends: number, 
                 timeSpace: number, 
