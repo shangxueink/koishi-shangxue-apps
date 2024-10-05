@@ -108,11 +108,13 @@ export class WsServer {
                                 !data.message ||
                                 !data.targetId
                         ) {
-                                return
+                                return  
                         }
 
                         // 优先处理绑定关系
-                        const { clientId, targetId, message, type } = data
+                        this.logger.info("收到消息" + JSON.stringify(data))                        
+                        this.logger.info("type: " + data.type)
+                        const { clientId, targetId, message, type } = data                        
                         switch (data.type) {
                                 case "bind":
                                         // 服务器下发绑定关系
@@ -160,10 +162,36 @@ export class WsServer {
                                                 return
                                         }
                                         break
+
+                                case 'msg':
+                                        if (this.relations.get(clientId) !== targetId) {
+                                                const data = {
+                                                        type: "bind",
+                                                        clientId: clientId,
+                                                        targetId: targetId,
+                                                        message: "402"
+                                                }
+                                                socket.send(JSON.stringify(data))
+                                                return
+                                        }
+
+                                        if (this.clients.has(targetId)) {
+                                                const client = this.clients.get(targetId)
+                                                const sendData = {
+                                                        type: "msg",
+                                                        clientId: clientId,
+                                                        targetId: targetId,
+                                                        message: message
+                                                }
+                                                client.send(JSON.stringify(sendData))
+                                        }
+                                        break
                                 case 1:
                                 case 2:
                                 case 3:
-                                        // 服务器下发APP强度调节
+                                        // 服务器下发APP强度调节                                        
+                                        this.logger.info("clientId: " + clientId)
+                                        this.logger.info("targetId: " + targetId)
                                         if (this.relations.get(clientId) !== targetId) {
                                                 const data = {
                                                         type: "bind",
@@ -186,6 +214,7 @@ export class WsServer {
                                                         targetId,
                                                         message: msg
                                                 }
+                                                this.logger.info("发送消息：" + JSON.stringify(sendData))
                                                 client.send(JSON.stringify(sendData))
                                         }
                                         break
