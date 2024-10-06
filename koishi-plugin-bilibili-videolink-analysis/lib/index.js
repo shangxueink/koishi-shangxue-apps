@@ -2,9 +2,13 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.apply = exports.usage = exports.Config = exports.name = exports.inject = void 0;
 const koishi_1 = require("koishi");
-const logger = new koishi_1.Logger('bilibili-videolink-analysis');
+const { Schema, Logger, h } = require("koishi");
+const logger = new Logger('bilibili-videolink-analysis');
 exports.name = 'bilibili-videolink-analysis';
-exports.inject = ['BiliBiliVideo'];
+exports.inject = {
+    optional: ['puppeteer'],
+    required: ['BiliBiliVideo']
+}
 exports.usage = `
 
 <h1>→ <a href="https://www.npmjs.com/package/koishi-plugin-bilibili-videolink-analysis" target="_blank">可以点击这里查看详细的文档说明✨</a></h1>
@@ -15,17 +19,27 @@ exports.usage = `
 
 会返回视频信息与视频哦
 
-（本插件没有注册的指令）
-
 ---
 
 #### ⚠️ **如果你使用不了本项目，请优先检查：** ⚠️
+####   若无注册的指令，请关开一下[command插件](/market?keyword=commands+email:shigma10826@gmail.com)（没有指令也不影响解析别人的链接）
 ####   视频内容是否为B站的大会员专属视频/付费视频/充电专属视频
 ####   是否正确配置并启动了[bilibili-login插件](/market?keyword=bilibili-login)  （启动即可，不是必须登录）
 ####   接入方法是否支持获取网址链接/小程序卡片消息
 ####   接入方法是否支持视频元素的发送
 ####   发送视频超时/其他网络问题
 ####   视频内容被平台屏蔽/其他平台因素
+
+---
+
+###  注意，点播功能需要使用 puppeteer 服务
+
+点播功能是为了方便群友一起刷B站哦~
+
+比如：搜索 “遠い空へ” 的第二页，并且结果以语音格式返回
+
+示例：\`点播 遠い空へ -a  -p 2\`  
+
 
 ---
 
@@ -40,62 +54,211 @@ exports.usage = `
 
 `;
 
-exports.Config = koishi_1.Schema.intersect([
-    koishi_1.Schema.object({
-        waitTip_Switch: koishi_1.Schema.union([
-            koishi_1.Schema.const().description('不返回文字提示'),
-            koishi_1.Schema.string().description('返回文字提示（请在右侧填写文字内容）'),
+exports.Config = Schema.intersect([
+    Schema.object({
+        timeout: Schema.number().role('slider').min(1).max(300).step(1).default(60).description('指定播放视频的输入时限。`单位 秒`'),
+        point: Schema.tuple([Number, Number]).description('序号标注位置。分别表示`距离顶部 距离左侧`的百分比').default([50, 50]),
+        enable: Schema.boolean().description('是否开启自动解析`选择对应视频 会自动解析视频内容`').default(true),
+    }).description('点播设置（需要puppeteer服务）'),
+
+    Schema.object({
+        waitTip_Switch: Schema.union([
+            Schema.const().description('不返回文字提示'),
+            Schema.string().description('返回文字提示（请在右侧填写文字内容）'),
         ]).description("是否返回等待提示。开启后，会发送`等待提示语`"),
-
-        linktextParsing: koishi_1.Schema.boolean().default(true).description("是否返回 视频图文数据 `开启后，才发送视频数据的图文解析。`"),
-        VideoParsing_ToLink: koishi_1.Schema.union([
-            koishi_1.Schema.const('1').description('不返回视频/视频直链'),
-            koishi_1.Schema.const('2').description('仅返回视频'),
-            koishi_1.Schema.const('3').description('仅返回视频直链'),
-            koishi_1.Schema.const('4').description('返回视频和视频直链'),
-            koishi_1.Schema.const('5').description('返回视频，仅在日志记录视频直链'),
+        linktextParsing: Schema.boolean().default(true).description("是否返回 视频图文数据 `开启后，才发送视频数据的图文解析。`"),
+        VideoParsing_ToLink: Schema.union([
+            Schema.const('1').description('不返回视频/视频直链'),
+            Schema.const('2').description('仅返回视频'),
+            Schema.const('3').description('仅返回视频直链'),
+            Schema.const('4').description('返回视频和视频直链'),
+            Schema.const('5').description('返回视频，仅在日志记录视频直链'),
         ]).role('radio').default('2').description("是否返回` 视频/视频直链 `"),
-        Video_ClarityPriority: koishi_1.Schema.union([
-            koishi_1.Schema.const('1').description('低清晰度优先（低清晰度的视频发得快一点）'),
-            koishi_1.Schema.const('2').description('高清晰度优先（清晰的还是去B站看吧）'),
+        Video_ClarityPriority: Schema.union([
+            Schema.const('1').description('低清晰度优先（低清晰度的视频发得快一点）'),
+            Schema.const('2').description('高清晰度优先（清晰的还是去B站看吧）'),
         ]).role('radio').default('1').description("发送的视频清晰度优先策略"),
-
-        BVnumberParsing: koishi_1.Schema.boolean().default(true).description("是否允许根据`独立的BV号`解析视频 `开启后，可以通过视频的BV号解析视频。` <br>  [触发说明见README](https://www.npmjs.com/package/koishi-plugin-bilibili-videolink-analysis)"),
-        Maximumduration: koishi_1.Schema.number().default(25).description("允许解析的视频最大时长（分钟）`超过这个时长 就不会发视频`").min(1),
-        Maximumduration_tip: koishi_1.Schema.union([
-            koishi_1.Schema.const('不返回文字提示').description('不返回文字提示'),
-            koishi_1.Schema.string().description('返回文字提示（请在右侧填写文字内容）').default('视频太长啦！还是去B站看吧~'),
+        BVnumberParsing: Schema.boolean().default(true).description("是否允许根据`独立的BV号`解析视频 `开启后，可以通过视频的BV号解析视频。` <br>  [触发说明见README](https://www.npmjs.com/package/koishi-plugin-bilibili-videolink-analysis)"),
+        Maximumduration: Schema.number().default(25).description("允许解析的视频最大时长（分钟）`超过这个时长 就不会发视频`").min(1),
+        Maximumduration_tip: Schema.union([
+            Schema.const('不返回文字提示').description('不返回文字提示'),
+            Schema.string().description('返回文字提示（请在右侧填写文字内容）').default('视频太长啦！还是去B站看吧~'),
         ]).description("对过长视频的文字提示内容").default('视频太长啦！还是去B站看吧~'),
-        MinimumTimeInterval: koishi_1.Schema.number().default(180).description("若干`秒`内 不再处理相同链接 `防止多bot互相触发 导致的刷屏/性能浪费`").min(1),
+        MinimumTimeInterval: Schema.number().default(180).description("若干`秒`内 不再处理相同链接 `防止多bot互相触发 导致的刷屏/性能浪费`").min(1),
     }).description("基础设置"),
 
-    koishi_1.Schema.object({
-        parseLimit: koishi_1.Schema.number().default(3).description("单对话多链接解析上限").hidden(),
-        useNumeral: koishi_1.Schema.boolean().default(true).description("使用格式化数字").hidden(),
-        showError: koishi_1.Schema.boolean().default(false).description("当链接不正确时提醒发送者").hidden(),
-
-        bVideoIDPreference: koishi_1.Schema.union([
-            koishi_1.Schema.const("bv").description("BV 号"),
-            koishi_1.Schema.const("av").description("AV 号"),
+    Schema.object({
+        parseLimit: Schema.number().default(3).description("单对话多链接解析上限").hidden(),
+        useNumeral: Schema.boolean().default(true).description("使用格式化数字").hidden(),
+        showError: Schema.boolean().default(false).description("当链接不正确时提醒发送者").hidden(),
+        bVideoIDPreference: Schema.union([
+            Schema.const("bv").description("BV 号"),
+            Schema.const("av").description("AV 号"),
         ]).default("bv").description("ID 偏好").hidden(),
-        bVideoImage: koishi_1.Schema.boolean().default(true).description("显示封面"),
-        bVideoOwner: koishi_1.Schema.boolean().default(true).description("显示 UP 主"),
-        bVideoDesc: koishi_1.Schema.boolean().default(false).description("显示简介`有的简介真的很长`"),
-        bVideoStat: koishi_1.Schema.boolean().default(true).description("显示状态（*三连数据*）"),
-        bVideoExtraStat: koishi_1.Schema.boolean().default(true).description("显示额外状态（*弹幕&观看*）"),
-        bVideoShowLink: koishi_1.Schema.boolean().default(false).description("显示视频链接`开启可能会导致其他bot循环解析`"),
-
+        bVideoImage: Schema.boolean().default(true).description("显示封面"),
+        bVideoOwner: Schema.boolean().default(true).description("显示 UP 主"),
+        bVideoDesc: Schema.boolean().default(false).description("显示简介`有的简介真的很长`"),
+        bVideoStat: Schema.boolean().default(true).description("显示状态（*三连数据*）"),
+        bVideoExtraStat: Schema.boolean().default(true).description("显示额外状态（*弹幕&观看*）"),
+        bVideoShowLink: Schema.boolean().default(false).description("显示视频链接`开启可能会导致其他bot循环解析`"),
     }).description("链接的图文解析设置"),
 
-    koishi_1.Schema.object({
-        userAgent: koishi_1.Schema.string().description("所有 API 请求所用的 User-Agent").default("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"),
-        loggerinfo: koishi_1.Schema.boolean().default(false).description("日志调试输出 `日常使用无需开启`"),
+    Schema.object({
+        userAgent: Schema.string().description("所有 API 请求所用的 User-Agent").default("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"),
+        loggerinfo: Schema.boolean().default(false).description("日志调试输出 `日常使用无需开启`"),
     }).description("调试设置"),
 ]);
 
 function apply(ctx, config) {
     const bilibiliVideo = ctx.BiliBiliVideo;
     ctx.middleware(async (session, next) => {
+        const links = await isProcessLinks(session, config, ctx, lastProcessedUrls, logger); // 判断是否需要解析
+        if (links) {
+            const ret = await extractLinks(session, config, ctx, lastProcessedUrls, logger); // 提取链接
+            if (ret && !isLinkProcessedRecently(ret, lastProcessedUrls, config, logger)) {
+                await processVideoFromLink(session, config, ctx, lastProcessedUrls, logger, ret); // 解析视频并返回
+            }
+        }
+        return next();
+    });
+
+    ctx.command('点播 [keyword]', '点播B站视频')
+        .option('video', '-v 解析返回视频')
+        .option('audio', '-a 解析返回语音')
+        .option('link', '-l 解析返回链接')
+        .option('page', '-p <page:number> 指定页数', { fallback: '1' })
+        .example('点播   遠い空へ  -v')
+        .action(async ({ options, session }, keyword) => {
+            if (!keyword) {
+                await session.execute('点播 -h')
+                return '没输入keyword'
+            }
+
+
+            const url = `https://search.bilibili.com/video?keyword=${encodeURIComponent(keyword)}&page=${options.page}&o=30`
+            const page = await ctx.puppeteer.page()
+
+            await page.goto(url, {
+                waitUntil: 'networkidle2'
+            })
+
+            await page.addStyleTag({
+                content: `
+          div.bili-header, 
+          div.login-tip, 
+          div.v-popover, 
+          div.right-entry__outside {
+            display: none !important;
+          }
+        `
+            })
+            // 获取视频列表并为每个视频元素添加序号
+            const videos = await page.evaluate((point) => {
+                const items = Array.from(document.querySelectorAll('.video-list-item:not([style*="display: none"])'))
+                return items.map((item, index) => {
+                    const link = item.querySelector('a')
+                    const href = link?.getAttribute('href') || ''
+                    const idMatch = href.match(/\/video\/(BV\w+)\//)
+                    const id = idMatch ? idMatch[1] : ''
+
+                    if (!id) {
+                        // 如果没有提取到视频ID，隐藏这个元素
+                        //const htmlElement = item as HTMLElement
+                        const htmlElement = item
+                        htmlElement.style.display = 'none'
+                    } else {
+                        // 创建一个包含序号的元素，并将其插入到视频元素的正中央
+                        const overlay = document.createElement('div')
+                        overlay.style.position = 'absolute'
+                        overlay.style.top = `${point[0]}%`
+                        overlay.style.left = `${point[1]}%`
+                        overlay.style.transform = 'translate(-50%, -50%)'
+                        overlay.style.fontSize = '48px'
+                        overlay.style.fontWeight = 'bold'
+                        overlay.style.color = 'black'
+                        overlay.style.zIndex = '10'
+                        overlay.style.backgroundColor = 'rgba(255, 255, 255, 0.7)'  // 半透明白色背景，确保数字清晰可见
+                        overlay.style.padding = '10px'
+                        overlay.style.borderRadius = '8px'
+                        overlay.textContent = `${index + 1}` // 序号
+
+                        // 确保父元素有 `position: relative` 以正确定位
+                        //const videoElement = item as HTMLElement
+                        const videoElement = item
+                        videoElement.style.position = 'relative'
+                        videoElement.appendChild(overlay)
+                    }
+
+                    return { id }
+                }).filter(video => video.id)
+            }, config.point) // 传递配置的 point 参数
+
+            // 如果开启了日志调试模式，打印获取到的视频信息
+            if (config.loggerinfo) {
+                ctx.logger.info(options)
+                ctx.logger.info(`共找到 ${videos.length} 个视频:`)
+                videos.forEach((video, index) => {
+                    ctx.logger.info(`序号 ${index + 1}: ID - ${video.id}`)
+                })
+            }
+
+            if (videos.length === 0) {
+                await page.close()
+                return '未找到相关视频。'
+            }
+
+            // 动态调整窗口大小以适应视频数量
+            const viewportHeight = 200 + videos.length * 100
+            await page.setViewport({
+                width: 1440,
+                height: viewportHeight
+            })
+            let msg;
+            // 截图
+            const videoListElement = await page.$('.video-list.row')
+            if (videoListElement) {
+                const imgBuf = await videoListElement.screenshot({
+                    captureBeyondViewport: false
+                })
+                msg = h.image(imgBuf, 'image/png')
+            }
+
+            await page.close()
+
+            // 发送截图
+            await session.send(msg)
+
+            // 提示用户输入
+            await session.send(`请选择视频的序号：`)
+
+            // 等待用户输入
+            const userChoice = await session.prompt(config.timeout * 1000)
+            const choiceIndex = parseInt(userChoice) - 1
+            if (isNaN(choiceIndex) || choiceIndex < 0 || choiceIndex >= videos.length) {
+                return '输入无效，请输入正确的序号。'
+            }
+
+            // 返回用户选择的视频ID
+            const chosenVideo = videos[choiceIndex]
+
+            // 如果开启了日志调试模式，打印用户选择的视频信息
+            if (config.loggerinfo) {
+                ctx.logger.info(`渲染序号设置\noverlay.style.top = ${config.point[0]}% \noverlay.style.left = ${config.point[1]}80%`)
+                ctx.logger.info(`用户选择了序号 ${choiceIndex + 1}: ID - ${chosenVideo.id}`)
+            }
+
+            if (config.enable) { // 开启自动解析了
+                session.content = `https://www.bilibili.com/video/${chosenVideo.id}`
+                const ret = await extractLinks(session, config, ctx, lastProcessedUrls, logger); // 提取链接
+                if (ret && !isLinkProcessedRecently(ret, lastProcessedUrls, config, logger)) {
+                    await processVideoFromLink(session, config, ctx, lastProcessedUrls, logger, ret, options); // 解析视频并返回
+                }
+            }
+        })
+
+
+    //判断是否需要解析
+    async function isProcessLinks(session, config, ctx, lastProcessedUrls, logger) {
         let content = session.content;
 
         // 如果允许解析 BV 号，则进行解析
@@ -109,16 +272,23 @@ function apply(ctx, config) {
         // 解析内容中的链接
         const links = link_type_parser(content);
         if (links.length === 0) {
-            return next();
+            return false; // 如果没有找到链接，返回 false
         }
-        var ret = "";
-        ret += [(0, koishi_1.h)("quote", { id: session.messageId })];
+
+        return links; // 返回解析出的链接
+    }
+
+    //提取链接 
+    async function extractLinks(session, config, ctx, lastProcessedUrls, logger) {
+        const links = link_type_parser(session.content);
+        let ret = "";
+        ret += [(0, h)("quote", { id: session.messageId })];
         let countLink = 0;
         let tp_ret;
+
         // 循环检测链接类型
         for (const element of links) {
-            if (countLink >= 1)
-                ret += "\n";
+            if (countLink >= 1) ret += "\n";
             if (countLink >= config.parseLimit) {
                 ret += "已达到解析上限…";
                 break;
@@ -129,102 +299,102 @@ function apply(ctx, config) {
                     ret = "无法解析链接信息。可能是 ID 不存在，或该类型可能暂不支持。";
                 else
                     ret = null;
-            }
-            else
+            } else {
                 ret += tp_ret;
+            }
             countLink++;
         }
+        return ret;
+    }
 
-        if (ret) {
-            const lastretUrl = extractLastUrl(ret);// 提取ret最后一个http链接作为解析目标
+    //判断链接是否已经处理过
+    function isLinkProcessedRecently(ret, lastProcessedUrls, config, logger) {
+        const lastretUrl = extractLastUrl(ret); // 提取 ret 最后一个 http 链接作为解析目标
+        const currentTime = Date.now();
 
-            // 检查该链接是否在设定的时间间隔内已经处理过
-            const currentTime = Date.now();
-            if (lastProcessedUrls[lastretUrl] && (currentTime - lastProcessedUrls[lastretUrl] < config.MinimumTimeInterval * 1000)) {
-                if (config.loggerinfo) {
-                    logger.info(`重复出现，略过处理：\n ${lastretUrl}`);
-                }
-                return next();
+        if (lastProcessedUrls[lastretUrl] && (currentTime - lastProcessedUrls[lastretUrl] < config.MinimumTimeInterval * 1000)) {
+            if (config.loggerinfo) {
+                logger.info(`重复出现，略过处理：\n ${lastretUrl}`);
             }
+            return true; // 已经处理过
+        }
 
-            // 更新该链接的最后处理时间
-            lastProcessedUrls[lastretUrl] = currentTime;
+        // 更新该链接的最后处理时间
+        lastProcessedUrls[lastretUrl] = currentTime;
+        return false; // 没有处理过
+    }
 
-            if (config.waitTip_Switch) {
-                // 等候的提示文字
-                await session.send(config.waitTip_Switch);
+    //解析视频并返回 
+    async function processVideoFromLink(session, config, ctx, lastProcessedUrls, logger, ret, options) {
+        const lastretUrl = extractLastUrl(ret);
+        let bilibilimediaDataURL = '';
+        let mediaData = '';
+
+        if (config.waitTip_Switch) {
+            // 等候的提示文字
+            await session.send(config.waitTip_Switch);
+        }
+
+        if (config.linktextParsing) {
+            if (config.bVideoShowLink) {
+                await session.send(ret); // 发送完整信息
+            } else {
+                // 去掉最后一个链接
+                const retWithoutLastLink = ret.replace(lastretUrl, '');
+                await session.send(retWithoutLastLink);
             }
+        }
 
-            if (config.linktextParsing) { // 发送视频数据，图文信息
-                if (config.bVideoShowLink) {
-                    await session.send(ret);
-                } else {
-                    // 去掉最后一个链接
-                    const retWithoutLastLink = ret.replace(lastretUrl, '');
-                    await session.send(retWithoutLastLink);
+        if (config.VideoParsing_ToLink) {
+            const mediaDataString = JSON.stringify(await handleBilibiliMedia(bilibiliVideo, lastretUrl, config));
+            mediaData = JSON.parse(mediaDataString);
+            bilibilimediaDataURL = mediaData[0].url;
+            const videoDuration = mediaData[0].duration; // 提取视频时长，单位为秒
+
+            if (videoDuration > config.Maximumduration * 60) {
+                if (config.Maximumduration_tip) {
+                    await session.send(config.Maximumduration_tip);
                 }
+                return;
             }
-            let bilibilimediaDataURL = '';
-            let mediaData = '';
-            if (config.VideoParsing_ToLink) {
-                const mediaDataString = JSON.stringify(await handleBilibiliMedia(bilibiliVideo, lastretUrl, config));
-                mediaData = JSON.parse(mediaDataString);
-                bilibilimediaDataURL = mediaData[0].url
-                const videoDuration = mediaData[0].duration; // 提取视频时长，单位为秒
-
-                if (videoDuration > config.Maximumduration * 60) {
-                    // 如果视频时长超过配置的最大值
-                    if (config.Maximumduration_tip) {
-                        await session.send(config.Maximumduration_tip);
-                    }
-                    return next();
-                }
+            if (options.text || options.link) { // 发送链接
+                await session.send(h.text(bilibilimediaDataURL));
+                return;
+            } else if (options.audio) { // 发送语音
+                await session.send(h.audio(bilibilimediaDataURL));
+                return;
+            } else {  //  默认发送视频
                 // 根据配置的值来决定发送的内容
-                /*
-                * VideoParsing_ToLink: koishi_1.Schema.union([
-                *    
-                * koishi_1.Schema.const('1').description('不返回视频/视频直链'),
-                * koishi_1.Schema.const('2').description('仅返回视频'),
-                * koishi_1.Schema.const('3').description('仅返回视频直链'),
-                * koishi_1.Schema.const('4').description('返回视频和视频直链'),
-                * koishi_1.Schema.const('5').description('返回视频，仅在日志记录视频直链'),
-                * 
-                * ]).role('radio').default('2').description("是否返回` 视频/视频直链 `"),
-                */
                 switch (config.VideoParsing_ToLink) {
-                    case '1': // 不返回视频/视频直链 
+                    case '1': // 不返回视频/视频直链
                         break;
-                    case '2': // 仅返回视频     
-                        await session.send(koishi_1.h.video(bilibilimediaDataURL)); // 发送视频
+                    case '2': // 仅返回视频
+                        await session.send(h.video(bilibilimediaDataURL)); // 发送视频
                         break;
-                    case '3': // 仅返回视频直链                    
-                        await session.send(koishi_1.h.text(bilibilimediaDataURL)); // 发送视频直链
+                    case '3': // 仅返回视频直链
+                        await session.send(h.text(bilibilimediaDataURL)); // 发送视频直链
                         break;
                     case '4': // 返回视频和视频直链
-                        await session.send(koishi_1.h.text(bilibilimediaDataURL)); // 先发送视频直链
-                        await session.send(koishi_1.h.video(bilibilimediaDataURL)); // 发送视频                    
+                        await session.send(h.text(bilibilimediaDataURL)); // 先发送视频直链
+                        await session.send(h.video(bilibilimediaDataURL)); // 发送视频
                         break;
                     case '5': // 返回视频，记录视频链接
                         await logger.info(bilibilimediaDataURL); // 先记录日志
-                        await session.send(koishi_1.h.video(bilibilimediaDataURL)); // 发送视频                    
+                        await session.send(h.video(bilibilimediaDataURL)); // 发送视频
                         break;
                     default:
-                        // 处理默认情况或者错误配置     
-                        // 目前默认 不返回视频/视频直链
+                        // 处理默认情况或者错误配置
                         break;
                 }
             }
-
-            if (config.loggerinfo) {
-                //logger.info(`userAgent为\n ${config.userAgent}`);
-                //logger.info(`提取到的链接为\n ${JSON.stringify(links)}`);         
-                logger.info(`视频信息内容：\n ${JSON.stringify(mediaData)}`);
-                logger.info(`机器人发送完整消息为：\n ${ret}`);
-            }
-
         }
-        return next();
-    });
+
+        if (config.loggerinfo) {
+            logger.info(`视频信息内容：\n ${JSON.stringify(mediaData)}`);
+            logger.info(`机器人发送完整消息为：\n ${ret}`);
+        }
+        return;
+    }
 
 
     // 提取最后一个URL
@@ -575,15 +745,15 @@ function apply(ctx, config) {
                     // 根据配置决定排序顺序
                     switch (config.Video_ClarityPriority) {
                         case '1':
-                          //logger.info(`低清晰度优先排序，a[1]: ${a[1]}, b[1]: ${b[1]}`);
-                          return a[1] - b[1]; // 从低到高排序（低清晰度优先）
+                            //logger.info(`低清晰度优先排序，a[1]: ${a[1]}, b[1]: ${b[1]}`);
+                            return a[1] - b[1]; // 从低到高排序（低清晰度优先）
                         case '2':
-                          //logger.info(`高清晰度优先排序，a[1]: ${a[1]}, b[1]: ${b[1]}`);
-                          return b[1] - a[1]; // 从高到低排序（高清晰度优先）
+                            //logger.info(`高清晰度优先排序，a[1]: ${a[1]}, b[1]: ${b[1]}`);
+                            return b[1] - a[1]; // 从高到低排序（高清晰度优先）
                         default:
-                          //logger.warn(`未知的视频清晰度优先级配置: ${config.Video_ClarityPriority}`);
-                          return 0; // 默认保持原顺序
-                      }
+                            //logger.warn(`未知的视频清晰度优先级配置: ${config.Video_ClarityPriority}`);
+                            return 0; // 默认保持原顺序
+                    }
                 }
             });
             outerLoop: for (const [index, item] of CombinedQualityInfo.entries()) {
@@ -731,11 +901,6 @@ function apply(ctx, config) {
 
             mediaDataArray.push(mediaData);
         }
-        /*
-        if (config.loggerinfo) {
-            logger.info(mediaDataArray)
-        }
-        */
         return mediaDataArray;
     }
 

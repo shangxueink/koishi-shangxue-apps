@@ -178,6 +178,10 @@ https://www.bilibili.com/video/BV1ii421Q7oj
 <details>
 <summary>点击此处 可查看更新日志</summary>
 
+-   **0.5.2**
+    -   支持点播功能，使用puppeteer进行网页截图，并且加以渲染序号，以便选择
+    -   模块化中间件部分内容，方便调用
+
 -   **0.5.1**
     -   调整配置项`Maximumduration`的默认值为`25`分钟
     -   优化对于`B站的大会员专属视频和付费视频/充电专属视频`的说明
