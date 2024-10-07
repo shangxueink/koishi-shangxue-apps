@@ -167,8 +167,6 @@ export class WsServer {
                                 case 2:
                                 case 3:
                                         // 服务器下发APP强度调节                                        
-                                        this.logger.info("clientId: " + clientId)
-                                        this.logger.info("targetId: " + targetId)
                                         if (this.relations.get(clientId) !== targetId) {
                                                 const data = {
                                                         type: "bind",
@@ -183,8 +181,7 @@ export class WsServer {
                                                 const client = this.clients.get(targetId)
                                                 const sendType = data.type - 1
                                                 const sendChannel = data.channel ? data.channel : 1
-                                                //const sendStrength = data.type >= 3 ? data.strength : 1 //增加模式强度改成1
-                                                const sendStrength = data.strength
+                                                const sendStrength = data.strength ? data.strength : 1
                                                 const msg = "strength-" + sendChannel + "+" + sendType + "+" + sendStrength
                                                 const sendData = {
                                                         type: "msg",
