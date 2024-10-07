@@ -39,34 +39,34 @@ email：1919892171@qq.com
 ## 📌 链接信息解析设置
 
 ### 基础设置
-| 设置项 | 描述 | 默认值 |
-| --- | --- | --- |
-| `waitTip_Switch` | 是否返回等待提示语句。开启后，会发送自定义的等待提示语。 | 不返回文字提示 |
-| `linktextParsing` | 是否返回视频图文数据。开启后，发送视频数据的图文解析。 | `true` |
-| `VideoParsing_ToLink` | 是否返回视频/视频直链。可以选择不同的返回策略。 | 仅返回视频 |
-| `Video_ClarityPriority` | 发送视频时清晰度的优先策略。 | 低清晰度优先 |
-| `BVnumberParsing` | 是否允许根据独立的BV号解析视频。开启后，可以通过视频的BV号解析视频。 | `true` |
-| `Maximumduration` | 允许解析的视频最大时长（分钟）。超过此时长则不会发送视频。 | `25` |
-| `Maximumduration_tip` | 对过长视频的文字提示内容。 | 视频太长啦！还是去B站看吧~ |
-| `MinimumTimeInterval` | 若干秒内不再处理相同链接，防止多bot互相触发导致的刷屏/性能浪费。 | `180`秒 |
+| 设置项                  | 描述                                                                 | 默认值                     |
+| ----------------------- | -------------------------------------------------------------------- | -------------------------- |
+| `waitTip_Switch`        | 是否返回等待提示语句。开启后，会发送自定义的等待提示语。             | 不返回文字提示             |
+| `linktextParsing`       | 是否返回视频图文数据。开启后，发送视频数据的图文解析。               | `true`                     |
+| `VideoParsing_ToLink`   | 是否返回视频/视频直链。可以选择不同的返回策略。                      | 仅返回视频                 |
+| `Video_ClarityPriority` | 发送视频时清晰度的优先策略。                                         | 低清晰度优先               |
+| `BVnumberParsing`       | 是否允许根据独立的BV号解析视频。开启后，可以通过视频的BV号解析视频。 | `true`                     |
+| `Maximumduration`       | 允许解析的视频最大时长（分钟）。超过此时长则不会发送视频。           | `25`                       |
+| `Maximumduration_tip`   | 对过长视频的文字提示内容。                                           | 视频太长啦！还是去B站看吧~ |
+| `MinimumTimeInterval`   | 若干秒内不再处理相同链接，防止多bot互相触发导致的刷屏/性能浪费。     | `180`秒                    |
 ### 链接的图文解析设置
-| 设置项 | 描述 | 默认值 |
-| --- | --- | --- |
-| `parseLimit` | 单对话多链接解析上限。 | `3` |
-| `useNumeral` | 是否使用格式化数字。 | `true` |
-| `showError` | 当链接不正确时提醒发送者。 | `false` |
-| `bVideoIDPreference` | ID偏好，选择视频ID类型，BV号或AV号。 | `"bv"` |
-| `bVideoImage` | 是否显示视频封面。 | `true` |
-| `bVideoOwner` | 是否显示视频UP主信息。 | `true` |
-| `bVideoDesc` | 是否显示视频简介。 | `false` |
-| `bVideoStat` | 是否显示视频状态（如三连数据）。 | `true` |
-| `bVideoExtraStat` | 是否显示额外状态（如弹幕和观看人数）。 | `true` |
-| `bVideoShowLink` | 是否显示视频链接。开启可能会导致其他bot循环解析。 | `false` |
+| 设置项               | 描述                                              | 默认值  |
+| -------------------- | ------------------------------------------------- | ------- |
+| `parseLimit`         | 单对话多链接解析上限。                            | `3`     |
+| `useNumeral`         | 是否使用格式化数字。                              | `true`  |
+| `showError`          | 当链接不正确时提醒发送者。                        | `false` |
+| `bVideoIDPreference` | ID偏好，选择视频ID类型，BV号或AV号。              | `"bv"`  |
+| `bVideoImage`        | 是否显示视频封面。                                | `true`  |
+| `bVideoOwner`        | 是否显示视频UP主信息。                            | `true`  |
+| `bVideoDesc`         | 是否显示视频简介。                                | `false` |
+| `bVideoStat`         | 是否显示视频状态（如三连数据）。                  | `true`  |
+| `bVideoExtraStat`    | 是否显示额外状态（如弹幕和观看人数）。            | `true`  |
+| `bVideoShowLink`     | 是否显示视频链接。开启可能会导致其他bot循环解析。 | `false` |
 ### 调试设置
-| 设置项 | 描述 | 默认值 |
-| --- | --- | --- |
-| `userAgent` | 所有API请求所用的User-Agent。 | 默认的User-Agent字符串 |
-| `loggerinfo` | 是否开启日志调试输出。日常使用无需开启。 | `false` |
+| 设置项       | 描述                                     | 默认值                 |
+| ------------ | ---------------------------------------- | ---------------------- |
+| `userAgent`  | 所有API请求所用的User-Agent。            | 默认的User-Agent字符串 |
+| `loggerinfo` | 是否开启日志调试输出。日常使用无需开启。 | `false`                |
 ---
 
 
@@ -178,9 +178,10 @@ https://www.bilibili.com/video/BV1ii421Q7oj
 <details>
 <summary>点击此处 可查看更新日志</summary>
 
--   **0.5.2**
+-   **0.6.0**
     -   支持点播功能，使用puppeteer进行网页截图，并且加以渲染序号，以便选择
     -   模块化中间件部分内容，方便调用
+    -   修复options.text的报错
 
 -   **0.5.1**
     -   调整配置项`Maximumduration`的默认值为`25`分钟

@@ -325,7 +325,7 @@ function apply(ctx, config) {
     }
 
     //解析视频并返回 
-    async function processVideoFromLink(session, config, ctx, lastProcessedUrls, logger, ret, options) {
+    async function processVideoFromLink(session, config, ctx, lastProcessedUrls, logger, ret, options = { video: true }) {
         const lastretUrl = extractLastUrl(ret);
         let bilibilimediaDataURL = '';
         let mediaData = '';
@@ -357,7 +357,7 @@ function apply(ctx, config) {
                 }
                 return;
             }
-            if (options.text || options.link) { // 发送链接
+            if (options.link) { // 发送链接
                 await session.send(h.text(bilibilimediaDataURL));
                 return;
             } else if (options.audio) { // 发送语音
