@@ -162,30 +162,7 @@ export class WsServer {
                                                 return
                                         }
                                         break
-
-                                case 'msg':
-                                        if (this.relations.get(clientId) !== targetId) {
-                                                const data = {
-                                                        type: "bind",
-                                                        clientId: clientId,
-                                                        targetId: targetId,
-                                                        message: "402"
-                                                }
-                                                socket.send(JSON.stringify(data))
-                                                return
-                                        }
-
-                                        if (this.clients.has(targetId)) {
-                                                const client = this.clients.get(targetId)
-                                                const sendData = {
-                                                        type: "msg",
-                                                        clientId: clientId,
-                                                        targetId: targetId,
-                                                        message: message
-                                                }
-                                                client.send(JSON.stringify(sendData))
-                                        }
-                                        break
+                                        
                                 case 1:
                                 case 2:
                                 case 3:
@@ -206,7 +183,7 @@ export class WsServer {
                                                 const client = this.clients.get(targetId)
                                                 const sendType = data.type - 1
                                                 const sendChannel = data.channel ? data.channel : 1
-                                                const sendStrength = data.type >= 3 ? data.strength : 1 //增加模式强度改成1
+                                                const sendStrength = data.strength ? data.strength : 1
                                                 const msg = "strength-" + sendChannel + "+" + sendType + "+" + sendStrength
                                                 const sendData = {
                                                         type: "msg",
