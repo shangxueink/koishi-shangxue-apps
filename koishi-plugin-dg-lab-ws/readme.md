@@ -27,7 +27,7 @@
 
 `koishi-plugin-dg-lab-ws` 插件接受以下配置选项：
 
-- `port`：WebSocket 服务器的路径。
+- `poty`：WebSocket 服务器的路径。
 
 ## TODO
 
