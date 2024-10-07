@@ -115,6 +115,8 @@ var WsServer = class {
       if (!data.type || !data.clientId || !data.message || !data.targetId) {
         return;
       }
+      this.logger.info("收到消息" + JSON.stringify(data));
+      this.logger.info("type: " + data.type);
       const { clientId, targetId, message, type } = data;
       switch (data.type) {
         case "bind":
@@ -156,6 +158,8 @@ var WsServer = class {
         case 1:
         case 2:
         case 3:
+          this.logger.info("clientId: " + clientId);
+          this.logger.info("targetId: " + targetId);
           if (this.relations.get(clientId) !== targetId) {
             const data2 = {
               type: "bind",
@@ -170,7 +174,7 @@ var WsServer = class {
             const client = this.clients.get(targetId);
             const sendType = data.type - 1;
             const sendChannel = data.channel ? data.channel : 1;
-            const sendStrength = data.type >= 3 ? data.strength : 1;
+            const sendStrength = data.strength;
             const msg = "strength-" + sendChannel + "+" + sendType + "+" + sendStrength;
             const sendData = {
               type: "msg",
@@ -178,6 +182,7 @@ var WsServer = class {
               targetId,
               message: msg
             };
+            this.logger.info("发送消息：" + JSON.stringify(sendData));
             client.send(JSON.stringify(sendData));
           }
           break;
