@@ -7,6 +7,12 @@ export const name = 'QRCodeService'
 
 export const Config: Schema<Config> = Schema.object({})
 
+declare module 'koishi' {
+  interface Context {
+    qrcode: qrcode
+  }
+}
+
 export class qrcode extends Service {
   constructor(ctx: Context) {
     super(ctx, 'qrcode')
@@ -20,16 +26,8 @@ export class qrcode extends Service {
   }
 }
 
-declare module 'koishi' {
-  interface Context {
-    qrcode: qrcode
-  }
-}
-
-export function apply(ctx: Context) {
+function qrcodeplugin(ctx: Context) {
   ctx.i18n.define('zh', require('./locales/zh'))
-
-  const qrcode_Service = new qrcode(ctx)
 
   ctx.command('qrcode <text:string>', '生成二维码')
     .option('margin', '-m <margin:number>', { fallback: 4 })
@@ -41,8 +39,19 @@ export function apply(ctx: Context) {
       if (!text) return session.text('.expect-text')
       if (text.includes('[CQ:')) return session.text('.invalid-segment')
 
-      const base64 = await qrcode_Service.generateQRCode(text, options)
+      const base64 = await ctx.qrcode.generateQRCode(text, options)
 
       return h.image('data:image/png;base64,' + base64)
     })
+}
+
+export function apply(ctx: Context) {
+  ctx.plugin(qrcode)
+  ctx.plugin({
+    apply: qrcodeplugin,
+    inject: {
+      qrcode: { required: true }
+    },
+    name: "QRCodeService"
+  })
 }
