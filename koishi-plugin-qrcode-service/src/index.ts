@@ -6,7 +6,12 @@ export interface Config { }
 export const name = 'QRCodeService'
 
 export const Config: Schema<Config> = Schema.object({})
+export const usage = `
+为koishi通过二维码生成服务
 
+[使用方法请见readme](https://www.npmjs.com/package/koishi-plugin-qrcode)
+
+`;
 declare module 'koishi' {
   interface Context {
     qrcode: qrcode
@@ -21,8 +26,7 @@ export class qrcode extends Service {
   async generateQRCode(text: string, options: any): Promise<string> {
     const { margin, scale, width, dark, light } = options
     const dataURL = await toDataURL(text, { margin, scale, width, color: { dark, light } })
-    // 返回不包含前缀的 base64 图片数据
-    return dataURL.slice(22)
+    return h.image(dataURL).toString()
   }
 }
 
@@ -39,9 +43,9 @@ function qrcodeplugin(ctx: Context) {
       if (!text) return session.text('.expect-text')
       if (text.includes('[CQ:')) return session.text('.invalid-segment')
 
-      const base64 = await ctx.qrcode.generateQRCode(text, options)
+      const image = await ctx.qrcode.generateQRCode(text, options)
 
-      return h.image('data:image/png;base64,' + base64)
+      return image
     })
 }
 
