@@ -108,13 +108,13 @@ export class WsServer {
                                 !data.message ||
                                 !data.targetId
                         ) {
-                                return  
+                                return
                         }
 
                         // 优先处理绑定关系
-                        this.logger.info("收到消息" + JSON.stringify(data))                        
+                        this.logger.info("收到消息" + JSON.stringify(data))
                         this.logger.info("type: " + data.type)
-                        const { clientId, targetId, message, type } = data                        
+                        const { clientId, targetId, message, type } = data
                         switch (data.type) {
                                 case "bind":
                                         // 服务器下发绑定关系
@@ -162,13 +162,11 @@ export class WsServer {
                                                 return
                                         }
                                         break
-                                        
+
                                 case 1:
                                 case 2:
                                 case 3:
                                         // 服务器下发APP强度调节                                        
-                                        this.logger.info("clientId: " + clientId)
-                                        this.logger.info("targetId: " + targetId)
                                         if (this.relations.get(clientId) !== targetId) {
                                                 const data = {
                                                         type: "bind",
