@@ -1,0 +1,12 @@
+commands:
+  qrcode:
+    description: 生成二维码
+    options:
+      margin: 边界尺寸
+      scale: 缩放比例
+      width: 图片大小
+      dark: 暗部颜色
+      light: 亮部颜色
+    messages:
+      expect-text: 请输入源文本。
+      invalid-segment: 禁止输入纯文本以外的内容。
