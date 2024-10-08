@@ -239,7 +239,7 @@ class DgLab {
 
         public ChangeStrength(channel: string, value: number) {
                 if (channel !== "A" && channel !== "B") return
-                
+
                 let msg: channelMsg = {
                         type: 3,
                         clientId: this.connectionId,
@@ -315,7 +315,7 @@ class DgLab {
 
 class Room {
         private dglabs: Map<string, DgLab>
-        private users:  Set<string>
+        private users: Set<string>
 
         constructor() {
                 this.dglabs = new Map<string, DgLab>()
@@ -342,11 +342,11 @@ class Room {
                 }
         }
 
-        public FindUser(userId: string) : boolean {
+        public FindUser(userId: string): boolean {
                 return this.users.has(userId)
         }
 
-        public FindDglab(connectionId: string) : boolean {
+        public FindDglab(connectionId: string): boolean {
                 return this.dglabs.has(connectionId)
         }
 
@@ -394,7 +394,7 @@ class Room {
 // DgLuna服务，存储DgLab连接，除基础连接dglab连接功能外，还提供基于Room实现的N对N连接
 export default class DgLuna extends Service {
         private dglabs: Map<string, DgLab>
-        private rooms:  Set<Room>
+        private rooms: Set<Room>
         private endpoint: string
         constructor(ctx: Context, config: Config) {
                 super(ctx, "dgluna")
@@ -443,7 +443,7 @@ export default class DgLuna extends Service {
                 })
         }
 
-        public  AddDglabToRoom(userId: string, dglab: DgLab) {
+        public AddDglabToRoom(userId: string, dglab: DgLab) {
                 this.rooms.forEach(async (room) => {
                         if (room.FindUser(userId)) {
                                 room.PushDglab(await dglab.GetConnectionId(), dglab)

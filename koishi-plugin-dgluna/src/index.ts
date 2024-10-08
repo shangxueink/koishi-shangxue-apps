@@ -5,7 +5,7 @@ import { Config } from "./config"
 export const name = "dgluna"
 export * from "./config"
 
-import {} from 'koishi-plugin-qrcode-service-null'
+import { } from 'koishi-plugin-qrcode-service-null'
 
 export const inject = {
         optional: ['qrcode']

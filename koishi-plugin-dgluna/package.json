@@ -1,7 +1,7 @@
 {
   "name": "koishi-plugin-dgluna",
-  "description": "",
-  "version": "0.0.1",
+  "description": "/*dgluna*/在群聊中玩郊狼吧！实现郊狼N对N的控制玩耍，可以让好多人一起扫码来玩",
+  "version": "0.1.0",
   "main": "lib/index.js",
   "typings": "lib/index.d.ts",
   "files": [
@@ -19,7 +19,14 @@
       "dgluna"
     ]
   },
+  "homepage": "https://github.com/shangxueink/koishi-shangxue-apps/tree/main/%40shangxueink/koishi-plugin-content-guard",
+  "bugs": {
+    "url": "https://github.com/shangxueink/koishi-shangxue-apps/issues"
+  },
   "peerDependencies": {
-    "koishi": "4.17.12"
+    "koishi": "^4.17.12"
+  },
+  "dependencies": {
+    "koishi-plugin-qrcode-service-null": "^0.2.1"
   }
 }
