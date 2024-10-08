@@ -15,7 +15,7 @@ export const usage = `
 <li><code>port</code>：WebSocket 服务器的端口。</li>
 </ul>
 
-<p><strong>注意：</strong>本插件提供的服务是一个 WebSocket 服务。与 DG-LAB 的 WebSocket 服务器连接时，强制需要二维码链接。二维码直接对应 WebSocket 服务器的地址，因此本插件可能会泄露服务器 IP。请谨慎考虑后再决定是否开启公开服务。</p>
+<p><strong>注意：</strong>本插件提供的服务是一个 WebSocket 服务。与 DG-LAB 的 WebSocket 服务器连接时，强制需要二维码链接。二维码对应内容必定包含本插件服务器的地址，因此本插件一会泄露服务器 IP。请谨慎考虑后再决定是否开启公开服务。</p>
 
 `;
 export function apply(ctx: Context, config: Config) {
