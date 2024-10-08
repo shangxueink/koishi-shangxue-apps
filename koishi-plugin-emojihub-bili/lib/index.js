@@ -202,6 +202,8 @@ exports.Config = koishi_1.Schema.intersect([
 
 ])
 
+
+
 /**
  * 刷新机器人的令牌并上传图片到指定频道
  * @param ctx 
@@ -541,6 +543,12 @@ function apply(ctx, config) {
   var zh_CN_default = applyI18n(emojihub_bili_codecommand)
   ctx.i18n.define("zh-CN", zh_CN_default);
 
+  const lastCommandByChannel = {};
+
+  function updateLastCommand(channelId, command) {
+    lastCommandByChannel[channelId] = command;
+    logInfomessage('记录到command为： ' + command + ' 在频道： ' + channelId);
+  }
 
   function logInfomessage(message) {
     if (config.consoleinfo) {
@@ -854,12 +862,14 @@ function apply(ctx, config) {
       .action(async ({ session }, local_picture_name) => {
         //const imageResult = {  isLocal: true };   // [如果没有图片返回，发送错误消息]的测试
         const imageResult = await determineImagePath(source_url, config, session.channelId, command, ctx, local_picture_name);
+
         if (!imageResult.imageUrl) {
           // 如果没有图片返回，发送错误消息
           await session.send(koishi_1.h.text(session.text(`commands.${emojihub_bili_codecommand}.messages.notfound_txt`) + command));
           return;
         }
-
+        // 更新频道的最后一个命令
+        updateLastCommand(session.channelId, command);
         try {
           let message;
           if ((config.MDswitch && config.markdown_setting.mdid &&
@@ -989,16 +999,21 @@ function apply(ctx, config) {
           logger.error(`Error sending image:  ${error}`);
         }
       });
+
+
+    ctx.command(`${config.emojihub_bili_command}/再来一张`)
+      .action(async ({ session }) => {
+        const lastCommand = lastCommandByChannel[session.channelId];
+        logInfomessage('尝试在频道 ' + session.channelId + ' 中执行最后一个命令： ' + lastCommand);
+        if (lastCommand) {
+          await session.execute(`${lastCommand}`);
+        } else {
+          await session.send('没有找到上一个命令，请先执行一个命令！');
+        }
+      });
   });
 
-  ctx.command(`${config.emojihub_bili_command}/再来一张 <command>`)
-    .action(async ({ session }, command) => {
-      if (!command) {
-        await session.send(session.text('.nocommand'));
-        return;
-      }
-      await session.execute(`${command}`);
-    })
+
 
   if (config.autoEmoji && (config.groupListmapping.length || config.allgroupautoEmoji)) {
     const groups = {};

@@ -144,7 +144,7 @@ Koishi插件市场搜索并安装`emojihub-bili`
             "permission": {
               "type": 2
             },
-            "data": "/emojihub ",
+            "data": "/再来一张 ",
             "enter": false
           }
         },
@@ -161,7 +161,11 @@ Koishi插件市场搜索并安装`emojihub-bili`
             "data": "/随机表情包",
             "enter": true
           }
-        },
+        }
+      ]
+    },
+    {
+      "buttons": [
         {
           "render_data": {
             "label": "返回列表😸",
@@ -180,7 +184,6 @@ Koishi插件市场搜索并安装`emojihub-bili`
     }
   ]
 }
-
 ```
 
 
@@ -194,7 +197,7 @@ Koishi插件市场搜索并安装`emojihub-bili`
       "buttons": [
         {
           "render_data": {
-            "label": "2233小剧场表情包",
+            "label": "acomu414",
             "style": 2
           },
           "action": {
@@ -202,21 +205,7 @@ Koishi插件市场搜索并安装`emojihub-bili`
             "permission": {
               "type": 2
             },
-            "data": "/2233小剧场表情包",
-            "enter": true
-          }
-        },
-        {
-          "render_data": {
-            "label": "acomu414表情包",
-            "style": 2
-          },
-          "action": {
-            "type": 2,
-            "permission": {
-              "type": 2
-            },
-            "data": "/acomu414表情包",
+            "data": "/acomu414",
             "enter": true
           }
         },
@@ -236,7 +225,7 @@ Koishi插件市场搜索并安装`emojihub-bili`
         },
         {
           "render_data": {
-            "label": "capoo表情包",
+            "label": "downvote",
             "style": 2
           },
           "action": {
@@ -244,13 +233,13 @@ Koishi插件市场搜索并安装`emojihub-bili`
             "permission": {
               "type": 2
             },
-            "data": "/capoo表情包",
+            "data": "/downvote",
             "enter": true
           }
         },
         {
           "render_data": {
-            "label": "chiikawa表情包",
+            "label": "doro",
             "style": 2
           },
           "action": {
@@ -258,7 +247,21 @@ Koishi插件市场搜索并安装`emojihub-bili`
             "permission": {
               "type": 2
             },
-            "data": "/chiikawa表情包",
+            "data": "/doro",
+            "enter": true
+          }
+        },
+        {
+          "render_data": {
+            "label": "fufu",
+            "style": 2
+          },
+          "action": {
+            "type": 2,
+            "permission": {
+              "type": 2
+            },
+            "data": "/fufu",
             "enter": true
           }
         }
@@ -268,7 +271,7 @@ Koishi插件市场搜索并安装`emojihub-bili`
       "buttons": [
         {
           "render_data": {
-            "label": "downvote表情包",
+            "label": "mygo",
             "style": 2
           },
           "action": {
@@ -276,13 +279,13 @@ Koishi插件市场搜索并安装`emojihub-bili`
             "permission": {
               "type": 2
             },
-            "data": "/downvote表情包",
+            "data": "/mygo",
             "enter": true
           }
         },
         {
           "render_data": {
-            "label": "doro表情包",
+            "label": "seseren",
             "style": 2
           },
           "action": {
@@ -290,13 +293,13 @@ Koishi插件市场搜索并安装`emojihub-bili`
             "permission": {
               "type": 2
             },
-            "data": "/doro表情包",
+            "data": "/seseren",
             "enter": true
           }
         },
         {
           "render_data": {
-            "label": "eveonecat表情包",
+            "label": "白圣女",
             "style": 2
           },
           "action": {
@@ -304,13 +307,13 @@ Koishi插件市场搜索并安装`emojihub-bili`
             "permission": {
               "type": 2
             },
-            "data": "/eveonecat表情包",
+            "data": "/白圣女",
             "enter": true
           }
         },
         {
           "render_data": {
-            "label": "fufu表情包",
+            "label": "白圣女漫画",
             "style": 2
           },
           "action": {
@@ -318,13 +321,13 @@ Koishi插件市场搜索并安装`emojihub-bili`
             "permission": {
               "type": 2
             },
-            "data": "/fufu表情包",
+            "data": "/白圣女漫画",
             "enter": true
           }
         },
         {
           "render_data": {
-            "label": "girlsbandcry",
+            "label": "柴郡",
             "style": 2
           },
           "action": {
@@ -332,7 +335,7 @@ Koishi插件市场搜索并安装`emojihub-bili`
             "permission": {
               "type": 2
             },
-            "data": "/girlsbandcry",
+            "data": "/柴郡",
             "enter": true
           }
         }
@@ -342,7 +345,7 @@ Koishi插件市场搜索并安装`emojihub-bili`
       "buttons": [
         {
           "render_data": {
-            "label": "kemomimi表情包",
+            "label": "初音Q版",
             "style": 2
           },
           "action": {
@@ -350,13 +353,13 @@ Koishi插件市场搜索并安装`emojihub-bili`
             "permission": {
               "type": 2
             },
-            "data": "/kemomimi表情包",
+            "data": "/初音Q版",
             "enter": true
           }
         },
         {
           "render_data": {
-            "label": "koishi-meme表情包",
+            "label": "孤独摇滚",
             "style": 2
           },
           "action": {
@@ -364,13 +367,13 @@ Koishi插件市场搜索并安装`emojihub-bili`
             "permission": {
               "type": 2
             },
-            "data": "/koishi-meme表情包",
+            "data": "/孤独摇滚",
             "enter": true
           }
         },
         {
           "render_data": {
-            "label": "mygo表情包",
+            "label": "疾旋鼬",
             "style": 2
           },
           "action": {
@@ -378,13 +381,13 @@ Koishi插件市场搜索并安装`emojihub-bili`
             "permission": {
               "type": 2
             },
-            "data": "/mygo表情包",
+            "data": "/疾旋鼬",
             "enter": true
           }
         },
         {
           "render_data": {
-            "label": "seseren表情包",
+            "label": "流萤",
             "style": 2
           },
           "action": {
@@ -392,13 +395,13 @@ Koishi插件市场搜索并安装`emojihub-bili`
             "permission": {
               "type": 2
             },
-            "data": "/seseren表情包",
+            "data": "/流萤",
             "enter": true
           }
         },
         {
           "render_data": {
-            "label": "阿夸表情包",
+            "label": "赛马娘",
             "style": 2
           },
           "action": {
@@ -406,7 +409,7 @@ Koishi插件市场搜索并安装`emojihub-bili`
             "permission": {
               "type": 2
             },
-            "data": "/阿夸表情包",
+            "data": "/赛马娘",
             "enter": true
           }
         }
@@ -416,7 +419,7 @@ Koishi插件市场搜索并安装`emojihub-bili`
       "buttons": [
         {
           "render_data": {
-            "label": "阿尼亚表情包",
+            "label": "藤田琴音",
             "style": 2
           },
           "action": {
@@ -424,13 +427,13 @@ Koishi插件市场搜索并安装`emojihub-bili`
             "permission": {
               "type": 2
             },
-            "data": "/阿尼亚表情包",
+            "data": "/藤田琴音",
             "enter": true
           }
         },
         {
           "render_data": {
-            "label": "白圣女表情包",
+            "label": "宇佐紀",
             "style": 2
           },
           "action": {
@@ -438,13 +441,13 @@ Koishi插件市场搜索并安装`emojihub-bili`
             "permission": {
               "type": 2
             },
-            "data": "/白圣女表情包",
+            "data": "/宇佐紀",
             "enter": true
           }
         },
         {
           "render_data": {
-            "label": "白圣女漫画表情包",
+            "label": "永雏小菲",
             "style": 2
           },
           "action": {
@@ -452,13 +455,13 @@ Koishi插件市场搜索并安装`emojihub-bili`
             "permission": {
               "type": 2
             },
-            "data": "/白圣女漫画表情包",
+            "data": "/永雏小菲",
             "enter": true
           }
         },
         {
           "render_data": {
-            "label": "柴郡表情包",
+            "label": "塞西莉亚",
             "style": 2
           },
           "action": {
@@ -466,13 +469,13 @@ Koishi插件市场搜索并安装`emojihub-bili`
             "permission": {
               "type": 2
             },
-            "data": "/柴郡表情包",
+            "data": "/塞西莉亚",
             "enter": true
           }
         },
         {
           "render_data": {
-            "label": "初音Q版表情包",
+            "label": "图图",
             "style": 2
           },
           "action": {
@@ -480,81 +483,7 @@ Koishi插件市场搜索并安装`emojihub-bili`
             "permission": {
               "type": 2
             },
-            "data": "/初音Q版表情包",
-            "enter": true
-          }
-        }
-      ]
-    },
-    {
-      "buttons": [
-        {
-          "render_data": {
-            "label": "甘城猫猫表情包",
-            "style": 2
-          },
-          "action": {
-            "type": 2,
-            "permission": {
-              "type": 2
-            },
-            "data": "/甘城猫猫表情包",
-            "enter": true
-          }
-        },
-        {
-          "render_data": {
-            "label": "孤独摇滚表情包",
-            "style": 2
-          },
-          "action": {
-            "type": 2,
-            "permission": {
-              "type": 2
-            },
-            "data": "/孤独摇滚表情包",
-            "enter": true
-          }
-        },
-        {
-          "render_data": {
-            "label": "狗妈表情包",
-            "style": 2
-          },
-          "action": {
-            "type": 2,
-            "permission": {
-              "type": 2
-            },
-            "data": "/狗妈表情包",
-            "enter": true
-          }
-        },
-        {
-          "render_data": {
-            "label": "滑稽表情包",
-            "style": 2
-          },
-          "action": {
-            "type": 2,
-            "permission": {
-              "type": 2
-            },
-            "data": "/滑稽表情包",
-            "enter": true
-          }
-        },
-        {
-          "render_data": {
-            "label": "流萤表情包",
-            "style": 2
-          },
-          "action": {
-            "type": 2,
-            "permission": {
-              "type": 2
-            },
-            "data": "/流萤表情包",
+            "data": "/图图",
             "enter": true
           }
         }
@@ -1033,6 +962,9 @@ url         (https://koishi.chat/logo.png)
 
 <details>
 <summary>点击此处————查看更新日志</summary>
+
+- **1.0.6**
+   -  更新`再来一张`的逻辑，修改为自动再次触发本频道的最后一个表情包指令
 
 - **1.0.5**
    -  适配原生markdown发送逻辑
