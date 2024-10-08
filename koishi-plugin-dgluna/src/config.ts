@@ -5,5 +5,5 @@ export interface Config {
 }
 
 export const Config: Schema<Config> = Schema.object({
-        endpoint: Schema.string().required().description("DG-Lab ws服务端地址"),
+        endpoint: Schema.string().required().description("DG-Lab ws服务端地址`末尾无需斜杠`"),
 })
