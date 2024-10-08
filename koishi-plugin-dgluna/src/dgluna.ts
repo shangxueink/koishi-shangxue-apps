@@ -1,22 +1,14 @@
 import { Context, Service } from "koishi"
 import { Config } from "./config"
 
-
-// 服务声明
-declare module "koishi" {
-        interface Context {
-                dgluna: DgLuna
-        }
-}
-
-type sendMsg = {
+export type sendMsg = {
         type: string | number
         clientId: string
         targetId: string
         message: string
 }
 
-type channelMsg = {
+export type channelMsg = {
         type: string | number
         clientId: string
         targetId: string
@@ -25,7 +17,7 @@ type channelMsg = {
         channel: number
 }
 
-type feedbackMsg = {
+export type feedbackMsg = {
         type: string | number
         clientId: string
         targetId: string
@@ -34,7 +26,14 @@ type feedbackMsg = {
         time: number
 }
 
-const feedBackMsg = {
+export type statusMsg = {
+        channelA: number
+        channelB: number
+        softA: number
+        softB: number
+}
+
+export const feedBackMsg = {
         "feedback-0": "A通道：○",
         "feedback-1": "A通道：△",
         "feedback-2": "A通道：□",
@@ -48,10 +47,17 @@ const feedBackMsg = {
 }
 
 // 孩子，我不会写波形
-const waveData = {
+export const waveData = {
         "1": `["0A0A0A0A00000000","0A0A0A0A0A0A0A0A","0A0A0A0A14141414","0A0A0A0A1E1E1E1E","0A0A0A0A28282828","0A0A0A0A32323232","0A0A0A0A3C3C3C3C","0A0A0A0A46464646","0A0A0A0A50505050","0A0A0A0A5A5A5A5A","0A0A0A0A64646464"]`,
         "2": `["0A0A0A0A00000000","0D0D0D0D0F0F0F0F","101010101E1E1E1E","1313131332323232","1616161641414141","1A1A1A1A50505050","1D1D1D1D64646464","202020205A5A5A5A","2323232350505050","262626264B4B4B4B","2A2A2A2A41414141"]`,
         "3": `["4A4A4A4A64646464","4545454564646464","4040404064646464","3B3B3B3B64646464","3636363664646464","3232323264646464","2D2D2D2D64646464","2828282864646464","2323232364646464","1E1E1E1E64646464","1A1A1A1A64646464"]`
+}
+
+// 服务声明
+declare module "koishi" {
+        interface Context {
+                dgluna: DgLuna
+        }
 }
 
 class DgLab {
@@ -206,60 +212,99 @@ class DgLab {
                 }
         }
 
-        public GetConnectionId(): string {
-                return this.connectionId
+        public async GetConnectionId(): Promise<string> {
+                return new Promise((resolve) => {
+                        setTimeout(() => {
+                                if (this.connectionId) resolve(this.connectionId)
+                        }, 1000)
+                })
         }
 
         public GetTargetId(): string {
                 return this.targetWSId
         }
 
+        public GetStatus(): statusMsg {
+                return {
+                        channelA: this.channelA,
+                        channelB: this.channelB,
+                        softA: this.softA,
+                        softB: this.softB
+                }
+        }
+
         public Send(message: sendMsg | channelMsg | feedbackMsg) {
                 this.ws.send(JSON.stringify(message))
         }
 
-        public ChangeChannelA(value: number) {
-                const strengthType = value < 0 ? 1 : 2
-                this.Send({
-                        type: strengthType,
+        public ChangeStrength(channel: string, value: number) {
+                if (channel !== "A" && channel !== "B") return
+                
+                let msg: channelMsg = {
+                        type: 3,
                         clientId: this.connectionId,
                         targetId: this.targetWSId,
                         message: "set strength",
                         strength: value,
                         channel: 1
-                })
+                }
+
+                if (channel === "A") {
+                        this.channelA += value
+                        if (this.channelA < 0 || this.channelA > this.softA) {
+                                this.channelA -= value
+                                return
+                        }
+                        msg.channel = 1
+                } else {
+                        this.channelB += value
+                        if (this.channelB < 0 || this.channelB > this.softB) {
+                                this.channelB -= value
+                                return
+                        }
+                        msg.channel = 2
+                }
+
+                this.Send(msg)
         }
 
-        public SetChannelA(value: number) {
-                this.channelA = value
-                this.Send({
-                        type: 4,
-                        clientId: this.connectionId,
-                        targetId: this.targetWSId,
-                        message: `strength-1+2+${value}`
-                })
-        }
+        public SetStrength(channel: string, value: number) {
+                if (channel !== "A" && channel !== "B") return
 
-        public ChangeChannelB(value: number) {
-                const strengthType = value < 0 ? 1 : 2
-                this.Send({
-                        type: strengthType,
+                let msg: channelMsg = {
+                        type: 3,
                         clientId: this.connectionId,
                         targetId: this.targetWSId,
                         message: "set strength",
                         strength: value,
-                        channel: 2
-                })
+                        channel: 1
+                }
+
+                if (channel === "A" && value >= 0 && value <= this.softA) {
+                        this.channelA = value
+                        msg.channel = 1
+                } else if (value >= 0 && value <= this.softB) {
+                        this.channelB = value
+                        msg.channel = 2
+                }
+
+                this.Send(msg)
         }
 
-        public SetChannelB(value: number) {
-                this.channelB = value
-                this.Send({
-                        type: 4,
+        // 设置波形
+        public SetWave(channel: string, wave: string, time: number) {
+                let msg: feedbackMsg = {
+                        type: "clientMsg",
                         clientId: this.connectionId,
                         targetId: this.targetWSId,
-                        message: `strength-2+2+${value}`
-                })
+                        message: "feedback",
+                        channel: "",
+                        time: time
+                }
+
+                msg.message = channel + ":" + wave
+                msg.channel = channel
+                this.Send(msg)
         }
 
         // 关闭连接
@@ -268,167 +313,197 @@ class DgLab {
         }
 }
 
-// DgLuna服务，管理DgLab连接，实现N对N连接
+class Room {
+        private dglabs: Map<string, DgLab>
+        private users:  Set<string>
+
+        constructor() {
+                this.dglabs = new Map<string, DgLab>()
+                this.users = new Set<string>()
+        }
+
+        public PushDglab(connectionId: string, dglab: DgLab) {
+                this.dglabs.set(connectionId, dglab)
+        }
+
+        public PopDglab(connectionId: string): DgLab {
+                const dglab = this.dglabs.get(connectionId)
+                this.dglabs.delete(connectionId)
+                return dglab
+        }
+
+        public AddUser(userId: string) {
+                this.users.add(userId)
+        }
+
+        public RemoveUser(userId: string) {
+                if (this.users.has(userId)) {
+                        this.users.delete(userId)
+                }
+        }
+
+        public FindUser(userId: string) : boolean {
+                return this.users.has(userId)
+        }
+
+        public FindDglab(connectionId: string) : boolean {
+                return this.dglabs.has(connectionId)
+        }
+
+        public UserCount(): number {
+                return this.users.size
+        }
+
+        public ChangeStrength(channel: string, value: number) {
+                this.dglabs.forEach((dglab, key) => {
+                        try {
+                                dglab.ChangeStrength(channel, value)
+                        } catch (error) {
+                                this.dglabs.delete(key)
+                        }
+                })
+        }
+
+        public SetStrength(channel: string, value: number) {
+                this.dglabs.forEach((dglab, key) => {
+                        try {
+                                dglab.SetStrength(channel, value)
+                        } catch (error) {
+                                this.dglabs.delete(key)
+                        }
+                })
+        }
+
+        public SetWave(channel: string, wave: string, time: number) {
+                this.dglabs.forEach((dglab, key) => {
+                        try {
+                                dglab.SetWave(channel, wave, time)
+                        } catch (error) {
+                                this.dglabs.delete(key)
+                        }
+                })
+        }
+
+        public Close() {
+                this.dglabs.forEach((dglab) => {
+                        dglab.Close()
+                })
+        }
+}
+
+// DgLuna服务，存储DgLab连接，除基础连接dglab连接功能外，还提供基于Room实现的N对N连接
 export default class DgLuna extends Service {
         private dglabs: Map<string, DgLab>
-        private users: Map<string, string>
+        private rooms:  Set<Room>
         private endpoint: string
-        private timeout: number
         constructor(ctx: Context, config: Config) {
                 super(ctx, "dgluna")
                 this.dglabs = new Map<string, DgLab>()
-                this.users = new Map<string, string>()
+                this.rooms = new Set<Room>()
                 this.endpoint = config.endpoint
-                this.timeout = config.timeout
-
-                /*
-                // 定期清理无用户连接(每分钟)
-                setInterval(() => {
-                        // 遍历所有connectionId，如果不在users中，则删除
-                        for (let connectionId of this.dglabs.keys()) {
-                                if (!this.users.has(connectionId)) {
-                                        this.Disconnect(connectionId)
-                                }
-                        }
-                }, 60 * 1000)
-                */
         }
 
-        public async Connect(endpoint?: string): Promise<string> {
+        public async Connect(endpoint?: string): Promise<DgLab> {
                 if (endpoint === undefined) {
                         endpoint = this.endpoint
                 }
 
                 const dglab = new DgLab(this.ctx, endpoint)
 
-                // 等待 connectionId 被设置
-                const startTime = Date.now()
-                while (!dglab.GetConnectionId()) {
-                        if (Date.now() - startTime * 1000 > this.timeout) {
-                                this.ctx.logger.error("连接超时")
+                return dglab
+        }
+
+        public async CreateRoom(userId: string, dglab: DgLab) {
+                const room = new Room()
+                const connectionId = await dglab.GetConnectionId()
+
+                room.AddUser(userId)
+                room.PushDglab(connectionId, dglab)
+                this.rooms.add(room)
+        }
+
+        public AddUserToRoom(userId: string, invitedUserId: string) {
+                this.rooms.forEach((room) => {
+                        if (room.FindUser(userId)) {
+                                if (room.FindUser(invitedUserId)) {
+                                        return
+                                }
+
+                                room.AddUser(invitedUserId)
+                                return
                         }
-                        await new Promise(resolve => setTimeout(resolve, 1000))
-                }
-
-                const connectionId = dglab.GetConnectionId()
-                this.dglabs.set(connectionId, dglab)
-                return connectionId
+                })
         }
 
-        public async Disconnect(connectionId: string) {
-                if (this.dglabs.has(connectionId)) {
-                        this.dglabs.get(connectionId).Close()
-                        this.dglabs.delete(connectionId)
-                }
+        public RemoveUserFromRoom(userId: string) {
+                this.rooms.forEach((room) => {
+                        if (room.FindUser(userId)) {
+                                room.RemoveUser(userId)
+                        }
+                })
         }
 
-        public async ConnectByUser(userId: string, endpoint?: string): Promise<string> {
-                if (this.users.has(userId)) {
-                        return this.users.get(userId)
-                } else {
-                        const connectionId = await this.Connect(endpoint)
-                        this.users.set(userId, connectionId)
-                        return connectionId
-                }
+        public  AddDglabToRoom(userId: string, dglab: DgLab) {
+                this.rooms.forEach(async (room) => {
+                        if (room.FindUser(userId)) {
+                                room.PushDglab(await dglab.GetConnectionId(), dglab)
+                        }
+                })
         }
 
-        // 用户退出当前连接(不关闭连接)
-        public async UserExit(userId: string) {
-                if (this.users.has(userId)) {
-                        this.users.delete(userId)
-                }
+        public ChangeStrengthByRoom(userID: string, channel: string, strength: number) {
+                this.rooms.forEach((room) => {
+                        if (room.FindUser(userID)) {
+                                room.ChangeStrength(channel, strength)
+                        }
+                })
         }
 
-        // 查找用户当前连接
-        public async FindUserConnection(userId: string) {
-                this.ctx.logger.info(this.users.has(userId))
-                if (this.users.has(userId)) {
-                        return this.users.get(userId)
-                } else {
-                        return null
-                }
+        public SetStrengthByRoom(userID: string, channel: string, strength: number) {
+                this.rooms.forEach((room) => {
+                        if (room.FindUser(userID)) {
+                                room.SetStrength(channel, strength)
+                        }
+                })
         }
 
-        // 将User添加到现有连接组
-        public async AddUserToConnection(userId: string, connectionId: string) {
-                if (this.dglabs.has(connectionId)) {
-                        this.users.set(userId, connectionId)
-                }
+        public SetWaveByRoom(userID: string, channel: string, wave: string, time: number) {
+                this.rooms.forEach((room) => {
+                        if (room.FindUser(userID)) {
+                                room.SetWave(channel, wave, time)
+                        }
+                })
         }
 
-        public async Send(connectionId: string, message: sendMsg | channelMsg | feedbackMsg) {
-                if (this.dglabs.has(connectionId)) {
-                        this.dglabs.get(connectionId).Send(message)
-                }
+        public UserExit(userID: string) {
+                this.rooms.forEach((room) => {
+                        if (room.FindUser(userID)) {
+                                room.RemoveUser(userID)
+                                if (room.UserCount() === 0) {
+                                        room.Close()
+                                        this.rooms.delete(room)
+                                }
+                        }
+                })
         }
 
-        public async SendByUser(userId: string, message: sendMsg | channelMsg | feedbackMsg) {
-                if (this.users.has(userId)) {
-                        this.dglabs.get(this.users.get(userId)).Send(message)
-                }
+        public IsUserInRoom(userID: string): boolean {
+                let result = false
+                this.rooms.forEach((room) => {
+                        if (room.FindUser(userID)) {
+                                result = true
+                        }
+                })
+                return result
         }
 
-        // 调节A通道强度
-        public async ChangeChannelA(connectionId: string, value: number) {
-                if (this.dglabs.has(connectionId)) {
-                        this.dglabs.get(connectionId).ChangeChannelA(value)
-                }
-        }
-
-        public async ChangeChannelAByUser(userId: string, value: number) {
-                if (this.users.has(userId)) {
-                        this.dglabs.get(this.users.get(userId)).ChangeChannelA(value)
-                }
-        }
-
-        // 设置A通道强度
-        public async SetChannelA(connectionId: string, value: number) {
-                if (this.dglabs.has(connectionId)) {
-                        this.dglabs.get(connectionId).SetChannelA(value)
-                }
-        }
-
-        public async SetChannelAByUser(userId: string, value: number) {
-                if (this.users.has(userId)) {
-                        this.dglabs.get(this.users.get(userId)).SetChannelA(value)
-                }
-        }
-
-        // 调节B通道强度
-        public async ChangeChannelB(connectionId: string, value: number) {
-                if (this.dglabs.has(connectionId)) {
-                        this.dglabs.get(connectionId).ChangeChannelB(value)
-                }
-        }
-
-        public async ChangeChannelBByUser(userId: string, value: number) {
-                if (this.users.has(userId)) {
-                        this.dglabs.get(this.users.get(userId)).ChangeChannelB(value)
-                }
-        }
-
-        // 设置B通道强度
-        public async SetChannelB(connectionId: string, value: number) {
-                if (this.dglabs.has(connectionId)) {
-                        this.dglabs.get(connectionId).SetChannelB(value)
-                }
-        }
-
-        public async SetChannelBByUser(userId: string, value: number) {
-                if (this.users.has(userId)) {
-                        this.dglabs.get(this.users.get(userId)).SetChannelB(value)
-                }
-        }
-
-        // 取出一个连接
-        public async GetDglab(connectionId: string) {
-                // 从Map中取出一个连接，并将其从Map中删除
+        public PopDglab(connectionId: string): DgLab {
                 const dglab = this.dglabs.get(connectionId)
                 this.dglabs.delete(connectionId)
                 return dglab
         }
 
-        public async PushDglab(connectionId: string, dglab: DgLab) {
+        public PushDglab(connectionId: string, dglab: DgLab) {
                 this.dglabs.set(connectionId, dglab)
         }
 }

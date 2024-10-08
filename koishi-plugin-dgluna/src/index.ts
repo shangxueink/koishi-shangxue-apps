@@ -1,16 +1,15 @@
-import { Context, Schema, SessionError, h } from "koishi"
+import { Context, h } from "koishi"
 import DgLuna from "./dgluna"
 import { Config } from "./config"
 
 export const name = "dgluna"
 export * from "./config"
 
-import { } from 'koishi-plugin-qrcode-service'
+import {} from 'koishi-plugin-qrcode-service'
 
 export const inject = {
         optional: ['qrcode']
 }
-
 
 function dgluna(ctx: Context, config: Config) {
         const logger = ctx.logger("dgluna")
@@ -22,14 +21,19 @@ function dgluna(ctx: Context, config: Config) {
                                 endpoint = config.endpoint
                         }
 
+                        const userID = session.event.user.id
+
                         // 如果已经存在连接，则返回提醒
-                        //logger.info(await ctx.dgluna.FindUserConnection(session.event.user.id))
-                        if (await ctx.dgluna.FindUserConnection(session.event.user.id) !== null) {
-                                return "已经存在Dg-Lab连接，如需创建新连接，请先关闭现有连接"
+                        if (ctx.dgluna.IsUserInRoom(userID) !== false) {
+                                const dglab = await ctx.dgluna.Connect(endpoint)
+                                ctx.dgluna.AddDglabToRoom(userID, dglab)
+                                return "已添加新的连接"
                         }
 
                         try {
-                                const uuid = await ctx.dgluna.ConnectByUser(session.event.user.id, endpoint)
+                                const dglab = await ctx.dgluna.Connect(endpoint)
+                                const uuid = await dglab.GetConnectionId()
+                                ctx.dgluna.CreateRoom(userID, dglab)
                                 const image = await ctx.qrcode.generateQRCode(`https://www.dungeon-lab.com/app-download.php#DGLAB-SOCKET#${endpoint}/${uuid}`, 'Text')
                                 await session.send('请打开DG-LAB软件选择 SOCKET控制 ，并且进行扫码连接：')
                                 return image
@@ -40,24 +44,15 @@ function dgluna(ctx: Context, config: Config) {
 
         ctx.command("dgluna.strchange <channel: string> <value: number>", "调整通道强度")
                 .action(async ({ session }, channel, value) => {
-                        const user = session.event.user.id
-                        if (await ctx.dgluna.FindUserConnection(user) === null) {
+                        const userID = session.event.user.id
+                        if (ctx.dgluna.IsUserInRoom(userID) === false) {
                                 return "尚未创建Dg-Lab连接"
                         }
 
                         const numericValue = Number(value)
 
                         try {
-                                if (channel === "A" || channel === "a") {
-                                        await ctx.dgluna.ChangeChannelAByUser(user, numericValue)
-                                        return `A通道强度调整：强度变化 ${value}`
-                                } else if (channel === "B" || channel === "b") {
-                                        await ctx.dgluna.ChangeChannelBByUser(user, numericValue)
-                                        return `B通道强度调整：强度变化 ${value}`
-                                } else {
-                                        throw new SessionError("无效的通道")
-                                }
-
+                                ctx.dgluna.ChangeStrengthByRoom(userID, channel, numericValue)
                         } catch (error) {
                                 logger.error(error)
                         }
@@ -65,24 +60,31 @@ function dgluna(ctx: Context, config: Config) {
 
         ctx.command("dgluna.strset <channel: string> <value: string>", "设定通道强度")
                 .action(async ({ session }, channel, value) => {
-                        const user = session.event.user.id
-                        if (await ctx.dgluna.FindUserConnection(user) === null) {
+                        const userID = session.event.user.id
+                        if (ctx.dgluna.IsUserInRoom(userID) === false) {
                                 return "尚未创建Dg-Lab连接"
                         }
 
                         const numericValue = Number(value)
 
                         try {
-                                if (channel === "A" || channel === "a") {
-                                        await ctx.dgluna.SetChannelAByUser(user, numericValue)
-                                        return `A通道强度修改为： ${value}`
-                                } else if (channel === "B" || channel === "b") {
-                                        await ctx.dgluna.SetChannelBByUser(user, numericValue)
-                                        return `B通道强度修改为： ${value}`
-                                } else {
-                                        throw new SessionError("无效的通道")
-                                }
+                                ctx.dgluna.SetStrengthByRoom(userID, channel, numericValue)
+                        } catch (error) {
+                                logger.error(error)
+                        }
+                })
 
+        ctx.command("dgluna.waveset <channel: string> <wave: number> <time: number>", "设定通道波形")
+                .action(async ({ session }, channel, wave, time) => {
+                        const userID = session.event.user.id
+                        if (ctx.dgluna.IsUserInRoom(userID) === false) {
+                                return "尚未创建Dg-Lab连接"
+                        }
+
+                        const numericTime = Number(time)
+
+                        try {
+                                ctx.dgluna.SetWaveByRoom(userID, channel, wave, numericTime)
                         } catch (error) {
                                 logger.error(error)
                         }
@@ -91,28 +93,23 @@ function dgluna(ctx: Context, config: Config) {
         // 邀请其它用户加入连接
         ctx.command("dgluna.invite <user: string>", "邀请用户加入")
                 .action(async ({ session }, user) => {
-                        let inviteuserId
+                        let invitedUserId: string
                         try {
-                                const parsedUser = h.parse(user)
-                                inviteuserId = parsedUser[0]?.attrs?.id
-                                if (!inviteuserId) {
-                                        throw new Error("无效的用户")
-                                }
-                                logger.error('被邀请的用户ID为： ' + inviteuserId)
+                                invitedUserId = h.parse(user)[0]?.attrs?.id
+                                if (!invitedUserId) throw new Error("无效的用户")
                         } catch (error) {
                                 logger.error(error)
                                 return "无效的用户"
                         }
 
-                        const connectionID = await ctx.dgluna.FindUserConnection(session.event.user.id)
-                        logger.error('connectionID为： ' + connectionID)
-                        logger.error('FindUserConnection传入ID： ' + session.event.user.id)
-                        if (connectionID === "undefined") {
+                        const userID = session.event.user.id
+
+                        if (ctx.dgluna.IsUserInRoom(userID) === false) {
                                 return "尚未创建Dg-Lab连接"
                         }
 
                         try {
-                                await ctx.dgluna.AddUserToConnection(connectionID, inviteuserId)
+                                ctx.dgluna.AddUserToRoom(userID, invitedUserId)
                         } catch (error) {
                                 logger.error(error)
                         }
@@ -123,14 +120,14 @@ function dgluna(ctx: Context, config: Config) {
 
         ctx.command("dgluna.exit", "退出DG-LAB频道")
                 .action(async ({ session }) => {
-                        const user = session.event.user.id
-                        const connectionID = await ctx.dgluna.FindUserConnection(user)
+                        const userID = session.event.user.id
+                        const connectionID = await ctx.dgluna.IsUserInRoom(userID)
                         if (connectionID === null) {
                                 return "尚未创建Dg-Lab连接"
                         }
 
                         try {
-                                await ctx.dgluna.UserExit(user)
+                                ctx.dgluna.UserExit(userID)
                         } catch (error) {
                                 logger.error(error)
                         }
