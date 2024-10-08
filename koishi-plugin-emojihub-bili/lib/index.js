@@ -1,15 +1,12 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.apply = exports.Config = exports.usage = exports.inject = exports.name = void 0;
-
 const fs = require('node:fs');
-const url_1 = require("node:url");
-const koishi_1 = require("koishi");
-const path_1 = require("node:path");
+const url = require("node:url");
 const path = require("node:path");
-const crypto_1 = require("node:crypto");
-const promises_1 = require("node:fs/promises");
-const logger = new koishi_1.Logger('emojihub-bili');
+const crypto = require("node:crypto");
+const promises = require("node:fs/promises");
+const { Schema, Logger, h } = require("koishi");
 exports.inject = {
   optional: ['canvas']
 };
@@ -29,175 +26,174 @@ exports.usage = `
 <h2>温馨提示：</h2>
 <p><br>请勿将自定义的txt文件与本插件放置在同一目录下，以免插件更新导致文件丢失。</p>
 <p>目前EmojiHub-bili默认提供<code>40套</code>表情包。若您的配置内容有误差，请点击<code>MoreEmojiHub</code>表格右上角按钮内的<code>恢复默认值</code>。</p>
-<p>若开启插件后，指令不出现，<a href="/market?keyword=commands" target="_blank">请重新开关commands插件</a></p>
+<p>若开启插件后，指令不出现，<a href="/market?keyword=commands">请重新开关commands插件</a></p>
 `;
-
-const defaultMoreEmojiHub = [   // 下面实际有效为 40套
-  { command: '随机emojihub表情包', source_url: '注意!请勿修改此处内容。此项地址不要填写 链接 或者 文件夹/图片/txt文件 的路径。（因为不是直链且不是文件夹路径且不是txt/图片文件路径才会随机触发表情包指令）' },
-  { command: '本地图库示例', source_url: path_1.join(__dirname, 'txts') },
+const logger = new Logger('emojihub-bili');
+const defaultMoreEmojiHub = [   
+  // 下面实际有效为 40套
+  { command: '本地图库示例', source_url: path.join(__dirname, 'txts') },
   { command: '网络图片示例', source_url: 'https://i0.hdslb.com/bfs/article/afc31d0e398204d94478473a497028e6352074746.gif' },
-  { command: '2233娘小剧场表情包', source_url: path_1.join(__dirname, 'txts/2233娘小剧场.txt') },
-  { command: 'acomu414表情包', source_url: path_1.join(__dirname, 'txts/acomu414.txt') },
-  //{ command: 'atri表情包', source_url: path_1.join(__dirname, 'txts/atri.txt') },
-  { command: 'ba表情包', source_url: path_1.join(__dirname, 'txts/ba.txt') },
-  { command: 'capoo表情包', source_url: path_1.join(__dirname, 'txts/capoo.txt') },
-  { command: 'chiikawa表情包', source_url: path_1.join(__dirname, 'txts/chiikawa.txt') },
-  { command: 'downvote表情包', source_url: path_1.join(__dirname, 'txts/Downvote.txt') },
-  { command: 'doro表情包', source_url: path_1.join(__dirname, 'txts/doro.txt') },
-  { command: 'eveonecat表情包', source_url: path_1.join(__dirname, 'txts/eveonecat.txt') },
-  { command: 'fufu表情包', source_url: path_1.join(__dirname, 'txts/fufu.txt') },
-  { command: 'girlsbandcry', source_url: path_1.join(__dirname, 'txts/GirlsBandCry.txt') },
-  { command: 'kemomimi表情包', source_url: path_1.join(__dirname, 'txts/kemomimi酱表情包.txt') },
-  { command: 'koishi-meme表情包', source_url: path_1.join(__dirname, 'txts/koimeme.txt') },
-  { command: 'mygo表情包', source_url: path_1.join(__dirname, 'txts/mygo.txt') },
-  { command: 'seseren表情包', source_url: path_1.join(__dirname, 'txts/seseren.txt') },
-  { command: '阿夸表情包', source_url: path_1.join(__dirname, 'txts/阿夸.txt') },
-  { command: '阿尼亚表情包', source_url: path_1.join(__dirname, 'txts/阿尼亚.txt') },
-  { command: '白圣女表情包', source_url: path_1.join(__dirname, 'txts/白圣女.txt') },
-  { command: '白圣女漫画表情包', source_url: path_1.join(__dirname, 'txts/白圣女黑白.txt') },
-  { command: '柴郡表情包', source_url: path_1.join(__dirname, 'txts/柴郡.txt') },
-  { command: '初音Q版表情包', source_url: path_1.join(__dirname, 'txts/初音未来Q.txt') },
-  { command: '甘城猫猫表情包', source_url: path_1.join(__dirname, 'txts/甘城猫猫.txt') },
-  { command: '孤独摇滚表情包', source_url: path_1.join(__dirname, 'txts/孤独摇滚.txt') },
-  { command: '狗妈表情包', source_url: path_1.join(__dirname, 'txts/狗妈.txt') },
-  { command: '滑稽表情包', source_url: path_1.join(__dirname, 'txts/滑稽.txt') },
-  { command: '疾旋鼬表情包', source_url: path_1.join(__dirname, 'txts/疾旋鼬.txt') },
-  { command: '卡拉彼丘表情包', source_url: path_1.join(__dirname, 'txts/卡拉彼丘.txt') },
-  { command: '流萤表情包', source_url: path_1.join(__dirname, 'txts/流萤.txt') },
-  { command: '龙图表情包', source_url: path_1.join(__dirname, 'txts/龙图.txt') },
-  { command: '鹿乃子表情包', source_url: path_1.join(__dirname, 'txts/鹿乃子.txt') },
-  { command: '小c表情包', source_url: path_1.join(__dirname, 'txts/蜜汁工坊.txt') },
-  { command: '男娘武器库表情包', source_url: path_1.join(__dirname, 'txts/男娘武器库.txt') },
-  { command: '千恋万花表情包', source_url: path_1.join(__dirname, 'txts/0721.txt') },
-  { command: '赛马娘表情包', source_url: path_1.join(__dirname, 'txts/赛马娘.txt') },
-  { command: '瑟莉亚表情包', source_url: path_1.join(__dirname, 'txts/瑟莉亚.txt') },
-  { command: '藤田琴音表情包', source_url: path_1.join(__dirname, 'txts/藤田琴音.txt') },
-  { command: '小黑子表情包', source_url: path_1.join(__dirname, 'txts/小黑子.txt') },
-  { command: '心海表情包', source_url: path_1.join(__dirname, 'txts/心海.txt') },
-  { command: '绪山真寻表情包', source_url: path_1.join(__dirname, 'txts/绪山真寻.txt') },
-  { command: '亚托莉表情包', source_url: path_1.join(__dirname, 'txts/亚托莉表情包.txt') },
-  { command: '永雏小菲表情包', source_url: path_1.join(__dirname, 'txts/永雏小菲.txt') },
-  { command: '宇佐紀表情包', source_url: path_1.join(__dirname, 'txts/宇佐紀.txt') },
-  // { command: '', source_url: path_1.join(__dirname, 'txts/.txt') },
+  { command: '2233娘小剧场表情包', source_url: path.join(__dirname, 'txts/2233娘小剧场.txt') },
+  { command: 'acomu414表情包', source_url: path.join(__dirname, 'txts/acomu414.txt') },
+  { command: 'ba表情包', source_url: path.join(__dirname, 'txts/ba.txt') },
+  { command: 'capoo表情包', source_url: path.join(__dirname, 'txts/capoo.txt') },
+  { command: 'chiikawa表情包', source_url: path.join(__dirname, 'txts/chiikawa.txt') },
+  { command: 'downvote表情包', source_url: path.join(__dirname, 'txts/Downvote.txt') },
+  { command: 'doro表情包', source_url: path.join(__dirname, 'txts/doro.txt') },
+  { command: 'eveonecat表情包', source_url: path.join(__dirname, 'txts/eveonecat.txt') },
+  { command: 'fufu表情包', source_url: path.join(__dirname, 'txts/fufu.txt') },
+  { command: 'girlsbandcry', source_url: path.join(__dirname, 'txts/GirlsBandCry.txt') },
+  { command: 'kemomimi表情包', source_url: path.join(__dirname, 'txts/kemomimi酱表情包.txt') },
+  { command: 'koishi-meme表情包', source_url: path.join(__dirname, 'txts/koimeme.txt') },
+  { command: 'mygo表情包', source_url: path.join(__dirname, 'txts/mygo.txt') },
+  { command: 'seseren表情包', source_url: path.join(__dirname, 'txts/seseren.txt') },
+  { command: '阿夸表情包', source_url: path.join(__dirname, 'txts/阿夸.txt') },
+  { command: '阿尼亚表情包', source_url: path.join(__dirname, 'txts/阿尼亚.txt') },
+  { command: '白圣女表情包', source_url: path.join(__dirname, 'txts/白圣女.txt') },
+  { command: '白圣女漫画表情包', source_url: path.join(__dirname, 'txts/白圣女黑白.txt') },
+  { command: '柴郡表情包', source_url: path.join(__dirname, 'txts/柴郡.txt') },
+  { command: '初音Q版表情包', source_url: path.join(__dirname, 'txts/初音未来Q.txt') },
+  { command: '甘城猫猫表情包', source_url: path.join(__dirname, 'txts/甘城猫猫.txt') },
+  { command: '孤独摇滚表情包', source_url: path.join(__dirname, 'txts/孤独摇滚.txt') },
+  { command: '狗妈表情包', source_url: path.join(__dirname, 'txts/狗妈.txt') },
+  { command: '滑稽表情包', source_url: path.join(__dirname, 'txts/滑稽.txt') },
+  { command: '疾旋鼬表情包', source_url: path.join(__dirname, 'txts/疾旋鼬.txt') },
+  { command: '卡拉彼丘表情包', source_url: path.join(__dirname, 'txts/卡拉彼丘.txt') },
+  { command: '流萤表情包', source_url: path.join(__dirname, 'txts/流萤.txt') },
+  { command: '龙图表情包', source_url: path.join(__dirname, 'txts/龙图.txt') },
+  { command: '鹿乃子表情包', source_url: path.join(__dirname, 'txts/鹿乃子.txt') },
+  { command: '小c表情包', source_url: path.join(__dirname, 'txts/蜜汁工坊.txt') },
+  { command: '男娘武器库表情包', source_url: path.join(__dirname, 'txts/男娘武器库.txt') },
+  { command: '千恋万花表情包', source_url: path.join(__dirname, 'txts/0721.txt') },
+  { command: '赛马娘表情包', source_url: path.join(__dirname, 'txts/赛马娘.txt') },
+  { command: '瑟莉亚表情包', source_url: path.join(__dirname, 'txts/瑟莉亚.txt') },
+  { command: '藤田琴音表情包', source_url: path.join(__dirname, 'txts/藤田琴音.txt') },
+  { command: '小黑子表情包', source_url: path.join(__dirname, 'txts/小黑子.txt') },
+  { command: '心海表情包', source_url: path.join(__dirname, 'txts/心海.txt') },
+  { command: '绪山真寻表情包', source_url: path.join(__dirname, 'txts/绪山真寻.txt') },
+  { command: '亚托莉表情包', source_url: path.join(__dirname, 'txts/亚托莉表情包.txt') },
+  { command: '永雏小菲表情包', source_url: path.join(__dirname, 'txts/永雏小菲.txt') },
+  { command: '宇佐紀表情包', source_url: path.join(__dirname, 'txts/宇佐紀.txt') },
+  // { command: '', source_url: path.join(__dirname, 'txts/.txt') },
   // 以后添加其他的命令...未完待续
 ];
 
-exports.Config = koishi_1.Schema.intersect([
+exports.Config = Schema.intersect([
 
-  koishi_1.Schema.object({
-    deleteMsg: koishi_1.Schema.boolean().description("`开启后`自动撤回表情").default(false),
-    deleteMsgtime: koishi_1.Schema.number().default(30).description('若干`秒`后 撤回表情'),
+  Schema.object({
+    deleteMsg: Schema.boolean().description("`开启后`自动撤回表情").default(false),
+    deleteMsgtime: Schema.number().default(30).description('若干`秒`后 撤回表情'),
 
-    emojihub_bili_command: koishi_1.Schema.string().default('emojihub-bili').description('`父级指令`的指令名称').pattern(/^\S+$/),
+    emojihub_bili_command: Schema.string().default('emojihub-bili').description('`父级指令`的指令名称').pattern(/^\S+$/),
 
-    MoreEmojiHub: koishi_1.Schema.array(koishi_1.Schema.object({
-      command: koishi_1.Schema.string().description('注册的指令名称'),
-      //enable: koishi_1.Schema.boolean().description('隐藏指令'),
-      source_url: koishi_1.Schema.string().description('表情包文件地址'),
+    MoreEmojiHub: Schema.array(Schema.object({
+      command: Schema.string().description('注册的指令名称'),
+      //enable: Schema.boolean().description('隐藏指令'),
+      source_url: Schema.string().description('表情包文件地址'),
     })).role('table').description('表情包指令映射 当前默认`40套`txt文件`点击右方按钮 可以恢复到默认值`<br>`表情包文件地址`可以填入`txt文件绝对路径`或者`文件夹绝对路径`或者`图片直链`或者`图片文件绝对路径`').default(defaultMoreEmojiHub),
 
-    searchSubfolders: koishi_1.Schema.boolean().description("是否递归搜索文件夹。`开启后 对于本地文件夹地址 会搜索其子文件夹内全部的图片`").default(true),
+    searchSubfolders: Schema.boolean().description("是否递归搜索文件夹。`开启后 对于本地文件夹地址 会搜索其子文件夹内全部的图片`").default(true),
 
   }).description('表情包设置'),
 
-  koishi_1.Schema.object({
-    autoEmoji: koishi_1.Schema.boolean().description("进阶设置总开关。打开后，开启自动表情包功能 `达到一定消息数量 自动触发表情包`").default(false),
-    count: koishi_1.Schema.number().default(30).description('触发自动表情包的消息数量的阈值。`不建议过低`'),
-    triggerprobability: koishi_1.Schema.percent().default(0.6).description('达到消息数量阈值时，发送表情包的概率 `范围为 0 到 1 `'),
+  Schema.object({
+    autoEmoji: Schema.boolean().description("进阶设置总开关。打开后，开启自动表情包功能 `达到一定消息数量 自动触发表情包`").default(false),
+    count: Schema.number().default(30).description('触发自动表情包的消息数量的阈值。`不建议过低`'),
+    triggerprobability: Schema.percent().default(0.6).description('达到消息数量阈值时，发送表情包的概率 `范围为 0 到 1 `'),
 
-    groupListmapping: koishi_1.Schema.array(koishi_1.Schema.object({
-      groupList: koishi_1.Schema.string().description('开启自动表情包的群组ID').pattern(/^\S+$/),
-      defaultemojicommand: koishi_1.Schema.string().description('表情包指令名称 `应与下方指令表格对应`'),
-      enable: koishi_1.Schema.boolean().description('勾选后 屏蔽该群 的自动表情包'),
+    groupListmapping: Schema.array(Schema.object({
+      groupList: Schema.string().description('开启自动表情包的群组ID').pattern(/^\S+$/),
+      defaultemojicommand: Schema.string().description('表情包指令名称 `应与下方指令表格对应`'),
+      enable: Schema.boolean().description('勾选后 屏蔽该群 的自动表情包'),
     })).role('table').description('表情包指令映射 `注意群组ID不要多空格什么的`')
       .default([
         { groupList: '114514', defaultemojicommand: 'koishi-meme，白圣女表情包，男娘武器库', enable: false },
         { groupList: '1919810', defaultemojicommand: '随机emojihub表情包', enable: true },
       ]),
 
-    allgroupautoEmoji: koishi_1.Schema.boolean().description("`全部群组` 开启自动表情包").default(false),
+    allgroupautoEmoji: Schema.boolean().description("`全部群组` 开启自动表情包").default(false),
 
-    allgroupemojicommand: koishi_1.Schema.string().role('textarea', { rows: [2, 4] }).description('`全部群组的` 表情包指令映射`一行一个指令 或者 逗号分隔`   <br> 可以同时在`groupListmapping`指定群组的表情包内容')
+    allgroupemojicommand: Schema.string().role('textarea', { rows: [2, 4] }).description('`全部群组的` 表情包指令映射`一行一个指令 或者 逗号分隔`   <br> 可以同时在`groupListmapping`指定群组的表情包内容')
       .default(`宇佐紀表情包\n白圣女表情包\n白圣女漫画表情包`),
 
   }).description('进阶设置'),
 
   // Alin---ba-plugin 配置项
-  koishi_1.Schema.object({
+  Schema.object({
     //------------------------------------json按钮---------20个群-------------------------------------------------------------------------------
-    json_button_switch: koishi_1.Schema.boolean().description("`被动json按钮总开关`开启后以生效JSON按钮配置项（json按钮）<br>注意不要与下面的其他模式同时开，优先发送json按钮").default(false),
-    json_setting: koishi_1.Schema.object({
+    json_button_switch: Schema.boolean().description("`被动json按钮总开关`开启后以生效JSON按钮配置项（json按钮）<br>注意不要与下面的其他模式同时开，优先发送json按钮").default(false),
+    json_setting: Schema.object({
 
-      json_button_mdid_emojilist: koishi_1.Schema.string().description('展示表情包列表的按钮<br>QQ官方bot 的 JSON按钮模板ID<br>20个群即可使用的按钮！使用方法请见[README](https://www.npmjs.com/package/koishi-plugin-emojihub-bili)').pattern(/^\d+_\d+$/), // 102069859_1725953918
-      json_button_mdid_command: koishi_1.Schema.string().description('触发具体表情后发送的按钮<br>QQ官方bot 的 JSON按钮模板ID<br>20个群即可使用的按钮！使用方法请见[README](https://www.npmjs.com/package/koishi-plugin-emojihub-bili)').pattern(/^\d+_\d+$/), // 102069859_1725953918
+      json_button_mdid_emojilist: Schema.string().description('展示表情包列表的按钮<br>QQ官方bot 的 JSON按钮模板ID<br>20个群即可使用的按钮！使用方法请见[README](https://www.npmjs.com/package/koishi-plugin-emojihub-bili)').pattern(/^\d+_\d+$/), // 102069859_1725953918
+      json_button_mdid_command: Schema.string().description('触发具体表情后发送的按钮<br>QQ官方bot 的 JSON按钮模板ID<br>20个群即可使用的按钮！使用方法请见[README](https://www.npmjs.com/package/koishi-plugin-emojihub-bili)').pattern(/^\d+_\d+$/), // 102069859_1725953918
 
     }).collapse().description('实现QQ官方bot `再来一张`和`返回列表`的按钮效果（JSON 按钮）'),
 
 
     //--------------------------------------------被动md模板---2000上行消息人数-----------------------------------------------------------------------------
 
-    MDswitch: koishi_1.Schema.boolean().description("`被动模板md总开关 `开启后以生效被动md配置项（被动markdown，模板md发送的）").default(false),
-    markdown_setting: koishi_1.Schema.object({
+    MDswitch: Schema.boolean().description("`被动模板md总开关 `开启后以生效被动md配置项（被动markdown，模板md发送的）").default(false),
+    markdown_setting: Schema.object({
 
-      mdid: koishi_1.Schema.string().description('QQ官方bot 的 MarkDown模板ID').pattern(/^\d+_\d+$/),
+      mdid: Schema.string().description('QQ官方bot 的 MarkDown模板ID').pattern(/^\d+_\d+$/),
 
-      zllbmdtext_1: koishi_1.Schema.string().default('text1').description('`指令列表MD`.`MD参数`MD文字参数--1'),
-      zllbmdtext_2: koishi_1.Schema.string().default('text2').description('`指令列表MD`.`MD参数`MD文字参数--2'),
-      zllbtext_1: koishi_1.Schema.array(String).default(["表情包列表", "emoji表情列表", "表情列表："]).description('`指令列表MD`MD显示文字内容--1`每次从下列随机选一个发送`').role('table'),
-      zllbtext_2: koishi_1.Schema.array(String).default(["点击按钮即可触发哦~", "😻列表如下：点击按钮触发哦！", "点击即可查看对应表情哦！😽"]).description('`指令列表MD`MD显示文字内容--2`每次从下列随机选一个发送`').role('table'),
+      zllbmdtext_1: Schema.string().default('text1').description('`指令列表MD`.`MD参数`MD文字参数--1'),
+      zllbmdtext_2: Schema.string().default('text2').description('`指令列表MD`.`MD参数`MD文字参数--2'),
+      zllbtext_1: Schema.array(String).default(["表情包列表", "emoji表情列表", "表情列表："]).description('`指令列表MD`MD显示文字内容--1`每次从下列随机选一个发送`').role('table'),
+      zllbtext_2: Schema.array(String).default(["点击按钮即可触发哦~", "😻列表如下：点击按钮触发哦！", "点击即可查看对应表情哦！😽"]).description('`指令列表MD`MD显示文字内容--2`每次从下列随机选一个发送`').role('table'),
 
-      zlmdtext_1: koishi_1.Schema.string().default('text1').description('`指令MD`.`MD参数`MD文字参数--1'),
-      zlmdtext_2: koishi_1.Schema.string().default('text2').description('`指令MD`.`MD参数`MD文字参数--2'),
-      zltext_1: koishi_1.Schema.array(String).default(["emoji~😺", "表情包！", "这是您的表情包~"]).description('`指令MD`MD显示文字内容--1`每次从下列随机选一个发送`').role('table'),
-      zltext_2: koishi_1.Schema.array(String).default(["邦邦咔邦！", "😺😺😺", "😽来了哦！"]).description('`指令MD`MD显示文字内容--2`每次从下列随机选一个发送`').role('table'),
+      zlmdtext_1: Schema.string().default('text1').description('`指令MD`.`MD参数`MD文字参数--1'),
+      zlmdtext_2: Schema.string().default('text2').description('`指令MD`.`MD参数`MD文字参数--2'),
+      zltext_1: Schema.array(String).default(["emoji~😺", "表情包！", "这是您的表情包~"]).description('`指令MD`MD显示文字内容--1`每次从下列随机选一个发送`').role('table'),
+      zltext_2: Schema.array(String).default(["邦邦咔邦！", "😺😺😺", "😽来了哦！"]).description('`指令MD`MD显示文字内容--2`每次从下列随机选一个发送`').role('table'),
 
-      zlmdp_1: koishi_1.Schema.string().default('img').description('`指令MD`.`MD参数`MD图片参数--1 `不需要设定图片宽高`'),
-      zlmdp_2: koishi_1.Schema.string().default('url').description('`指令MD`.`MD参数`MD图片参数--2'),
+      zlmdp_1: Schema.string().default('img').description('`指令MD`.`MD参数`MD图片参数--1 `不需要设定图片宽高`'),
+      zlmdp_2: Schema.string().default('url').description('`指令MD`.`MD参数`MD图片参数--2'),
 
-      ButtonText1: koishi_1.Schema.string().default('再来一张😺').description('`指令MD`按钮上`再来一张功能`显示的文字'),
-      ButtonText2: koishi_1.Schema.string().default('返回列表😽').description('`指令MD`按钮上`返回列表功能`显示的文字'),
+      ButtonText1: Schema.string().default('再来一张😺').description('`指令MD`按钮上`再来一张功能`显示的文字'),
+      ButtonText2: Schema.string().default('返回列表😽').description('`指令MD`按钮上`返回列表功能`显示的文字'),
 
-      MinimumBoundary: koishi_1.Schema.number().default(200).description('`指令MD`过小图片的界限，宽或者高小于这个值就会自动放大到`Magnifymultiple`'),
-      Magnifymultiple: koishi_1.Schema.number().default(1000).description('`指令MD`对于过小图片（宽/高小于`MinimumBoundary`）的放大目标的标准，默认放大到1000px'),
+      MinimumBoundary: Schema.number().default(200).description('`指令MD`过小图片的界限，宽或者高小于这个值就会自动放大到`Magnifymultiple`'),
+      Magnifymultiple: Schema.number().default(1000).description('`指令MD`对于过小图片（宽/高小于`MinimumBoundary`）的放大目标的标准，默认放大到1000px'),
 
-      QQPicToChannelUrl: koishi_1.Schema.boolean().description("`开启后` 本地图片通过频道URL作为群聊MD的图片链接`须填写下方的 QQchannelId`").experimental().default(false),
+      QQPicToChannelUrl: Schema.boolean().description("`开启后` 本地图片通过频道URL作为群聊MD的图片链接`须填写下方的 QQchannelId`").experimental().default(false),
 
-      QQchannelId: koishi_1.Schema.string().description('`填入QQ频道的频道ID`，将该ID的频道作为中转频道 <br> 频道ID可以用[inspect插件来查看](/market?keyword=inspect) `频道ID应为纯数字`').experimental().pattern(/^\S+$/),
+      QQchannelId: Schema.string().description('`填入QQ频道的频道ID`，将该ID的频道作为中转频道 <br> 频道ID可以用[inspect插件来查看](/market?keyword=inspect) `频道ID应为纯数字`').experimental().pattern(/^\S+$/),
 
 
     }).collapse().description('实现QQ官方bot `再来一张`和`返回列表`的按钮效果，需要`canvas`服务。<br> [适用本插件的QQ官方bot MD示例模版 可点击这里参考](https://www.npmjs.com/package/koishi-plugin-emojihub-bili)'),
 
 
     //----------------------------------------原生md-------10000上行消息人数-------钻石机器人----------------------------------------------------------------------
-    RAW_MD_switch: koishi_1.Schema.boolean().description("`原生md总开关` 开启后以生效原生markdown配置项").default(false),
-    RAW_MD_setting: koishi_1.Schema.object({
+    RAW_MD_switch: Schema.boolean().description("`原生md总开关` 开启后以生效原生markdown配置项").default(false),
+    RAW_MD_setting: Schema.object({
 
-      RAW_MD_emojilist_markdown: koishi_1.Schema.path({
+      RAW_MD_emojilist_markdown: Schema.path({
         filters: ['.json', '.JSON'],
-      }).description('原生markdown表情包指令列表<br>建议参考原文件，重写该文件').default(path_1.join(__dirname, 'qq/raw_markdown/RAW_MD_emojilist_markdown.json')),
+      }).description('原生markdown表情包指令列表<br>建议参考原文件，重写该文件').default(path.join(__dirname, 'qq/raw_markdown/RAW_MD_emojilist_markdown.json')),
 
-      RAW_MD_command_markdown: koishi_1.Schema.path({
+      RAW_MD_command_markdown: Schema.path({
         filters: ['.json', '.JSON'],
-      }).description('原生markdown返回的表情包内容<br>建议参考原文件，重写该文件').default(path_1.join(__dirname, 'qq/raw_markdown/RAW_MD_command_markdown.json')),
+      }).description('原生markdown返回的表情包内容<br>建议参考原文件，重写该文件').default(path.join(__dirname, 'qq/raw_markdown/RAW_MD_command_markdown.json')),
     }).collapse().description('实现QQ官方bot `再来一张`和`返回列表`的按钮效果'),
 
   }).description('QQ官方bot设置'),
 
-  koishi_1.Schema.object({
-    //LocalSendNetworkPictures: koishi_1.Schema.boolean().description("`开启后` 将网络URL下载至本地，作为本地图片发送").experimental().default(false),
-    LocalSendNetworkPicturesList: koishi_1.Schema.string().role('textarea', { rows: [2, 4] }).description('将`下列指令`对应的内容下载至本地，作为本地图片发送').default().experimental(),
-    deletePictime: koishi_1.Schema.number().default(10).description('若干`秒`后 删除下载的本地临时文件').experimental(),
+  Schema.object({
+    //LocalSendNetworkPictures: Schema.boolean().description("`开启后` 将网络URL下载至本地，作为本地图片发送").experimental().default(false),
+    LocalSendNetworkPicturesList: Schema.string().role('textarea', { rows: [2, 4] }).description('将`下列指令`对应的内容下载至本地，作为本地图片发送').default().experimental(),
+    deletePictime: Schema.number().default(10).description('若干`秒`后 删除下载的本地临时文件').experimental(),
 
-    localPicToBase64: koishi_1.Schema.boolean().description("`开启后`本地图片以base64发出 `日常使用无需开启，且不建议官方bot使用`").experimental().default(false),
+    localPicToBase64: Schema.boolean().description("`开启后`本地图片以base64发出 `日常使用无需开启，且不建议官方bot使用`").experimental().default(false),
 
-    consoleinfo: koishi_1.Schema.boolean().default(false).description("日志调试模式`日常使用无需开启`"),
+    consoleinfo: Schema.boolean().default(false).description("日志调试模式`日常使用无需开启`"),
   }).description('调试选项'),
-  koishi_1.Schema.union([
-    koishi_1.Schema.object({
-      consoleinfo: koishi_1.Schema.const(true).required(),
-      allfileinfo: koishi_1.Schema.boolean().description("输出allfile调试内容`MoreEmojiHub 列表详细内容`"),
+  Schema.union([
+    Schema.object({
+      consoleinfo: Schema.const(true).required(),
+      allfileinfo: Schema.boolean().description("输出allfile调试内容`MoreEmojiHub 列表详细内容`"),
     }),
-    koishi_1.Schema.object({})
+    Schema.object({})
   ]),
 
 ])
@@ -233,7 +229,7 @@ async function uploadImageToChannel(ctx, consoleinfo, data, appId, secret, chann
   // 处理图片数据
   if (typeof data === 'string') {
     if (new URL(data).protocol === 'file:') {
-      data = await promises_1.readFile(url_1.fileURLToPath(data));
+      data = await promises.readFile(url.fileURLToPath(data));
     } else {
       data = await ctx.http.get(data, { responseType: 'arraybuffer' });
       data = Buffer.from(data);
@@ -252,7 +248,7 @@ async function uploadImageToChannel(ctx, consoleinfo, data, appId, secret, chann
   });
 
   // 计算MD5并返回图片URL
-  const md5 = crypto_1.createHash('md5').update(data).digest('hex').toUpperCase();
+  const md5 = crypto.createHash('md5').update(data).digest('hex').toUpperCase();
   if (channelId !== undefined && consoleinfo) {
     logger.info(`使用本地图片*QQ频道  发送URL为： https://gchat.qpic.cn/qmeetpic/0/0-0-${md5}/0`)
   };
@@ -323,8 +319,15 @@ async function determineImagePath(txtPath, config, channelId, command, ctx, loca
     logInfo(config, channelId, command, `随机选择的本地图片路径: ${txtPath}`);
     return { imageUrl: txtPath, isLocal: true };
   }
+}
 
-  return { imageUrl: null, isLocal: false };
+function getRandomEmojiHubCommand(config) {
+  const commands = config.MoreEmojiHub.map(emoji => emoji.command);
+  if (commands.length > 0) {
+    return commands[Math.floor(Math.random() * commands.length)];
+  } else {
+    return null;
+  }
 }
 
 function isLocalImagePath(txtPath) {
@@ -346,7 +349,7 @@ function getAllValidPaths(config) {
   }).map(emoji => emoji.source_url);
 }
 
-// 辅助函数：递归获取文件夹及其子文件夹中的所有文件
+// 递归获取文件夹及其子文件夹中的所有文件
 // 用于实现searchSubfolders配置项的功能
 function getAllFiles(dir, fileList = []) {
   const files = fs.readdirSync(dir);
@@ -853,7 +856,7 @@ function apply(ctx, config) {
         } else {
           // 否则，发送文本列表
           const commandText = txtCommandList.join('\n');
-          await session.send(koishi_1.h.text(session.text(`commands.${emojihub_bili_codecommand}.messages.List_of_emojis`) + `\n` + commandText));
+          await session.send(h.text(session.text(`commands.${emojihub_bili_codecommand}.messages.List_of_emojis`) + `\n` + commandText));
         }
       }
       );
@@ -865,7 +868,7 @@ function apply(ctx, config) {
 
         if (!imageResult.imageUrl) {
           // 如果没有图片返回，发送错误消息
-          await session.send(koishi_1.h.text(session.text(`commands.${emojihub_bili_codecommand}.messages.notfound_txt`) + command));
+          await session.send(h.text(session.text(`commands.${emojihub_bili_codecommand}.messages.notfound_txt`) + command));
           return;
         }
         // 更新频道的最后一个命令
@@ -894,7 +897,7 @@ function apply(ctx, config) {
 
               } else if (config.markdown_setting.QQPicToChannelUrl) {
 
-                const uploadedImageURL = await uploadImageToChannel(ctx, config.consoleinfo, url_1.pathToFileURL(imageResult.imageUrl).href, session.bot.config.id, session.bot.config.secret, config.markdown_setting.QQchannelId);
+                const uploadedImageURL = await uploadImageToChannel(ctx, config.consoleinfo, url.pathToFileURL(imageResult.imageUrl).href, session.bot.config.id, session.bot.config.secret, config.markdown_setting.QQchannelId);
 
 
                 if (session.event.guild?.id) {
@@ -905,7 +908,7 @@ function apply(ctx, config) {
 
               } else {
                 //正常本地文件发图
-                const imageUrl = url_1.pathToFileURL(imageResult.imageUrl).href;
+                const imageUrl = url.pathToFileURL(imageResult.imageUrl).href;
                 if (session.event.guild?.id) {
                   message = session.qq.sendMessage(session.channelId, await markdown(session, command, imageUrl));
                 } else {
@@ -929,7 +932,7 @@ function apply(ctx, config) {
                 //本地base64发图
                 let imagebase64 = await getImageAsBase64(imageResult.imageUrl);
                 //logger.info(imagebase64)
-                message = await session.send(koishi_1.h('image', { url: 'data:image/png;base64,' + imagebase64 }));
+                message = await session.send(h('image', { url: 'data:image/png;base64,' + imagebase64 }));
 
                 if (config.json_button_switch && config.json_setting.json_button_mdid_command && session.platform === 'qq') { // 发送图片后，发送json按钮
                   let markdownMessage = {
@@ -948,8 +951,8 @@ function apply(ctx, config) {
                 }
               } else {
                 //正常本地文件发图
-                const imageUrl = url_1.pathToFileURL(imageResult.imageUrl).href;
-                message = await session.send(koishi_1.h.image(imageUrl));
+                const imageUrl = url.pathToFileURL(imageResult.imageUrl).href;
+                message = await session.send(h.image(imageUrl));
                 if (config.json_button_switch && config.json_setting.json_button_mdid_command && session.platform === 'qq') { // 发送图片后，发送json按钮
                   let markdownMessage = {
                     msg_id: session.event.message.id,
@@ -968,7 +971,7 @@ function apply(ctx, config) {
               }
             } else {
               // 网络URL
-              message = await session.send(koishi_1.h.image(imageResult.imageUrl));
+              message = await session.send(h.image(imageResult.imageUrl));
               if (config.json_button_switch && config.json_setting.json_button_mdid_command && session.platform === 'qq') { // 发送图片后，发送json按钮
                 let markdownMessage = {
                   msg_id: session.event.message.id,
@@ -1009,6 +1012,18 @@ function apply(ctx, config) {
           await session.execute(`${lastCommand}`);
         } else {
           await session.send('没有找到上一个命令，请先执行一个命令！');
+        }
+      });
+
+    ctx.command(`${config.emojihub_bili_command}/随机表情包`)
+      .action(async ({ session }) => {
+        const randomEmojiHubCommand = getRandomEmojiHubCommand(config);
+        if (randomEmojiHubCommand) {
+          await session.execute(randomEmojiHubCommand);
+          logInfo(config, session.channelId, randomEmojiHubCommand, `随机表情包`);
+          return;
+        } else {
+          await session.send('没有任何表情包配置，请检查插件配置项');
         }
       });
   });
@@ -1076,20 +1091,20 @@ function apply(ctx, config) {
                   groupConfig.count = 0; // 重置消息计数
                   let message;
                   if (imageResult.isLocal) { //本地图片
-                    //const imageUrl = url_1.pathToFileURL(imageResult.imageUrl).href;
-                    //message = koishi_1.h.image(imageUrl);
+                    //const imageUrl = url.pathToFileURL(imageResult.imageUrl).href;
+                    //message = h.image(imageUrl);
                     if (config.localPicToBase64) {
                       //本地base64发图
                       let imagebase64 = await getImageAsBase64(imageResult.imageUrl);
                       //logger.info(imagebase64)
-                      message = koishi_1.h('image', { url: 'data:image/png;base64,' + imagebase64 });
+                      message = h('image', { url: 'data:image/png;base64,' + imagebase64 });
                     } else {
                       //正常本地文件发图
-                      const imageUrl = url_1.pathToFileURL(imageResult.imageUrl).href;
-                      message = koishi_1.h.image(imageUrl);
+                      const imageUrl = url.pathToFileURL(imageResult.imageUrl).href;
+                      message = h.image(imageUrl);
                     }
                   } else {
-                    message = koishi_1.h.image(imageResult.imageUrl);
+                    message = h.image(imageResult.imageUrl);
                   }
                   let sentMessage = await session.send(message);
                   // 如果需要撤回消息
