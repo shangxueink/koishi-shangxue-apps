@@ -55,7 +55,7 @@ export const usage = `
 
 export const Config: Schema<Config> = Schema.intersect([
   Schema.object({
-    enable_deerpipe: Schema.boolean().description('开启后，允许重复签到`重复签到不会增加签到日期、补签机会`').default(true),
+    enable_deerpipe: Schema.boolean().description('开启后，重复签到会返回签到日历`关闭就只剩下文字提示了`').default(true),
   }).description('签到设置'),
   Schema.object({
     leaderboard_people_number: Schema.number().description('排行榜显示人数').default(5),
@@ -141,8 +141,14 @@ export function apply(ctx: Context, config: Config) {
             totaltimes: targetRecord.totaltimes,
             recordtime: targetRecord.recordtime,
           });
-        } else if (!config.enable_deerpipe) {
+        } else {
           // 检查是否允许重复签到
+          if (config.enable_deerpipe) {
+            // 生成并发送签到日历图像
+            const imgBuf = await renderSignInCalendar(ctx, targetUserId, currentYear, currentMonth);
+            const calendarImage = h.image(imgBuf, 'image/png');
+            await session.send(calendarImage);
+          }
           await session.send('今天已经签过到了，请明天再来签到吧\~');
           return;
         }
@@ -150,7 +156,7 @@ export function apply(ctx: Context, config: Config) {
 
       // 如果帮助其他用户签到，增加补签机会
       if (targetUserId !== session.userId) {
-        //ctx.logger.info('判断成功：是邀请别人');
+        ctx.logger.info('判断成功：是邀请别人');
 
         // 获取帮助者的记录
         let [helperRecord] = await ctx.database.get('deerpipe', { userid: session.userId });
