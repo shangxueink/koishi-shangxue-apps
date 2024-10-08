@@ -156,8 +156,6 @@ export function apply(ctx: Context, config: Config) {
 
       // 如果帮助其他用户签到，增加补签机会
       if (targetUserId !== session.userId) {
-        ctx.logger.info('判断成功：是邀请别人');
-
         // 获取帮助者的记录
         let [helperRecord] = await ctx.database.get('deerpipe', { userid: session.userId });
         if (!helperRecord) {
