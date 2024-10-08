@@ -101,7 +101,7 @@ function apply(ctx, config) {
   }
   __name(logInfo, "logInfo");
   function removeLeadingBrackets(content) {
-    return content.replace(/<.*?>/g, "");
+    return content.replace(/<.*?>/g, "").trim();
   }
   __name(removeLeadingBrackets, "removeLeadingBrackets");
   async function loadVocabulary() {
@@ -144,20 +144,22 @@ function apply(ctx, config) {
         return next();
       }
       let { content } = session;
-      let anothercontent = content.trim().toLowerCase();
+      let processedContent = content.trim().toLowerCase();
       if (config.removeLeadingBrackets) {
-        anothercontent = removeLeadingBrackets(content);
+        processedContent = removeLeadingBrackets(processedContent);
       }
-      const commandPrefix = Object.keys(config.Audit_Configuration).find((prefix) => anothercontent.startsWith(prefix));
+      logInfo(`用户输入原始内容为
+${content}`);
+      logInfo(`用户输入内容为
+${processedContent}`);
+      const commandPrefix = Object.keys(config.Audit_Configuration).find((prefix) => processedContent.startsWith(prefix.toLowerCase()));
       if (!commandPrefix) {
         return next();
       }
-      logInfo(`用户输入内容为
-${anothercontent}`);
       const vocabulary = await loadVocabulary();
       const whitelist = config.Whitelist_input;
       const blacklist = config.Blacklist_input;
-      const auditResult = await auditText(anothercontent, vocabulary, whitelist, blacklist);
+      const auditResult = await auditText(processedContent, vocabulary, whitelist, blacklist);
       if (auditResult) {
         if (config.Return_Audit_Result_true) {
           await session.send(import_koishi.h.text("审核通过"));
