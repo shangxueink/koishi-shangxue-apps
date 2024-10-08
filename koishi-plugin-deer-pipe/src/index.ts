@@ -24,7 +24,7 @@ export const usage = `
 <h3>签到</h3>
 <ul>
 <li><strong>指令</strong>: <code>🦌 [艾特用户]</code> 或 <code>鹿管 [艾特用户]</code></li>
-<li><strong>作用</strong>: 签到当天。</li>
+<li><strong>作用</strong>: 签到当天。（推荐在【指令管理】设置每天调用上限）</li>
 <li><strong>示例</strong>: <code>🦌</code>（自己签到） / <code>🦌 @猫猫</code>（帮他鹿）</li>
 </ul>
 
@@ -104,16 +104,17 @@ export function apply(ctx: Context, config: Config) {
       const currentMonth = currentDate.getMonth() + 1;
       const currentDay = currentDate.getDate();
       const recordtime = `${currentYear}-${currentMonth}`;
-
       let targetUserId = session.userId;
 
       if (user) {
+        // 提取目标用户ID
         targetUserId = h.parse(user)[0]?.attrs?.id || user;
       }
 
+      // 获取目标用户的签到记录
       let [targetRecord] = await ctx.database.get('deerpipe', { userid: targetUserId });
-
       if (!targetRecord) {
+        // 如果没有记录，创建新的签到记录
         targetRecord = {
           userid: targetUserId,
           username: targetUserId,
@@ -125,10 +126,13 @@ export function apply(ctx: Context, config: Config) {
         };
         await ctx.database.create('deerpipe', targetRecord);
       } else {
+        // 如果是新月份，重置签到记录
         if (targetRecord.recordtime !== recordtime) {
           targetRecord.recordtime = recordtime;
           targetRecord.checkindate = [];
         }
+
+        // 检查是否当天已经签到
         if (!targetRecord.checkindate.includes(currentDay.toString())) {
           targetRecord.checkindate.push(currentDay.toString());
           targetRecord.totaltimes += 1;
@@ -138,15 +142,20 @@ export function apply(ctx: Context, config: Config) {
             recordtime: targetRecord.recordtime,
           });
         } else if (!config.enable_deerpipe) {
-          await session.send('你今天已经签过到了，明天再签到吧~');
+          // 检查是否允许重复签到
+          await session.send('今天已经签过到了，请明天再来签到吧\~');
           return;
         }
       }
 
-      if (targetUserId !== session.userId && !targetRecord.checkindate.includes(currentDay.toString())) {
-        let [helperRecord] = await ctx.database.get('deerpipe', { userid: session.userId });
+      // 如果帮助其他用户签到，增加补签机会
+      if (targetUserId !== session.userId) {
+        //ctx.logger.info('判断成功：是邀请别人');
 
+        // 获取帮助者的记录
+        let [helperRecord] = await ctx.database.get('deerpipe', { userid: session.userId });
         if (!helperRecord) {
+          // 帮助者第一次签到，创建记录并增加补签次数
           helperRecord = {
             userid: session.userId,
             username: session.username,
@@ -158,21 +167,24 @@ export function apply(ctx: Context, config: Config) {
           };
           await ctx.database.create('deerpipe', helperRecord);
         } else {
+          // 已经签到过，增加补签次数
           helperRecord.resigntimes += 1;
           await ctx.database.set('deerpipe', { userid: session.userId }, {
             resigntimes: helperRecord.resigntimes,
           });
         }
 
+        // 通知用户获得补签机会
         await session.send(`${h.at(session.userId)} 你成功帮助 ${targetUserId} 签到，并获得了一次补签机会！`);
       }
 
+      // 生成并发送签到日历图像
       const imgBuf = await renderSignInCalendar(ctx, targetUserId, currentYear, currentMonth);
       const calendarImage = h.image(imgBuf, 'image/png');
-
       await session.send(calendarImage);
-      await session.send(`${h.at(targetUserId)} 你已经签到${targetRecord.totaltimes}天啦~ 继续加油咪~`);
+      await session.send(`${h.at(targetUserId)} 你已经签到${targetRecord.totaltimes}天啦\~ 继续加油咪\~`);
     });
+
 
 
   ctx.command('鹿管排行榜', '查看签到排行榜', { authority: 1 })
