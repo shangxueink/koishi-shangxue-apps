@@ -1,6 +1,6 @@
 {
   "name": "koishi-plugin-dgluna",
-  "description": "/*dgluna*/在群聊中玩郊狼吧！实现郊狼N对N的控制玩耍，可以让好多人一起扫码来玩",
+  "description": "[<ruby>dgluna 游戏插件<rp>（</rp><rt>点我查看README</rt><rp>）</rp></ruby>](https://www.npmjs.com/package/koishi-plugin-dgluna) 在群聊中玩郊狼吧！🎮 实现郊狼 N 对 N 的控制玩耍，可以让好多人一起扫码来玩哦 📱。包含加入频道、调节强度、邀请玩家、退出频道功能。自己一个人玩，与被人控真的不一样哦~ （会一直笑 bushi）",
   "version": "0.1.0",
   "main": "lib/index.js",
   "typings": "lib/index.d.ts",
@@ -17,6 +17,10 @@
   "service": {
     "implements": [
       "dgluna"
+    ],
+    "required": [
+      "qrcode",
+      "koishi-plugin-qrcode-service-null"
     ]
   },
   "homepage": "https://github.com/shangxueink/koishi-shangxue-apps/tree/main/%40shangxueink/koishi-plugin-content-guard",
@@ -24,9 +28,10 @@
     "url": "https://github.com/shangxueink/koishi-shangxue-apps/issues"
   },
   "peerDependencies": {
-    "koishi": "^4.17.12"
+    "koishi": "^4.17.12",
+    "koishi-plugin-qrcode-service-null": "^0.2.0"
   },
   "dependencies": {
-    "koishi-plugin-qrcode-service-null": "^0.2.1"
+    "koishi-plugin-qrcode-service-null": "^0.2.0"
   }
 }

@@ -8,8 +8,69 @@ export * from "./config"
 import { } from 'koishi-plugin-qrcode-service-null'
 
 export const inject = {
-        optional: ['qrcode']
+        required: ['qrcode']
 }
+export const usage = `
+<h1>DgLuna 插件</h1>
+
+<p>DgLuna 是一个用于 DG-LAB 游戏的插件，提供了公共放映厅的功能。</p>
+
+<h2>使用方法</h2>
+
+<h3>连接 DG-LAB 频道</h3>
+<ul>
+<li><strong>参数</strong>:</li>
+<ul>
+<li><code>endpoint</code>: 可选，指定连接的 DG-LAB 频道。</li>
+</ul>
+<li><strong>触发示例</strong>: <code>dgluna.connect ws://1.2.3.4:5555</code> 或者 <code>dgluna.connect</code></li>
+</ul>
+
+<h3>调整通道强度</h3>
+<ul>
+<li><strong>参数</strong>:</li>
+<ul>
+<li><code>channel</code>: 要调整的通道名称。</li>
+<li><code>value</code>: 要设定的强度值。</li>
+</ul>
+<li><strong>触发示例</strong>: <code>dgluna.strchange A -5</code>（A通道减弱5）</li>
+</ul>
+
+<h3>设定通道强度</h3>
+<ul>
+<li><strong>参数</strong>:</li>
+<ul>
+<li><code>channel</code>: 要设定的通道名称。</li>
+<li><code>value</code>: 要设定的强度值。</li>
+</ul>
+<li><strong>触发示例</strong>: <code>dgluna.strset A 15</code>（A通道设定至15）</li>
+</ul>
+
+<h3>设定通道波形</h3>
+<ul>
+<li><strong>参数</strong>:</li>
+<ul>
+<li><code>channel</code>: 要设定的通道名称。</li>
+<li><code>wave</code>: 波形编号。</li>
+<li><code>time</code>: 持续时间。</li>
+</ul>
+</ul>
+
+<h3>邀请用户加入</h3>
+<ul>
+<li><strong>参数</strong>:</li>
+<ul>
+<li><code>user</code>: 要邀请的用户 ID。</li>
+</ul>
+<li><strong>触发示例</strong>: <code>dgluna.invite @猫猫</code></li>
+</ul>
+
+<h3>退出频道</h3>
+<pre><code>dgluna.exit</code></pre>
+
+<hr>
+
+`;
 
 function dgluna(ctx: Context, config: Config) {
         const logger = ctx.logger("dgluna")
