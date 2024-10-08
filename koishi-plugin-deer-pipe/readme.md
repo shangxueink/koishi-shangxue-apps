@@ -18,13 +18,38 @@
 
 ## 📦 命令合集
 
-```shell
-🦌
-补🦌（期号）
-戒🦌
-戒🦌（期号）
-🦌榜
-```
+
+<h3>签到</h3>
+<ul>
+<li><strong>指令</strong>: <code>🦌 [艾特用户]</code> 或 <code>鹿管 [艾特用户]</code></li>
+<li><strong>作用</strong>: 签到当天。</li>
+<li><strong>示例</strong>: <code>🦌</code>（自己签到） / <code>🦌 @猫猫</code>（帮他鹿）</li>
+</ul>
+
+<h3>查看排行榜</h3>
+<ul>
+<li><strong>指令</strong>: <code>鹿管排行榜</code> 或 <code>🦌榜</code></li>
+<li><strong>作用</strong>: 查看谁签到最多。</li>
+<li><strong>示例</strong>: <code>鹿管排行榜</code></li>
+</ul>
+
+<h3>补签</h3>
+<ul>
+<li><strong>指令</strong>: <code>补🦌 [日期]</code></li>
+<li><strong>作用</strong>: 补签到指定日期。例如补签当月的15号。</li>
+<li><strong>示例</strong>: <code>补🦌 15</code></li>
+</ul>
+
+<h3>取消签到</h3>
+<ul>
+<li><strong>指令</strong>: <code>戒🦌 [日期]</code></li>
+<li><strong>作用</strong>: 取消某天的签到。例如取消签到当月的10号。</li>
+<li><strong>示例</strong>: <code>戒🦌 10</code> （若省略<code>10</code>，会取消签到今天的）</li>
+</ul>
+
+</body>
+</html>
+
 
 ## 🚀 声明
 

@@ -7,8 +7,8 @@ export interface Config {
   enable_deerpipe: boolean;
   leaderboard_people_number: number;
   loggerinfo: boolean;
-  debugcommand: boolean;
 }
+
 export const usage = `
 <!DOCTYPE html>
 <html lang="zh-CN">
@@ -23,9 +23,9 @@ export const usage = `
 
 <h3>签到</h3>
 <ul>
-<li><strong>指令</strong>: <code>🦌</code> 或 <code>鹿管</code></li>
+<li><strong>指令</strong>: <code>🦌 [艾特用户]</code> 或 <code>鹿管 [艾特用户]</code></li>
 <li><strong>作用</strong>: 签到当天。</li>
-<li><strong>示例</strong>: <code>🦌</code></li>
+<li><strong>示例</strong>: <code>🦌</code>（自己签到） / <code>🦌 @猫猫</code>（帮他鹿）</li>
 </ul>
 
 <h3>查看排行榜</h3>
@@ -37,7 +37,7 @@ export const usage = `
 
 <h3>补签</h3>
 <ul>
-<li><strong>指令</strong>: <code>补🦌 &lt;日期&gt;</code></li>
+<li><strong>指令</strong>: <code>补🦌 [日期]</code></li>
 <li><strong>作用</strong>: 补签到指定日期。例如补签当月的15号。</li>
 <li><strong>示例</strong>: <code>补🦌 15</code></li>
 </ul>
@@ -51,18 +51,16 @@ export const usage = `
 
 </body>
 </html>
-
-
 `;
+
 export const Config: Schema<Config> = Schema.intersect([
   Schema.object({
-    enable_deerpipe: Schema.boolean().description('开启后，允许重复签到`重复签到不会增加签到日期`').default(true),
+    enable_deerpipe: Schema.boolean().description('开启后，允许重复签到`重复签到不会增加签到日期、补签机会`').default(true),
   }).description('签到设置'),
   Schema.object({
     leaderboard_people_number: Schema.number().description('排行榜显示人数').default(5),
   }).description('排行榜设置'),
   Schema.object({
-    debugcommand: Schema.boolean().description('debug指令注册').default(false),
     loggerinfo: Schema.boolean().description('debug日志输出模式').default(false),
   }).description('调试设置'),
 ]);
@@ -74,6 +72,7 @@ interface DeerPipeTable {
   recordtime: string;
   checkindate: string[];
   totaltimes: number;
+  resigntimes: number;
 }
 
 declare module 'koishi' {
@@ -91,181 +90,52 @@ export function apply(ctx: Context, config: Config) {
     channelId: 'string', // 频道ID，用于排行榜
     recordtime: 'string', // 最新签到的年月，用于记录更新
     checkindate: 'list', // 当前月份的签到的日期号
+    resigntimes: 'integer', // 剩余的补签次数，限制用户补签
     totaltimes: 'integer', // 鹿管签到总次数。用于排行榜
   }, {
     primary: ['userid'],
   });
 
-  if (config.debugcommand) {
-    /*
-    调试签到 2024 10 6 114514 1 2 3 4 5
-    调试签到 2025 1 20 114514
-    调试签到 2026 1 20 114514
-    调试签到 2027 1 21 114514
-    */
-    ctx.command('调试签到 <year> <month> <day> <userid> [...dates]', '调试签到数据', { authority: 3 })
-      .action(async ({ session }, year: string, month: string, day: string, userid: string, ...dates: string[]) => {
-        const yearNum = parseInt(year, 10);
-        const monthNum = parseInt(month, 10);
-        const dayNum = parseInt(day, 10);
-        const dateNums = dates.map(date => parseInt(date, 10));
-        const recordtime = `${yearNum}-${monthNum}`;
-
-        let [record] = await ctx.database.get('deerpipe', { userid });
-
-        if (!record) {
-          record = {
-            userid,
-            username: '调试用户',
-            channelId: session.channelId,
-            recordtime,
-            checkindate: [...dateNums.map(date => date.toString()), dayNum.toString()],
-            totaltimes: dateNums.length + 1,
-          };
-          await ctx.database.create('deerpipe', record);
-        } else {
-          if (record.recordtime !== recordtime) {
-            record.recordtime = recordtime;
-            record.checkindate = [];
-          }
-          const newCheckins = [...new Set([...record.checkindate, ...dateNums.map(date => date.toString()), dayNum.toString()])];
-          record.totaltimes += newCheckins.length - record.checkindate.length;
-          record.checkindate = newCheckins;
-          await ctx.database.set('deerpipe', { userid }, {
-            checkindate: record.checkindate,
-            totaltimes: record.totaltimes,
-            recordtime: record.recordtime,
-          });
-        }
-
-        const checkinDates = record.checkindate;
-        const calendarDayData = generateCalendarHTML(checkinDates, yearNum, monthNum);
-
-        const fullHTML = `
-  <!DOCTYPE html>
-  <html lang="zh-CN">
-  <head>
-  <meta charset="UTF-8">
-  <title>签到日历</title>
-  <style>
-  @font-face {
-  font-family: 'MiSans';
-  src: url('../assets/MiSans-Regular.ttf') format('truetype');
-  }
-  body {
-  font-family: 'MiSans', sans-serif;
-  }
-  .calendar {
-  width: 320px;
-  margin: 20px;
-  border: 1px solid #ccc;
-  padding: 10px;
-  box-sizing: border-box;
-  }
-  .calendar-header {
-  font-weight: bold;
-  font-size: 18px;
-  margin-bottom: 5px;
-  text-align: left;
-  }
-  .calendar-subheader {
-  text-align: left;
-  margin-bottom: 10px;
-  }
-  .weekdays {
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  text-align: center;
-  font-size: 12px;
-  margin-bottom: 5px;
-  }
-  .calendar-grid {
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  gap: 5px;
-  }
-  .calendar-day {
-  position: relative;
-  text-align: center;
-  }
-  .deer-image {
-  width: 100%;
-  height: auto;
-  }
-  .check-image {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: auto;
-  }
-  .day-number {
-  position: absolute;
-  bottom: 5px;
-  left: 5px;
-  font-size: 14px;
-  color: black;
-  }
-  </style>
-  </head>
-  <body>
-  ${calendarDayData}
-  </body>
-  </html>
-  `;
-
-        if (config.loggerinfo) {
-          ctx.logger.info(fullHTML);
-        }
-
-        const page = await ctx.puppeteer.page();
-        await page.setContent(fullHTML, { waitUntil: 'networkidle2' });
-        await page.waitForSelector('.deer-image');
-
-        const calendarElement = await page.$('.calendar');
-        const imgBuf = await calendarElement.screenshot({ captureBeyondViewport: false });
-        const calendarImage = h.image(imgBuf, 'image/png');
-
-        await page.close();
-
-        await session.send(calendarImage);
-        await session.send(`用户 ${userid} 已签到 ${record.totaltimes} 天。`);
-      });
-  }
-
-  ctx.command('🦌', '鹿管签到', { authority: 1 })
+  ctx.command('🦌 [user]', '鹿管签到', { authority: 1 })
     .alias('鹿管')
-    .action(async ({ session }) => {
+    .action(async ({ session }, user) => {
       const currentDate = new Date();
       const currentYear = currentDate.getFullYear();
       const currentMonth = currentDate.getMonth() + 1;
       const currentDay = currentDate.getDate();
       const recordtime = `${currentYear}-${currentMonth}`;
 
-      let [record] = await ctx.database.get('deerpipe', { userid: session.userId });
+      let targetUserId = session.userId;
 
-      if (!record) {
-        record = {
-          userid: session.userId,
-          username: session.username,
+      if (user) {
+        targetUserId = h.parse(user)[0]?.attrs?.id || user;
+      }
+
+      let [targetRecord] = await ctx.database.get('deerpipe', { userid: targetUserId });
+
+      if (!targetRecord) {
+        targetRecord = {
+          userid: targetUserId,
+          username: targetUserId,
           channelId: session.channelId,
           recordtime,
           checkindate: [currentDay.toString()],
           totaltimes: 1,
+          resigntimes: 0,
         };
-        await ctx.database.create('deerpipe', record);
+        await ctx.database.create('deerpipe', targetRecord);
       } else {
-        if (record.recordtime !== recordtime) {
-          record.recordtime = recordtime;
-          record.checkindate = [];
+        if (targetRecord.recordtime !== recordtime) {
+          targetRecord.recordtime = recordtime;
+          targetRecord.checkindate = [];
         }
-        if (!record.checkindate.includes(currentDay.toString())) {
-          record.checkindate.push(currentDay.toString());
-          record.totaltimes += 1;
-          await ctx.database.set('deerpipe', { userid: session.userId }, {
-            checkindate: record.checkindate,
-            totaltimes: record.totaltimes,
-            recordtime: record.recordtime,
+        if (!targetRecord.checkindate.includes(currentDay.toString())) {
+          targetRecord.checkindate.push(currentDay.toString());
+          targetRecord.totaltimes += 1;
+          await ctx.database.set('deerpipe', { userid: targetUserId }, {
+            checkindate: targetRecord.checkindate,
+            totaltimes: targetRecord.totaltimes,
+            recordtime: targetRecord.recordtime,
           });
         } else if (!config.enable_deerpipe) {
           await session.send('你今天已经签过到了，明天再签到吧~');
@@ -273,11 +143,35 @@ export function apply(ctx: Context, config: Config) {
         }
       }
 
-      const imgBuf = await renderSignInCalendar(ctx, session.userId, currentYear, currentMonth);
+      if (targetUserId !== session.userId && !targetRecord.checkindate.includes(currentDay.toString())) {
+        let [helperRecord] = await ctx.database.get('deerpipe', { userid: session.userId });
+
+        if (!helperRecord) {
+          helperRecord = {
+            userid: session.userId,
+            username: session.username,
+            channelId: session.channelId,
+            recordtime,
+            checkindate: [],
+            totaltimes: 0,
+            resigntimes: 1,
+          };
+          await ctx.database.create('deerpipe', helperRecord);
+        } else {
+          helperRecord.resigntimes += 1;
+          await ctx.database.set('deerpipe', { userid: session.userId }, {
+            resigntimes: helperRecord.resigntimes,
+          });
+        }
+
+        await session.send(`${h.at(session.userId)} 你成功帮助 ${targetUserId} 签到，并获得了一次补签机会！`);
+      }
+
+      const imgBuf = await renderSignInCalendar(ctx, targetUserId, currentYear, currentMonth);
       const calendarImage = h.image(imgBuf, 'image/png');
 
       await session.send(calendarImage);
-      await session.send(`你已经签到${record.totaltimes}天啦~ 继续加油咪~`);
+      await session.send(`${h.at(targetUserId)} 你已经签到${targetRecord.totaltimes}天啦~ 继续加油咪~`);
     });
 
 
@@ -413,7 +307,7 @@ ${deer.order === 3 ? '<span class="medal">🥉</span>' : ''}
     .action(async ({ session }, day: string) => {
       const dayNum = parseInt(day, 10);
       if (isNaN(dayNum) || dayNum < 1 || dayNum > 31) {
-        await session.send('请输入有效的日期。');
+        await session.send('请输入有效的日期。\n示例： 补🦌  1');
         return
       }
 
@@ -424,40 +318,31 @@ ${deer.order === 3 ? '<span class="medal">🥉</span>' : ''}
 
       let [record] = await ctx.database.get('deerpipe', { userid: session.userId });
 
-      if (!record) {
-        record = {
-          userid: session.userId,
-          username: session.username,
-          channelId: session.channelId,
-          recordtime,
-          checkindate: [dayNum.toString()],
-          totaltimes: 1,
-        };
-        await ctx.database.create('deerpipe', record);
-      } else {
-        if (record.recordtime !== recordtime) {
-          record.recordtime = recordtime;
-          record.checkindate = [];
-        }
-        if (!record.checkindate.includes(dayNum.toString())) {
-          record.checkindate.push(dayNum.toString());
-          record.totaltimes += 1;
-          await ctx.database.set('deerpipe', { userid: session.userId }, {
-            checkindate: record.checkindate,
-            totaltimes: record.totaltimes,
-            recordtime: record.recordtime,
-          });
-        } else {
-          await session.send(`你已经补签过${dayNum}号了。`);
-          return
-        }
+      if (!record || record.resigntimes <= 0) {
+        await session.send('你没有补签机会了。');
+        return;
       }
+
+      if (record.checkindate.includes(dayNum.toString())) {
+        await session.send(`${h.at(session.userId)} 你已经补签过${dayNum}号了。`);
+        return;
+      }
+
+      record.checkindate.push(dayNum.toString());
+      record.totaltimes += 1;
+      record.resigntimes -= 1;
+
+      await ctx.database.set('deerpipe', { userid: session.userId }, {
+        checkindate: record.checkindate,
+        totaltimes: record.totaltimes,
+        resigntimes: record.resigntimes,
+      });
 
       const imgBuf = await renderSignInCalendar(ctx, session.userId, currentYear, currentMonth);
       const calendarImage = h.image(imgBuf, 'image/png');
 
       await session.send(calendarImage);
-      await session.send(`你已成功补签${dayNum}号。`);
+      await session.send(`${h.at(session.userId)} 你已成功补签${dayNum}号。`);
     });
 
   ctx.command('戒🦌 [day]', '取消某日签到', { authority: 1 })
@@ -470,13 +355,18 @@ ${deer.order === 3 ? '<span class="medal">🥉</span>' : ''}
 
       const dayNum = day ? parseInt(day, 10) : currentDay;
       if (isNaN(dayNum) || dayNum < 1 || dayNum > 31) {
-        await session.send('请输入有效的日期。');
-        return
+        await session.send('请输入有效的日期。\n示例： 戒🦌  1');
+        return;
       }
 
       let [record] = await ctx.database.get('deerpipe', { userid: session.userId });
 
       if (record && record.checkindate.includes(dayNum.toString())) {
+        if (dayNum !== currentDay) {
+          await session.send(`${h.at(session.userId)} 你确定要取消${dayNum}号的签到吗？请再次输入命令确认。`);
+          return;
+        }
+
         record.checkindate = record.checkindate.filter(date => date !== dayNum.toString());
         record.totaltimes -= 1;
         await ctx.database.set('deerpipe', { userid: session.userId }, {
@@ -489,14 +379,13 @@ ${deer.order === 3 ? '<span class="medal">🥉</span>' : ''}
         const calendarImage = h.image(imgBuf, 'image/png');
 
         await session.send(calendarImage);
-        await session.send(`你已成功取消${dayNum}号的签到。`);
+        await session.send(`${h.at(session.userId)} 你已成功取消${dayNum}号的签到。`);
       } else {
-        await session.send(`你没有在${dayNum}号签到。`);
+        await session.send(`${h.at(session.userId)} 你没有在${dayNum}号签到。`);
       }
     });
-
-
 }
+
 async function renderSignInCalendar(ctx: Context, userId: string, year: number, month: number): Promise<Buffer> {
   const [record] = await ctx.database.get('deerpipe', { userid: userId });
   const checkinDates = record?.checkindate || [];
@@ -586,7 +475,6 @@ ${calendarDayData}
   await page.close();
   return imgBuf;
 }
-
 
 function generateCalendarHTML(checkinDates, year, month) {
   const daysInMonth = new Date(year, month, 0).getDate();
