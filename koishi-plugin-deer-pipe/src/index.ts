@@ -4,6 +4,7 @@ import { } from 'koishi-plugin-puppeteer';
 export const name = 'deer-pipe';
 
 export interface Config {
+  enable_allchannel: any;
   enable_deerpipe: boolean;
   leaderboard_people_number: number;
   loggerinfo: boolean;
@@ -59,6 +60,7 @@ export const Config: Schema<Config> = Schema.intersect([
   }).description('签到设置'),
   Schema.object({
     leaderboard_people_number: Schema.number().description('排行榜显示人数').default(5),
+    enable_allchannel: Schema.boolean().description('开启后，排行榜将展示全部用户排名`关闭则仅展示当前频道的用户排名`').default(false),
   }).description('排行榜设置'),
   Schema.object({
     loggerinfo: Schema.boolean().description('debug日志输出模式').default(false),
@@ -119,7 +121,7 @@ export function apply(ctx: Context, config: Config) {
         // 如果没有记录，创建新的签到记录
         targetRecord = {
           userid: targetUserId,
-          username: targetUserId,
+          username: targetUsername,
           channelId: session.channelId,
           recordtime,
           checkindate: [currentDay.toString()],
@@ -196,7 +198,11 @@ export function apply(ctx: Context, config: Config) {
   ctx.command('鹿管排行榜', '查看签到排行榜', { authority: 1 })
     .alias('🦌榜')
     .action(async ({ session }) => {
-      const records = await ctx.database.get('deerpipe', { channelId: session.channelId });
+      const enableAllChannel = config.enable_allchannel;
+
+      const query = enableAllChannel ? {} : { channelId: session.channelId };
+      const records = await ctx.database.get('deerpipe', query);
+
       const currentMonth = new Date().getMonth() + 1;
       const currentYear = new Date().getFullYear();
       const currentRecordtime = `${currentYear}-${currentMonth}`;
@@ -218,97 +224,97 @@ export function apply(ctx: Context, config: Config) {
       }));
 
       const leaderboardHTML = `
-<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>鹿管排行榜</title>
-<style>
-body {
-font-family: 'Microsoft YaHei', Arial, sans-serif;
-background-color: #f0f4f8;
-margin: 0;
-padding: 20px;
-display: flex;
-justify-content: center;
-align-items: center;
-min-height: 100vh;
-}
-.container {
-background-color: white;
-border-radius: 10px;
-box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-padding: 30px;
-width: 100%;
-max-width: 500px;
-}
-h1 {
-text-align: center;
-color: #2c3e50;
-margin-bottom: 30px;
-font-size: 28px;
-}
-.ranking-list {
-list-style-type: none;
-padding: 0;
-}
-.ranking-item {
-display: flex;
-align-items: center;
-padding: 15px 10px;
-border-bottom: 1px solid #ecf0f1;
-transition: background-color 0.3s;
-}
-.ranking-item:hover {
-background-color: #f8f9fa;
-}
-.ranking-number {
-font-size: 18px;
-font-weight: bold;
-margin-right: 15px;
-min-width: 30px;
-color: #7f8c8d;
-}
-.medal {
-font-size: 24px;
-margin-right: 15px;
-}
-.name {
-flex-grow: 1;
-font-size: 18px;
-}
-.count {
-font-weight: bold;
-color: #e74c3c;
-font-size: 18px;
-}
-.count::after {
-content: ' 次';
-font-size: 14px;
-color: #95a5a6;
-}
-</style>
-</head>
-<body>
-<div class="container">
-<h1>🦌 ${currentMonth}月鹿管排行榜 🦌</h1>
-<ol class="ranking-list">
-${rankData.map(deer => `
-<li class="ranking-item">
-<span class="ranking-number">${deer.order}</span>
-${deer.order === 1 ? '<span class="medal">🥇</span>' : ''}
-${deer.order === 2 ? '<span class="medal">🥈</span>' : ''}
-${deer.order === 3 ? '<span class="medal">🥉</span>' : ''}
-<span class="name">${deer.card}</span>
-<span class="count">${deer.sum}</span>
-</li>
-`).join('')}
-</ol>
-</div>
-</body>
-</html>
-`;
+  <!DOCTYPE html>
+  <html lang="zh-CN">
+  <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>鹿管排行榜</title>
+  <style>
+  body {
+  font-family: 'Microsoft YaHei', Arial, sans-serif;
+  background-color: #f0f4f8;
+  margin: 0;
+  padding: 20px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  }
+  .container {
+  background-color: white;
+  border-radius: 10px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  padding: 30px;
+  width: 100%;
+  max-width: 500px;
+  }
+  h1 {
+  text-align: center;
+  color: #2c3e50;
+  margin-bottom: 30px;
+  font-size: 28px;
+  }
+  .ranking-list {
+  list-style-type: none;
+  padding: 0;
+  }
+  .ranking-item {
+  display: flex;
+  align-items: center;
+  padding: 15px 10px;
+  border-bottom: 1px solid #ecf0f1;
+  transition: background-color 0.3s;
+  }
+  .ranking-item:hover {
+  background-color: #f8f9fa;
+  }
+  .ranking-number {
+  font-size: 18px;
+  font-weight: bold;
+  margin-right: 15px;
+  min-width: 30px;
+  color: #7f8c8d;
+  }
+  .medal {
+  font-size: 24px;
+  margin-right: 15px;
+  }
+  .name {
+  flex-grow: 1;
+  font-size: 18px;
+  }
+  .count {
+  font-weight: bold;
+  color: #e74c3c;
+  font-size: 18px;
+  }
+  .count::after {
+  content: ' 次';
+  font-size: 14px;
+  color: #95a5a6;
+  }
+  </style>
+  </head>
+  <body>
+  <div class="container">
+  <h1>🦌 ${currentMonth}月鹿管排行榜 🦌</h1>
+  <ol class="ranking-list">
+  ${rankData.map(deer => `
+  <li class="ranking-item">
+  <span class="ranking-number">${deer.order}</span>
+  ${deer.order === 1 ? '<span class="medal">🥇</span>' : ''}
+  ${deer.order === 2 ? '<span class="medal">🥈</span>' : ''}
+  ${deer.order === 3 ? '<span class="medal">🥉</span>' : ''}
+  <span class="name">${deer.card}</span>
+  <span class="count">${deer.sum}</span>
+  </li>
+  `).join('')}
+  </ol>
+  </div>
+  </body>
+  </html>
+  `;
 
       const page = await ctx.puppeteer.page();
       await page.setContent(leaderboardHTML, { waitUntil: 'networkidle2' });
@@ -319,7 +325,9 @@ ${deer.order === 3 ? '<span class="medal">🥉</span>' : ''}
       await page.close();
 
       await session.send(leaderboardImage);
+      return
     });
+
 
   ctx.command('补🦌 <day>', '补签某日', { authority: 1 })
     .action(async ({ session }, day: string) => {
