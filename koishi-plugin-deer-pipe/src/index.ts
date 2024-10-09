@@ -109,10 +109,13 @@ export function apply(ctx: Context, config: Config) {
       let targetUserId = session.userId;
       let targetUsername = session.username;
 
-      if (user) {
+      if (user && h.parse(user)[0]?.type === 'at') {
         // 提取目标用户ID
-        targetUserId = h.parse(user)[0]?.attrs?.id || user;
+        targetUserId = h.parse(user)[0]?.attrs?.id;
         targetUsername = h.parse(user)[0]?.attrs?.name || targetUserId;
+      } else if (user && h.parse(user)[0]?.type !== 'at') {
+        await session.send('请艾特指定用户。\n示例： 🦌  @用户')
+        return
       }
 
       // 获取目标用户的签到记录
