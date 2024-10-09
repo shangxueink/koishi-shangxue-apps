@@ -105,10 +105,12 @@ export function apply(ctx: Context, config: Config) {
       const currentDay = currentDate.getDate();
       const recordtime = `${currentYear}-${currentMonth}`;
       let targetUserId = session.userId;
+      let targetUsername = session.username;
 
       if (user) {
         // 提取目标用户ID
         targetUserId = h.parse(user)[0]?.attrs?.id || user;
+        targetUsername = h.parse(user)[0]?.attrs?.name || targetUserId;
       }
 
       // 获取目标用户的签到记录
@@ -145,7 +147,7 @@ export function apply(ctx: Context, config: Config) {
           // 检查是否允许重复签到
           if (config.enable_deerpipe) {
             // 生成并发送签到日历图像
-            const imgBuf = await renderSignInCalendar(ctx, targetUserId, currentYear, currentMonth);
+            const imgBuf = await renderSignInCalendar(ctx, targetUserId, targetUsername, currentYear, currentMonth);
             const calendarImage = h.image(imgBuf, 'image/png');
             await session.send(calendarImage);
           }
@@ -183,7 +185,7 @@ export function apply(ctx: Context, config: Config) {
       }
 
       // 生成并发送签到日历图像
-      const imgBuf = await renderSignInCalendar(ctx, targetUserId, currentYear, currentMonth);
+      const imgBuf = await renderSignInCalendar(ctx, targetUserId, targetUsername, currentYear, currentMonth);
       const calendarImage = h.image(imgBuf, 'image/png');
       await session.send(calendarImage);
       await session.send(`${h.at(targetUserId)} 你已经签到${targetRecord.totaltimes}天啦\~ 继续加油咪\~`);
@@ -354,7 +356,7 @@ ${deer.order === 3 ? '<span class="medal">🥉</span>' : ''}
         resigntimes: record.resigntimes,
       });
 
-      const imgBuf = await renderSignInCalendar(ctx, session.userId, currentYear, currentMonth);
+      const imgBuf = await renderSignInCalendar(ctx, session.userId, session.username, currentYear, currentMonth);
       const calendarImage = h.image(imgBuf, 'image/png');
 
       await session.send(calendarImage);
@@ -391,7 +393,7 @@ ${deer.order === 3 ? '<span class="medal">🥉</span>' : ''}
           recordtime: record.recordtime,
         });
 
-        const imgBuf = await renderSignInCalendar(ctx, session.userId, currentYear, currentMonth);
+        const imgBuf = await renderSignInCalendar(ctx, session.userId, session.username, currentYear, currentMonth);
         const calendarImage = h.image(imgBuf, 'image/png');
 
         await session.send(calendarImage);
@@ -402,11 +404,11 @@ ${deer.order === 3 ? '<span class="medal">🥉</span>' : ''}
     });
 }
 
-async function renderSignInCalendar(ctx: Context, userId: string, year: number, month: number): Promise<Buffer> {
+async function renderSignInCalendar(ctx: Context, userId: string, username: string, year: number, month: number): Promise<Buffer> {
   const [record] = await ctx.database.get('deerpipe', { userid: userId });
   const checkinDates = record?.checkindate || [];
 
-  const calendarDayData = generateCalendarHTML(checkinDates, year, month);
+  const calendarDayData = generateCalendarHTML(checkinDates, year, month, username);
 
   const fullHTML = `
 <!DOCTYPE html>
@@ -492,13 +494,13 @@ ${calendarDayData}
   return imgBuf;
 }
 
-function generateCalendarHTML(checkinDates, year, month) {
+function generateCalendarHTML(checkinDates, year, month, username) {
   const daysInMonth = new Date(year, month, 0).getDate();
 
   let calendarHTML = `
 <div class="calendar">
 <div class="calendar-header">${year}-${month.toString().padStart(2, '0')} 签到</div>
-<div class="calendar-subheader">下次一定</div>
+<div class="calendar-subheader">${username}</div>
 <div class="weekdays">
 <div>日</div><div>一</div><div>二</div><div>三</div><div>四</div><div>五</div><div>六</div>
 </div>
