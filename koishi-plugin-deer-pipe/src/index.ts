@@ -97,9 +97,10 @@ export function apply(ctx: Context, config: Config) {
   }, {
     primary: ['userid'],
   });
-
-  ctx.command('🦌 [user]', '鹿管签到', { authority: 1 })
-    .alias('鹿管')
+  ctx.command('deerpipe')
+  ctx.command('deerpipe/🦌 [user]', '鹿管签到', { authority: 1 })
+    .alias('鹿')
+    .example('🦌')
     .action(async ({ session }, user) => {
       const currentDate = new Date();
       const currentYear = currentDate.getFullYear();
@@ -198,8 +199,9 @@ export function apply(ctx: Context, config: Config) {
 
 
 
-  ctx.command('鹿管排行榜', '查看签到排行榜', { authority: 1 })
+  ctx.command('deerpipe/鹿管排行榜', '查看签到排行榜', { authority: 1 })
     .alias('🦌榜')
+    .alias('鹿榜')
     .action(async ({ session }) => {
       const enableAllChannel = config.enable_allchannel;
 
@@ -332,7 +334,9 @@ export function apply(ctx: Context, config: Config) {
     });
 
 
-  ctx.command('补🦌 <day>', '补签某日', { authority: 1 })
+  ctx.command('deerpipe/补🦌 <day>', '补签某日', { authority: 1 })
+    .alias('补鹿')
+    .example('补🦌  1')
     .action(async ({ session }, day: string) => {
       const dayNum = parseInt(day, 10);
       if (isNaN(dayNum) || dayNum < 1 || dayNum > 31) {
@@ -374,7 +378,9 @@ export function apply(ctx: Context, config: Config) {
       await session.send(`${h.at(session.userId)} 你已成功补签${dayNum}号。`);
     });
 
-  ctx.command('戒🦌 [day]', '取消某日签到', { authority: 1 })
+  ctx.command('deerpipe/戒🦌 [day]', '取消某日签到', { authority: 1 })
+    .alias('戒鹿')
+    .example('戒🦌  1')
     .action(async ({ session }, day?: string) => {
       const currentDate = new Date();
       const currentYear = currentDate.getFullYear();
