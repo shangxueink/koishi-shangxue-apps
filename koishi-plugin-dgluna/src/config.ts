@@ -1,4 +1,4 @@
-import { Schema } from "koishi";
+import { Schema } from "koishi"
 
 export interface Config {
         endpoint: string

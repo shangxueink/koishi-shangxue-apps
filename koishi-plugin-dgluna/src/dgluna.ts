@@ -239,9 +239,9 @@ class DgLab {
 
         public ChangeStrength(channel: string, value: number) {
                 if (channel !== "A" && channel !== "B") return
-
+                const strengthType = value < 0 ? 1 : 2
                 let msg: channelMsg = {
-                        type: 3,
+                        type: strengthType,
                         clientId: this.connectionId,
                         targetId: this.targetWSId,
                         message: "set strength",
@@ -256,7 +256,7 @@ class DgLab {
                                 return
                         }
                         msg.channel = 1
-                } else {
+                } else if (channel === "B") {
                         this.channelB += value
                         if (this.channelB < 0 || this.channelB > this.softB) {
                                 this.channelB -= value
@@ -280,16 +280,19 @@ class DgLab {
                         channel: 1
                 }
 
-                if (channel === "A" && value >= 0 && value <= this.softA) {
+                if (channel === "A") {
+                        if (value < 0 || value > this.softA) return
                         this.channelA = value
                         msg.channel = 1
-                } else if (value >= 0 && value <= this.softB) {
+                } else if (channel === "B") {
+                        if (value < 0 || value > this.softB) return
                         this.channelB = value
                         msg.channel = 2
                 }
 
                 this.Send(msg)
         }
+
 
         // 设置波形
         public SetWave(channel: string, wave: string, time: number) {
