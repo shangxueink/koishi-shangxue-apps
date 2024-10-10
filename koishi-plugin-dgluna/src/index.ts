@@ -122,6 +122,7 @@ function dgluna(ctx: Context, config: Config) {
                                 await ctx.dgluna.CreateRoom(userID, dglab)
                                 const image = await ctx.qrcode.generateQRCode(`https://www.dungeon-lab.com/app-download.php#DGLAB-SOCKET#${endpoint}/${uuid}`, 'Text')
                                 await session.send('请打开DG-LAB软件选择 SOCKET控制 ，并且进行扫码连接：')
+                                await session.send(h.image('https://i0.hdslb.com/bfs/article/f66d7352b84b0e58e4dcb42e272a86e5312276085.png'))
                                 await session.send(image)
                                 await session.send("在扫码连接后，请按下APP内任意一个波形")
                                 return
