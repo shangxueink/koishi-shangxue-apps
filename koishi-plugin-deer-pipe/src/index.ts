@@ -4,6 +4,7 @@ import { } from 'koishi-plugin-puppeteer';
 export const name = 'deer-pipe';
 
 export interface Config {
+  enable_blue_tip: any;
   enable_allchannel: any;
   enable_deerpipe: boolean;
   leaderboard_people_number: number;
@@ -57,9 +58,10 @@ export const usage = `
 export const Config: Schema<Config> = Schema.intersect([
   Schema.object({
     enable_deerpipe: Schema.boolean().description('开启后，重复签到会返回签到日历`关闭就只剩下文字提示了`').default(true),
+    enable_blue_tip: Schema.boolean().description('开启后，签到后会返回补签玩法提示').default(false),
   }).description('签到设置'),
   Schema.object({
-    leaderboard_people_number: Schema.number().description('排行榜显示人数').default(5),
+    leaderboard_people_number: Schema.number().description('排行榜显示人数').default(15).min(3),
     enable_allchannel: Schema.boolean().description('开启后，排行榜将展示全部用户排名`关闭则仅展示当前频道的用户排名`').default(false),
   }).description('排行榜设置'),
   Schema.object({
@@ -110,16 +112,25 @@ export function apply(ctx: Context, config: Config) {
       let targetUserId = session.userId;
       let targetUsername = session.username;
 
-      if (user && h.parse(user)[0]?.type === 'at') {
-        // 提取目标用户ID
-        targetUserId = h.parse(user)[0]?.attrs?.id;
-        targetUsername = h.parse(user)[0]?.attrs?.name || targetUserId;
-        loggerinfo('h.parse(user)[0]?.attrs?.name 为 ' + h.parse(user)[0]?.attrs?.name);
-        loggerinfo('帮助别人签到：获取到 targetUsername 为 ' + targetUsername);
-      } else if (user && h.parse(user)[0]?.type !== 'at') {
-        await session.send('请艾特指定用户。\n示例： 🦌  @用户');
-        return;
+      if (user) {
+        const parsedUser = h.parse(user)[0];
+        if (parsedUser?.type === 'at') {
+          const { id, name } = parsedUser.attrs;
+          if (!id) {
+            await session.send('不可用的用户，请换一个用户帮他签到吧~');
+            return;
+          }
+          // 提取目标用户ID
+          targetUserId = id;
+          targetUsername = name || targetUserId;
+          loggerinfo('h.parse(user)[0]?.attrs?.name 为 ' + name);
+          loggerinfo('帮助别人签到：获取到 targetUsername 为 ' + targetUsername);
+        } else {
+          await session.send('请艾特指定用户。\n示例： 🦌  @用户');
+          return;
+        }
       }
+
 
       // 获取目标用户的签到记录
       let [targetRecord] = await ctx.database.get('deerpipe', { userid: targetUserId });
@@ -168,6 +179,9 @@ export function apply(ctx: Context, config: Config) {
             await session.send(calendarImage);
           }
           await session.send('今天已经签过到了，请明天再来签到吧\~');
+          if (config.enable_blue_tip) {
+            await session.send(`还可以帮助未签到的人签到，以获取补签次数哦！\n使用示例： 鹿  @用户`);
+          }
           return;
         }
       }
@@ -205,16 +219,17 @@ export function apply(ctx: Context, config: Config) {
       const calendarImage = h.image(imgBuf, 'image/png');
       await session.send(calendarImage);
       await session.send(`${h.at(targetUserId)} 你已经签到${targetRecord.totaltimes}天啦\~ 继续加油咪\~`);
+      if (config.enable_blue_tip) {
+        await session.send(`还可以帮助未签到的人签到，以获取补签次数哦！\n使用示例： 鹿  @用户`);
+      }
+      return
     });
-
-
 
   ctx.command('deerpipe/鹿管排行榜', '查看签到排行榜', { authority: 1 })
     .alias('🦌榜')
     .alias('鹿榜')
     .action(async ({ session }) => {
       const enableAllChannel = config.enable_allchannel;
-
       const query = enableAllChannel ? {} : { channelId: session.channelId };
       const records = await ctx.database.get('deerpipe', query);
 
@@ -247,67 +262,67 @@ export function apply(ctx: Context, config: Config) {
   <title>鹿管排行榜</title>
   <style>
   body {
-  font-family: 'Microsoft YaHei', Arial, sans-serif;
-  background-color: #f0f4f8;
-  margin: 0;
-  padding: 20px;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  min-height: 100vh;
+    font-family: 'Microsoft YaHei', Arial, sans-serif;
+    background-color: #f0f4f8;
+    margin: 0;
+    padding: 20px;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
   }
   .container {
-  background-color: white;
-  border-radius: 10px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-  padding: 30px;
-  width: 100%;
-  max-width: 500px;
+    background-color: white;
+    border-radius: 10px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    padding: 30px;
+    width: 100%;
+    max-width: 500px;
   }
   h1 {
-  text-align: center;
-  color: #2c3e50;
-  margin-bottom: 30px;
-  font-size: 28px;
+    text-align: center;
+    color: #2c3e50;
+    margin-bottom: 30px;
+    font-size: 28px;
   }
   .ranking-list {
-  list-style-type: none;
-  padding: 0;
+    list-style-type: none;
+    padding: 0;
+    margin: 0;
   }
   .ranking-item {
-  display: flex;
-  align-items: center;
-  padding: 15px 10px;
-  border-bottom: 1px solid #ecf0f1;
-  transition: background-color 0.3s;
+    display: flex;
+    align-items: center;
+    padding: 15px 10px;
+    border-bottom: 1px solid #ecf0f1;
+    transition: background-color 0.3s;
   }
   .ranking-item:hover {
-  background-color: #f8f9fa;
+    background-color: #f8f9fa;
   }
   .ranking-number {
-  font-size: 18px;
-  font-weight: bold;
-  margin-right: 15px;
-  min-width: 30px;
-  color: #7f8c8d;
+    font-size: 18px;
+    font-weight: bold;
+    margin-right: 15px;
+    min-width: 30px;
+    color: #7f8c8d;
   }
   .medal {
-  font-size: 24px;
-  margin-right: 15px;
+    font-size: 24px;
+    margin-right: 15px;
   }
   .name {
-  flex-grow: 1;
-  font-size: 18px;
+    flex-grow: 1;
+    font-size: 18px;
   }
   .count {
-  font-weight: bold;
-  color: #e74c3c;
-  font-size: 18px;
+    font-weight: bold;
+    color: #e74c3c;
+    font-size: 18px;
   }
   .count::after {
-  content: ' 次';
-  font-size: 14px;
-  color: #95a5a6;
+    content: ' 次';
+    font-size: 14px;
+    color: #95a5a6;
   }
   </style>
   </head>
@@ -334,13 +349,21 @@ export function apply(ctx: Context, config: Config) {
       const page = await ctx.puppeteer.page();
       await page.setContent(leaderboardHTML, { waitUntil: 'networkidle2' });
       const leaderboardElement = await page.$('.container');
+
+      // Adjust the viewport to fit the content
+      const boundingBox = await leaderboardElement.boundingBox();
+      await page.setViewport({
+        width: Math.ceil(boundingBox.width),
+        height: Math.ceil(boundingBox.height),
+      });
+
       const imgBuf = await leaderboardElement.screenshot({ captureBeyondViewport: false });
       const leaderboardImage = h.image(imgBuf, 'image/png');
 
       await page.close();
 
       await session.send(leaderboardImage);
-      return
+      return;
     });
 
 
@@ -351,7 +374,7 @@ export function apply(ctx: Context, config: Config) {
       const dayNum = parseInt(day, 10);
       if (isNaN(dayNum) || dayNum < 1 || dayNum > 31) {
         await session.send('请输入有效的日期。\n示例： 补🦌  1');
-        return
+        return;
       }
 
       const currentDate = new Date();
@@ -366,6 +389,12 @@ export function apply(ctx: Context, config: Config) {
         return;
       }
 
+      // 更新用户名
+      const username = session.username;
+      if (record.username !== username) {
+        record.username = username;
+      }
+
       if (record.checkindate.includes(dayNum.toString())) {
         await session.send(`${h.at(session.userId)} 你已经补签过${dayNum}号了。`);
         return;
@@ -376,17 +405,19 @@ export function apply(ctx: Context, config: Config) {
       record.resigntimes -= 1;
 
       await ctx.database.set('deerpipe', { userid: session.userId }, {
+        username: record.username,
         checkindate: record.checkindate,
         totaltimes: record.totaltimes,
         resigntimes: record.resigntimes,
       });
 
-      const imgBuf = await renderSignInCalendar(ctx, session.userId, session.username, currentYear, currentMonth);
+      const imgBuf = await renderSignInCalendar(ctx, session.userId, username, currentYear, currentMonth);
       const calendarImage = h.image(imgBuf, 'image/png');
 
       await session.send(calendarImage);
-      await session.send(`${h.at(session.userId)} 你已成功补签${dayNum}号。`);
+      await session.send(`${h.at(session.userId)} 你已成功补签${dayNum}号。剩余补签机会：${record.resigntimes}`);
     });
+
 
   ctx.command('deerpipe/戒🦌 [day]', '取消某日签到', { authority: 1 })
     .alias('戒鹿')
@@ -406,29 +437,41 @@ export function apply(ctx: Context, config: Config) {
 
       let [record] = await ctx.database.get('deerpipe', { userid: session.userId });
 
-      if (record && record.checkindate.includes(dayNum.toString())) {
-        if (dayNum !== currentDay) {
-          await session.send(`${h.at(session.userId)} 你确定要取消${dayNum}号的签到吗？请再次输入命令确认。`);
-          return;
+      if (record) {
+        // 更新用户名
+        const username = session.username;
+        if (record.username !== username) {
+          record.username = username;
         }
 
-        record.checkindate = record.checkindate.filter(date => date !== dayNum.toString());
-        record.totaltimes -= 1;
-        await ctx.database.set('deerpipe', { userid: session.userId }, {
-          checkindate: record.checkindate,
-          totaltimes: record.totaltimes,
-          recordtime: record.recordtime,
-        });
+        if (record.checkindate.includes(dayNum.toString())) {
+          if (dayNum !== currentDay) {
+            await session.send(`${h.at(session.userId)} 你确定要取消${dayNum}号的签到吗？请再次输入命令确认。`);
+            return;
+          }
 
-        const imgBuf = await renderSignInCalendar(ctx, session.userId, session.username, currentYear, currentMonth);
-        const calendarImage = h.image(imgBuf, 'image/png');
+          record.checkindate = record.checkindate.filter(date => date !== dayNum.toString());
+          record.totaltimes -= 1;
+          await ctx.database.set('deerpipe', { userid: session.userId }, {
+            username: record.username,
+            checkindate: record.checkindate,
+            totaltimes: record.totaltimes,
+            recordtime: record.recordtime,
+          });
 
-        await session.send(calendarImage);
-        await session.send(`${h.at(session.userId)} 你已成功取消${dayNum}号的签到。`);
+          const imgBuf = await renderSignInCalendar(ctx, session.userId, username, currentYear, currentMonth);
+          const calendarImage = h.image(imgBuf, 'image/png');
+
+          await session.send(calendarImage);
+          await session.send(`${h.at(session.userId)} 你已成功取消${dayNum}号的签到。`);
+        } else {
+          await session.send(`${h.at(session.userId)} 你没有在${dayNum}号签到。`);
+        }
       } else {
         await session.send(`${h.at(session.userId)} 你没有在${dayNum}号签到。`);
       }
     });
+
 
   function loggerinfo(message) {
     if (config.loggerinfo) {
