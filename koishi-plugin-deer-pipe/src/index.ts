@@ -114,6 +114,8 @@ export function apply(ctx: Context, config: Config) {
         // 提取目标用户ID
         targetUserId = h.parse(user)[0]?.attrs?.id;
         targetUsername = h.parse(user)[0]?.attrs?.name || targetUserId;
+        loggerinfo('h.parse(user)[0]?.attrs?.name  为 ' + h.parse(user)[0]?.attrs?.name)
+        loggerinfo('帮助别人签到：获取到 targetUsername 为 ' + targetUsername)
       } else if (user && h.parse(user)[0]?.type !== 'at') {
         await session.send('请艾特指定用户。\n示例： 🦌  @用户')
         return
@@ -136,6 +138,7 @@ export function apply(ctx: Context, config: Config) {
       } else {
         // 如果是新月份，重置签到记录
         if (targetRecord.recordtime !== recordtime) {
+          targetRecord.username = targetUsername;
           targetRecord.recordtime = recordtime;
           targetRecord.checkindate = [];
         }
@@ -419,6 +422,13 @@ export function apply(ctx: Context, config: Config) {
         await session.send(`${h.at(session.userId)} 你没有在${dayNum}号签到。`);
       }
     });
+
+  function loggerinfo(message) {
+    if (config.loggerinfo) {
+      ctx.logger.info(message);
+    }
+  }
+
 }
 
 async function renderSignInCalendar(ctx: Context, userId: string, username: string, year: number, month: number): Promise<Buffer> {
