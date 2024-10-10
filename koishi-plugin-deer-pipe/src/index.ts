@@ -114,11 +114,11 @@ export function apply(ctx: Context, config: Config) {
         // 提取目标用户ID
         targetUserId = h.parse(user)[0]?.attrs?.id;
         targetUsername = h.parse(user)[0]?.attrs?.name || targetUserId;
-        loggerinfo('h.parse(user)[0]?.attrs?.name  为 ' + h.parse(user)[0]?.attrs?.name)
-        loggerinfo('帮助别人签到：获取到 targetUsername 为 ' + targetUsername)
+        loggerinfo('h.parse(user)[0]?.attrs?.name 为 ' + h.parse(user)[0]?.attrs?.name);
+        loggerinfo('帮助别人签到：获取到 targetUsername 为 ' + targetUsername);
       } else if (user && h.parse(user)[0]?.type !== 'at') {
-        await session.send('请艾特指定用户。\n示例： 🦌  @用户')
-        return
+        await session.send('请艾特指定用户。\n示例： 🦌  @用户');
+        return;
       }
 
       // 获取目标用户的签到记录
@@ -136,9 +136,11 @@ export function apply(ctx: Context, config: Config) {
         };
         await ctx.database.create('deerpipe', targetRecord);
       } else {
+        // 更新用户名
+        targetRecord.username = targetUsername;
+
         // 如果是新月份，重置签到记录
         if (targetRecord.recordtime !== recordtime) {
-          targetRecord.username = targetUsername;
           targetRecord.recordtime = recordtime;
           targetRecord.checkindate = [];
         }
@@ -147,13 +149,18 @@ export function apply(ctx: Context, config: Config) {
         if (!targetRecord.checkindate.includes(currentDay.toString())) {
           targetRecord.checkindate.push(currentDay.toString());
           targetRecord.totaltimes += 1;
-          await ctx.database.set('deerpipe', { userid: targetUserId }, {
-            checkindate: targetRecord.checkindate,
-            totaltimes: targetRecord.totaltimes,
-            recordtime: targetRecord.recordtime,
-          });
-        } else {
-          // 检查是否允许重复签到
+        }
+
+        // 更新数据库
+        await ctx.database.set('deerpipe', { userid: targetUserId }, {
+          username: targetUsername,
+          checkindate: targetRecord.checkindate,
+          totaltimes: targetRecord.totaltimes,
+          recordtime: targetRecord.recordtime,
+        });
+
+        // 如果已经签到过，通知用户
+        if (targetRecord.checkindate.includes(currentDay.toString())) {
           if (config.enable_deerpipe) {
             // 生成并发送签到日历图像
             const imgBuf = await renderSignInCalendar(ctx, targetUserId, targetUsername, currentYear, currentMonth);
