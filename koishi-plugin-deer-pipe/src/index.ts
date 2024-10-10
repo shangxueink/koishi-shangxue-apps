@@ -99,9 +99,52 @@ export function apply(ctx: Context, config: Config) {
   }, {
     primary: ['userid'],
   });
+
+  const zh_CN_default = {
+    commands: {
+      "鹿": {
+        description: "鹿管签到",
+        messages: {
+          "Already_signed_in": "今天已经签过到了，请明天再来签到吧~",
+          "Help_sign_in": "你成功帮助 {0} 签到，并获得了一次补签机会！",
+          "invalid_input_user": "请艾特指定用户。\n示例： 🦌  @用户",
+          "invalid_userid": "不可用的用户，请换一个用户帮他签到吧~",
+          "enable_blue_tip": "还可以帮助未签到的人签到，以获取补签次数哦！\n使用示例： 鹿  @用户",
+          "Sign_in_success": "你已经签到{0}天啦~ 继续加油咪~"
+        }
+      },
+      "鹿管排行榜": {
+        description: "查看签到排行榜",
+        messages: {
+          //"Leaderboard_title": "{0}月鹿管排行榜"
+        }
+      },
+      "补鹿": {
+        description: "补签某日",
+        messages: {
+          "No_resign_chance": "你没有补签机会了。",
+          "invalid_day": "日期不正确，请输入有效的日期。\n示例： 补🦌  1",
+          "Already_resigned": "你已经补签过{0}号了。",
+          "Resign_success": "你已成功补签{0}号。剩余补签机会：{1}"
+        }
+      },
+      "戒鹿": {
+        description: "取消某日签到",
+        messages: {
+          //"Cancel_sign_in_confirm": "你确定要取消{0}号的签到吗？请再次输入命令确认。",
+          "invalid_day": "日期不正确，请输入有效的日期。\n示例： 戒🦌  1",
+          "Cancel_sign_in_success": "你已成功取消{0}号的签到。",
+          "No_sign_in": "你没有在{0}号签到。"
+        }
+      }
+    }
+  };
+
+  ctx.i18n.define("zh-CN", zh_CN_default);
+
   ctx.command('deerpipe')
-  ctx.command('deerpipe/🦌 [user]', '鹿管签到', { authority: 1 })
-    .alias('鹿')
+  ctx.command('deerpipe/鹿 [user]', '鹿管签到', { authority: 1 })
+    .alias('🦌')
     .example('🦌')
     .action(async ({ session }, user) => {
       const currentDate = new Date();
@@ -117,7 +160,7 @@ export function apply(ctx: Context, config: Config) {
         if (parsedUser?.type === 'at') {
           const { id, name } = parsedUser.attrs;
           if (!id) {
-            await session.send('不可用的用户，请换一个用户帮他签到吧~');
+            await session.send(session.text('.invalid_userid'));
             return;
           }
           // 提取目标用户ID
@@ -126,7 +169,7 @@ export function apply(ctx: Context, config: Config) {
           loggerinfo('h.parse(user)[0]?.attrs?.name 为 ' + name);
           loggerinfo('帮助别人签到：获取到 targetUsername 为 ' + targetUsername);
         } else {
-          await session.send('请艾特指定用户。\n示例： 🦌  @用户');
+          await session.send(session.text('.invalid_input_user'));
           return;
         }
       }
@@ -178,9 +221,9 @@ export function apply(ctx: Context, config: Config) {
             const calendarImage = h.image(imgBuf, 'image/png');
             await session.send(calendarImage);
           }
-          await session.send('今天已经签过到了，请明天再来签到吧\~');
+          await session.send(session.text('.Already_signed_in'));
           if (config.enable_blue_tip) {
-            await session.send(`还可以帮助未签到的人签到，以获取补签次数哦！\n使用示例： 鹿  @用户`);
+            await session.send(session.text('.enable_blue_tip'));
           }
           return;
         }
@@ -211,16 +254,19 @@ export function apply(ctx: Context, config: Config) {
         }
 
         // 通知用户获得补签机会
-        await session.send(`${h.at(session.userId)} 你成功帮助 ${targetUserId} 签到，并获得了一次补签机会！`);
+        //await session.send(`${h.at(session.userId)} 你成功帮助 ${targetUserId} 签到，并获得了一次补签机会！`);
+        await session.send(`${h.at(session.userId)} ${session.text('.Help_sign_in', [targetUserId])} `);
       }
 
       // 生成并发送签到日历图像
       const imgBuf = await renderSignInCalendar(ctx, targetUserId, targetUsername, currentYear, currentMonth);
       const calendarImage = h.image(imgBuf, 'image/png');
       await session.send(calendarImage);
-      await session.send(`${h.at(targetUserId)} 你已经签到${targetRecord.totaltimes}天啦\~ 继续加油咪\~`);
+      //await session.send(`${h.at(targetUserId)} 你已经签到${targetRecord.totaltimes}天啦\~ 继续加油咪\~`);
+      await session.send(`${h.at(targetUserId)} ${session.text('.Sign_in_success', [targetRecord.totaltimes])}`);
       if (config.enable_blue_tip) {
-        await session.send(`还可以帮助未签到的人签到，以获取补签次数哦！\n使用示例： 鹿  @用户`);
+        //await session.send(`还可以帮助未签到的人签到，以获取补签次数哦！\n使用示例： 鹿  @用户`);
+        await session.send(session.text('.enable_blue_tip'));
       }
       return
     });
@@ -254,103 +300,103 @@ export function apply(ctx: Context, config: Config) {
       }));
 
       const leaderboardHTML = `
-  <!DOCTYPE html>
-  <html lang="zh-CN">
-  <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>鹿管排行榜</title>
-  <style>
-  body {
-    font-family: 'Microsoft YaHei', Arial, sans-serif;
-    background-color: #f0f4f8;
-    margin: 0;
-    padding: 20px;
-    display: flex;
-    justify-content: center;
-    align-items: flex-start;
-  }
-  .container {
-    background-color: white;
-    border-radius: 10px;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    padding: 30px;
-    width: 100%;
-    max-width: 500px;
-  }
-  h1 {
-    text-align: center;
-    color: #2c3e50;
-    margin-bottom: 30px;
-    font-size: 28px;
-  }
-  .ranking-list {
-    list-style-type: none;
-    padding: 0;
-    margin: 0;
-  }
-  .ranking-item {
-    display: flex;
-    align-items: center;
-    padding: 15px 10px;
-    border-bottom: 1px solid #ecf0f1;
-    transition: background-color 0.3s;
-  }
-  .ranking-item:hover {
-    background-color: #f8f9fa;
-  }
-  .ranking-number {
-    font-size: 18px;
-    font-weight: bold;
-    margin-right: 15px;
-    min-width: 30px;
-    color: #7f8c8d;
-  }
-  .medal {
-    font-size: 24px;
-    margin-right: 15px;
-  }
-  .name {
-    flex-grow: 1;
-    font-size: 18px;
-  }
-  .count {
-    font-weight: bold;
-    color: #e74c3c;
-    font-size: 18px;
-  }
-  .count::after {
-    content: ' 次';
-    font-size: 14px;
-    color: #95a5a6;
-  }
-  </style>
-  </head>
-  <body>
-  <div class="container">
-  <h1>🦌 ${currentMonth}月鹿管排行榜 🦌</h1>
-  <ol class="ranking-list">
-  ${rankData.map(deer => `
-  <li class="ranking-item">
-  <span class="ranking-number">${deer.order}</span>
-  ${deer.order === 1 ? '<span class="medal">🥇</span>' : ''}
-  ${deer.order === 2 ? '<span class="medal">🥈</span>' : ''}
-  ${deer.order === 3 ? '<span class="medal">🥉</span>' : ''}
-  <span class="name">${deer.card}</span>
-  <span class="count">${deer.sum}</span>
-  </li>
-  `).join('')}
-  </ol>
-  </div>
-  </body>
-  </html>
-  `;
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>鹿管排行榜</title>
+<style>
+body {
+font-family: 'Microsoft YaHei', Arial, sans-serif;
+background-color: #f0f4f8;
+margin: 0;
+padding: 20px;
+display: flex;
+justify-content: center;
+align-items: flex-start;
+}
+.container {
+background-color: white;
+border-radius: 10px;
+box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+padding: 30px;
+width: 100%;
+max-width: 500px;
+}
+h1 {
+text-align: center;
+color: #2c3e50;
+margin-bottom: 30px;
+font-size: 28px;
+}
+.ranking-list {
+list-style-type: none;
+padding: 0;
+margin: 0;
+}
+.ranking-item {
+display: flex;
+align-items: center;
+padding: 15px 10px;
+border-bottom: 1px solid #ecf0f1;
+transition: background-color 0.3s;
+}
+.ranking-item:hover {
+background-color: #f8f9fa;
+}
+.ranking-number {
+font-size: 18px;
+font-weight: bold;
+margin-right: 15px;
+min-width: 30px;
+color: #7f8c8d;
+}
+.medal {
+font-size: 24px;
+margin-right: 15px;
+}
+.name {
+flex-grow: 1;
+font-size: 18px;
+}
+.count {
+font-weight: bold;
+color: #e74c3c;
+font-size: 18px;
+}
+.count::after {
+content: ' 次';
+font-size: 14px;
+color: #95a5a6;
+}
+</style>
+</head>
+<body>
+<div class="container">
+<h1>🦌 ${currentMonth}月鹿管排行榜 🦌</h1>
+<ol class="ranking-list">
+${rankData.map(deer => `
+<li class="ranking-item">
+<span class="ranking-number">${deer.order}</span>
+${deer.order === 1 ? '<span class="medal">🥇</span>' : ''}
+${deer.order === 2 ? '<span class="medal">🥈</span>' : ''}
+${deer.order === 3 ? '<span class="medal">🥉</span>' : ''}
+<span class="name">${deer.card}</span>
+<span class="count">${deer.sum}</span>
+</li>
+`).join('')}
+</ol>
+</div>
+</body>
+</html>
+`;
 
       const page = await ctx.puppeteer.page();
       await page.setContent(leaderboardHTML, { waitUntil: 'networkidle2' });
       const leaderboardElement = await page.$('.container');
 
-      // Adjust the viewport to fit the content
+
       const boundingBox = await leaderboardElement.boundingBox();
       await page.setViewport({
         width: Math.ceil(boundingBox.width),
@@ -367,25 +413,26 @@ export function apply(ctx: Context, config: Config) {
     });
 
 
-  ctx.command('deerpipe/补🦌 <day>', '补签某日', { authority: 1 })
-    .alias('补鹿')
+  ctx.command('deerpipe/补鹿 <day>', '补签某日', { authority: 1 })
+    .alias('补🦌')
     .example('补🦌  1')
     .action(async ({ session }, day: string) => {
       const dayNum = parseInt(day, 10);
-      if (isNaN(dayNum) || dayNum < 1 || dayNum > 31) {
-        await session.send('请输入有效的日期。\n示例： 补🦌  1');
-        return;
-      }
 
       const currentDate = new Date();
       const currentYear = currentDate.getFullYear();
       const currentMonth = currentDate.getMonth() + 1;
+      const currentDay = currentDate.getDate();
       const recordtime = `${currentYear}-${currentMonth}`;
+      if (isNaN(dayNum) || dayNum < 1 || dayNum > 31 || dayNum > currentDay) {
+        await session.send(session.text('.invalid_day'));
+        return;
+      }
 
       let [record] = await ctx.database.get('deerpipe', { userid: session.userId });
 
       if (!record || record.resigntimes <= 0) {
-        await session.send('你没有补签机会了。');
+        await session.send(session.text('.No_resign_chance'));
         return;
       }
 
@@ -396,7 +443,8 @@ export function apply(ctx: Context, config: Config) {
       }
 
       if (record.checkindate.includes(dayNum.toString())) {
-        await session.send(`${h.at(session.userId)} 你已经补签过${dayNum}号了。`);
+        //await session.send(`${h.at(session.userId)} 你已经补签过${dayNum}号了。`);
+        await session.send(`${h.at(session.userId)} ${session.text('.Already_resigned', [dayNum])}`);
         return;
       }
 
@@ -415,12 +463,13 @@ export function apply(ctx: Context, config: Config) {
       const calendarImage = h.image(imgBuf, 'image/png');
 
       await session.send(calendarImage);
-      await session.send(`${h.at(session.userId)} 你已成功补签${dayNum}号。剩余补签机会：${record.resigntimes}`);
+      //await session.send(`${h.at(session.userId)} 你已成功补签${dayNum}号。剩余补签机会：${record.resigntimes}`);
+      await session.send(`${h.at(session.userId)} ${session.text('.Resign_success', [dayNum, record.resigntimes])}`);
     });
 
 
-  ctx.command('deerpipe/戒🦌 [day]', '取消某日签到', { authority: 1 })
-    .alias('戒鹿')
+  ctx.command('deerpipe/戒鹿 [day]', '取消某日签到', { authority: 1 })
+    .alias('戒🦌')
     .example('戒🦌  1')
     .action(async ({ session }, day?: string) => {
       const currentDate = new Date();
@@ -430,8 +479,8 @@ export function apply(ctx: Context, config: Config) {
       const recordtime = `${currentYear}-${currentMonth}`;
 
       const dayNum = day ? parseInt(day, 10) : currentDay;
-      if (isNaN(dayNum) || dayNum < 1 || dayNum > 31) {
-        await session.send('请输入有效的日期。\n示例： 戒🦌  1');
+      if (isNaN(dayNum) || dayNum < 1 || dayNum > 31 || dayNum > currentDay) {
+        await session.send(session.text('.invalid_day'));
         return;
       }
 
@@ -445,10 +494,6 @@ export function apply(ctx: Context, config: Config) {
         }
 
         if (record.checkindate.includes(dayNum.toString())) {
-          if (dayNum !== currentDay) {
-            await session.send(`${h.at(session.userId)} 你确定要取消${dayNum}号的签到吗？请再次输入命令确认。`);
-            return;
-          }
 
           record.checkindate = record.checkindate.filter(date => date !== dayNum.toString());
           record.totaltimes -= 1;
@@ -463,12 +508,13 @@ export function apply(ctx: Context, config: Config) {
           const calendarImage = h.image(imgBuf, 'image/png');
 
           await session.send(calendarImage);
-          await session.send(`${h.at(session.userId)} 你已成功取消${dayNum}号的签到。`);
+          await session.send(`${h.at(session.userId)} ${session.text('.Cancel_sign_in_success', [dayNum])}`);
+
         } else {
-          await session.send(`${h.at(session.userId)} 你没有在${dayNum}号签到。`);
+          await session.send(`${h.at(session.userId)} ${session.text('.No_sign_in', [dayNum])}`);
         }
       } else {
-        await session.send(`${h.at(session.userId)} 你没有在${dayNum}号签到。`);
+        await session.send(`${h.at(session.userId)} ${session.text('.No_sign_in', [dayNum])}`);
       }
     });
 
