@@ -112,6 +112,13 @@ exports.Config = Schema.intersect([
 function apply(ctx, config) {
     const bilibiliVideo = ctx.BiliBiliVideo;
     ctx.middleware(async (session, next) => {
+        // 如果允许解析 BV 号，则进行解析
+        if (config.BVnumberParsing) {
+            const bvUrls = convertBVToUrl(session.content);
+            if (bvUrls.length > 0) {
+                session.content += '\n' + bvUrls.join('\n');
+            }
+        }
         const links = await isProcessLinks(session, config, ctx, lastProcessedUrls, logger); // 判断是否需要解析
         if (links) {
             const ret = await extractLinks(session, config, ctx, lastProcessedUrls, logger); // 提取链接
@@ -259,18 +266,8 @@ function apply(ctx, config) {
 
     //判断是否需要解析
     async function isProcessLinks(session, config, ctx, lastProcessedUrls, logger) {
-        let content = session.content;
-
-        // 如果允许解析 BV 号，则进行解析
-        if (config.BVnumberParsing) {
-            const bvUrls = convertBVToUrl(content);
-            if (bvUrls.length > 0) {
-                content += '\n' + bvUrls.join('\n');
-            }
-        }
-
         // 解析内容中的链接
-        const links = link_type_parser(content);
+        const links = link_type_parser(session.content);
         if (links.length === 0) {
             return false; // 如果没有找到链接，返回 false
         }
