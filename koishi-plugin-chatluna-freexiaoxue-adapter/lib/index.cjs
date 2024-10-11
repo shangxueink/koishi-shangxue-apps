@@ -56,7 +56,8 @@ var Config = import_koishi.Schema.intersect([
         import_koishi.Schema.string().description("请求的 API 地址")
       ])
     ).description("API Key 和请求地址列表").disabled()
-      .default([["https://api.mhimg.cn/", "是免费小学喵？"]]),
+      .default([["https://api.mhimg.cn/", "是免费小学喵？"]]).hidden(),
+    freexiaoxue_api: import_koishi.Schema.string().role('link').default('http://127.0.0.1:10721?input=').description('freexiaoxue的API地址。需要安装 [freexiaoxue-api插件](/market?keyword=freexiaoxue-api) 以搭建'),
     Interface_Selection: import_koishi.Schema.union([
       import_koishi.Schema.const('gpt_baidu').description('百度文心千帆模型'),
       //import_koishi.Schema.const('gpt__openai').description('OpenAI-3.5模型'), //接口有问题 //[code：-1, msg：未提交Key！]
@@ -65,6 +66,7 @@ var Config = import_koishi.Schema.intersect([
       import_koishi.Schema.const('gpt_aimaoniang').description('猫娘模型'),
       import_koishi.Schema.const('gpt_lianaiqiluo').description('女友绮罗模型'),
       import_koishi.Schema.const('gpt_aojiaojj').description('傲娇姐姐模型'),
+      import_koishi.Schema.const('freexiaoxue_api').description('freexiaoxue服务，需要安装 freexiaoxue-api插件 以使用'),
       //import_koishi.Schema.const('').description('),
     ]).role('radio').description('使用的API接口(模型)<br>此处仅选择接口，预设请在chatluna主插件最下方选择').default('Gpt_renshe'),
   }).description("请求设置"),
@@ -464,6 +466,9 @@ function apply(ctx, config) {
           break;
         case 'gpt_aojiaojj':
           requestUrl = `https://api.mhimg.cn/api/gpt_aojiaojj/?prompt=${encodeURIComponent(prompt)}`;
+          break;
+        case 'freexiaoxue_api':
+          requestUrl = `${config.freexiaoxue_api}${encodeURIComponent(prompt)}`;
           break;
         default:
           requestUrl = `https://api.mhimg.cn/api/gpt_aimaoniang/?prompt=${encodeURIComponent(prompt)}`;
