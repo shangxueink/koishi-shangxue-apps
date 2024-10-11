@@ -60,7 +60,7 @@ exports.Config = koishi_1.Schema.intersect([
 
 function apply(ctx, config) {
   let alive;
-  ctx.command("ensure-bot-alive")
+  //ctx.command("ensure-bot-alive")
   const command1 = '在线情况检测';
   const command2 = '检测我在哦';
   const command3 = '检测你在吗';
