@@ -68,6 +68,9 @@
 <summary>点击此处————查看更新日志</summary>
 
 -  **0.7.5**
+    -   修复qq频道不回复的情况
+
+-  **0.7.5**
     -   新增指令，新增`ViewKeywordList` 允许用户查看本群所有的关键词
     -   新增`admin_list` 允许添加额外的指令使用者
     -   新增`Type_of_ViewKeywordList` 允许自选【关键词列表】的返回格式（图片/文本）

@@ -993,7 +993,7 @@ ${pageKeywords.map(keyword => `<div class="keyword">${keyword}</div>`).join('')}
     }
 
     // 移除前导尖括号内容
-    if (platform === 'qq') {
+    if (platform === 'qq' || platform === 'qqguild') {
       anothercontent = removeLeadingBrackets(content);
     }
 
