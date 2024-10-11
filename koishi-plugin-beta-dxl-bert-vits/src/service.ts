@@ -10,10 +10,7 @@ export class betavits {
 
     private _cacheSpeakers: Record<string, [API, Speaker, string]> = {};
 
-    constructor(
-        private ctx: Context,
-        private config: Config
-    ) {
+    constructor(private ctx: Context, private config: Config) {
         this.logger = ctx.logger('bert-vits');
     }
 
@@ -139,7 +136,9 @@ export class betavits {
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     private async _request(payload: any, api: API, speaker: Speaker) {
-        let requestUrl = `${api.base.replace('{version}', speaker.version)}${api.endpoint}`;
+        let requestUrl = `${api.base.replace('{version}', speaker.version)}${
+            api.endpoint
+        }`;
 
         const urlParams = new URLSearchParams();
 
@@ -160,13 +159,16 @@ export class betavits {
             delete payload.session_hash;
         }
 
-        let audioMessage: h;
+        let audioUrl: string;
 
         const res = await this.ctx.http.post(requestUrl, payload);
 
         // if gradio
         if (res.event_id) {
-            const gradioUrl = `${api.base.replace('{version}', speaker.version)}${api.endpoint}/${res.event_id}`;
+            const gradioUrl = `${api.base.replace(
+                '{version}',
+                speaker.version
+            )}${api.endpoint}/${res.event_id}`;
 
             // first, request it
             const gradioEvents = await this.ctx.http.get(gradioUrl, {
@@ -183,26 +185,29 @@ export class betavits {
                     const dataJson = JSON.parse(data.substring(5));
                     if (dataJson[0] === 'Success') {
                         // get the final url
-                        audioMessage = h.audio(dataJson[1].url);
+                        audioUrl = dataJson[1].url;
                     } else {
                         this.logger.error('ERROR(gradio):', dataJson);
                     }
                 }
             }
         } else {
-            audioMessage = h.audio(
-                `${api.base.replace('{version}', speaker.version)}/file=${res.data[1].name}`
-            );
+            audioUrl = `${api.base.replace(
+                '{version}',
+                speaker.version
+            )}/file=${res.data[1].name}`;
         }
-        return audioMessage;
+
+        const buffer = await this.ctx.http(audioUrl, {
+            responseType: 'arraybuffer',
+        });
+
+        return h.audio(buffer.data, 'wav');
     }
 }
 
 export class betavitsService extends Vits {
-    constructor(
-        ctx: Context,
-        public impl: betavits
-    ) {
+    constructor(ctx: Context, public impl: betavits) {
         super(ctx);
     }
 

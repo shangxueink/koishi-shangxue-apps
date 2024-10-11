@@ -210,10 +210,13 @@ var betavits = class {
     if (api.is_gradio) {
       delete payload.session_hash;
     }
-    let audioMessage;
+    let audioUrl;
     const res = await this.ctx.http.post(requestUrl, payload);
     if (res.event_id) {
-      const gradioUrl = `${api.base.replace("{version}", speaker.version)}${api.endpoint}/${res.event_id}`;
+      const gradioUrl = `${api.base.replace(
+        "{version}",
+        speaker.version
+      )}${api.endpoint}/${res.event_id}`;
       const gradioEvents = await this.ctx.http.get(gradioUrl, {
         responseType: "text",
         headers: {
@@ -225,18 +228,22 @@ var betavits = class {
         if (data.startsWith("data:")) {
           const dataJson = JSON.parse(data.substring(5));
           if (dataJson[0] === "Success") {
-            audioMessage = import_koishi.h.audio(dataJson[1].url);
+            audioUrl = dataJson[1].url;
           } else {
             this.logger.error("ERROR(gradio):", dataJson);
           }
         }
       }
     } else {
-      audioMessage = import_koishi.h.audio(
-        `${api.base.replace("{version}", speaker.version)}/file=${res.data[1].name}`
-      );
+      audioUrl = `${api.base.replace(
+        "{version}",
+        speaker.version
+      )}/file=${res.data[1].name}`;
     }
-    return audioMessage;
+    const buffer = await this.ctx.http.get(audioUrl, {
+      responseType: "arraybuffer"
+    });
+    return import_koishi.h.audio(buffer, "wav");
   }
 };
 var betavitsService = class extends import_vits.default {
