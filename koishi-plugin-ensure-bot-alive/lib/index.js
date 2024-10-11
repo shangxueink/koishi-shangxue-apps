@@ -3,6 +3,7 @@ const koishi_1 = require("koishi");
 const logger = new koishi_1.Logger('ensure-bot-alive');
 
 exports.name = "ensure-bot-alive";
+exports.reusable = true; // 声明此插件可重用
 exports.usage = `
 
 本插件适合第三方的 QQ bot 来发起检测，用于检测群里另一个机器人（第三方或者是官方bot）的在线状态。
@@ -17,6 +18,8 @@ exports.usage = `
 
 您可以使用 \`在线情况检测\` 指令来检测机器人的在线状态。  
 
+（如果你需要检测多个（3个为例）官方机器人的在线情况，那么需要在右上角再添加两个本插件，并且另外三个bot都需要安装本插件，
+并且本插件和对应机器人的插件都需要一样的指令名称前缀哦）（下方的command_prefix配置项）
 
 ---
 
@@ -34,6 +37,7 @@ schedule -e 0:00 / 1h --rest 在线情况检测
 
 exports.Config = koishi_1.Schema.intersect([
   koishi_1.Schema.object({
+    command_prefix: koishi_1.Schema.number().default(0).description("指令前缀，用于配置多组本插件，0为无前缀。（若不多开本插件，则只需默认）").min(0),
     alivebotID: koishi_1.Schema.string().default('114514').description('需要确保存活的机器人的QQ号'),
     MinTimeResponse: koishi_1.Schema.number().default(10).description("允许等待返回的最大`秒`数").min(1),
   }).description('检测在线的测试消息'),
@@ -60,13 +64,14 @@ function apply(ctx, config) {
   const command1 = '在线情况检测';
   const command2 = '检测我在哦';
   const command3 = '检测你在吗';
+  const command_prefix = config.command_prefix;
 
-  ctx.command(`ensure-bot-alive/` + command1)
+  ctx.command(`ensure-bot-alive/` + command_prefix + command1)
     .action(async ({ session }) => {
       // 每次检测前重置 alive 状态
       alive = false;
 
-      const startMessage = koishi_1.h.at(config.alivebotID) + ` ` + command3; // 发送的消息
+      const startMessage = koishi_1.h.at(config.alivebotID) + ` ` + command_prefix + command3; // 发送的消息
       await session.send(startMessage); // 发送消息
 
       // 记录日志
@@ -116,12 +121,12 @@ function apply(ctx, config) {
       }
     });
 
-  ctx.command(`ensure-bot-alive/` + command3)
+  ctx.command(`ensure-bot-alive/` + command_prefix + command3)
     .action(async ({ session }) => {
-      await session.send(koishi_1.h.at(session.userId) + command2); // 在线的情况的返回内容
+      await session.send(koishi_1.h.at(session.userId) + command_prefix + command2); // 在线的情况的返回内容
     });
 
-  ctx.command(`ensure-bot-alive/` + command2)
+  ctx.command(`ensure-bot-alive/` + command_prefix + command2)
     .action(async ({ session }) => {
       // 机器人2成功触发了这个指令，是在线的
       alive = true; // 这里的 alive 变量会影响 command1 的检测
