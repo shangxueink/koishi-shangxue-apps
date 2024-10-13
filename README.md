@@ -1,48 +1,63 @@
 # koishi-shangxue-apps
 
-小学在koishi的插件合集？
-
 ## 项目简介
 
 欢迎来到 `koishi-shangxue-apps` 项目仓库！
 
-这个仓库集合了我在 Koishi 上独立开发的所有插件。
+这个仓库集合了我在 Koishi 上独立开发的所有插件。你可以在这里找到各种功能插件，帮助你更好地使用 Koishi。
 
-你可以在这里找到各种功能插件，帮助你更好地使用 Koishi。
-
-## 目录结构
-
-- `@shangxueink` 文件夹：这是我个人使用的插件，虽然大家可以安装使用，但是关于这些插件的功能增改请求，我一般不会接受，仅接受通过 issue 反馈 bug 。（合理需求可以协商）
-- 其他文件夹：这里包含了我独立开发的所有其他插件，欢迎大家使用和反馈。
-
-有时候本项目代码上传并不及时，若与实际最新版有误差，请以npm平台为准。
+有时候本项目代码上传并不及时，若与实际最新版有误差，请以 npm 平台为准。
 
 
-## 如何在 项目模板 引入此仓库
+## 如何在项目模板中引入此仓库
 
-- 克隆本仓库
+1. **创建项目模板**
+   ```shell
+   yarn create koishi
+   ```
+   然后一路回车。
 
-```shell
-yarn clone shangxueink/koishi-shangxue-apps
-```
+2. **进入项目模板根目录**
+   先按 `Ctrl + C` 退出项目模板，然后 `cd` 进入目录：
+   ```shell
+   cd koishi-app
+   ```
 
-- 修改 koishi 根工作区的 tsconfig.json
-```json
-  "koishi-plugin-*": [
-    "external/*/src",
-    "external/*/packages/core/src",
-    "packages/*/src",
-    "plugins/*/src",
-    "external/koishi-shangxue-apps/plugins/*/src", // 添加这一行
-  ],
-```
+3. **克隆本仓库**
+   ```shell
+   yarn clone shangxueink/koishi-shangxue-apps
+   ```
+
+4. **修改 Koishi 根工作区的 `tsconfig.json`**
+   在 `tsconfig.json` 中添加以下内容：
+   ```json
+   "koishi-plugin-*": [
+       "external/*/src",
+       "external/*/packages/core/src",
+       "packages/*/src",
+       "plugins/*/src",
+       "external/koishi-shangxue-apps/plugins/*/src" // 添加这一行
+   ],
+   ```
+
+5. **以开发模式启动**
+   ```shell
+   yarn dev
+   ```
+
+## 插件语言说明
+
+在本项目中，部分插件是直接使用 JavaScript 编写的，而不是 TypeScript 编写后编译的。
+
+此外，也有一些插件是用 TypeScript 开发的。在进行二次开发时，请根据插件的编写语言进行区分。
+
 
 ## 贡献指南
 
 欢迎大家使用这些插件，并提出问题反馈。
 
-然而，请注意 `@shangxueink` 文件夹内的插件是我的私用插件，
-我不会接受关于这些插件的功能增改请求，仅接受 issue 反馈 bug 。
+然而，请注意 部分插件的 `package.json` 内名称包含 `@shangxueink` 的插件是我的私用插件，我不会接受关于这些插件的功能增改请求，仅接受 issue 反馈 bug。
+
 
 ## 许可证
 
