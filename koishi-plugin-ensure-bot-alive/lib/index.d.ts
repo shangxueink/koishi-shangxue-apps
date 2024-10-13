@@ -1,3 +1,0 @@
-/*
-ensure-bot-alive
-*/
