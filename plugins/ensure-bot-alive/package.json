@@ -1,0 +1,24 @@
+{
+  "name": "koishi-plugin-ensure-bot-alive",
+  "version": "0.1.5",
+  "description": "看看你的官方机器人还在线吗？检测群里另一个机器人（第三方或者是官方bot）的在线状态。",
+  "main": "lib/index.js",
+  "typings": "lib/index.d.ts",
+  "files": [
+    "lib",
+    "dist"
+  ],
+  "keywords": [
+    "koishi",
+    "plugin",
+    "ensure-bot-alive",
+    "检测群里另一个机器人的在线状态"
+  ],
+  "contributors": [
+    "Shangxue <1919892171@qq.com>"
+  ],
+  "license": "MIT",
+  "peerDependencies": {
+    "koishi": "^4.13.8"
+  }
+}

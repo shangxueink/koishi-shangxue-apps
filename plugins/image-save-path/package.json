@@ -1,0 +1,31 @@
+{
+  "name": "koishi-plugin-image-save-path",
+  "description": "[<ruby>保存图片<rp>（</rp><rt>点我查看食用方法</rt><rp>）</rp></ruby>](https://www.npmjs.com/package/koishi-plugin-image-save-path) 支持自动保存多次重复的图片 💾用户可以将若干张图片保存到机器人设备上特定的路径。🤖支持重命文件名和后缀名。",
+  "version": "0.3.7",
+  "main": "lib/index.js",
+  "typings": "lib/index.d.ts",
+  "files": [
+    "lib",
+    "dist"
+  ],
+  "license": "MIT",
+  "keywords": [
+    "chatbot",
+    "koishi",
+    "plugin",
+    "保存图片",
+    "回复",
+    "存图",
+    "服务器",
+    "file"
+  ],
+  "koishi": {
+    "description": {
+      "en": "image-save-path",
+      "zh": "[<ruby>保存图片<rp>（</rp><rt>点我查看食用方法</rt><rp>）</rp></ruby>](https://www.npmjs.com/package/koishi-plugin-image-save-path) 💾用户可以将若干张图片保存到机器人设备上特定的路径。🤖支持重命文件名和后缀名。"
+    }
+  },
+  "peerDependencies": {
+    "koishi": "^4.16.4"
+  }
+}
