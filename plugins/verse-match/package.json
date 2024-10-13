@@ -1,0 +1,22 @@
+{
+  "name": "koishi-plugin-verse-match",
+  "version": "0.1.0",
+  "description": "/*对对联啦~*/对对联，用户输入上联，自动给出下联~ 开箱即食~ ",
+  "main": "lib/index.js",
+  "typings": "lib/index.d.ts",
+  "files": [
+    "lib",
+    "dist"
+  ],
+  "keywords": [
+    "koishi",
+    "plugin",
+    "chat",
+    "对对联"
+  ],
+  "author": "shangxue",
+  "license": "MIT",
+  "peerDependencies": {
+    "koishi": "^4.13.8"
+  }
+}

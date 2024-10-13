@@ -1,0 +1,27 @@
+{
+  "name": "koishi-plugin-translator-youdaoavailable",
+  "description": "/*中英互译的有道翻译*/中英互译，且多个备用翻译接口。[点我查看使用方法](https://www.npmjs.com/package/koishi-plugin-translator-youdaoavailable)",
+  "version": "0.2.0",
+  "main": "lib/index.js",
+  "typings": "lib/index.d.ts",
+  "files": [
+    "lib",
+    "dist"
+  ],
+  "license": "MIT",
+  "keywords": [
+    "chatbot",
+    "koishi",
+    "translator",
+    "plugin"
+  ],
+  "koishi": {
+    "description": {
+      "en": "translator-youdaoavailable",
+      "zh": "/*中英互译的有道翻译*/中英互译，且多个备用翻译接口。[点我查看使用方法](https://www.npmjs.com/package/koishi-plugin-translator-youdaoavailable)"
+    }
+  },
+  "peerDependencies": {
+    "koishi": "^4.13.8"
+  }
+}
