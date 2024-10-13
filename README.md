@@ -17,6 +17,26 @@
 
 有时候本项目代码上传并不及时，若与实际最新版有误差，请以npm平台为准。
 
+
+## 如何在 项目模板 引入此仓库
+
+- 克隆本仓库
+
+```shell
+yarn clone shangxueink/koishi-shangxue-apps
+```
+
+- 修改 koishi 根工作区的 tsconfig.json
+```json
+  "koishi-plugin-*": [
+    "external/*/src",
+    "external/*/packages/core/src",
+    "packages/*/src",
+    "plugins/*/src",
+    "external/koishi-shangxue-apps/plugins/*/src", // 添加这一行
+  ],
+```
+
 ## 贡献指南
 
 欢迎大家使用这些插件，并提出问题反馈。
