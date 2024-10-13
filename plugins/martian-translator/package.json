@@ -1,0 +1,21 @@
+{
+  "name": "koishi-plugin-martian-translator",
+  "description": "火星文转换插件，可以将中文转换为火星文，或将火星文转换回中文。",
+  "version": "0.1.1",
+  "main": "lib/index.js",
+  "typings": "lib/index.d.ts",
+  "files": [
+    "lib",
+    "dist"
+  ],
+  "license": "MIT",
+  "keywords": [
+    "chatbot",
+    "koishi",
+    "火星文转换",
+    "plugin"
+  ],
+  "peerDependencies": {
+    "koishi": "^4.16.0"
+  }
+}

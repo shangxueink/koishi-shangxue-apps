@@ -1,0 +1,22 @@
+{
+  "name": "koishi-plugin-lexicon-era-shift",
+  "description": "/[词语新解](https://www.npmjs.com/package/koishi-plugin-lexicon-era-shift)/一些在新时代下的新词义😹。可以自定义生成哦~ [点我查看说明书](https://www.npmjs.com/package/koishi-plugin-lexicon-era-shift)",
+  "version": "0.1.2",
+  "main": "lib/index.js",
+  "typings": "lib/index.d.ts",
+  "files": [
+    "lib",
+    "dist"
+  ],
+  "license": "MIT",
+  "keywords": [
+    "chatbot",
+    "koishi",
+    "plugin",
+    "lexicon",
+    "词语新解"
+  ],
+  "peerDependencies": {
+    "koishi": "^4.16.4"
+  }
+}
