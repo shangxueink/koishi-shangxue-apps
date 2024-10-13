@@ -1,8 +1,0 @@
-{
-    "msg_id": "${session.messageId}",
-    "msg_type": 2,
-    "content": "",
-    "keyboard": {
-        "id": "${config.json_setting.json_button_id}"
-    }
-}
