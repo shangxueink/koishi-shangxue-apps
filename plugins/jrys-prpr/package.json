@@ -1,0 +1,36 @@
+{
+  "name": "koishi-plugin-jrys-prpr",
+  "description": "[<ruby>**jrys-prpr**<rp>（</rp><rt>点我查看预览图</rt><rp>）</rp></ruby>](https://i0.hdslb.com/bfs/article/ae33f1b2e9dbc3fe89363a40fbf040703493298333289018.png)😽QQ官方MD支持！可以自定义好多内容！ 听说jrys插件都很像呢？唔姆，[但是好像jryspro更好看😿wwww](/market?keyword=jryspro)",
+  "version": "0.6.2",
+  "main": "lib/index.js",
+  "typings": "lib/index.d.ts",
+  "files": [
+    "lib",
+    "dist"
+  ],
+  "homepage": "https://github.com/shangxueink/koishi-shangxue-apps/tree/main/oishi-plugin-jrys-prpr",
+  "bugs": {
+    "url": "https://github.com/shangxueink/koishi-shangxue-apps/issues"
+  },
+  "license": "MIT",
+  "keywords": [
+    "chatbot",
+    "koishi",
+    "plugin",
+    "prpr",
+    "jrys",
+    "随机",
+    "查看今日运势"
+  ],
+  "service": {
+    "required": [
+      "puppeteer"
+    ],
+    "optional": [
+      "canvas"
+    ]
+  },
+  "peerDependencies": {
+    "koishi": "^4.13.8"
+  }
+}
