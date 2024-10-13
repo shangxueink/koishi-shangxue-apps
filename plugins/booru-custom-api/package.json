@@ -1,0 +1,43 @@
+{
+  "name": "koishi-plugin-booru-custom-api",
+  "description": "[点我查看说明](https://www.npmjs.com/package/koishi-plugin-booru-custom-api) Support for custom API graph sources for booru viewing! ",
+  "version": "0.1.4",
+  "main": "lib/index.js",
+  "typings": "lib/index.d.ts",
+  "files": [
+    "lib",
+    "dist"
+  ],
+  "license": "MIT",
+  "keywords": [
+    "chatbot",
+    "koishi",
+    "service",
+    "plugin",
+    "booru",
+    "image",
+    "picture",
+    "random",
+    "Custom API graph source support",
+    "setu",
+    "图源支持",
+    "自定义"
+  ],
+  "koishi": {
+    "description": {
+      "zh": "最好的涩图插件！ - 自定义API 图源支持"
+    },
+    "service": {
+      "require": [
+        "booru"
+      ]
+    }
+  },
+  "peerDependencies": {
+    "koishi": "^4.17.0",
+    "koishi-plugin-booru": "^1.2.0"
+  },
+  "devDependencies": {
+    "koishi": "^4.17.0"
+  }
+}
