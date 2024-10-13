@@ -1,0 +1,21 @@
+{
+  "name": "koishi-plugin-bmi-calculator",
+  "version": "0.0.4",
+  "description": "/*BMI身体质量指数*/根据身高、体重计算BMI，评估体重对于健康带来的影响，并返回对应BMI的建议。 ",
+  "main": "lib/index.js",
+  "typings": "lib/index.d.ts",
+  "files": [
+    "lib",
+    "dist"
+  ],
+  "keywords": [
+    "koishi",
+    "plugin",
+    "chat"
+  ],
+  "author": "shangxue",
+  "license": "MIT",
+  "peerDependencies": {
+    "koishi": "^4.13.8"
+  }
+}
