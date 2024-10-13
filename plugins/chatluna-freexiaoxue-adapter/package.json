@@ -1,0 +1,65 @@
+{
+  "name": "koishi-plugin-chatluna-freexiaoxue-adapter",
+  "description": "/freexiaoxue adapter for chatluna/ 免费小学？ 整合一些免费AI接口咪~",
+  "version": "1.1.5",
+  "main": "lib/index.cjs",
+  "module": "lib/index.mjs",
+  "typings": "lib/index.d.ts",
+  "files": [
+    "lib"
+  ],
+  "exports": {
+    ".": {
+      "import": "./lib/index.mjs",
+      "require": "./lib/index.cjs",
+      "types": "./lib/index.d.ts"
+    },
+    "./package.json": "./package.json"
+  },
+  "type": "module",
+  "license": "AGPL-3.0",
+  "homepage": "https://github.com/shangxueink/koishi-shangxue-apps/tree/main/",
+  "bugs": {
+    "url": "https://github.com/shangxueink/koishi-shangxue-apps/issues"
+  },
+  "scripts": {
+    "build": "atsc -b"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "keywords": [
+    "chatbot",
+    "koishi",
+    "plugin",
+    "service",
+    "chatgpt",
+    "gpt",
+    "免费小学",
+    "chatluna",
+    "adapter"
+  ],
+  "dependencies": {
+    "@langchain/core": "^0.2.17",
+    "zod": "^3.24.0-canary.20240701T200529",
+    "zod-to-json-schema": "^3.23.1"
+  },
+  "devDependencies": {
+    "atsc": "^2.1.0",
+    "koishi": "^4.17.10"
+  },
+  "peerDependencies": {
+    "koishi": "^4.17.9",
+    "koishi-plugin-chatluna": "^1.0.0-beta.58"
+  },
+  "koishi": {
+    "description": {
+      "zh": "ChatLuna 的 freexiaoxue 适配器。好像是免费小学？ 整合一些免费AI接口咪~"
+    },
+    "service": {
+      "required": [
+        "chatluna"
+      ]
+    }
+  }
+}
