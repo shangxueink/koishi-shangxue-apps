@@ -29,6 +29,7 @@
    ```
 
 4. **修改 Koishi 根工作区的 `tsconfig.json`**
+
    在 `tsconfig.json` 中添加以下内容：
    ```json
    "koishi-plugin-*": [
@@ -40,7 +41,7 @@
    ],
    ```
 
-5. **以开发模式启动**
+6. **以开发模式启动**
    ```shell
    yarn dev
    ```
