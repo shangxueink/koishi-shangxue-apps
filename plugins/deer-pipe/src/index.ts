@@ -4,6 +4,7 @@ import { } from 'koishi-plugin-puppeteer';
 export const name = 'deer-pipe';
 
 export interface Config {
+  maximum_times_per_day: any;
   enable_blue_tip: any;
   enable_allchannel: any;
   enable_deerpipe: boolean;
@@ -26,7 +27,7 @@ export const usage = `
 <h3>签到</h3>
 <ul>
 <li><strong>指令</strong>: <code>🦌 [艾特用户]</code> 或 <code>鹿管 [艾特用户]</code></li>
-<li><strong>作用</strong>: 签到当天。（推荐在【指令管理】设置每天调用上限）</li>
+<li><strong>作用</strong>: 签到当天，可重复签到，默认上限五次。</li>
 <li><strong>示例</strong>: <code>🦌</code>（自己签到） / <code>🦌 @猫猫</code>（帮他鹿）</li>
 </ul>
 
@@ -51,6 +52,14 @@ export const usage = `
 <li><strong>示例</strong>: <code>戒🦌 10</code> （若省略<code>10</code>，会取消签到今天的）</li>
 </ul>
 
+---
+
+本插件理想的艾特元素内容是<code>< at id="114514" name="这是名字"/></code>
+
+如果你的适配器的艾特元素是<code>< at id="114514"/></code> 那么排行榜功能就会出现用户ID的内容。
+
+这个时候只需要让用户自己签到一次即可恢复，并且在不同的群签到，会存为对应的用户名称。
+
 </body>
 </html>
 `;
@@ -58,6 +67,7 @@ export const usage = `
 export const Config: Schema<Config> = Schema.intersect([
   Schema.object({
     enable_deerpipe: Schema.boolean().description('开启后，允许重复签到<br>关闭后就没有重复签到的玩法').default(true),
+    maximum_times_per_day: Schema.number().description('每日签到次数上限`小鹿怡..什么伤身来着`').default(5).min(2),
     enable_blue_tip: Schema.boolean().description('开启后，签到后会返回补签玩法提示').default(false),
   }).description('签到设置'),
   Schema.object({
@@ -109,7 +119,7 @@ export function apply(ctx: Context, config: Config) {
           "invalid_input_user": "请艾特指定用户。\n示例： 🦌  @用户",
           "invalid_userid": "不可用的用户，请换一个用户帮他签到吧~",
           "enable_blue_tip": "还可以帮助未签到的人签到，以获取补签次数哦！\n使用示例： 鹿  @用户",
-          "Sign_in_success": "你已经签到{0}天啦~ 继续加油咪~"
+          "Sign_in_success": "你已经签到{0}次啦~ 继续加油咪~"
         }
       },
       "鹿管排行榜": {
@@ -201,8 +211,15 @@ export function apply(ctx: Context, config: Config) {
         const dayRecordIndex = targetRecord.checkindate.findIndex(date => date.startsWith(`${currentDay}`));
         let dayRecord = dayRecordIndex !== -1 ? targetRecord.checkindate[dayRecordIndex] : `${currentDay}=0`;
         const [day, count] = dayRecord.includes('=') ? dayRecord.split('=') : [dayRecord, '1']; // 解析 dayRecord 时，检查是否包含 =。如果没有，默认次数为 1
-        const newCount = (parseInt(count) || 0) + 1; // 这里默认值也改为 1
 
+        const currentSignInCount = parseInt(count) || 0; // 当前当天签到次数
+
+        // 检查是否超过签到次数上限
+        if (currentSignInCount >= config.maximum_times_per_day) {
+          await session.send(`今天的签到次数已经达到上限 ${config.maximum_times_per_day} 次，请明天再来签到吧\~`);
+          return;
+        }
+        const newCount = currentSignInCount + 1; // 这里默认值也改为 1
 
         if (config.enable_deerpipe || newCount === 1) {
           if (dayRecordIndex !== -1) {
@@ -451,7 +468,17 @@ ${deer.order === 3 ? '<span class="medal">🥉</span>' : ''}
       let dayRecord = dayRecordIndex !== -1 ? record.checkindate[dayRecordIndex] : `${dayNum}=0`;
       //const [dayStr, count] = dayRecord.split('=');
       const [dayStr, count] = dayRecord.includes('=') ? dayRecord.split('=') : [dayRecord, '1']; // 解析 dayRecord 时，检查是否包含 =。如果没有，默认次数为 1
-      let newCount = (parseInt(count) || 0) + 1;
+
+      const currentSignInCount = parseInt(count) || 0; // 当前当天签到次数
+
+      // 检查是否超过签到次数上限
+      if (currentSignInCount >= config.maximum_times_per_day) {
+        await session.send(`${dayStr}号的签到次数已经达到上限 ${config.maximum_times_per_day} 次，请换别的日期补签吧\~`);
+        return;
+      }
+
+      // 如果没有达到上限，允许签到
+      let newCount = currentSignInCount + 1; // 增加签到次数
 
       if (dayRecordIndex !== -1 && !config.enable_deerpipe && parseInt(count) > 0) {
         await session.send(`${h.at(session.userId)} ${session.text('.Already_resigned', [dayNum])}`);
