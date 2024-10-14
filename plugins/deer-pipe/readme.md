@@ -7,8 +7,11 @@
 一个🦌管签到小插件
 
 > ➡️ 源想法和代码都来自这两个项目：
+> 
 > https://github.com/SamuNatsu/nonebot-plugin-deer-pipe
+> 
 > https://gitee.com/kyrzy0416/yunzai-plugin-deer-pipe/tree/master
+> 
 > ⚠️ 注：我们只是大自然的搬运工
 
 ## 📸 效果展示
