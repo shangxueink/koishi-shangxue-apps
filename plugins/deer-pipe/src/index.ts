@@ -209,7 +209,7 @@ export function apply(ctx: Context, config: Config) {
   //看看日历
   ctx.command('deerpipe/看鹿 [user]', '查看用户签到日历', { authority: 1 })
     .alias('看🦌')
-    .alias('查看日历')
+    .alias('看看日历')
     .example('看鹿  @用户')
     .action(async ({ session }, user) => {
       const currentDate = new Date();
