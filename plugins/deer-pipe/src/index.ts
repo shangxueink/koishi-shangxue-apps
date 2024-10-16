@@ -31,6 +31,21 @@ export const usage = `
 <li><strong>示例</strong>: <code>🦌</code>（自己签到） / <code>🦌 @猫猫</code>（帮他鹿）</li>
 </ul>
 
+
+<h3>允许/禁止被鹿</h3>
+<ul>
+<li><strong>指令</strong>: <code>戴锁</code> 或 <code>脱锁</code></li>
+<li><strong>作用</strong>: 允许/禁止别人帮你鹿</li>
+<li><strong>示例</strong>: <code>戴锁</code> / <code>脱锁</code></li>
+</ul>
+
+<h3>查看签到日历</h3>
+<ul>
+<li><strong>指令</strong>: <code>看看日历 [艾特用户]</code> 或 <code>查看日历 [艾特用户]</code></li>
+<li><strong>作用</strong>: 查看自己或指定用户的签到日历。</li>
+<li><strong>示例</strong>: <code>看看日历</code>（查看自己的日历） / <code>看看日历 @猫猫</code>（查看猫猫的日历）</li>
+</ul>
+
 <h3>查看排行榜</h3>
 <ul>
 <li><strong>指令</strong>: <code>鹿管排行榜</code> 或 <code>🦌榜</code></li>
@@ -60,6 +75,9 @@ export const usage = `
 
 这个时候只需要让用户自己签到一次即可恢复，并且在不同的群签到，会存为对应的用户名称。
 
+---
+
+不支持QQ官方机器人是因为无法收到<code>< at id="ABCDEFG"/></code> 的消息元素
 </body>
 </html>
 `;
@@ -86,6 +104,7 @@ interface DeerPipeTable {
   checkindate: string[];
   totaltimes: number;
   resigntimes: number;
+  allowHelp: boolean;
 }
 
 declare module 'koishi' {
@@ -102,6 +121,7 @@ export function apply(ctx: Context, config: Config) {
     username: 'string', // 名字。用于排行榜
     channelId: 'string', // 频道ID，用于排行榜
     recordtime: 'string', // 最新签到的年月，用于记录更新
+    allowHelp: 'boolean', // 是否允许被别人帮助签到，默认为 true
     checkindate: 'list', // 当前月份的签到的日期号
     resigntimes: 'integer', // 剩余的补签次数，限制用户补签
     totaltimes: 'integer', // 鹿管签到总次数。用于排行榜
@@ -111,6 +131,13 @@ export function apply(ctx: Context, config: Config) {
 
   const zh_CN_default = {
     commands: {
+      "戴锁": {
+        description: "允许/禁止别人帮你鹿",
+        messages: {
+          "tip": "你已经{0}别人帮助你签到。",
+          "notfound": "用户未找到，请先进行签到。"
+        }
+      },
       "鹿": {
         description: "鹿管签到",
         messages: {
@@ -119,7 +146,16 @@ export function apply(ctx: Context, config: Config) {
           "invalid_input_user": "请艾特指定用户。\n示例： 🦌  @用户",
           "invalid_userid": "不可用的用户，请换一个用户帮他签到吧~",
           "enable_blue_tip": "还可以帮助未签到的人签到，以获取补签次数哦！\n使用示例： 鹿  @用户",
-          "Sign_in_success": "你已经签到{0}次啦~ 继续加油咪~"
+          "Sign_in_success": "你已经签到{0}次啦~ 继续加油咪~",
+          "not_allowHelp": "该用户已禁止他人帮助签到。"
+        }
+      },
+      "看鹿": {
+        description: "查看用户签到日历",
+        messages: {
+          "invalid_input_user": "请艾特指定用户。\n示例： 🦌  @用户",
+          "invalid_userid": "不可用的用户，请换一个用户帮他签到吧~",
+          "notfound": "未找到该用户的签到记录。"
         }
       },
       "鹿管排行榜": {
@@ -151,10 +187,68 @@ export function apply(ctx: Context, config: Config) {
 
   ctx.i18n.define("zh-CN", zh_CN_default);
 
-  ctx.command('deerpipe')
+  ctx.command('deerpipe', '鹿管签到')
+
+  ctx.command('deerpipe/戴锁', '允许/禁止别人帮你鹿', { authority: 1 })
+    // 切换模式，有些人不喜欢天天群友艾特他鹿，觉得烦人咪
+    .alias('脱锁')
+    .alias('带锁')
+    .action(async ({ session }) => {
+      const userId = session.userId;
+      const [user] = await ctx.database.get('deerpipe', { userid: userId });
+
+      if (user) {
+        user.allowHelp = !user.allowHelp; // 切换 allowHelp 值
+        await ctx.database.set('deerpipe', { userid: userId }, { allowHelp: user.allowHelp });
+        const status = user.allowHelp ? '允许' : '禁止';
+        await session.send(session.text(`.tip`, [status]));
+      } else {
+        await session.send(session.text(`.notfound`));
+      }
+    });
+  //看看日历
+  ctx.command('deerpipe/看鹿 [user]', '查看用户签到日历', { authority: 1 })
+    .alias('看🦌')
+    .alias('查看日历')
+    .example('看鹿  @用户')
+    .action(async ({ session }, user) => {
+      const currentDate = new Date();
+      const currentYear = currentDate.getFullYear();
+      const currentMonth = currentDate.getMonth() + 1;
+      let targetUserId = session.userId;
+      let targetUsername = session.username;
+
+      if (user) {
+        const parsedUser = h.parse(user)[0];
+        if (parsedUser?.type === 'at') {
+          const { id, name } = parsedUser.attrs;
+          if (!id) {
+            await session.send(session.text('.invalid_userid'));
+            return;
+          }
+
+          targetUserId = id;
+          targetUsername = name || targetUserId;
+        } else {
+          await session.send(session.text('.invalid_input_user'));
+          return;
+        }
+      }
+
+      const [targetRecord] = await ctx.database.get('deerpipe', { userid: targetUserId });
+      if (!targetRecord) {
+        await session.send('未找到该用户的签到记录。');
+        return;
+      }
+
+      const imgBuf = await renderSignInCalendar(ctx, targetUserId, targetUsername, currentYear, currentMonth);
+      const calendarImage = h.image(imgBuf, 'image/png');
+      await session.send(calendarImage);
+    });
+
   ctx.command('deerpipe/鹿 [user]', '鹿管签到', { authority: 1 })
     .alias('🦌')
-    .example('🦌')
+    .example('鹿  @用户')
     .action(async ({ session }, user) => {
       const currentDate = new Date();
       const currentYear = currentDate.getFullYear();
@@ -172,7 +266,7 @@ export function apply(ctx: Context, config: Config) {
             await session.send(session.text('.invalid_userid'));
             return;
           }
-          // 提取目标用户ID
+
           targetUserId = id;
           targetUsername = name || targetUserId;
           loggerinfo('h.parse(user)[0]?.attrs?.name 为 ' + name);
@@ -186,7 +280,6 @@ export function apply(ctx: Context, config: Config) {
       // 获取目标用户的签到记录
       let [targetRecord] = await ctx.database.get('deerpipe', { userid: targetUserId });
       if (!targetRecord) {
-        // 如果没有记录，创建新的签到记录
         targetRecord = {
           userid: targetUserId,
           username: targetUsername,
@@ -195,31 +288,28 @@ export function apply(ctx: Context, config: Config) {
           checkindate: [`${currentDay}=1`],
           totaltimes: 1,
           resigntimes: 0,
+          allowHelp: true, // 默认允许帮助
         };
         await ctx.database.create('deerpipe', targetRecord);
       } else {
-        // 更新用户名
         targetRecord.username = targetUsername;
 
-        // 如果是新月份，重置签到记录
         if (targetRecord.recordtime !== recordtime) {
           targetRecord.recordtime = recordtime;
           targetRecord.checkindate = [];
         }
 
-        // 检查当天签到次数
         const dayRecordIndex = targetRecord.checkindate.findIndex(date => date.startsWith(`${currentDay}`));
         let dayRecord = dayRecordIndex !== -1 ? targetRecord.checkindate[dayRecordIndex] : `${currentDay}=0`;
-        const [day, count] = dayRecord.includes('=') ? dayRecord.split('=') : [dayRecord, '1']; // 解析 dayRecord 时，检查是否包含 =。如果没有，默认次数为 1
+        const [day, count] = dayRecord.includes('=') ? dayRecord.split('=') : [dayRecord, '1'];
 
-        const currentSignInCount = parseInt(count) || 0; // 当前当天签到次数
+        const currentSignInCount = parseInt(count) || 0;
 
-        // 检查是否超过签到次数上限
         if (currentSignInCount >= config.maximum_times_per_day) {
           await session.send(`今天的签到次数已经达到上限 ${config.maximum_times_per_day} 次，请明天再来签到吧\~`);
           return;
         }
-        const newCount = currentSignInCount + 1; // 这里默认值也改为 1
+        const newCount = currentSignInCount + 1;
 
         if (config.enable_deerpipe || newCount === 1) {
           if (dayRecordIndex !== -1) {
@@ -230,7 +320,6 @@ export function apply(ctx: Context, config: Config) {
           targetRecord.totaltimes += 1;
         }
 
-        // 更新数据库
         await ctx.database.set('deerpipe', { userid: targetUserId }, {
           username: targetUsername,
           checkindate: targetRecord.checkindate,
@@ -238,7 +327,6 @@ export function apply(ctx: Context, config: Config) {
           recordtime: targetRecord.recordtime,
         });
 
-        // 如果已经签到过，通知用户
         if (!config.enable_deerpipe && newCount > 1) {
           const imgBuf = await renderSignInCalendar(ctx, targetUserId, targetUsername, currentYear, currentMonth);
           const calendarImage = h.image(imgBuf, 'image/png');
@@ -252,12 +340,15 @@ export function apply(ctx: Context, config: Config) {
         }
       }
 
-      // 如果帮助其他用户签到，增加补签机会
+      // 检查目标用户是否允许别人帮助签到
       if (targetUserId !== session.userId) {
-        // 获取帮助者的记录
+        if (!targetRecord.allowHelp) {
+          await session.send(session.text('.not_allowHelp'));
+          return;
+        }
+
         let [helperRecord] = await ctx.database.get('deerpipe', { userid: session.userId });
         if (!helperRecord) {
-          // 帮助者第一次签到，创建记录并增加补签次数
           helperRecord = {
             userid: session.userId,
             username: session.username,
@@ -266,21 +357,19 @@ export function apply(ctx: Context, config: Config) {
             checkindate: [],
             totaltimes: 0,
             resigntimes: 1,
+            allowHelp: true, // 默认允许帮助
           };
           await ctx.database.create('deerpipe', helperRecord);
         } else {
-          // 已经签到过，增加补签次数
           helperRecord.resigntimes += 1;
           await ctx.database.set('deerpipe', { userid: session.userId }, {
             resigntimes: helperRecord.resigntimes,
           });
         }
 
-        // 通知用户获得补签机会
         await session.send(`${h.at(session.userId)} ${session.text('.Help_sign_in', [targetUserId])} `);
       }
 
-      // 生成并发送签到日历图像
       const imgBuf = await renderSignInCalendar(ctx, targetUserId, targetUsername, currentYear, currentMonth);
       const calendarImage = h.image(imgBuf, 'image/png');
       await session.send(calendarImage);
