@@ -268,7 +268,7 @@ export function apply(ctx: Context, config: Config) {
           }
 
           targetUserId = id;
-          targetUsername = name || targetUserId;
+          targetUsername = name || id; // 有些情况收到的at消息是 <at id="114514"/> 没有name字段
           loggerinfo('h.parse(user)[0]?.attrs?.name 为 ' + name);
           loggerinfo('帮助别人签到：获取到 targetUsername 为 ' + targetUsername);
         } else {
@@ -292,7 +292,11 @@ export function apply(ctx: Context, config: Config) {
         };
         await ctx.database.create('deerpipe', targetRecord);
       } else {
-        targetRecord.username = targetUsername;
+        // 在user有记录的情况下，如果输入的user没有name字段，那不改用户名称
+        if (user && h.parse(user)[0]?.attrs?.name) {
+          targetRecord.username = targetUsername;
+        }
+
 
         if (targetRecord.recordtime !== recordtime) {
           targetRecord.recordtime = recordtime;
