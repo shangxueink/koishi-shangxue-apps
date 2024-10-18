@@ -293,7 +293,8 @@ export function apply(ctx: Context, config: Config) {
         await ctx.database.create('deerpipe', targetRecord);
       } else {
         // 在user有记录的情况下，如果输入的user没有name字段，那不改用户名称
-        if (user && h.parse(user)[0]?.attrs?.name) {
+        const has_user_name = user && h.parse(user)[0]?.attrs?.name
+        if (has_user_name) {
           targetRecord.username = targetUsername;
         }
 
@@ -323,13 +324,22 @@ export function apply(ctx: Context, config: Config) {
           }
           targetRecord.totaltimes += 1;
         }
+        if (has_user_name) {
+          await ctx.database.set('deerpipe', { userid: targetUserId }, {
+            username: targetUsername,
+            checkindate: targetRecord.checkindate,
+            totaltimes: targetRecord.totaltimes,
+            recordtime: targetRecord.recordtime,
+          });
+        } else {
+          await ctx.database.set('deerpipe', { userid: targetUserId }, {
+            //username: targetUsername,
+            checkindate: targetRecord.checkindate,
+            totaltimes: targetRecord.totaltimes,
+            recordtime: targetRecord.recordtime,
+          });
+        }
 
-        await ctx.database.set('deerpipe', { userid: targetUserId }, {
-          username: targetUsername,
-          checkindate: targetRecord.checkindate,
-          totaltimes: targetRecord.totaltimes,
-          recordtime: targetRecord.recordtime,
-        });
 
         if (!config.enable_deerpipe && newCount > 1) {
           const imgBuf = await renderSignInCalendar(ctx, targetUserId, targetUsername, currentYear, currentMonth);
