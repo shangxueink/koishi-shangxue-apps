@@ -1,0 +1,20 @@
+{
+  "name": "koishi-plugin-patina",
+  "version": "1.0.0",
+  "description": "/*电子包浆生成器*/ 图片做旧工具，赛博包浆虚拟器，支持 图片绿化、虚拟水印、虚拟传播年份...算是个小玩具吧。",
+  "main": "lib/index.js",
+  "typings": "lib/index.d.ts",
+  "files": [
+    "lib",
+    "dist"
+  ],
+  "keywords": [
+    "koishi",
+    "plugin",
+    "电子包浆生成器"
+  ],
+  "license": "MIT",
+  "peerDependencies": {
+    "koishi": "^4.13.8"
+  }
+}
