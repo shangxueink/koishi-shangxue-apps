@@ -1,5 +1,5 @@
-import * as fs from 'node:fs/promises'
-import * as path from 'node:path'
+import * as fs from 'fs/promises'
+import * as path from 'path'
 import { parse } from 'yaml'
 import { SearchObject, SearchResult } from '@koishijs/registry'
 import { Config } from './config'
@@ -13,28 +13,24 @@ interface FilterRule {
         }
 }
 
-export async function readFilterRule(baseDir: string): Promise<FilterRule> {
-        const ymlDir = path.join(baseDir, 'data', 'storeluna');
-        const ymlPath = path.join(ymlDir, 'filterrule.yaml');
-        const resourcesPath = path.join(baseDir, 'node_modules', 'koishi-plugin-storeluna', 'lib');
+export async function readFilterRule(baseDir: string) : Promise<FilterRule> {
+        const dataPath = path.join(baseDir, 'data', 'storeluna')
+        const ymlPath = path.join(dataPath, 'filterrule.yml')
+        const resourcesPath = path.join(baseDir, 'node_modules', 'koishi-plugin-storeluna', 'resources')
 
-        // 创建目录，而不是文件
-        await fs.mkdir(ymlDir, { recursive: true });
+        fs.mkdir(dataPath, { recursive: true })
 
-        // 检查文件是否存在，不存在则复制
         if (!(await fs.access(ymlPath).then(() => true).catch(() => false))) {
-                await fs.copyFile(path.join(resourcesPath, 'defaultfilterrule.yaml'), ymlPath);
+                await fs.copyFile(path.join(resourcesPath, 'defaultfilterrule.yml'), ymlPath)
         }
-
-        // 读取并解析文件
-        const data = await fs.readFile(ymlPath, 'utf-8');
-        const filterRule = parse(data) as FilterRule;
-        return filterRule;
+        const data = await fs.readFile(ymlPath, 'utf-8')
+        const filterRule = parse(data) as FilterRule
+        return filterRule
 }
 
-export function SearchFilter(data: SearchResult, config: Config, rule: FilterRule): SearchResult {
+export function SearchFilter(data: SearchResult, config: Config, rule: FilterRule) : SearchResult {
         let filtered: SearchObject[] = []
-
+        
 
         if (config.filterUnsafe) {
                 data.objects = data.objects.filter(item => {
@@ -47,24 +43,26 @@ export function SearchFilter(data: SearchResult, config: Config, rule: FilterRul
                 })
         }
 
-        if (config.filterRule) {
+        if (config.filterRule) return data
+
+        if (rule.blacklist.shortname.length !== 0) {
                 data.objects = data.objects.filter(item => {
                         if (rule.blacklist.shortname.includes(item.shortname)) {
                                 filtered.push(item)
                                 return false
                         }
-
+        
                         return true
                 })
         }
 
-        filtered.forEach(item => {
-                if (rule.writelist.shortname.includes(item.shortname)) {
-                        data.objects.push(item)
-                }
-        })
-
-        data.objects.push
+        if (rule.writelist.shortname.length !== 0) {
+                filtered.forEach(item => {
+                        if (rule.writelist.shortname.includes(item.shortname)) {
+                                data.objects.push(item)
+                        }
+                })
+        }
 
         return data
 }
