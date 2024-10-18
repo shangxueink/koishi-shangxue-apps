@@ -1,9 +1,11 @@
 import { Context, Schema, h, Tables } from 'koishi';
 import { } from 'koishi-plugin-puppeteer';
-
+import { } from 'koishi-plugin-monetary'
 export const name = 'deer-pipe';
 
 export interface Config {
+  enable_use_key_to_help: boolean;
+  cost: any;
   maximum_times_per_day: any;
   enable_blue_tip: any;
   enable_allchannel: any;
@@ -87,11 +89,28 @@ export const Config: Schema<Config> = Schema.intersect([
     enable_deerpipe: Schema.boolean().description('开启后，允许重复签到<br>关闭后就没有重复签到的玩法').default(true),
     maximum_times_per_day: Schema.number().description('每日签到次数上限`小鹿怡..什么伤身来着`').default(5).min(2),
     enable_blue_tip: Schema.boolean().description('开启后，签到后会返回补签玩法提示').default(false),
+    enable_use_key_to_help: Schema.boolean().description('开启后，允许使用【钥匙】强制开锁').default(false),
   }).description('签到设置'),
   Schema.object({
-    leaderboard_people_number: Schema.number().description('排行榜显示人数').default(15).min(3),
+    leaderboard_people_number: Schema.number().description('签到次数·排行榜显示人数').default(15).min(3),
     enable_allchannel: Schema.boolean().description('开启后，排行榜将展示全部用户排名`关闭则仅展示当前频道的用户排名`').default(false),
-  }).description('排行榜设置'),
+  }).description('签到次数·排行榜设置'),
+  Schema.object({
+    currency: Schema.string().default('deerpipe').disabled().description('monetary 的 currency 字段'),
+    cost: Schema.object({
+
+      checkin_reward: Schema.array(Schema.object({
+        command: Schema.union(['戴锁', '鹿', '补鹿', '戒鹿', '帮鹿']).description("交互指令"),
+        cost: Schema.number().description("货币变动"),
+      })).role('table').description('【获取硬币】本插件指令的货币变动').default([{ "command": "鹿", "cost": 100 }, { "command": "帮鹿", "cost": 200 }, { "command": "戴锁", "cost": 0 }, { "command": "补鹿", "cost": -100 }, { "command": "戒鹿", "cost": -100 }]),
+
+      store_item: Schema.array(Schema.object({
+        item: Schema.string().description("物品名称"),
+        cost: Schema.number().description("货币变动"),
+      })).role('table').default([{ "item": "锁", "cost": -50 }, { "item": "钥匙", "cost": -500 }]).description('【购买】商店道具货价表'),
+
+    }).collapse().description('货币平衡设置<br>涉及游戏平衡，谨慎修改'),
+  }).description('monetary·通用货币设置'),
   Schema.object({
     loggerinfo: Schema.boolean().description('debug日志输出模式').default(false),
   }).description('调试设置'),
@@ -103,8 +122,9 @@ interface DeerPipeTable {
   recordtime: string;
   checkindate: string[];
   totaltimes: number;
-  resigntimes: number;
+  //resigntimes: number;
   allowHelp: boolean;
+  itemInventory: string[];
 }
 
 declare module 'koishi' {
@@ -113,7 +133,7 @@ declare module 'koishi' {
   }
 }
 
-export const inject = ['database', 'puppeteer'];
+export const inject = ['database', 'puppeteer', 'monetary'];
 
 export function apply(ctx: Context, config: Config) {
   ctx.model.extend('deerpipe', {
@@ -123,8 +143,9 @@ export function apply(ctx: Context, config: Config) {
     recordtime: 'string', // 最新签到的年月，用于记录更新
     allowHelp: 'boolean', // 是否允许被别人帮助签到，默认为 true
     checkindate: 'list', // 当前月份的签到的日期号
-    resigntimes: 'integer', // 剩余的补签次数，限制用户补签
+    // resigntimes: 'integer', // 剩余的补签次数，限制用户补签  // 不需要了，改为使用点数。
     totaltimes: 'integer', // 鹿管签到总次数。用于排行榜
+    itemInventory: 'list',    // 道具清单，记录该玩家拥有的道具
   }, {
     primary: ['userid'],
   });
@@ -135,19 +156,23 @@ export function apply(ctx: Context, config: Config) {
         description: "允许/禁止别人帮你鹿",
         messages: {
           "tip": "你已经{0}别人帮助你签到。",
-          "notfound": "用户未找到，请先进行签到。"
+          "notfound": "用户未找到，请先进行签到。",
+          "no_item": "你没有道具【锁】，无法执行此操作。\n请使用指令：购买 锁",
+          "no_balance": "余额不足，无法执行此操作。当前余额为 {0}。",
+          "successtip": "操作成功！{0}别人帮你鹿，消耗道具【锁】，当前余额为 {1}。",
         }
       },
       "鹿": {
         description: "鹿管签到",
         messages: {
           "Already_signed_in": "今天已经签过到了，请明天再来签到吧~",
-          "Help_sign_in": "你成功帮助 {0} 签到，并获得了一次补签机会！",
+          "Help_sign_in": "你成功帮助 {0} 签到！获得 {1} 点货币。",
           "invalid_input_user": "请艾特指定用户。\n示例： 🦌  @用户",
           "invalid_userid": "不可用的用户，请换一个用户帮他签到吧~",
           "enable_blue_tip": "还可以帮助未签到的人签到，以获取补签次数哦！\n使用示例： 鹿  @用户",
-          "Sign_in_success": "你已经签到{0}次啦~ 继续加油咪~",
-          "not_allowHelp": "该用户已禁止他人帮助签到。"
+          "Sign_in_success": "你已经签到{0}次啦~ 继续加油咪~\n本次签到获得 {1} 点货币。",
+          "not_allowHelp": "该用户已禁止他人帮助签到。",
+          "use_key_to_help": "你使用了一个【钥匙】打开了{0}的锁！"
         }
       },
       "看鹿": {
@@ -155,7 +180,8 @@ export function apply(ctx: Context, config: Config) {
         messages: {
           "invalid_input_user": "请艾特指定用户。\n示例： 🦌  @用户",
           "invalid_userid": "不可用的用户，请换一个用户帮他签到吧~",
-          "notfound": "未找到该用户的签到记录。"
+          "notfound": "未找到该用户的签到记录。",
+          "balance": "你当前的货币点数余额为：{0}"
         }
       },
       "鹿管排行榜": {
@@ -167,10 +193,12 @@ export function apply(ctx: Context, config: Config) {
       "补鹿": {
         description: "补签某日",
         messages: {
-          "No_resign_chance": "你没有补签机会了。",
+          "No_record": "暂无你的签到记录哦，快去签到吧~",
           "invalid_day": "日期不正确，请输入有效的日期。\n示例： 补🦌  1",
           "Already_resigned": "你已经补签过{0}号了。",
-          "Resign_success": "你已成功补签{0}号。剩余补签机会：{1}"
+          "Resign_success": "你已成功补签{0}号。点数变化：{1}",
+          "Insufficient_balance": "货币点数不足。快去帮别人签到获取点数吧",
+          "maximum_times_per_day": "{0}号的签到次数已经达到上限 {1} 次，请换别的日期补签吧\~"
         }
       },
       "戒鹿": {
@@ -178,7 +206,7 @@ export function apply(ctx: Context, config: Config) {
         messages: {
           //"Cancel_sign_in_confirm": "你确定要取消{0}号的签到吗？请再次输入命令确认。",
           "invalid_day": "日期不正确，请输入有效的日期。\n示例： 戒🦌  1",
-          "Cancel_sign_in_success": "你已成功取消{0}号的签到。",
+          "Cancel_sign_in_success": "你已成功取消{0}号的签到。点数变化：{1}",
           "No_sign_in": "你没有在{0}号签到。"
         }
       }
@@ -189,27 +217,113 @@ export function apply(ctx: Context, config: Config) {
 
   ctx.command('deerpipe', '鹿管签到')
 
+  ctx.command('deerpipe/购买 [item]', '购买签到道具', { authority: 1 })
+    .userFields(["id"])
+    .action(async ({ session }, item) => {
+      const userId = session.userId;
+      const storeItems = config.cost.store_item; // 从配置中获取商店商品列表
+      const targetItem = storeItems.find(i => i.item === item);
+
+      if (!targetItem) {
+        const availableItems = storeItems.map(i => `${i.item}（${i.cost}点）`).join('\n');
+        await session.send(`未找到商品：${item}，你可以购买以下商品：\n${availableItems}`);
+        return;
+      }
+
+      const { cost } = targetItem;
+
+      // 获取用户余额
+      const balance = await getUserCurrency(ctx, session.user.id);
+      if (balance < Math.abs(cost)) {
+        await session.send(`余额不足，无法购买 ${item}，当前余额为 ${balance}。`);
+        return;
+      }
+
+      try {
+        // 执行货币扣除
+        await updateUserCurrency(ctx, session.user.id, cost);
+
+        // 检查用户记录是否存在
+        let [userRecord] = await ctx.database.get('deerpipe', { userid: userId });
+        if (!userRecord) {
+          // 初始化用户记录
+          userRecord = {
+            userid: userId,
+            username: session.username,
+            channelId: session.channelId,
+            recordtime: '',
+            checkindate: [],
+            totaltimes: 0,
+            allowHelp: true,
+            itemInventory: [item], // 添加购买的物品
+          };
+          await ctx.database.create('deerpipe', userRecord);
+        } else {
+          // 如果用户记录存在，更新道具清单
+          if (!userRecord.itemInventory) {
+            userRecord.itemInventory = []; // 避免 itemInventory 为 null
+          }
+          userRecord.itemInventory.push(item);
+          await ctx.database.set('deerpipe', { userid: userId }, { itemInventory: userRecord.itemInventory });
+        }
+
+        // 返回购买成功的提示和余额信息
+        const newBalance = balance - Math.abs(cost);
+        await session.send(`购买成功！已购买 ${item}，剩余点数为 ${newBalance}。`);
+
+      } catch (error) {
+        ctx.logger.error(`用户 ${userId} 购买 ${item} 时出错: ${error}`);
+        await session.send(`购买 ${item} 时出现问题，请稍后再试。`);
+      }
+    });
+
   ctx.command('deerpipe/戴锁', '允许/禁止别人帮你鹿', { authority: 1 })
-    // 切换模式，有些人不喜欢天天群友艾特他鹿，觉得烦人咪
     .alias('脱锁')
     .alias('带锁')
+    .userFields(["id"])
     .action(async ({ session }) => {
       const userId = session.userId;
       const [user] = await ctx.database.get('deerpipe', { userid: userId });
 
-      if (user) {
-        user.allowHelp = !user.allowHelp; // 切换 allowHelp 值
-        await ctx.database.set('deerpipe', { userid: userId }, { allowHelp: user.allowHelp });
-        const status = user.allowHelp ? '允许' : '禁止';
-        await session.send(session.text(`.tip`, [status]));
-      } else {
+      if (!user) {
         await session.send(session.text(`.notfound`));
+        return;
       }
+
+
+      if (!user.itemInventory || !user.itemInventory.includes('锁')) {
+        await session.send(session.text('.no_item'));
+        return;
+      }
+
+      const cost = config.cost.checkin_reward.find(c => c.command === '戴锁').cost;
+
+      const balance = await getUserCurrency(ctx, session.user.id);
+      if (balance + cost < 0) {
+        await session.send(session.text(`.no_balance`, [balance]));
+        return;
+      }
+
+      user.allowHelp = !user.allowHelp;
+      await ctx.database.set('deerpipe', { userid: userId }, { allowHelp: user.allowHelp });
+      const status = user.allowHelp ? '允许' : '禁止';
+
+      const index = user.itemInventory.indexOf('锁');
+      if (index !== -1) {
+        user.itemInventory.splice(index, 1);
+      }
+      await ctx.database.set('deerpipe', { userid: userId }, { itemInventory: user.itemInventory });
+
+      await updateUserCurrency(ctx, session.user.id, cost);
+
+      await session.send(session.text(`.successtip`, [status, balance + cost]));
     });
+
   //看看日历
   ctx.command('deerpipe/看鹿 [user]', '查看用户签到日历', { authority: 1 })
     .alias('看🦌')
     .alias('看看日历')
+    .userFields(["id"])
     .example('看鹿  @用户')
     .action(async ({ session }, user) => {
       const currentDate = new Date();
@@ -217,7 +331,6 @@ export function apply(ctx: Context, config: Config) {
       const currentMonth = currentDate.getMonth() + 1;
       let targetUserId = session.userId;
       let targetUsername = session.username;
-
       if (user) {
         const parsedUser = h.parse(user)[0];
         if (parsedUser?.type === 'at') {
@@ -240,14 +353,17 @@ export function apply(ctx: Context, config: Config) {
         await session.send('未找到该用户的签到记录。');
         return;
       }
-
+      // 获取用户余额
+      const balance = await getUserCurrency(ctx, session.user.id);
       const imgBuf = await renderSignInCalendar(ctx, targetUserId, targetUsername, currentYear, currentMonth);
       const calendarImage = h.image(imgBuf, 'image/png');
+      await session.send(h.text(session.text(`.balance`, [balance])));
       await session.send(calendarImage);
     });
 
   ctx.command('deerpipe/鹿 [user]', '鹿管签到', { authority: 1 })
     .alias('🦌')
+    .userFields(["id"])
     .example('鹿  @用户')
     .action(async ({ session }, user) => {
       const currentDate = new Date();
@@ -255,6 +371,7 @@ export function apply(ctx: Context, config: Config) {
       const currentMonth = currentDate.getMonth() + 1;
       const currentDay = currentDate.getDate();
       const recordtime = `${currentYear}-${currentMonth}`;
+      const cost = config.cost.checkin_reward.find(c => c.command === '鹿').cost;
       let targetUserId = session.userId;
       let targetUsername = session.username;
 
@@ -287,8 +404,9 @@ export function apply(ctx: Context, config: Config) {
           recordtime,
           checkindate: [`${currentDay}=1`],
           totaltimes: 1,
-          resigntimes: 0,
+          //resigntimes: 0,
           allowHelp: true, // 默认允许帮助
+          itemInventory: [],
         };
         await ctx.database.create('deerpipe', targetRecord);
       } else {
@@ -356,12 +474,8 @@ export function apply(ctx: Context, config: Config) {
 
       // 检查目标用户是否允许别人帮助签到
       if (targetUserId !== session.userId) {
-        if (!targetRecord.allowHelp) {
-          await session.send(session.text('.not_allowHelp'));
-          return;
-        }
-
         let [helperRecord] = await ctx.database.get('deerpipe', { userid: session.userId });
+
         if (!helperRecord) {
           helperRecord = {
             userid: session.userId,
@@ -370,31 +484,49 @@ export function apply(ctx: Context, config: Config) {
             recordtime,
             checkindate: [],
             totaltimes: 0,
-            resigntimes: 1,
             allowHelp: true, // 默认允许帮助
+            itemInventory: [],
           };
           await ctx.database.create('deerpipe', helperRecord);
-        } else {
-          helperRecord.resigntimes += 1;
-          await ctx.database.set('deerpipe', { userid: session.userId }, {
-            resigntimes: helperRecord.resigntimes,
-          });
         }
 
-        await session.send(`${h.at(session.userId)} ${session.text('.Help_sign_in', [targetUserId])} `);
+        // 检查是否允许帮助签到
+        if (!targetRecord.allowHelp) {
+          const hasKey = helperRecord.itemInventory.includes('钥匙');
+          if (hasKey && config.enable_use_key_to_help) {
+            // 消耗一个钥匙
+            const keyIndex = helperRecord.itemInventory.indexOf('钥匙');
+            if (keyIndex !== -1) {
+              helperRecord.itemInventory.splice(keyIndex, 1);
+              await ctx.database.set('deerpipe', { userid: session.userId }, {
+                itemInventory: helperRecord.itemInventory,
+              });
+              await session.send(session.text('.use_key_to_help', [targetUserId]));
+            }
+          } else {
+            await session.send(session.text('.not_allowHelp'));
+            return;
+          }
+        }
+
+        // 增加帮助者的货币
+        const reward = cost * 1.5;
+        await updateUserCurrency(ctx, session.user.id, reward);
+        await session.send(`${h.at(session.userId)} ${session.text('.Help_sign_in', [targetUserId, reward])}`);
       }
+
 
       const imgBuf = await renderSignInCalendar(ctx, targetUserId, targetUsername, currentYear, currentMonth);
       const calendarImage = h.image(imgBuf, 'image/png');
       await session.send(calendarImage);
-      await session.send(`${h.at(targetUserId)} ${session.text('.Sign_in_success', [targetRecord.totaltimes])}`);
+      // 增加帮助者的货币
+      await updateUserCurrency(ctx, session.user.id, cost);
+      await session.send(`${h.at(targetUserId)} ${session.text('.Sign_in_success', [targetRecord.totaltimes, cost])}`);
       if (config.enable_blue_tip) {
         await session.send(session.text('.enable_blue_tip'));
       }
       return;
     });
-
-
 
   ctx.command('deerpipe/鹿管排行榜', '查看签到排行榜', { authority: 1 })
     .alias('🦌榜')
@@ -539,24 +671,34 @@ ${deer.order === 3 ? '<span class="medal">🥉</span>' : ''}
 
   ctx.command('deerpipe/补鹿 <day>', '补签某日', { authority: 1 })
     .alias('补🦌')
+    .userFields(["id"])
     .example('补🦌  1')
     .action(async ({ session }, day: string) => {
       const dayNum = parseInt(day, 10);
-
+      const cost = config.cost.checkin_reward.find(c => c.command === '补鹿').cost;
       const currentDate = new Date();
       const currentYear = currentDate.getFullYear();
       const currentMonth = currentDate.getMonth() + 1;
       const currentDay = currentDate.getDate();
       const recordtime = `${currentYear}-${currentMonth}`;
+
+      // 校验输入日期
       if (isNaN(dayNum) || dayNum < 1 || dayNum > 31 || dayNum > currentDay) {
         await session.send(session.text('.invalid_day'));
         return;
       }
 
+      // 获取用户记录
       let [record] = await ctx.database.get('deerpipe', { userid: session.userId });
+      if (!record) {
+        await session.send(session.text('.No_record'));
+        return;
+      }
 
-      if (!record || record.resigntimes <= 0) {
-        await session.send(session.text('.No_resign_chance'));
+      // 获取用户余额
+      const balance = await getUserCurrency(ctx, session.user.id);
+      if (balance < Math.abs(cost)) {
+        await session.send(session.text('.Insufficient_balance'));
         return;
       }
 
@@ -566,53 +708,62 @@ ${deer.order === 3 ? '<span class="medal">🥉</span>' : ''}
         record.username = username;
       }
 
-      // 检查补签日期
-      const dayRecordIndex = record.checkindate.findIndex(date => date.startsWith(`${dayNum}`));
-      let dayRecord = dayRecordIndex !== -1 ? record.checkindate[dayRecordIndex] : `${dayNum}=0`;
-      //const [dayStr, count] = dayRecord.split('=');
-      const [dayStr, count] = dayRecord.includes('=') ? dayRecord.split('=') : [dayRecord, '1']; // 解析 dayRecord 时，检查是否包含 =。如果没有，默认次数为 1
+      // 更严格的日期匹配逻辑，确保找到确切的 dayNum
+      const dayRecordIndex = record.checkindate.findIndex(date => {
+        const [dayStr] = date.split('=');
+        return parseInt(dayStr, 10) === dayNum;
+      });
 
+      let dayRecord = dayRecordIndex !== -1 ? record.checkindate[dayRecordIndex] : `${dayNum}=0`;
+      const [dayStr, count] = dayRecord.includes('=') ? dayRecord.split('=') : [dayRecord, '0'];
       const currentSignInCount = parseInt(count) || 0; // 当前当天签到次数
 
       // 检查是否超过签到次数上限
       if (currentSignInCount >= config.maximum_times_per_day) {
-        await session.send(`${dayStr}号的签到次数已经达到上限 ${config.maximum_times_per_day} 次，请换别的日期补签吧\~`);
+        await session.send(session.text('.maximum_times_per_day', [dayStr, config.maximum_times_per_day]));
         return;
       }
 
-      // 如果没有达到上限，允许签到
-      let newCount = currentSignInCount + 1; // 增加签到次数
-
-      if (dayRecordIndex !== -1 && !config.enable_deerpipe && parseInt(count) > 0) {
+      // 更新签到次数
+      let newCount = currentSignInCount + 1;
+      if (dayRecordIndex !== -1 && !config.enable_deerpipe && currentSignInCount > 0) {
         await session.send(`${h.at(session.userId)} ${session.text('.Already_resigned', [dayNum])}`);
         return;
       }
 
+      // 更新或插入签到记录
       if (dayRecordIndex !== -1) {
         record.checkindate[dayRecordIndex] = `${dayStr}=${newCount}`;
       } else {
-        record.checkindate.push(`${dayStr}=1`);
+        record.checkindate.push(`${dayNum}=1`);
       }
 
+      // 更新总签到次数
       record.totaltimes += 1;
-      record.resigntimes -= 1;
 
+      // 执行货币扣除
+      await updateUserCurrency(ctx, session.user.id, cost);
+
+      // 更新数据库
       await ctx.database.set('deerpipe', { userid: session.userId }, {
         username: record.username,
         checkindate: record.checkindate,
         totaltimes: record.totaltimes,
-        resigntimes: record.resigntimes,
       });
 
+      // 渲染签到日历
       const imgBuf = await renderSignInCalendar(ctx, session.userId, username, currentYear, currentMonth);
       const calendarImage = h.image(imgBuf, 'image/png');
 
+      // 发送签到成功信息
       await session.send(calendarImage);
-      await session.send(`${h.at(session.userId)} ${session.text('.Resign_success', [dayNum, record.resigntimes])}`);
+      await session.send(`${h.at(session.userId)} ${session.text('.Resign_success', [dayNum, cost])}`);
     });
 
   ctx.command('deerpipe/戒鹿 [day]', '取消某日签到', { authority: 1 })
     .alias('戒🦌')
+    .alias('寸止')
+    .userFields(["id"])
     .example('戒🦌  1')
     .action(async ({ session }, day?: string) => {
       const currentDate = new Date();
@@ -649,6 +800,13 @@ ${deer.order === 3 ? '<span class="medal">🥉</span>' : ''}
           }
 
           record.totaltimes -= 1;
+
+          // 从配置中获取取消签到的奖励或费用
+          const cost = config.cost.checkin_reward.find(c => c.command === '戒鹿').cost;
+
+          // 更新用户货币
+          await updateUserCurrency(ctx, session.user.id, cost);
+
           await ctx.database.set('deerpipe', { userid: session.userId }, {
             username: record.username,
             checkindate: record.checkindate,
@@ -660,7 +818,7 @@ ${deer.order === 3 ? '<span class="medal">🥉</span>' : ''}
           const calendarImage = h.image(imgBuf, 'image/png');
 
           await session.send(calendarImage);
-          await session.send(`${h.at(session.userId)} ${session.text('.Cancel_sign_in_success', [dayNum])}`);
+          await session.send(`${h.at(session.userId)} ${session.text('.Cancel_sign_in_success', [dayNum, cost])}`);
 
         } else {
           await session.send(`${h.at(session.userId)} ${session.text('.No_sign_in', [dayNum])}`);
@@ -671,10 +829,44 @@ ${deer.order === 3 ? '<span class="medal">🥉</span>' : ''}
     });
 
 
-
   function loggerinfo(message) {
     if (config.loggerinfo) {
       ctx.logger.info(message);
+    }
+  }
+
+  async function updateUserCurrency(ctx: Context, uid, amount: number, currency: string = 'deerpipe') {
+    try {
+      const numericUserId = Number(uid); // 将 userId 转换为数字类型
+
+      //  通过 ctx.monetary.gain 为用户增加货币，
+      //  或者使用相应的 ctx.monetary.cost 来减少货币
+      if (amount > 0) {
+        await ctx.monetary.gain(numericUserId, amount, currency);
+        loggerinfo(`为用户 ${uid} 增加了 ${amount} ${currency}`);
+      } else if (amount < 0) {
+        await ctx.monetary.cost(numericUserId, -amount, currency);
+        loggerinfo(`为用户 ${uid} 减少了 ${-amount} ${currency}`);
+      }
+
+      return `用户 ${uid} 成功更新了 ${Math.abs(amount)} ${currency}`;
+    } catch (error) {
+      ctx.logger.error(`更新用户 ${uid} 的货币时出错: ${error}`);
+      return `更新用户 ${uid} 的货币时出现问题。`;
+    }
+  }
+  async function getUserCurrency(ctx, uid, currency = 'deerpipe') {
+    try {
+      const numericUserId = Number(uid);
+      const [data] = await ctx.database.get('monetary', {
+        uid: numericUserId,
+        currency,
+      }, ['value']);
+
+      return data ? data.value : 0;
+    } catch (error) {
+      ctx.logger.error(`获取用户 ${uid} 的货币时出错: ${error}`);
+      return 0; // Return 0 
     }
   }
 
