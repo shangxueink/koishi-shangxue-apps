@@ -14,11 +14,13 @@ interface FilterRule {
 }
 
 export async function readFilterRule(baseDir: string) : Promise<FilterRule> {
-        const ymlPath = path.join(baseDir, 'data', 'storeluna', 'filterrule.yaml')
+        const ymlPath = path.join(baseDir, 'data', 'storeluna', 'filterrule.yml')
         const resourcesPath = path.join(baseDir, 'node_modules', 'koishi-plugin-storeluna', 'resources')
 
+        fs.mkdir(ymlPath, { recursive: true })
+
         if (!(await fs.access(ymlPath).then(() => true).catch(() => false))) {
-                await fs.copyFile(path.join(resourcesPath, 'defaultfilterrule.yaml'), ymlPath)
+                await fs.copyFile(path.join(resourcesPath, 'defaultfilterrule.yml'), ymlPath)
         }
         const data = await fs.readFile(ymlPath, 'utf-8')
         const filterRule = parse(data) as FilterRule
@@ -27,6 +29,7 @@ export async function readFilterRule(baseDir: string) : Promise<FilterRule> {
 
 export function SearchFilter(data: SearchResult, config: Config, rule: FilterRule) : SearchResult {
         let filtered: SearchObject[] = []
+        
 
         if (config.filterUnsafe) {
                 data.objects = data.objects.filter(item => {
@@ -55,6 +58,8 @@ export function SearchFilter(data: SearchResult, config: Config, rule: FilterRul
                         data.objects.push(item)
                 }
         })
+
+        data.objects.push
 
         return data
 }
