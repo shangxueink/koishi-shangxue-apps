@@ -43,7 +43,7 @@ export function SearchFilter(data: SearchResult, config: Config, rule: FilterRul
                 })
         }
 
-        if (config.filterRule) return data
+        if (!config.filterRule) return data
 
         if (rule.blacklist.shortname.length !== 0) {
                 data.objects = data.objects.filter(item => {
