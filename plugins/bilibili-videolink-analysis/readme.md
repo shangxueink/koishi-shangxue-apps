@@ -178,6 +178,9 @@ https://www.bilibili.com/video/BV1ii421Q7oj
 <details>
 <summary>点击此处 可查看更新日志</summary>
 
+-   **1.0.0**
+    -   不想写了
+
 -   **0.6.3**
     -   修复单独的bv号解析报错
     -   0.6.2更新了点播，忘写了

@@ -1,8 +1,8 @@
 {
   "name": "koishi-plugin-bilibili-videolink-analysis",
-  "description": "[<ruby>Bilibili视频解析<rp>（</rp><rt>点我查看食用方法</rt><rp>）</rp></ruby>](https://www.npmjs.com/package/koishi-plugin-bilibili-videolink-analysis)解析B站链接（支持小程序卡片）支持搜索点播功能！灵感来自强大的 [iirose-media-request](/market?keyword=iirose-media-request) 以及完美的 [bili-parser](/market?keyword=bili-parser) ，十分感谢这两个优秀的项目！",
+  "description": "[<ruby>Bilibili视频解析<rp>（</rp><rt>点我查看食用方法</rt><rp>）</rp></ruby>](https://www.npmjs.com/package/koishi-plugin-bilibili-videolink-analysis)解析B站链接（支持小程序卡片）支持搜索点播功能！灵感来自完美的 [bili-parser](/market?keyword=bili-parser) ！",
   "license": "MIT",
-  "version": "0.6.3",
+  "version": "1.0.0",
   "main": "lib/index.js",
   "typings": "lib/index.d.ts",
   "files": [
@@ -22,7 +22,6 @@
     "bilibili-videolink-analysis"
   ],
   "peerDependencies": {
-    "koishi": "^4.16.8",
-    "koishi-plugin-bilibili-login": "^0.1.50"
+    "koishi": "^4.16.8"
   }
 }
