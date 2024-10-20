@@ -2,7 +2,7 @@ import { Context } from 'koishi'
 import {} from '@koishijs/plugin-server'
 import { SearchResult } from '@koishijs/registry'
 import { Config } from './config'
-import { SearchFilter, readFilterRule } from './filter'
+import { FilterRule, SearchFilter, readFilterRule } from './filter'
 
 export const name = 'storeluna'
 export * from './config'
@@ -17,44 +17,55 @@ export async function apply(ctx: Context, config: Config) {
         const logger = ctx.logger('storeluna')
         const filterRule = await readFilterRule(ctx.baseDir)
 
-        if (ctx.server) {
-                logger.info(`同步上游: ${upstream}`)
-                let data: SearchResult = await getFromUpstream(ctx, upstream)
-                data = SearchFilter(data, config, filterRule)
+        if (!ctx.server) {
+                logger.error('server加载失败插件')
+                return
+        }
 
-                ctx.setInterval(async () => {
-                        const response = await getFromUpstream(ctx, upstream)
+        let data: SearchResult = await updateFromUpstream(ctx, upstream, config, filterRule)
+        logger.info(`同步上游: ${upstream}`)
 
-                        if (response) {
-                                data = data = SearchFilter(response, config, filterRule)
-                                logger.info(`同步成功: ${upstream}`)
-                        } else {
-                                logger.warn(`同步失败: ${upstream}`)
-                        }
-                }, time * 1000)
+        ctx.setInterval(async () => {
+                const response = await updateFromUpstream(ctx, upstream, config, filterRule)
 
-                try {
-                        ctx.server['get'](serverPath, (ctx) => {
-                                ctx.set('Content-Type', 'application/json')
-                                ctx.status = 200
-                                ctx.body = data
-                        })
-                        logger.info(`监听路径: ${serverPath}`)
-                } catch (error) {
-                        logger.error(error)
+                if (response) {
+                        data = response
+                        logger.info(`同步成功: ${upstream}`)
+                } else {
+                        logger.warn(`同步失败: ${upstream}`)
                 }
+        }, time * 1000)
 
-                ctx.on('dispose', () => {
-                        ctx.loader.fullReload()
+        try {
+                ctx.server['get'](serverPath, (ctx) => {
+                        ctx.status = 200
+                        ctx.body = data
                 })
+                logger.info(`监听路径: ${serverPath}`)
+        } catch (error) {
+                logger.error(error)
         }
 }
 
-//从上游获取信息下载到指定路径
-async function getFromUpstream(ctx: Context, upstream: string) : Promise<any> {
+async function updateFromUpstream(
+        ctx: Context, 
+        upstream: string, 
+        config: Config, 
+        filterRule: FilterRule
+) : Promise<SearchResult> {
         try {
-                const response = await ctx.http.get(upstream)
-                return response
+                const response: SearchResult = await ctx.http.get<SearchResult>(upstream)
+                const data: SearchResult = SearchFilter(response, config, filterRule)
+                if (!config.updateNotice) return data
+                
+                data.objects.forEach(item => {
+                        if (item.shortname !== 'storeluna') return
+
+                        const Notice = config.Notice.replace('{date}', new Date().toLocaleString())
+                        item.manifest.description = Notice
+                        item.rating = 6667
+                })
+                return data
         } catch (error) {
                 ctx.logger('storeluna').error(error)
         }
