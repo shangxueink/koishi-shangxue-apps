@@ -14,6 +14,7 @@ export async function apply(ctx: Context, config: Config) {
         const upstream = config.upstream
         const serverPath = config.path
         const time = config.time
+        const reportTime = config.reportTime
         const logger = ctx.logger('storeluna')
         const filterRule = await readFilterRule(ctx.baseDir)
 
@@ -22,24 +23,41 @@ export async function apply(ctx: Context, config: Config) {
                 return
         }
 
+        let visitCountBuffer = new SharedArrayBuffer(4)
+        let visitCount = new Int32Array(visitCountBuffer)
+        let syncCount = 0
+        let successCount = 0
         let data: SearchResult = await updateFromUpstream(ctx, upstream, config, filterRule)
-        logger.info(`同步上游: ${upstream}`)
+
+        syncCount++
+        if (data) {
+                logger.info(`同步上游: ${upstream}`)
+                successCount++
+        }
 
         ctx.setInterval(async () => {
                 const response = await updateFromUpstream(ctx, upstream, config, filterRule)
+                syncCount++
 
                 if (response) {
                         data = response
-                        logger.info(`同步成功: ${upstream}`)
-                } else {
-                        logger.warn(`同步失败: ${upstream}`)
+                        successCount++
                 }
         }, time * 1000)
+
+        ctx.setInterval(() => {
+                const reportContent = config.reportContent
+                        .replace('{visitCount}', `${Atomics.load(visitCount, 0)}`)
+                        .replace('{syncCount}', `${syncCount}`)
+                        .replace('{successCount}', `${successCount}`)
+                logger.info(reportContent)
+        }, reportTime * 1000)
 
         try {
                 ctx.server['get'](serverPath, (ctx) => {
                         ctx.status = 200
                         ctx.body = data
+                        Atomics.add(visitCount, 0, 1)
                 })
                 logger.info(`监听路径: ${serverPath}`)
         } catch (error) {
