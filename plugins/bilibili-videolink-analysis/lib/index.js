@@ -128,7 +128,7 @@ function apply(ctx, config) {
     });
 
     ctx.command('B站点播')
-    ctx.command('退出登录', '退出B站账号')
+    ctx.command('B站点播/退出登录', '退出B站账号')
         .action(async ({ session }) => {
             const page = await ctx.puppeteer.page();
             await page.goto('https://www.bilibili.com/', { waitUntil: 'networkidle2' });
@@ -138,7 +138,8 @@ function apply(ctx, config) {
 
             if (!isLoggedIn) {
                 await page.close();
-                return '您尚未登录。';
+                await session.send(h.text('您尚未登录。'))
+                return;
             }
 
             const avatarLinkSelector = '.header-entry-mini';
@@ -147,23 +148,26 @@ function apply(ctx, config) {
             try {
                 const avatarElement = await page.$(avatarLinkSelector);
                 if (avatarElement) {
-                    await avatarElement.hover(); 
-                    await page.waitForSelector(logoutButtonSelector, { visible: true }); 
+                    await avatarElement.hover();
+                    await page.waitForSelector(logoutButtonSelector, { visible: true });
 
                     await page.click(logoutButtonSelector);
 
                     await new Promise(resolve => setTimeout(resolve, 1000));
 
                     await page.close();
-                    return '已成功退出登录。';
+                    await session.send(h.text('已成功退出登录。'))
+                    return;
                 } else {
                     await page.close();
-                    return '找不到用户头像，无法退出登录。';
+                    await session.send(h.text('找不到用户头像，无法退出登录。'))
+                    return;
                 }
             } catch (error) {
                 await page.close();
-                console.error('Error during logout:', error);
-                return '退出登录时出错。';
+                logger.error('Error during logout:', error);
+                await session.send(h.text('退出登录时出错。'))
+                return;
             }
         });
 
@@ -178,7 +182,8 @@ function apply(ctx, config) {
 
             if (isLoggedIn) {
                 await page.close();
-                return '您已经登录了。';
+                await session.send(h.text('您已经登录了。'))
+                return;
             }
 
             await page.click(loginButtonSelector);
@@ -206,8 +211,8 @@ function apply(ctx, config) {
             }
 
             await page.close();
-
-            return loginSuccessful ? '登录成功！' : '登录失败，请重试。';
+            await session.send(h.text(loginSuccessful ? '登录成功！' : '登录失败，请重试。'))
+            return;
         });
 
     if (config.loggerinfo) {
@@ -326,7 +331,8 @@ function apply(ctx, config) {
         .action(async ({ options, session }, keyword) => {
             if (!keyword) {
                 await session.execute('点播 -h')
-                return '没输入点播内容'
+                await session.send(h.text('没输入点播内容'))
+                return
             }
 
 
@@ -399,7 +405,8 @@ display: none !important;
 
             if (videos.length === 0) {
                 await page.close()
-                return '未找到相关视频。'
+                await session.send(h.text('未找到相关视频。'))
+                return
             }
 
             // 动态调整窗口大小以适应视频数量
@@ -430,7 +437,8 @@ display: none !important;
             const userChoice = await session.prompt(config.timeout * 1000)
             const choiceIndex = parseInt(userChoice) - 1
             if (isNaN(choiceIndex) || choiceIndex < 0 || choiceIndex >= videos.length) {
-                return '输入无效，请输入正确的序号。'
+                await session.send(h.text('输入无效，请输入正确的序号。'))
+                return
             }
 
             // 返回用户选择的视频ID
