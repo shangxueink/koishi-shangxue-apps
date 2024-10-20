@@ -1,6 +1,6 @@
 {
   "name": "koishi-plugin-patina",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "/*有趣小网站合集*/ 电子包浆、蒸 気 機、斜着看... 许多有趣的功能，旨在通过 puppeteer 来让你的bot获得更多功能！",
   "main": "lib/index.js",
   "typings": "lib/index.d.ts",
@@ -12,6 +12,7 @@
     "koishi",
     "plugin",
     "puppeteer",
+    "神奇海螺试验场",
     "有趣小网站合集电子包浆、蒸 気 機、斜着看"
   ],
   "license": "MIT",

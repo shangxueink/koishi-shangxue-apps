@@ -22,6 +22,7 @@ exports.usage = `
 <body>
 
 ### 本插件 旨在使用puppeteer来操作一些有趣的网页，让bot实现网页的部分功能
+> 推荐的 [puppeteer插件](/market?keyword=puppeteer+shangxue) 
 #### 本插件提供了多个指令，使用方法如下：
 <details>
 <summary>点击此处查看——包浆</summary>
@@ -63,6 +64,19 @@ exports.usage = `
 <p>触发指令后会返回图片</p>
 </details>
 
+<details>
+<summary>点击此处查看——福音战士</summary>
+<p>通过调用 puppeteer 操作网页，模拟图像处理</p>
+<p>如果你需要更详细地了解这个项目，请前往 
+<a href="https://lab.magiconch.com/eva-title/" target="_blank">https://lab.magiconch.com/eva-title/</a>
+</p>
+<h2>功能示例</h2>
+<pre>
+福音战士 小学 来感觉 第一集 -l e1 -c 黑黄 -a 3:3
+</pre>
+<p>触发指令后会返回图片</p>
+</details>
+
 ---
 
 > 目前就这几个指令 ，以后有什么好玩的再加。
@@ -81,6 +95,7 @@ exports.Config = Schema.intersect([
         imageQuality: Schema.number().role('slider').min(0).max(60).step(1).default(50).description("画质（百分比）"),
         //uuname: Schema.string().role('textarea', { rows: [2, 4] }).description("水印用户名们<br>换行分割，0000替代随机数字、_半角下划线替代-_+~!^&、.。”“\"'|随机字符"), // 有点麻烦，算了
     }).description('包浆'),
+
     Schema.object({
 
         defaultPreset: Schema.union([
@@ -102,12 +117,13 @@ exports.Config = Schema.intersect([
             '全损宇宙', '怪核文化', '理想循环', '废墟信号', '白紙紅印', '情緒氣泡', '白糖年糕',
             '蓝调胶片', '逆转宇宙'
         ]).description('默认预设(滤镜)<br>建议前往 https://magiconch.com/vaporwave/ 查看具体效果').default("黃昏瑪麗"),
-        useOriginalImageSize: Schema.boolean().default(true).description("原始尺寸处理（性能差）<br>开启后 画幅比例 、拉伸方案 失效"),
+        useOriginalImageSize: Schema.boolean().default(false).description("原始尺寸处理（性能差）<br>开启后 画幅比例 、拉伸方案 失效"),
         watermarkEnabled: Schema.boolean().default(false).description("开启水印（默认关闭）"),
-        waitTime: Schema.number().default(2).description("处理图像的等待时间（秒）").min(0.5).max(10),
+        waitTime: Schema.number().default(2).description("处理图像的每一步的等待时间（秒）<br>实际会花费三倍此时间，因为有三步").min(0.5).max(10),
         //aspectRatio: Schema.union(['4:3', '16:9', '21:9', '1:1']).description('画幅比例').default("4:3"), // 用不到，只做预设的滤镜 足够了
         //scalingMode: Schema.union(['填充', '完整', '拉伸']).description('拉伸方案').default("填充"),// 用不到，只做预设的滤镜 足够了
     }).description('蒸 気 機'),
+
     /*
     Schema.object({
     isRevokeEnabled: Schema.boolean().default(false).description("撤回输入图片"), // 是否执行撤回
@@ -116,9 +132,17 @@ exports.Config = Schema.intersect([
     textPromptContent: Schema.string().default("不准色色！"), // 文字提示内容        
     }).description('鉴黄'),
     */
+
     Schema.object({
         default_title: Schema.string().default("从充电口斜着看").description("默认的图片标题"), // 文字提示内容        
     }).description('斜着看生成器'),
+
+    Schema.object({
+        layout: Schema.union(['e1', 'e13', 'e25', 'e12', 'e3', 'e25-2', 'e4', 'air', 'e24', 'e26', 'anno-kandoku', 'e15', 'eng-title', 'do-you-love-me', 'e20', 'e10']).default("e1").description("默认排版<br>建议前往 https://lab.magiconch.com/eva-title/ 查看"),
+        colorScheme: Schema.union(['黑白', '白黑', '黑红', '红白', '黑黄']).default("黑白").description("色彩样式。默认文字颜色样式"),
+        aspectRatio: Schema.union(['4:3', '16:9', '3:3', '5:4', '3:2']).default("4:3").description("画面比例。默认输出的图片比例"),
+    }).description('福音戰士標題生成器'),
+
     Schema.object({
         loggerinfo: Schema.boolean().default(false).description("日志调试模式"),
     }).description('调试设置'),
@@ -131,13 +155,145 @@ async function downloadImage(ctx, url, filepath) {
 }
 
 async function apply(ctx, config) {
+    ctx.command("patina", "网页小合集")
+    // 这些都是海螺的
+    // https://lab.magiconch.com/
+    ctx.command("patina/福音战士 [text1] [text2] [text3]", "福音戰士標題生成器")
+        .option('layout', '-l <layout:string>', '默认排版')
+        .option('colorScheme', '-c <colorScheme:string>', '默认文字颜色样式')
+        .option('aspectRatio', '-a <aspectRatio:string>', '默认输出的图片比例')
+        .example("福音战士 小学 来感觉 第一集 -l e1 -c 黑黄 -a 3:3")
+        .action(async ({ session, options }, text1, text2, text3) => {
+            if (!text1 && !text2) {
+                await session.execute("福音战士 -h");
+                return;
+            }
+
+            const layout = options.layout || config.layout || "e1";
+            const colorScheme = options.colorScheme || config.colorScheme;
+            const aspectRatio = options.aspectRatio || config.aspectRatio;
+
+            const layoutOptions = ['e1', 'e13', 'e25', 'e12', 'e3', 'e25-2', 'e4', 'air', 'e24', 'e26', 'anno-kandoku', 'e15', 'eng-title', 'do-you-love-me', 'e20', 'e10'];
+            const colorSchemeOptions = ['黑白', '白黑', '黑红', '红白', '黑黄'];
+            const aspectRatioOptions = ['4:3', '16:9', '3:3', '5:4', '3:2'];
+
+            function validateInput(value, allowedValues, name) {
+                if (!allowedValues.includes(value)) {
+                    throw new Error(`不可用的 ${name} 值: ${value} \n允许的内容: ${allowedValues.join(', ')}`);
+                }
+            }
+
+            try { // 检查输入
+                validateInput(layout, layoutOptions, 'layout');
+                validateInput(colorScheme, colorSchemeOptions, 'colorScheme');
+                validateInput(aspectRatio, aspectRatioOptions, 'aspectRatio');
+            } catch (error) {
+                await session.send(error.message);
+                return;
+            }
+
+            if (!text1 && !text2) {
+                await session.execute("福音战士 -h");
+                return;
+            } else {
+                await session.send("正在处理中，请稍后...");
+            }
+
+            if (!ctx.puppeteer) {
+                await session.send("没有开启 Puppeteer 服务");
+                return;
+            }
+
+            const page = await ctx.puppeteer.page();
+
+            try {
+                // 打开目标网页
+                await page.goto(`https://lab.magiconch.com/eva-title/?layout=${layout}`, {
+                    waitUntil: 'networkidle2'
+                });
+
+                // 输入文本到对应的输入框
+                const inputBoxes = await page.$$('.inputs-box .input-item input');
+                const texts = [text1, text2, text3];
+                for (let i = 0; i < inputBoxes.length; i++) {
+                    if (texts[i]) {
+                        await inputBoxes[i].type(texts[i], { delay: 100 });
+                    }
+                }
+
+                // 点击页面空白处，完成输入
+                await page.click('h2');
+
+                // 检查并处理不匹配字形
+                const mismatchButton = await page.$('button[data-text="尝试替换不匹配字形"]');
+                if (mismatchButton) {
+                    await mismatchButton.click();
+                }
+
+                await page.evaluate((colorScheme) => {
+                    const colorElements = Array.from(document.querySelectorAll('.config-item .ui-tabs-box a'));
+                    colorElements.forEach(el => {
+                        console.log('Element data-text:', el.getAttribute('data-text'));
+                    });
+
+                    const colorElement = colorElements.find(el => el.getAttribute('data-text') === colorScheme);
+                    if (colorElement) {
+                        console.log(`Clicking on color scheme: ${colorScheme}`);
+                        colorElement.click();
+                    } else {
+                        console.warn(`Color scheme "${colorScheme}" not found.`);
+                    }
+                }, colorScheme);
 
 
-    ctx.command("斜着看 [text1] [text2] [title]", "生成斜着看的图")
+
+                // 设置画面比例
+                await page.evaluate((aspectRatio) => {
+                    const ratioElement = Array.from(document.querySelectorAll('.config-item .ui-tabs-box a'))
+                        .find(el => el.getAttribute('data-text') === aspectRatio);
+                    if (ratioElement) {
+                        ratioElement.click();
+                    }
+                }, aspectRatio);
+
+                // 点击生成按钮
+                await page.click('.ctrl-box button[data-text="生成"]');
+
+                // 等待输出的图像渲染完成
+                await page.waitForSelector('section.output-box canvas', { visible: true });
+
+                // 使用 setTimeout 等待一段时间确保图像渲染完成
+                await new Promise(resolve => setTimeout(resolve, 2000));
+
+                // 从 canvas 获取图像数据
+                const imageData = await page.evaluate(() => {
+                    const canvas = document.querySelector('section.output-box canvas');
+                    return canvas.toDataURL('image/png');
+                });
+
+
+                await session.send(h.image(imageData));
+
+            } catch (error) {
+                ctx.logger.error('生成图片时出错:', error);
+                await session.send("生成图片时出错，请重试。");
+            } finally {
+                await page.close();
+            }
+        });
+
+    ctx.command("patina/斜着看 [text1] [text2] [title]", "生成斜着看的图")
         .option('default_title', '-d <title:string>', '默认标题')
         .example("斜着看 我喜欢你 我也是 -d 把屏幕放平看")
         .action(async ({ session, options }, text1, text2, title) => {
             const finalTitle = title || options.default_title || config.default_title;
+
+            if (!text1 && !text2) {
+                await session.execute("斜着看 -h");
+                return;
+            } else {
+                await session.send("正在处理中，请稍后...");
+            }
 
             // 确保 Puppeteer 服务已启动
             if (!ctx.puppeteer) {
@@ -199,7 +355,7 @@ async function apply(ctx, config) {
     });
     */
 
-    ctx.command("蒸汽机", "蒸汽机滤镜")
+    ctx.command("patina/蒸汽机", "蒸汽机滤镜")
         .option('preset', '-p <preset:string>', '预设')
         .option('rawsize', '-r', '使用原图尺寸')
         .example("蒸汽机 -p 數字信號 -r")
@@ -207,7 +363,7 @@ async function apply(ctx, config) {
             const watermarkEnabled = config.watermarkEnabled;
             const presetName = options.preset || config.defaultPreset;
             const useOriginalSize = options.rawsize !== undefined ? options.rawsize : config.useOriginalImageSize;
-            const waitTime = config.waitTime || 5000; // 默认等待时间为5秒
+            const waitTime = config.waitTime * 1000 || 5000; // 默认等待时间为5秒
 
             await session.send("请发送需要转换的图片：");
             const inputImage = await session.prompt(30000);
@@ -216,6 +372,8 @@ async function apply(ctx, config) {
             if (!inputImageUrl) {
                 await session.send("未检测到有效的图片，请重试。");
                 return;
+            } else {
+                await session.send("正在处理中，请稍后...");
             }
 
             if (!ctx.puppeteer) {
@@ -234,6 +392,15 @@ async function apply(ctx, config) {
                     waitUntil: 'networkidle2'
                 });
 
+
+                // 上传文件
+                const [fileChooser] = await Promise.all([
+                    page.waitForFileChooser(),
+                    page.click('.btn-box a.btn.big.wire')
+                ]);
+
+                await fileChooser.accept([tempImagePath]);
+
                 // 选择预设滤镜
                 await page.evaluate((presetName) => {
                     const presetElement = Array.from(document.querySelectorAll('.style-list-box .name'))
@@ -242,6 +409,20 @@ async function apply(ctx, config) {
                         presetElement.parentElement.click();
                     }
                 }, presetName);
+
+                // 等待指定时间以确保图像处理完成
+                await new Promise(resolve => setTimeout(resolve, waitTime)); // 等待 
+
+                // 判断是否使用原始尺寸
+                await page.evaluate((useOriginalSize) => {
+                    const checkbox = document.querySelector('.label-box input[type="checkbox"]');
+                    if (checkbox && checkbox.checked !== useOriginalSize) {
+                        checkbox.click();
+                    }
+                }, useOriginalSize);
+
+                // 等待指定时间以确保图像处理完成
+                await new Promise(resolve => setTimeout(resolve, waitTime)); // 等待 
 
                 // 设置水印状态
                 await page.evaluate((watermarkEnabled) => {
@@ -252,24 +433,10 @@ async function apply(ctx, config) {
                     }
                 }, watermarkEnabled);
 
-                // 判断是否使用原始尺寸
-                await page.evaluate((useOriginalSize) => {
-                    const checkbox = document.querySelector('.label-box input[type="checkbox"]');
-                    if (checkbox && checkbox.checked !== useOriginalSize) {
-                        checkbox.click();
-                    }
-                }, useOriginalSize);
-
-                // 上传文件
-                const [fileChooser] = await Promise.all([
-                    page.waitForFileChooser(),
-                    page.click('.btn-box a.btn.big.wire')
-                ]);
-
-                await fileChooser.accept([tempImagePath]);
 
                 // 等待指定时间以确保图像处理完成
-                await new Promise(resolve => setTimeout(resolve, waitTime));
+                await new Promise(resolve => setTimeout(resolve, waitTime)); // 等待 
+
 
                 // 获取输出图像
                 const outputImageBase64 = await page.evaluate(() => {
@@ -295,7 +462,7 @@ async function apply(ctx, config) {
         });
 
 
-    ctx.command("包浆", "赛博虚拟包浆器")
+    ctx.command("patina/包浆", "赛博虚拟包浆器")
         .option('green', '-g', '绿图')
         .option('watermark', '-w', '水印')
         .option('year', '-y <year:number>', '做旧年份')
@@ -314,6 +481,8 @@ async function apply(ctx, config) {
             if (!inputImageUrl) {
                 await session.send("未检测到有效的图片，请重试。");
                 return;
+            } else {
+                await session.send("正在处理中，请稍后...");
             }
 
             if (!ctx.puppeteer) {
