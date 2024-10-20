@@ -1,29 +1,61 @@
 # koishi-plugin-patina
 
 
----
-### 简介
-`赛博虚拟包浆器` 是一个用于将图片转换为具有“绿图”和“水印”等效果的工具。
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>插件说明</title>
+</head>
+<body>
 
-通过调用 puppeteer 操作网页，模拟图像处理，并可调节图像做旧年份、画质等参数。
-
----
-
-#### 配置
- 配置项定义了图像处理的默认行为，包括是否启用绿图、水印、做旧年份、图像质量等设置。
-以下为配置项说明：
-- **enable_GreenFilter**: 是否启用绿图效果（默认：启用）。
-- **enable_Watermark**: 是否启用水印（默认：启用）。
-- **vintageEffectYears**: 做旧年份，范围 1-12 年（默认：5 年）。
-- **imageQuality**: 图片质量，0-60 之间调节（默认：50%）。
-
-### 功能示例
-```bash
+### 本插件 旨在使用puppeteer来操作一些有趣的网页，让bot实现网页的部分功能
+#### 本插件提供了多个指令，使用方法如下：
+<details>
+<summary>点击此处查看——包浆</summary>
+<p>通过调用 puppeteer 操作网页，模拟图像处理，并可调节图像做旧年份、画质等参数。</p>
+<p>如果你需要更详细地了解这个项目，请前往 
+<a href="https://github.com/itorr/patina/tree/main" target="_blank">patina 项目主页（github）</a>
+</p>
+<h2>功能示例</h2>
+<pre>
 转换 -g -w -y 10 -q 60
-```
+</pre>
+<p>触发指令后会要求用户单独上传图片。</p>
+</details>
 
-### 使用步骤
-1. 启动 Koishi 命令行，运行赛博虚拟包浆器插件。
-2. 使用命令 **"转换"** 来选择处理的效果（如绿图、水印等）。
-3. 程序会提示上传图片，在规定时间内上传图片后即可进行处理。
-   
+<details>
+<summary>点击此处查看——蒸汽机</summary>
+<p>通过调用 puppeteer 操作网页，模拟图像处理</p>
+<p>如果你需要更详细地了解这个项目，请前往 
+<a href="https://magiconch.com/vaporwave/" target="_blank">https://magiconch.com/vaporwave/</a>
+</p>
+<h2>功能示例</h2>
+<pre>
+蒸汽机 -p 數字信號 -r
+</pre>
+<p>触发指令后会要求用户单独上传图片。</p>
+</details>
+
+
+<details>
+<summary>点击此处查看——斜着看生成器</summary>
+<p>通过调用 puppeteer 操作网页，模拟图像处理</p>
+<p>如果你需要更详细地了解这个项目，请前往 
+<a href="https://lab.magiconch.com/xzk/" target="_blank">https://lab.magiconch.com/xzk/</a>
+</p>
+<h2>功能示例</h2>
+<pre>
+斜着看 我喜欢你 我也是 -d 把屏幕放平看
+</pre>
+<p>触发指令后会返回图片</p>
+</details>
+
+---
+
+> 目前就这几个指令 ，以后有什么好玩的再加。
+
+---
+</body>
+</html>

@@ -1,7 +1,7 @@
 {
   "name": "koishi-plugin-patina",
-  "version": "1.0.0",
-  "description": "/*电子包浆生成器*/ 图片做旧工具，赛博包浆虚拟器，支持 图片绿化、虚拟水印、虚拟传播年份...算是个小玩具吧。",
+  "version": "1.1.0",
+  "description": "/*有趣小网站合集*/ 电子包浆、蒸 気 機、斜着看... 许多有趣的功能，旨在通过 puppeteer 来让你的bot获得更多功能！",
   "main": "lib/index.js",
   "typings": "lib/index.d.ts",
   "files": [
@@ -11,7 +11,8 @@
   "keywords": [
     "koishi",
     "plugin",
-    "电子包浆生成器"
+    "puppeteer",
+    "有趣小网站合集电子包浆、蒸 気 機、斜着看"
   ],
   "license": "MIT",
   "peerDependencies": {
