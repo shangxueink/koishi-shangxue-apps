@@ -1,10 +1,10 @@
-import * as fs from 'fs/promises'
-import * as path from 'path'
+import * as fs from 'node:fs/promises'
+import * as path from 'node:path'
 import { parse } from 'yaml'
 import { SearchObject, SearchResult } from '@koishijs/registry'
 import { Config } from './config'
 
-interface FilterRule {
+export interface FilterRule {
         blacklist: {
                 shortname: string[]
         },
@@ -34,12 +34,10 @@ export function SearchFilter(data: SearchResult, config: Config, rule: FilterRul
 
         if (config.filterUnsafe) {
                 data.objects = data.objects.filter(item => {
-                        if (item.insecure) {
-                                filtered.push(item)
-                                return false
-                        }
+                        if (!item.insecure) return true
 
-                        return true
+                        filtered.push(item)
+                        return false
                 })
         }
 
@@ -47,20 +45,18 @@ export function SearchFilter(data: SearchResult, config: Config, rule: FilterRul
 
         if (rule.blacklist.shortname.length !== 0) {
                 data.objects = data.objects.filter(item => {
-                        if (rule.blacklist.shortname.includes(item.shortname)) {
-                                filtered.push(item)
-                                return false
-                        }
+                        if (!rule.blacklist.shortname.includes(item.shortname)) return true
         
-                        return true
+                        filtered.push(item)
+                        return false
                 })
         }
 
         if (rule.writelist.shortname.length !== 0) {
                 filtered.forEach(item => {
-                        if (rule.writelist.shortname.includes(item.shortname)) {
-                                data.objects.push(item)
-                        }
+                        if (!rule.writelist.shortname.includes(item.shortname)) return
+
+                        data.objects.push(item)
                 })
         }
 
