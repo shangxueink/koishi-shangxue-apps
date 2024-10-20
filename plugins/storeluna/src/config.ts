@@ -4,6 +4,8 @@ interface baseConfig {
         upstream: string
         path: string
         time: number
+        reportTime: number
+        reportContent: string
         filterRule: boolean
         filterUnsafe: boolean
 }
@@ -24,7 +26,13 @@ const baseConfig: Schema<baseConfig> = Schema.object({
                 .description("监听路径"),
         time: Schema.number()
                 .default(60)
-                .description("同步上游间隔时间"),
+                .description("同步上游间隔(s)"),
+        reportTime: Schema.number()
+                .default(600)
+                .description("汇报间隔时间(s)"),
+        reportContent: Schema.string()
+                .default("访问量: {visitCount} 📈 | 同步次数: {syncCount} 🔄 | 成功次数: {successCount} ✅")
+                .description("自定义汇报内容"),
         filterRule: Schema.boolean()
                 .default(false)
                 .description("规则屏蔽功能"),
