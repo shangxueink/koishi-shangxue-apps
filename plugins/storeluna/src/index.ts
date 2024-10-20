@@ -2,7 +2,7 @@ import { Context } from 'koishi'
 import {} from '@koishijs/plugin-server'
 import { SearchResult } from '@koishijs/registry'
 import { Config } from './config'
-import { SearchFilter, readFilterRule } from './filter'
+import { FilterRule, SearchFilter, readFilterRule } from './filter'
 
 export const name = 'storeluna'
 export * from './config'
@@ -14,47 +14,76 @@ export async function apply(ctx: Context, config: Config) {
         const upstream = config.upstream
         const serverPath = config.path
         const time = config.time
+        const reportTime = config.reportTime
         const logger = ctx.logger('storeluna')
         const filterRule = await readFilterRule(ctx.baseDir)
 
-        if (ctx.server) {
+        if (!ctx.server) {
+                logger.error('server加载失败插件')
+                return
+        }
+
+        let visitCountBuffer = new SharedArrayBuffer(4)
+        let visitCount = new Int32Array(visitCountBuffer)
+        let syncCount = 0
+        let successCount = 0
+        let data: SearchResult = await updateFromUpstream(ctx, upstream, config, filterRule)
+
+        syncCount++
+        if (data) {
                 logger.info(`同步上游: ${upstream}`)
-                let data: SearchResult = await getFromUpstream(ctx, upstream)
-                data = SearchFilter(data, config, filterRule)
+                successCount++
+        }
 
-                ctx.setInterval(async () => {
-                        const response = await getFromUpstream(ctx, upstream)
+        ctx.setInterval(async () => {
+                const response = await updateFromUpstream(ctx, upstream, config, filterRule)
+                syncCount++
 
-                        if (response) {
-                                data = data = SearchFilter(response, config, filterRule)
-                                logger.info(`同步成功: ${upstream}`)
-                        } else {
-                                logger.warn(`同步失败: ${upstream}`)
-                        }
-                }, time * 1000)
-
-                try {
-                        ctx.server['get'](serverPath, (ctx) => {
-                                ctx.set('Content-Type', 'application/json')
-                                ctx.status = 200
-                                ctx.body = data
-                        })
-                        logger.info(`监听路径: ${serverPath}`)
-                } catch (error) {
-                        logger.error(error)
+                if (response) {
+                        data = response
+                        successCount++
                 }
+        }, time * 1000)
 
-                ctx.on('dispose', () => {
-                        ctx.loader.fullReload()
+        ctx.setInterval(() => {
+                const reportContent = config.reportContent
+                        .replace('{visitCount}', `${Atomics.load(visitCount, 0)}`)
+                        .replace('{syncCount}', `${syncCount}`)
+                        .replace('{successCount}', `${successCount}`)
+                logger.info(reportContent)
+        }, reportTime * 1000)
+
+        try {
+                ctx.server['get'](serverPath, (ctx) => {
+                        ctx.status = 200
+                        ctx.body = data
+                        Atomics.add(visitCount, 0, 1)
                 })
+                logger.info(`监听路径: ${serverPath}`)
+        } catch (error) {
+                logger.error(error)
         }
 }
 
-//从上游获取信息下载到指定路径
-async function getFromUpstream(ctx: Context, upstream: string) : Promise<any> {
+async function updateFromUpstream(
+        ctx: Context, 
+        upstream: string, 
+        config: Config, 
+        filterRule: FilterRule
+) : Promise<SearchResult> {
         try {
-                const response = await ctx.http.get(upstream)
-                return response
+                const response: SearchResult = await ctx.http.get<SearchResult>(upstream)
+                const data: SearchResult = SearchFilter(response, config, filterRule)
+                if (!config.updateNotice) return data
+                
+                data.objects.forEach(item => {
+                        if (item.shortname !== 'storeluna') return
+
+                        const Notice = config.Notice.replace('{date}', new Date().toLocaleString())
+                        item.manifest.description = Notice
+                        item.rating = 6667
+                })
+                return data
         } catch (error) {
                 ctx.logger('storeluna').error(error)
         }
