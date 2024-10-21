@@ -594,7 +594,7 @@ display: none !important;
         }
 
         if (config.loggerinfo) {
-            logger.info(`视频信息内容：\n ${JSON.stringify(mediaData)}`);
+            //logger.info(`视频信息内容：\n ${JSON.stringify(mediaData)}`);
             logger.info(`机器人发送完整消息为：\n ${ret}`);
         }
         return;
