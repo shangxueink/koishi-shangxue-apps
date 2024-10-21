@@ -1,5 +1,9 @@
 blacklist:
   shortname: []
+  description: []
+  publisher: []
 
 writelist:
   shortname: []
+  description: []
+  publisher: []

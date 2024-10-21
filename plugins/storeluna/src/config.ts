@@ -31,7 +31,7 @@ const baseConfig: Schema<baseConfig> = Schema.object({
                 .default(600)
                 .description("汇报间隔时间(s)"),
         reportContent: Schema.string()
-                .default("访问量: {visitCount} 📈 | 同步次数: {syncCount} 🔄 | 成功次数: {successCount} ✅")
+                .default("访问量: {visitCount} 📈 | 同步次数: {syncCount} 🔄 | 成功次数: {successCount} ✅ | 白名单规则数: {writelistCount} 🟢 | 黑名单规则数: {blacklistCount} 🔴 | 过滤插件数: {filteredCount} 🛠️")
                 .description("自定义汇报内容"),
         filterRule: Schema.boolean()
                 .default(false)
