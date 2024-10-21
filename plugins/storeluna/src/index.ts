@@ -1,6 +1,6 @@
 import { Context } from 'koishi'
 import {} from '@koishijs/plugin-server'
-import { SearchResult } from '@koishijs/registry'
+import { SearchObject, SearchResult } from '@koishijs/registry'
 import { Config } from './config'
 import { FilterRule, SearchFilter, readFilterRule } from './filter'
 
@@ -17,6 +17,16 @@ export async function apply(ctx: Context, config: Config) {
         const reportTime = config.reportTime
         const logger = ctx.logger('storeluna')
         const filterRule = await readFilterRule(ctx.baseDir)
+        const blacklistCount = (
+                filterRule.blacklist.shortname.length + 
+                filterRule.blacklist.description.length + 
+                filterRule.blacklist.publisher.length
+        )
+        const writelistCount = (
+                filterRule.writelist.shortname.length + 
+                filterRule.writelist.description.length + 
+                filterRule.writelist.publisher.length
+        )
 
         if (!ctx.server) {
                 logger.error('server加载失败插件')
@@ -27,7 +37,9 @@ export async function apply(ctx: Context, config: Config) {
         let visitCount = new Int32Array(visitCountBuffer)
         let syncCount = 0
         let successCount = 0
-        let data: SearchResult = await updateFromUpstream(ctx, upstream, config, filterRule)
+        let [data, filtereddata]: [SearchResult, SearchObject[]] = (
+                await updateFromUpstream(ctx, upstream, config, filterRule)
+        )
 
         syncCount++
         if (data) {
@@ -36,11 +48,14 @@ export async function apply(ctx: Context, config: Config) {
         }
 
         ctx.setInterval(async () => {
-                const response = await updateFromUpstream(ctx, upstream, config, filterRule)
+                const [response, filtered]: [SearchResult, SearchObject[]] = (
+                        await updateFromUpstream(ctx, upstream, config, filterRule)
+                )
                 syncCount++
 
                 if (response) {
                         data = response
+                        filtereddata = filtered
                         successCount++
                 }
         }, time * 1000)
@@ -50,6 +65,9 @@ export async function apply(ctx: Context, config: Config) {
                         .replace('{visitCount}', `${Atomics.load(visitCount, 0)}`)
                         .replace('{syncCount}', `${syncCount}`)
                         .replace('{successCount}', `${successCount}`)
+                        .replace('{blacklistCount}', `${blacklistCount}`)
+                        .replace('{writelistCount}', `${writelistCount}`)
+                        .replace('{filteredCount}', `${filtereddata.length}`)
                 logger.info(reportContent)
         }, reportTime * 1000)
 
@@ -70,11 +88,11 @@ async function updateFromUpstream(
         upstream: string, 
         config: Config, 
         filterRule: FilterRule
-) : Promise<SearchResult> {
+) : Promise<[SearchResult, SearchObject[]]> {
         try {
                 const response: SearchResult = await ctx.http.get<SearchResult>(upstream)
-                const data: SearchResult = SearchFilter(response, config, filterRule)
-                if (!config.updateNotice) return data
+                const [data, filtered]: [SearchResult, SearchObject[]] = SearchFilter(response, config, filterRule)
+                if (!config.updateNotice) return [data, filtered]
                 
                 data.objects.forEach(item => {
                         if (item.shortname !== 'storeluna') return
@@ -83,7 +101,7 @@ async function updateFromUpstream(
                         item.manifest.description = Notice
                         item.rating = 6667
                 })
-                return data
+                return [data, filtered]
         } catch (error) {
                 ctx.logger('storeluna').error(error)
         }
