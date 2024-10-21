@@ -1,3 +1,4 @@
+
 import { Schema } from "koishi"
 
 interface baseConfig {
