@@ -451,7 +451,7 @@ export function apply(ctx: Context, config: Config) {
           });
         } else {
           await ctx.database.set('deerpipe', { userid: targetUserId }, {
-            //username: targetUsername,
+            username: targetUsername,
             checkindate: targetRecord.checkindate,
             totaltimes: targetRecord.totaltimes,
             recordtime: targetRecord.recordtime,
