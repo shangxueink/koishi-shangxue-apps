@@ -3,13 +3,18 @@ import * as path from 'node:path'
 import { parse } from 'yaml'
 import { SearchObject, SearchResult } from '@koishijs/registry'
 import { Config } from './config'
+import { Dict } from 'koishi'
 
 export interface FilterRule {
         blacklist: {
                 shortname: string[]
+                description: (string | Dict<string>)[]
+                publisher: string[]
         },
         writelist: {
                 shortname: string[]
+                description: (string | Dict<string>)[]
+                publisher: string[]
         }
 }
 
@@ -24,13 +29,13 @@ export async function readFilterRule(baseDir: string) : Promise<FilterRule> {
                 await fs.copyFile(path.join(resourcesPath, 'defaultfilterrule.yml'), ymlPath)
         }
         const data = await fs.readFile(ymlPath, 'utf-8')
-        const filterRule = parse(data) as FilterRule
-        return filterRule
+        return parse(data) as FilterRule
 }
 
-export function SearchFilter(data: SearchResult, config: Config, rule: FilterRule) : SearchResult {
+export function SearchFilter(data: SearchResult, config: Config, rule: FilterRule) : [SearchResult, SearchObject[]] {
+        const blacklist = rule.blacklist
+        const writelist = rule.writelist
         let filtered: SearchObject[] = []
-        
 
         if (config.filterUnsafe) {
                 data.objects = data.objects.filter(item => {
@@ -41,24 +46,50 @@ export function SearchFilter(data: SearchResult, config: Config, rule: FilterRul
                 })
         }
 
-        if (!config.filterRule) return data
+        if (!config.filterRule) return [data, filtered]
 
-        if (rule.blacklist.shortname.length !== 0) {
-                data.objects = data.objects.filter(item => {
-                        if (!rule.blacklist.shortname.includes(item.shortname)) return true
-        
-                        filtered.push(item)
-                        return false
-                })
-        }
+        data.objects = data.objects.filter(item => {
+                if (
+                        !shortnameFilter(item.shortname, blacklist.shortname)
+                        && !descriptionFilter(item.package.description, blacklist.description)
+                        && !publisherFilter(item.package.publisher.email, blacklist.publisher)
+                ) return true
 
-        if (rule.writelist.shortname.length !== 0) {
-                filtered.forEach(item => {
-                        if (!rule.writelist.shortname.includes(item.shortname)) return
+                filtered.push(item)
+                return false
+        })
 
-                        data.objects.push(item)
-                })
-        }
+        filtered.forEach(item => {
+                if (
+                        !shortnameFilter(item.shortname, writelist.shortname)
+                        && !descriptionFilter(item.package.description, writelist.description)
+                        && !publisherFilter(item.package.publisher.email, writelist.publisher)
+                ) return
 
-        return data
+                data.objects.push(item)
+        })
+
+        return [data, filtered]
+}
+
+function shortnameFilter(shortname: string, shortnameRule: string[]) : boolean {
+        return shortnameRule.some(rule => new RegExp(rule).test(shortname))
+}
+
+function descriptionFilter(description: string | Dict<string>, descriptionRule: (string | Dict<string>)[]) : boolean {
+        return descriptionRule.some(rule => {
+                if (typeof rule !== typeof description) return false
+
+                if (typeof rule === 'string') {
+                        return new RegExp(rule).test(description as string)
+                } else {
+                        return Object.entries(rule).every(([key, value]) => {
+                                return new RegExp(value).test(description[key])
+                        })
+                }
+        })
+}
+
+function publisherFilter(publisher: string, publisherRule: string[]) : boolean {
+        return publisherRule.some(rule => new RegExp(rule).test(publisher))
 }
