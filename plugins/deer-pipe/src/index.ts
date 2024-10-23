@@ -4,7 +4,8 @@ import { } from 'koishi-plugin-monetary'
 export const name = 'deer-pipe';
 
 export interface Config {
-  enable_use_key_to_help: boolean;
+  Reset_Cycle: string;
+  //enable_use_key_to_help: boolean;
   cost: any;
   maximum_times_per_day: any;
   enable_blue_tip: any;
@@ -69,6 +70,17 @@ export const usage = `
 <li><strong>示例</strong>: <code>戒🦌 10</code> （若省略<code>10</code>，会取消签到今天的）</li>
 </ul>
 
+<h3>购买</h3>
+<ul>
+<li><strong>指令</strong>: <code>购买</code></li>
+<li><strong>作用</strong>: 用于买道具。</li>
+<li><strong>示例</strong>: <code>购买 锁</code> 、 <code>购买 钥匙</code></li>
+
+锁可以禁止别人帮你鹿，钥匙可以强制鹿戴锁的人
+
+(暂时就这两个道具 有想法从上面的【问题反馈】提)
+</ul>
+
 ---
 
 本插件理想的艾特元素内容是<code>< at id="114514" name="这是名字"/></code>
@@ -86,14 +98,15 @@ export const usage = `
 
 export const Config: Schema<Config> = Schema.intersect([
   Schema.object({
-    enable_deerpipe: Schema.boolean().description('开启后，允许重复签到<br>关闭后就没有重复签到的玩法').default(true),
-    maximum_times_per_day: Schema.number().description('每日签到次数上限`小鹿怡..什么伤身来着`').default(5).min(2),
+    enable_deerpipe: Schema.boolean().description('开启后，允许重复签到<br>关闭后就没有重复签到的玩法').default(false),
+    maximum_times_per_day: Schema.number().description('每日签到次数上限`小鹿怡..什么伤身来着`').default(3).min(2),
     enable_blue_tip: Schema.boolean().description('开启后，签到后会返回补签玩法提示').default(false),
-    enable_use_key_to_help: Schema.boolean().description('开启后，允许使用【钥匙】强制开锁').default(false),
+    //enable_use_key_to_help: Schema.boolean().description('开启后，允许使用【钥匙】强制开锁').default(true),
   }).description('签到设置'),
   Schema.object({
     leaderboard_people_number: Schema.number().description('签到次数·排行榜显示人数').default(15).min(3),
     enable_allchannel: Schema.boolean().description('开启后，排行榜将展示全部用户排名`关闭则仅展示当前频道的用户排名`').default(false),
+    Reset_Cycle: Schema.union(['每月', '不重置']).default("每月").description("签到数据重置周期。（相当于重新开始排名）"),
   }).description('签到次数·排行榜设置'),
   Schema.object({
     currency: Schema.string().default('deerpipe').disabled().description('monetary 的 currency 字段'),
@@ -107,7 +120,7 @@ export const Config: Schema<Config> = Schema.intersect([
       store_item: Schema.array(Schema.object({
         item: Schema.string().description("物品名称"),
         cost: Schema.number().description("货币变动"),
-      })).role('table').default([{ "item": "锁", "cost": -50 }, { "item": "钥匙", "cost": -500 }]).description('【购买】商店道具货价表'),
+      })).role('table').default([{ "item": "锁", "cost": -50 }, { "item": "钥匙", "cost": -250 }]).description('【购买】商店道具货价表'),
 
     }).collapse().description('货币平衡设置<br>涉及游戏平衡，谨慎修改'),
   }).description('monetary·通用货币设置'),
@@ -361,6 +374,7 @@ export function apply(ctx: Context, config: Config) {
       await session.send(calendarImage);
     });
 
+
   ctx.command('deerpipe/鹿 [user]', '鹿管签到', { authority: 1 })
     .alias('🦌')
     .userFields(["id"])
@@ -385,9 +399,7 @@ export function apply(ctx: Context, config: Config) {
           }
 
           targetUserId = id;
-          targetUsername = name || id; // 有些情况收到的at消息是 <at id="114514"/> 没有name字段
-          loggerinfo('h.parse(user)[0]?.attrs?.name 为 ' + name);
-          loggerinfo('帮助别人签到：获取到 targetUsername 为 ' + targetUsername);
+          targetUsername = name || id;
         } else {
           await session.send(session.text('.invalid_input_user'));
           return;
@@ -396,6 +408,26 @@ export function apply(ctx: Context, config: Config) {
 
       // 获取目标用户的签到记录
       let [targetRecord] = await ctx.database.get('deerpipe', { userid: targetUserId });
+
+      // 检查是否需要重置数据
+      if (targetRecord && config.Reset_Cycle === '每月') {
+        const [recordYear, recordMonth] = targetRecord.recordtime.split('-').map(Number);
+        if (currentYear > recordYear || (currentYear === recordYear && currentMonth > recordMonth)) {
+          // 重置用户数据
+          targetRecord = {
+            userid: targetUserId,
+            username: targetUsername,
+            channelId: session.channelId,
+            recordtime,
+            checkindate: [],
+            totaltimes: 0,
+            allowHelp: true,
+            itemInventory: [],
+          };
+          await ctx.database.set('deerpipe', { userid: targetUserId }, targetRecord);
+        }
+      }
+
       if (!targetRecord) {
         targetRecord = {
           userid: targetUserId,
@@ -404,18 +436,15 @@ export function apply(ctx: Context, config: Config) {
           recordtime,
           checkindate: [`${currentDay}=1`],
           totaltimes: 1,
-          //resigntimes: 0,
-          allowHelp: true, // 默认允许帮助
+          allowHelp: true,
           itemInventory: [],
         };
         await ctx.database.create('deerpipe', targetRecord);
       } else {
-        // 在user有记录的情况下，如果输入的user没有name字段，那不改用户名称
-        const has_user_name = user && h.parse(user)[0]?.attrs?.name
+        const has_user_name = user && h.parse(user)[0]?.attrs?.name;
         if (has_user_name) {
           targetRecord.username = targetUsername;
         }
-
 
         if (targetRecord.recordtime !== recordtime) {
           targetRecord.recordtime = recordtime;
@@ -429,7 +458,7 @@ export function apply(ctx: Context, config: Config) {
         const currentSignInCount = parseInt(count) || 0;
 
         if (currentSignInCount >= config.maximum_times_per_day) {
-          await session.send(`今天的签到次数已经达到上限 ${config.maximum_times_per_day} 次，请明天再来签到吧\~`);
+          await session.send(`今天的签到次数已经达到上限 ${config.maximum_times_per_day} 次，请明天再来签到吧~`);
           return;
         }
         const newCount = currentSignInCount + 1;
@@ -442,22 +471,13 @@ export function apply(ctx: Context, config: Config) {
           }
           targetRecord.totaltimes += 1;
         }
-        if (has_user_name) {
-          await ctx.database.set('deerpipe', { userid: targetUserId }, {
-            username: targetUsername,
-            checkindate: targetRecord.checkindate,
-            totaltimes: targetRecord.totaltimes,
-            recordtime: targetRecord.recordtime,
-          });
-        } else {
-          await ctx.database.set('deerpipe', { userid: targetUserId }, {
-            username: targetUsername,
-            checkindate: targetRecord.checkindate,
-            totaltimes: targetRecord.totaltimes,
-            recordtime: targetRecord.recordtime,
-          });
-        }
 
+        await ctx.database.set('deerpipe', { userid: targetUserId }, {
+          username: targetUsername,
+          checkindate: targetRecord.checkindate,
+          totaltimes: targetRecord.totaltimes,
+          recordtime: targetRecord.recordtime,
+        });
 
         if (!config.enable_deerpipe && newCount > 1) {
           const imgBuf = await renderSignInCalendar(ctx, targetUserId, targetUsername, currentYear, currentMonth);
@@ -484,17 +504,15 @@ export function apply(ctx: Context, config: Config) {
             recordtime,
             checkindate: [],
             totaltimes: 0,
-            allowHelp: true, // 默认允许帮助
+            allowHelp: true,
             itemInventory: [],
           };
           await ctx.database.create('deerpipe', helperRecord);
         }
 
-        // 检查是否允许帮助签到
         if (!targetRecord.allowHelp) {
           const hasKey = helperRecord.itemInventory.includes('钥匙');
-          if (hasKey && config.enable_use_key_to_help) {
-            // 消耗一个钥匙
+          if (hasKey) { // && config.enable_use_key_to_help
             const keyIndex = helperRecord.itemInventory.indexOf('钥匙');
             if (keyIndex !== -1) {
               helperRecord.itemInventory.splice(keyIndex, 1);
@@ -509,17 +527,15 @@ export function apply(ctx: Context, config: Config) {
           }
         }
 
-        // 增加帮助者的货币
         const reward = cost * 1.5;
         await updateUserCurrency(ctx, session.user.id, reward);
         await session.send(`${h.at(session.userId)} ${session.text('.Help_sign_in', [targetUserId, reward])}`);
       }
 
-
       const imgBuf = await renderSignInCalendar(ctx, targetUserId, targetUsername, currentYear, currentMonth);
       const calendarImage = h.image(imgBuf, 'image/png');
       await session.send(calendarImage);
-      // 增加帮助者的货币
+
       await updateUserCurrency(ctx, session.user.id, cost);
       await session.send(`${h.at(targetUserId)} ${session.text('.Sign_in_success', [targetRecord.totaltimes, cost])}`);
       if (config.enable_blue_tip) {
