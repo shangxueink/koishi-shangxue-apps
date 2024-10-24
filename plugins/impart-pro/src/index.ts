@@ -4,6 +4,9 @@ import { } from 'koishi-plugin-monetary'
 export const name = 'impart-pro';
 
 export interface Config {
+  duelLossCurrency: number;
+  maintenanceCostPerUnit: any;
+  currency: string;
   duelWinRateFactor: any;
   exerciseCooldownTime: number;
   imagemode: any;
@@ -21,7 +24,6 @@ export interface Config {
   loggerinfo: any;
   defaultLength: any;
   exerciseWinGrowthRange: any;
-
 }
 
 export const usage = `
@@ -101,7 +103,7 @@ export const Config: Schema<Config> = Schema.intersect([
       }
     ]),
     //exerciseRate: Schema.number().role('slider').min(0).max(100).step(1).default(80).description("【锻炼成功】概率。"),
-    exerciseWinGrowthRange: Schema.tuple([Number, Number]).description("【锻炼成功】增长的牛牛长度（cm）<br>右侧代表最大的偏差百分比（%）（默认在 5 ± 45%）").default([5, 45]),
+    exerciseWinGrowthRange: Schema.tuple([Number, Number]).description("【锻炼成功】增长的牛牛长度（cm）<br>右侧代表最大的偏差百分比（%）（默认在 10 ± 45%）").default([10, 45]),
     exerciseLossReductionRange: Schema.tuple([Number, Number]).description("【锻炼失败】减少的牛牛长度（cm）<br>右侧代表最大的偏差百分比（%）（默认在 12 ± 45%）").default([12, 45]),
     exerciseCooldownTime: Schema.number().role('slider').min(0).max(30).step(1).default(5).description("【锻炼牛牛】间隔休息时间（秒）"),
   }).description('牛牛设置'),
@@ -111,7 +113,7 @@ export const Config: Schema<Config> = Schema.intersect([
       minlength: Schema.number().description('区间最小值'),
       maxlength: Schema.number().description('区间最大值'),
       rate: Schema.number().description('成功概率'),
-    })).role('table').description("【获胜概率 和 牛子长度】之间的关联性。<br>c牛子长度差值的绝对值越大，获胜概率越小<br>为-100时，较短的一方必胜。").default([
+    })).role('table').description("【获胜概率 和 牛子长度】之间的关联性。<br>双方牛子长度【差值的绝对值】越大，获胜概率越小").default([
       {
         "rate": 100,
         "maxlength": 10,
@@ -119,11 +121,11 @@ export const Config: Schema<Config> = Schema.intersect([
       },
       {
         "minlength": 10,
-        "maxlength": 20,
+        "maxlength": 50,
         "rate": 80
       },
       {
-        "minlength": 20,
+        "minlength": 50,
         "maxlength": 100,
         "rate": 60
       },
@@ -147,10 +149,11 @@ export const Config: Schema<Config> = Schema.intersect([
     duelWinGrowthRange: Schema.tuple([Number, Number]).description("【决斗胜利】增长长度（cm）<br>右侧代表最大的偏差百分比（%）（默认在 10 ± 50%）").default([10, 50]),
     duelLossReductionRange: Schema.tuple([Number, Number]).description("【决斗失败】减少长度（cm）<br>右侧代表最大的偏差百分比（%）（默认在 15 ± 50%）").default([15, 50]),
     duelCooldownTime: Schema.number().role('slider').min(0).max(100).step(1).default(15).description("【决斗】间隔休息时间（秒）"),
+    duelLossCurrency: Schema.number().role('slider').min(0).max(100).step(1).default(80).description("【决斗】战败方，缩短长度转化为【货币】的比率（百分比）"),
   }).description('对决设置'),
 
   Schema.object({
-    imagemode: Schema.boolean().description('开启后，排行榜将使用puppeteer渲染图片发送').default(true),
+    imagemode: Schema.boolean().description('开启后，排行榜将使用 puppeteer 渲染图片发送').default(true),
     leaderboardPeopleNumber: Schema.number().description('排行榜显示人数').default(15).min(3),
     enableAllChannel: Schema.boolean().description('开启后，排行榜将展示全部用户排名`关闭则仅展示当前频道的用户排名`').default(false),
   }).description('排行设置'),
@@ -164,12 +167,13 @@ export const Config: Schema<Config> = Schema.intersect([
       Schema.const('onlybotowner').description('仅下面的名单可用（onlybotowner_list）'),
     ]).role('radio').description('允许使用【开始银趴/结束银趴】的人（需要适配器支持获取群员角色）').default("owner_admin"),
     onlybotowner_list: Schema.array(String).role('table').description('允许使用【开始银趴/结束银趴】的用户ID').default(["114514"]),
-    notallowtip: Schema.boolean().description('开启后。对禁止的玩家/频道发送提示语').default(false),
+    notallowtip: Schema.boolean().description('当禁止的对象尝试触发<br>开启后。对禁止的玩家/频道发送提示语<br>关闭，则不做反应').default(false),
   }).description('管理设置'),
 
   Schema.object({
-    currency: Schema.string().default('impartpro').disabled().description('monetary 数据库的 currency 字段名称'),
-  }).description('monetary·通用货币设置').hidden(),
+    currency: Schema.string().default('impartpro').description('monetary 数据库的 currency 字段名称'),
+    maintenanceCostPerUnit: Schema.number().role('slider').min(0).max(1).step(0.01).default(0.1).description("【保养】钱币与长度的转化比率。0.1则为`10:1`，十个货币换 1 cm"),
+  }).description('monetary·通用货币设置'),
 
   Schema.object({
     loggerinfo: Schema.boolean().description('debug日志输出模式').default(false),
@@ -194,8 +198,10 @@ declare module 'koishi' {
   }
 }
 
-export const inject = ['database', 'puppeteer', 'monetary'];
-
+export const inject = {
+  required: ["database", "monetary"],
+  optional: ['puppeteer']
+};
 export function apply(ctx: Context, config: Config) {
   // 扩展数据库表
   ctx.model.extend('impartpro', {
@@ -209,6 +215,64 @@ export function apply(ctx: Context, config: Config) {
   }, {
     primary: ['userid'],
   });
+
+  ctx.command('impartpro/保养', '通过花费货币来增加牛牛的长度')
+    .alias("保养牛牛")
+    .userFields(["id"])
+    .action(async ({ session }) => {
+      const userId = session.userId;
+
+      // 获取用户记录
+      let [userRecord] = await ctx.database.get('impartpro', { userid: userId });
+      if (!userRecord) {
+        await session.send('你还没有数据，请先进行初始化。');
+        return;
+      }
+
+      // 获取用户货币余额
+      const userCurrency = await getUserCurrency(session.user.id);
+      const costPerUnit = config.maintenanceCostPerUnit;
+
+      // 计算可以购买的最大长度
+      const maxPurchasableLength = Math.floor(userCurrency / (1 / costPerUnit));
+
+      if (maxPurchasableLength <= 0) {
+        await session.send('你的货币不足以进行保养。');
+        return;
+      }
+
+      // 提示用户输入想要购买的长度
+      await session.send(`你可以购买的最大长度为 ${maxPurchasableLength} cm。请输入你想购买的长度：`);
+
+      // 等待用户输入
+      const response = await session.prompt();
+      const desiredLength = parseInt(response);
+
+      // 检查输入有效性和货币是否足够
+      if (isNaN(desiredLength) || desiredLength <= 0) {
+        await session.send('输入无效，请输入一个有效的长度值。');
+        return;
+      }
+
+      if (desiredLength > maxPurchasableLength) {
+        await session.send('你的货币不足以购买这么多长度，请输入一个较小的值。');
+        return;
+      }
+
+      // 增加长度并扣除货币
+      userRecord.length += desiredLength;
+      await updateUserCurrency(session.user.id, -desiredLength / costPerUnit);
+
+      // 更新记录
+      await ctx.database.set('impartpro', { userid: userId }, {
+        length: userRecord.length,
+      });
+
+      await session.send(`你花费了 ${desiredLength / costPerUnit} 货币，增加了 ${desiredLength} cm。`);
+      return;
+    });
+
+
 
   ctx.command('impartpro/开导 [user]', '让牛牛成长！')
     .alias('打胶')
@@ -361,7 +425,7 @@ export function apply(ctx: Context, config: Config) {
         const parsedUser = h.parse(user)[0];
         if (parsedUser?.type === 'at') {
           const { id, name } = parsedUser.attrs;
-          if (!id) {
+          if (!id || (session.userId === id)) { // 不可以决斗自己
             await session.send('不可用的用户！请换一个用户吧~');
             return;
           }
@@ -419,7 +483,7 @@ export function apply(ctx: Context, config: Config) {
       const isAttackerWin = Math.random() * 100 < finalWinProbability;
       let growthChange = 0;
       let reductionChange = 0;
-
+      let currencyGain = 0;
       if (isAttackerWin) {
         // 攻击者胜利
         const [baseGrowth, growthVariance] = config.duelWinGrowthRange;
@@ -430,6 +494,11 @@ export function apply(ctx: Context, config: Config) {
 
         attackerRecord.length += growthChange;
         defenderRecord.length -= reductionChange;
+
+        // 战败方获得货币
+        currencyGain = reductionChange * (config.duelLossCurrency / 100);
+        await updateUserCurrency(await updateIDbyuserId(userId, session.platform), currencyGain); // 这里的是被挑战的人战败了，获取他的数据库ID，加经验货币
+
       } else {
         // 防御者胜利
         const [baseGrowth, growthVariance] = config.duelWinGrowthRange;
@@ -440,6 +509,10 @@ export function apply(ctx: Context, config: Config) {
 
         defenderRecord.length += growthChange;
         attackerRecord.length -= reductionChange;
+
+        // 战败方获得货币
+        currencyGain = reductionChange * (config.duelLossCurrency / 100);
+        await updateUserCurrency(session.user.id, currencyGain); // 这里的 session.user.id 是对的
       }
 
       // 更新双方记录
@@ -461,12 +534,15 @@ export function apply(ctx: Context, config: Config) {
       loggerinfo(`防御者ID: ${userId}, 胜率: ${(100 - finalWinProbability).toFixed(2)}%`);
 
       // 发送决斗结果
-      await session.send(`${h.at(session.userId)} 决斗${isAttackerWin ? '胜利' : '失败'}！`);
-      await session.send(`${h.at(session.userId)} ${isAttackerWin ? '增加' : '减少'}了 ${growthChange.toFixed(2)} cm，${h.at(userId)} ${isAttackerWin ? '减少' : '增加'}了 ${reductionChange.toFixed(2)} cm。`);
+      await session.send(
+        `${h.at(session.userId)} 决斗${isAttackerWin ? '胜利' : '失败'}！ \n` +
+        `\n${h.at(session.userId)} ${isAttackerWin ? '增加' : '减少'}了 ${growthChange.toFixed(2)} cm， \n` +
+        `\n${h.at(userId)} ${isAttackerWin ? '减少' : '增加'}了 ${reductionChange.toFixed(2)} cm。 \n` +
+        `\n战败方获得了 ${currencyGain.toFixed(2)} 点经验（货币）。`
+      );
       return;
+
     });
-
-
 
   ctx.command('impartpro/重开牛牛', '重开一个牛牛~')
     .alias('生成牛牛')
@@ -548,6 +624,11 @@ export function apply(ctx: Context, config: Config) {
       }));
 
       if (config.imagemode) {
+
+        if (!ctx.puppeteer) {
+          await session.send("没有开启 puppeteer 服务");
+          return;
+        }
         // 使用图片渲染
         const leaderboardHTML = `
   <!DOCTYPE html>
@@ -697,7 +778,7 @@ export function apply(ctx: Context, config: Config) {
         await session.send(`暂时没有${h.at(userId)} 的记录。快输入【生成牛牛】进行初始化吧`);
         return;
       }
-      await session.send(`${h.at(userId)} 的牛牛长度为 ${userRecord.length.toFixed(2)} cm，成长值为 ${userRecord.growthFactor.toFixed(2)} cm。`);
+      await session.send(`${h.at(userId)} 的牛牛长度为 ${userRecord.length.toFixed(2)} cm，成长系数为 ${userRecord.growthFactor.toFixed(2)} 。`);
     });
 
   ctx.command('impartpro/锁牛牛 [user]', '开启/禁止牛牛大作战')
@@ -761,6 +842,23 @@ export function apply(ctx: Context, config: Config) {
     });
 
 
+  async function updateIDbyuserId(userId, platform) {
+    // 查询数据库的 binding 表
+    const [bindingRecord] = await ctx.database.get('binding', {
+      pid: userId,
+      platform: platform,
+    });
+
+    // 检查是否找到了匹配的记录
+    if (!bindingRecord) {
+      throw new Error('未找到对应的用户记录。');
+    }
+
+    // 返回 aid 字段作为对应的 id
+    return bindingRecord.aid;
+  }
+
+
   async function isUserAllowed(ctx, userId: string, channelId: string): Promise<boolean> {
     // 检查频道级别的锁定状态
     const specialUserId = `channel_${channelId}`;
@@ -780,7 +878,6 @@ export function apply(ctx: Context, config: Config) {
     // 如果没有用户记录，默认允许
     return true;
   }
-
 
   // 权限检查函数
   function checkPermission(session, scope, allowedList) {
@@ -812,10 +909,7 @@ export function apply(ctx: Context, config: Config) {
     }
   }
 
-
-
-  /**************************************这些还没用到************************************************************ 
-  async function updateUserCurrency(ctx: Context, uid, amount: number, currency: string = 'impartpro') {
+  async function updateUserCurrency(uid, amount: number, currency: string = config.currency) {
     try {
       const numericUserId = Number(uid); // 将 userId 转换为数字类型
 
@@ -835,7 +929,8 @@ export function apply(ctx: Context, config: Config) {
       return `更新用户 ${uid} 的货币时出现问题。`;
     }
   }
-  async function getUserCurrency(ctx, uid, currency = 'impartpro') {
+
+  async function getUserCurrency(uid, currency = config.currency) {
     try {
       const numericUserId = Number(uid);
       const [data] = await ctx.database.get('monetary', {
@@ -849,6 +944,5 @@ export function apply(ctx: Context, config: Config) {
       return 0; // Return 0 
     }
   }
-*/
 }
 
