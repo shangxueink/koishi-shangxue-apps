@@ -221,11 +221,13 @@ function apply(ctx, config) {
         }
       });
   }
+
   ctx.command(config.command, { authority: config.authority || 1 })
     .alias('prpr运势')
     .userFields(["id"])
     .option('split', '-s 以图文输出今日运势')
     .action(async ({ session, options }) => {
+      let hasSignedInToday = await alreadySignedInToday(ctx, session.userId, session.channelId)
       if (options.split) {
         // 如果开启了分离模式，那就只返回图文消息内容。即文字运势内容与背景图片
         const dJson = await getJrys(session);
@@ -238,7 +240,7 @@ ${dJson.unsignText}\n
         let enablecurrencymessage = "";
 
         if (config.enablecurrency) {
-          if (await hasSignedInToday(ctx, session.userId, session.channelId)) {
+          if (hasSignedInToday) {
             enablecurrencymessage = h.text(session.text(".hasSignedInTodaysplit"))
           } else {
             enablecurrencymessage = h.text(session.text(".CurrencyGetbackgroundimagesplit", [config.maintenanceCostPerUnit]))
@@ -251,7 +253,7 @@ ${dJson.unsignText}\n
           h.text(textjrys),
           enablecurrencymessage
         ];
-        if (config.enablecurrency && !hasSignedInToday(ctx, session.userId, session.channelId)) {
+        if (config.enablecurrency && !hasSignedInToday) {
           await updateUserCurrency(session.user.id, config.maintenanceCostPerUnit);
         }
         await recordSignIn(ctx, session.userId, session.channelId)
@@ -459,7 +461,7 @@ ${dJson.unsignText}
           return `${time}${date}${randomNum}`;
         };
 
-        if (config.enablecurrency && !hasSignedInToday(ctx, session.userId, session.channelId)) {
+        if (config.enablecurrency && !hasSignedInToday) {
           await updateUserCurrency(session.user.id, config.maintenanceCostPerUnit);
         }
         // 发送图片消息并处理响应
@@ -489,7 +491,7 @@ ${dJson.unsignText}
                 const hintText2_encodedMessageTime = `${config.command2} ${encodedMessageTime}`;
                 let hintText2;
                 if (config.enablecurrency) {
-                  if (!hasSignedInToday(ctx, session.userId, session.channelId)) {
+                  if (!hasSignedInToday) {
                     hintText2 = session.text(".CurrencyGetbackgroundimage", [config.maintenanceCostPerUnit, hintText2_encodedMessageTime]);
                   } else {
                     hintText2 = session.text(".hasSignedInToday", [hintText2_encodedMessageTime]);
@@ -505,7 +507,7 @@ ${dJson.unsignText}
                 const hintText3_encodedMessageTime = `${config.command2} ${encodedMessageTime}`;
                 let hintText3;
                 if (config.enablecurrency) {
-                  if (!hasSignedInToday(ctx, session.userId, session.channelId)) {
+                  if (!hasSignedInToday) {
                     hintText2 = session.text(".CurrencyGetbackgroundimage", [config.maintenanceCostPerUnit, hintText3_encodedMessageTime]);
                   } else {
                     hintText2 = session.text(".hasSignedInToday", [hintText3_encodedMessageTime]);
@@ -891,7 +893,7 @@ ${dJson.unsignText}
     }
   }
   // 检查用户是否已签到
-  async function hasSignedInToday(ctx, userId, channelId) {
+  async function alreadySignedInToday(ctx, userId, channelId) {
     const currentTime = new Date();
     const dateString = currentTime.toISOString().split('T')[0]; // 获取当前日期字符串
 
