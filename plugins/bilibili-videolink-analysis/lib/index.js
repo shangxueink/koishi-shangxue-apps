@@ -458,8 +458,7 @@ display: none !important;
                 }
             }
         })
-
-    async function handleBilibiliMedia(config, session, lastretUrl) {
+    /*async function handleBilibiliMedia(config, session, lastretUrl) {
         const fullAPIurl = `https://api.xingzhige.com/API/b_parse/?url=${encodeURIComponent(lastretUrl)}`;
 
         try {
@@ -485,6 +484,7 @@ display: none !important;
                         // 视频时长超过最大限制，返回提示
                         if (config.Maximumduration_tip !== '不返回文字提示') {
                             await session.send(config.Maximumduration_tip)
+                            return next()
                         } else {
                             return null; // 不返回提示信息
                         }
@@ -509,7 +509,7 @@ display: none !important;
             logger.error("请求解析 API 失败或处理出错:", error);
             return null;
         }
-    }
+    }*/
 
 
     //判断是否需要解析
@@ -589,41 +589,78 @@ display: none !important;
                 await session.send(retWithoutLastLink);
             }
         }
-
         if (config.VideoParsing_ToLink) {
-            const bilibilimediaDataURL = await handleBilibiliMedia(config, session, lastretUrl);
+            const fullAPIurl = `https://api.xingzhige.com/API/b_parse/?url=${encodeURIComponent(lastretUrl)}`;
 
-            if (options.link) { // 发送链接
-                await session.send(h.text(bilibilimediaDataURL));
-                return;
-            } else if (options.audio) { // 发送语音
-                await session.send(h.audio(bilibilimediaDataURL));
-                return;
-            } else {  //  默认发送视频
-                // 根据配置的值来决定发送的内容
-                switch (config.VideoParsing_ToLink) {
-                    case '1': // 不返回视频/视频直链
-                        break;
-                    case '2': // 仅返回视频
-                        await session.send(h.video(bilibilimediaDataURL)); // 发送视频
-                        break;
-                    case '3': // 仅返回视频直链
-                        await session.send(h.text(bilibilimediaDataURL)); // 发送视频直链
-                        break;
-                    case '4': // 返回视频和视频直链
-                        await session.send(h.text(bilibilimediaDataURL)); // 先发送视频直链
-                        await session.send(h.video(bilibilimediaDataURL)); // 发送视频
-                        break;
-                    case '5': // 返回视频，记录视频链接
-                        await logger.info(bilibilimediaDataURL); // 先记录日志
-                        await session.send(h.video(bilibilimediaDataURL)); // 发送视频
-                        break;
-                    default:
-                        // 处理默认情况或者错误配置
-                        break;
+            try {
+                const responseData = await ctx.http.get(fullAPIurl);
+
+                if (responseData.code === 0 && responseData.msg === "video" && responseData.data) {
+                    const { bvid, cid, video } = responseData.data;
+                    const bilibiliUrl = `https://api.bilibili.com/x/player/playurl?fnval=80&cid=${cid}&bvid=${bvid}`;
+                    const playData = await ctx.http.get(bilibiliUrl);
+
+                    //  ctx.logger.info(bilibiliUrl);
+
+                    if (playData.code === 0 && playData.data && playData.data.dash.duration) {
+                        const videoDurationSeconds = playData.data.dash.duration;
+                        const videoDurationMinutes = videoDurationSeconds / 60;
+
+                        if (videoDurationMinutes > config.Maximumduration) {
+                            if (config.Maximumduration_tip !== '不返回文字提示') {
+                                await session.send(config.Maximumduration_tip);
+                                return;
+                            } else {
+                                return;
+                            }
+                        }
+
+                        const videoUrl = video.url;
+                        //ctx.logger.info(videoUrl);
+
+                        if (videoUrl) {
+                            if (options.link) {
+                                await session.send(h.text(videoUrl));
+                                return;
+                            } else if (options.audio) {
+                                await session.send(h.audio(videoUrl));
+                                return;
+                            } else {
+                                switch (config.VideoParsing_ToLink) {
+                                    case '1':
+                                        break;
+                                    case '2':
+                                        await session.send(h.video(videoUrl));
+                                        break;
+                                    case '3':
+                                        await session.send(h.text(videoUrl));
+                                        break;
+                                    case '4':
+                                        await session.send(h.text(videoUrl));
+                                        await session.send(h.video(videoUrl));
+                                        break;
+                                    case '5':
+                                        logger.info(videoUrl);
+                                        await session.send(h.video(videoUrl));
+                                        break;
+                                    default:
+                                        break;
+                                }
+                            }
+                        } else {
+                            throw new Error("解析视频直链失败");
+                        }
+                    } else {
+                        throw new Error("获取播放数据失败");
+                    }
+                } else {
+                    throw new Error("解析视频信息失败或非视频类型内容");
                 }
+            } catch (error) {
+                logger.error("请求解析 API 失败或处理出错:", error);
             }
         }
+
 
         if (config.loggerinfo) {
             //logger.info(`视频信息内容：\n ${JSON.stringify(mediaData)}`);
