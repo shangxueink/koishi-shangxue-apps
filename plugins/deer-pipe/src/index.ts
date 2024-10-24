@@ -4,6 +4,7 @@ import { } from 'koishi-plugin-monetary'
 export const name = 'deer-pipe';
 
 export interface Config {
+  currency: string;
   Reset_Cycle: string;
   //enable_use_key_to_help: boolean;
   cost: any;
@@ -109,7 +110,7 @@ export const Config: Schema<Config> = Schema.intersect([
     Reset_Cycle: Schema.union(['每月', '不重置']).default("每月").description("签到数据重置周期。（相当于重新开始排名）"),
   }).description('签到次数·排行榜设置'),
   Schema.object({
-    currency: Schema.string().default('deerpipe').disabled().description('monetary 的 currency 字段'),
+    currency: Schema.string().default('deerpipe').description('monetary 的 currency 字段'),
     cost: Schema.object({
 
       checkin_reward: Schema.array(Schema.object({
@@ -851,7 +852,7 @@ ${deer.order === 3 ? '<span class="medal">🥉</span>' : ''}
     }
   }
 
-  async function updateUserCurrency(ctx: Context, uid, amount: number, currency: string = 'deerpipe') {
+  async function updateUserCurrency(ctx: Context, uid, amount: number, currency: string = config.currency) {
     try {
       const numericUserId = Number(uid); // 将 userId 转换为数字类型
 
@@ -871,7 +872,7 @@ ${deer.order === 3 ? '<span class="medal">🥉</span>' : ''}
       return `更新用户 ${uid} 的货币时出现问题。`;
     }
   }
-  async function getUserCurrency(ctx, uid, currency = 'deerpipe') {
+  async function getUserCurrency(ctx, uid, currency = config.currency) {
     try {
       const numericUserId = Number(uid);
       const [data] = await ctx.database.get('monetary', {
