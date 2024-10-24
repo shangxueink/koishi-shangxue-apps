@@ -436,6 +436,9 @@ export function apply(ctx: Context, config: Config) {
           await session.send('不可用的用户！请检查输入');
           return;
         }
+      } else {
+        await session.send('请指定一个决斗用户！\n示例：决斗  @猫猫');
+        return;
       }
 
       // 获取当前用户记录
