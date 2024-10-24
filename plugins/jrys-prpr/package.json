@@ -1,12 +1,12 @@
 {
   "name": "koishi-plugin-jrys-prpr",
-  "description": "[<ruby>**jrys-prpr**<rp>（</rp><rt>点我查看预览图</rt><rp>）</rp></ruby>](https://i0.hdslb.com/bfs/article/ae33f1b2e9dbc3fe89363a40fbf040703493298333289018.png)😽QQ官方MD支持！可以自定义好多内容！ 听说jrys插件都很像呢？唔姆，[但是好像jryspro更好看😿wwww](/market?keyword=jryspro)",
-  "version": "0.6.2",
+  "description": "[<ruby>**jrys-prpr**<rp>（</rp><rt>点我查看预览图</rt><rp>）</rp></ruby>](https://i0.hdslb.com/bfs/article/ae33f1b2e9dbc3fe89363a40fbf040703493298333289018.png)😽QQ官方json按钮支持，20个群即可发按钮！支持 monetary！很好看的字体！ 支持自动清理记录内容。",
+  "version": "1.1.0",
   "main": "lib/index.js",
   "typings": "lib/index.d.ts",
   "files": [
     "lib",
-    "dist"
+    "font"
   ],
   "homepage": "https://github.com/shangxueink/koishi-shangxue-apps/tree/main/oishi-plugin-jrys-prpr",
   "bugs": {
@@ -17,6 +17,7 @@
     "chatbot",
     "koishi",
     "plugin",
+    "monetary",
     "prpr",
     "jrys",
     "随机",
@@ -27,10 +28,12 @@
       "puppeteer"
     ],
     "optional": [
-      "canvas"
+      "canvas",
+      "monetary",
+      "database"
     ]
   },
   "peerDependencies": {
-    "koishi": "^4.13.8"
+    "koishi": "^4.17.8"
   }
 }

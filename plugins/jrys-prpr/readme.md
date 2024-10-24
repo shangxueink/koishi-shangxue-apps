@@ -41,6 +41,7 @@
 需要注意的是：`原图`指令只会获取对于运势图的背景图链接，若使用随机图API作为背景图，会导致无法返回正确的背景图。
 
 因此我们推荐此处的背景图片，建议参考[emojihub-bili](https://www.npmjs.com/package/koishi-plugin-emojihub-bili)的图片方法。
+
 #### HTML_setting（渲染页面设置）
 | 配置项                        | 说明                       |
 | ----------------------------- | -------------------------- |
@@ -65,11 +66,96 @@
 | ButtonText | 指令MD按钮上再来一张功能显示的文字           |
 
 
+
+
+### 默认JSON按钮模板示例
+
+此外，以下是一个默认的JSON按钮的指令按钮模板示例，可供参考：
+<details>
+<summary>点击此处————查看源码</summary>
+
+```
+{
+  "rows": [
+    {
+      "buttons": [
+        {
+          "render_data": {
+            "label": "看看运势（图文版）😽",
+            "style": 2
+          },
+          "action": {
+            "type": 2,
+            "permission": {
+              "type": 2
+            },
+            "data": "/jrysprpr  -s",
+            "enter": false
+          }
+        },
+        {
+          "render_data": {
+            "label": "看看我的运势😽",
+            "style": 2
+          },
+          "action": {
+            "type": 2,
+            "permission": {
+              "type": 2
+            },
+            "data": "/jrysprpr ",
+            "enter": false
+          }
+        }
+      ]
+    }
+  ]
+}
+```
+</details>
+
+---
+
+
+### 默认Markdown模板示例
+此外，以下是一个默认的Markdown模板示例，可供参考：
+
+<details>
+<summary>点击此处————查看源码</summary>
+
+
+```
+{{.text1}}
+{{.text2}}
+{{.img}}{{.url}}
+```
+#### 配置模板参数示例
+当然，上方的md模版，还有`配置模版参数`的示例参数值
+
+参数        示例值
+```
+text1       这是第一段文字
+text2       这是第二段文字
+img         ![img]
+url         (https://koishi.chat/logo.png)
+```
+    
+</details>
+
+
+---
+
+
+
+
 ## 更新日志
 
 
 <details>
 <summary>点击此处————查看更新日志</summary>
+
+- **1.0.0**
+    -   更新了好多东西。
 
 - **0.6.2**
     -   兼容私聊markdown发送
