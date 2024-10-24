@@ -163,8 +163,9 @@ export const Config: Schema<Config> = Schema.intersect([
       Schema.const('all').description('所有用户'),
       Schema.const('admin').description('仅管理员'),
       Schema.const('owner').description('仅群主'),
-      Schema.const('owner_admin').description('仅管理员+群主'),
+      Schema.const('owner_admin').description('仅管理员 + 群主'),
       Schema.const('onlybotowner').description('仅下面的名单可用（onlybotowner_list）'),
+      Schema.const('onlybotowner_admin_owner').description('onlybotowner_list + 管理员 + 群主'),
     ]).role('radio').description('允许使用【开始银趴/结束银趴】的人（需要适配器支持获取群员角色）').default("owner_admin"),
     onlybotowner_list: Schema.array(String).role('table').description('允许使用【开始银趴/结束银趴】的用户ID').default(["114514"]),
     notallowtip: Schema.boolean().description('当禁止的对象尝试触发<br>开启后。对禁止的玩家/频道发送提示语<br>关闭，则不做反应').default(false),
@@ -277,7 +278,7 @@ export function apply(ctx: Context, config: Config) {
   ctx.command('impartpro/开导 [user]', '让牛牛成长！')
     .alias('打胶')
     .example("开导 @用户")
-    .userFields(["id", "name"])
+    .userFields(["id"])
     .action(async ({ session }, user) => {
       let userId = session.userId;
       let username = session.username;
@@ -295,7 +296,7 @@ export function apply(ctx: Context, config: Config) {
         const parsedUser = h.parse(user)[0];
         if (parsedUser?.type === 'at') {
           const { id, name } = parsedUser.attrs;
-          if (!id) {
+          if (!id || (session.userId === id)) { // 不可以决斗自己
             await session.send('不可用的用户！请换一个用户吧~');
             return;
           }
@@ -407,7 +408,7 @@ export function apply(ctx: Context, config: Config) {
     .alias('挑战')
     .alias('嗦牛牛')
     .example("决斗 @用户")
-    .userFields(["id", "name"])
+    .userFields(["id"])
     .action(async ({ session }, user) => {
       let userId = session.userId;
       let username = session.username;
@@ -534,19 +535,18 @@ export function apply(ctx: Context, config: Config) {
       loggerinfo(`防御者ID: ${userId}, 胜率: ${(100 - finalWinProbability).toFixed(2)}%`);
 
       // 发送决斗结果
-      await session.send(
-        `${h.at(session.userId)} 决斗${isAttackerWin ? '胜利' : '失败'}！ \n` +
-        `\n${h.at(session.userId)} ${isAttackerWin ? '增加' : '减少'}了 ${growthChange.toFixed(2)} cm， \n` +
-        `\n${h.at(userId)} ${isAttackerWin ? '减少' : '增加'}了 ${reductionChange.toFixed(2)} cm。 \n` +
-        `\n战败方获得了 ${currencyGain.toFixed(2)} 点经验（货币）。`
+      await session.send( // <p>  是换行哦
+        `${h.at(session.userId)} 决斗${isAttackerWin ? '胜利' : '失败'}！ <p>` +
+        `${h.at(session.userId)} ${isAttackerWin ? '增加' : '减少'}了 ${growthChange.toFixed(2)} cm， <p>` +
+        `${h.at(userId)} ${isAttackerWin ? '减少' : '增加'}了 ${reductionChange.toFixed(2)} cm。<p> ` +
+        `战败方获得了 ${currencyGain.toFixed(2)} 点经验（货币）。`
       );
       return;
-
     });
 
   ctx.command('impartpro/重开牛牛', '重开一个牛牛~')
     .alias('生成牛牛')
-    .userFields(["id", "name"])
+    .userFields(["id"])
     .action(async ({ session }) => {
       const userId = session.userId;
       const username = session.username;
@@ -591,7 +591,7 @@ export function apply(ctx: Context, config: Config) {
     });
   ctx.command('impartpro/牛牛排行榜', '查看牛牛排行榜')
     .alias('牛子排行榜')
-    .userFields(["id", "name"])
+    .userFields(["id"])
     .action(async ({ session }) => {
       // 检查是否被禁止触发
       if (!await isUserAllowed(ctx, session.userId, session.channelId)) {
@@ -750,7 +750,7 @@ export function apply(ctx: Context, config: Config) {
   ctx.command('impartpro/看看牛牛 [user]', '查看牛牛')
     .alias('查看信息')
     .example("看看牛牛 @用户")
-    .userFields(["id", "name"])
+    .userFields(["id"])
     .action(async ({ session }, user) => {
       let userId = session.userId;
       let username = session.username;
@@ -785,20 +785,21 @@ export function apply(ctx: Context, config: Config) {
     .alias('开启牛牛大作战')
     .alias('关闭牛牛大作战')
     .example("锁牛牛 @用户")
-    .userFields(["id", "name"])
+    .userFields(["id"])
     .action(async ({ session }, user) => {
       const permissionScope = config.permissionScope;
-      const onlybotowner_list = config.onlybotowner_list;
+      const onlybotownerList = config.onlybotowner_list;
+
       // 权限检查
-      const isAllowed = checkPermission(session, permissionScope, onlybotowner_list);
+      const isAllowed = checkPermission(session, permissionScope, onlybotownerList);
       if (!isAllowed) {
         await session.send('你没有权限执行此操作。');
         return;
       }
 
       const channelId = session.channelId;
-      let userId: string;
-      let username: string;
+      let userId;
+      let username;
 
       if (user) {
         const parsedUser = h.parse(user)[0];
@@ -859,20 +860,20 @@ export function apply(ctx: Context, config: Config) {
   }
 
 
-  async function isUserAllowed(ctx, userId: string, channelId: string): Promise<boolean> {
+  async function isUserAllowed(ctx, userId, channelId) {
     // 检查频道级别的锁定状态
     const specialUserId = `channel_${channelId}`;
-    const channelRecord = await ctx.database.get('impartpro', { userid: specialUserId, channelId });
-    if (channelRecord.length > 0 && channelRecord[0].locked) {
+    const [channelRecord] = await ctx.database.get('impartpro', { userid: specialUserId, channelId });
+    if (channelRecord && channelRecord.locked) {
       // 如果频道被锁定，直接返回 false
       return false;
     }
 
     // 检查用户级别的锁定状态
-    const userRecord = await ctx.database.get('impartpro', { userid: userId, channelId });
-    if (userRecord.length > 0) {
+    const [userRecord] = await ctx.database.get('impartpro', { userid: userId, channelId });
+    if (userRecord) {
       // 如果用户被锁定，返回 false
-      return !userRecord[0].locked;
+      return !userRecord.locked;
     }
 
     // 如果没有用户记录，默认允许
@@ -881,20 +882,22 @@ export function apply(ctx: Context, config: Config) {
 
   // 权限检查函数
   function checkPermission(session, scope, allowedList) {
-    const { userId } = session;
+    const { userId, role } = session;
     if (scope === 'all') return true;
     if (scope === 'admin' && isAdmin(session)) return true;
-    if (scope === 'owner' && session.role === 'owner') return true;
-    if (scope === 'owner_admin' && (session.role === 'owner' || isAdmin(session))) return true;
+    if (scope === 'owner' && role === 'owner') return true;
+    if (scope === 'owner_admin' && (role === 'owner' || isAdmin(session))) return true;
     if (scope === 'onlybotowner' && allowedList.includes(userId)) return true;
+    if (scope === 'onlybotowner_admin_owner' && (allowedList.includes(userId) || role === 'owner' || isAdmin(session))) return true;
     return false;
   }
 
   // 判断是否为管理员
   function isAdmin(session) {
-    const sessionRoles = session.event.member.roles;
-    return sessionRoles && (sessionRoles.includes('admin') || sessionRoles.includes('owner'));
+    const sessionRoles = session.event?.member?.roles || [];
+    return sessionRoles.includes('admin') || sessionRoles.includes('owner');
   }
+
 
   // 随机生成长度
   function randomLength([base, variance]: [number, number]): number {
