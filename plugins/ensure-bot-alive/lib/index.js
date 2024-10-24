@@ -1,6 +1,6 @@
 "use strict";
-const koishi_1 = require("koishi");
-const logger = new koishi_1.Logger('ensure-bot-alive');
+const { Schema, Logger, h } = require("koishi");
+const logger = new Logger('ensure-bot-alive');
 
 exports.name = "ensure-bot-alive";
 exports.reusable = true; // 声明此插件可重用
@@ -28,33 +28,33 @@ exports.usage = `
 我们可以这样使用schedule，以实现定时触发：
 
 \`\`\`
-schedule -e 0:00 / 1h --rest 在线情况检测
+schedule -e 0:00 / 1h --rest 1在线情况检测
 \`\`\`
 
 这条指令表示从 0:00 开始，每隔 1 小时触发一次 \`在线情况检测\` 指令。
 
 `;
 
-exports.Config = koishi_1.Schema.intersect([
-  koishi_1.Schema.object({
-    command_prefix: koishi_1.Schema.number().default(0).description("指令前缀，用于配置多组本插件，0为无前缀。（若不多开本插件，则只需默认）").min(0),
-    alivebotID: koishi_1.Schema.string().default('114514').description('需要确保存活的机器人的QQ号'),
-    MinTimeResponse: koishi_1.Schema.number().default(10).description("允许等待返回的最大`秒`数").min(1),
+exports.Config = Schema.intersect([
+  Schema.object({
+    command_prefix: Schema.number().default(1).description("指令前缀，用于配置多组本插件，0为无前缀。（若不多开本插件，则只需默认）").min(0),
+    alivebotID: Schema.string().default('114514').description('需要确保存活的机器人的QQ号'),
+    MinTimeResponse: Schema.number().default(10).description("允许等待返回的最大`秒`数").min(1),
   }).description('检测在线的测试消息'),
 
-  koishi_1.Schema.object({
-    Handling_of_bot_status: koishi_1.Schema.union([
-      koishi_1.Schema.const('1').description('不进行任何反馈'),
-      koishi_1.Schema.const('2').description('仅掉线的时候，进行反馈'),
-      koishi_1.Schema.const('3').description('任何时候都进行反馈'),
+  Schema.object({
+    Handling_of_bot_status: Schema.union([
+      Schema.const('1').description('不进行任何反馈'),
+      Schema.const('2').description('仅掉线的时候，进行反馈'),
+      Schema.const('3').description('任何时候都进行反馈'),
     ]).role('radio').default('2').description("如何处理返回情况"),
-    reporting_atMaster: koishi_1.Schema.string().default('1919810').description('主人的QQ号`会在群里艾特你哦~`'),
-    reporting_message_offline: koishi_1.Schema.string().default('机器人掉线啦!').description('判断为`掉线`的消息上报内容'),
-    reporting_message_alive: koishi_1.Schema.string().default('一切正常').description('判断为`存活`的消息上报内容'),
+    reporting_atMaster: Schema.string().default('1919810').description('主人的QQ号`会在群里艾特你哦~`'),
+    reporting_message_offline: Schema.string().default('机器人掉线啦!').description('判断为`掉线`的消息上报内容'),
+    reporting_message_alive: Schema.string().default('一切正常').description('判断为`存活`的消息上报内容'),
   }).description('测试结果处理方法'),
 
-  koishi_1.Schema.object({
-    loggerinfo: koishi_1.Schema.boolean().default(false).description("日志调试输出`记录每一次检测`"),
+  Schema.object({
+    loggerinfo: Schema.boolean().default(false).description("日志调试输出`记录每一次检测`"),
   }).description("调试设置"),
 ]);
 
@@ -71,7 +71,7 @@ function apply(ctx, config) {
       // 每次检测前重置 alive 状态
       alive = false;
 
-      const startMessage = koishi_1.h.at(config.alivebotID) + ` ` + command_prefix + command3; // 发送的消息
+      const startMessage = h.at(config.alivebotID) + ` ` + command_prefix + command3; // 发送的消息
       await session.send(startMessage); // 发送消息
 
       // 记录日志
@@ -111,19 +111,19 @@ function apply(ctx, config) {
           // 不进行任何反馈
         } else if (config.Handling_of_bot_status === '2' || config.Handling_of_bot_status === '3') {
           await session.send(config.reporting_message_offline);
-          await session.send(koishi_1.h.at(config.reporting_atMaster)); // 艾特主人
+          await session.send(h.at(config.reporting_atMaster)); // 艾特主人
         }
       } else {
         if (config.Handling_of_bot_status === '3') {
           await session.send(config.reporting_message_alive);
-          await session.send(koishi_1.h.at(config.reporting_atMaster)); // 艾特主人
+          await session.send(h.at(config.reporting_atMaster)); // 艾特主人
         }
       }
     });
 
   ctx.command(`ensure-bot-alive/` + command_prefix + command3)
     .action(async ({ session }) => {
-      await session.send(koishi_1.h.at(session.userId) + command_prefix + command2); // 在线的情况的返回内容
+      await session.send(h.at(session.userId) + ` ` + command_prefix + command2); // 在线的情况的返回内容
     });
 
   ctx.command(`ensure-bot-alive/` + command_prefix + command2)
