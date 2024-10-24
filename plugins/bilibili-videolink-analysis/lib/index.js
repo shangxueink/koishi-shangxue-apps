@@ -446,7 +446,7 @@ display: none !important;
 
             // 如果开启了日志调试模式，打印用户选择的视频信息
             if (config.loggerinfo) {
-                ctx.logger.info(`渲染序号设置\noverlay.style.top = ${config.point[0]}% \noverlay.style.left = ${config.point[1]}80%`)
+                ctx.logger.info(`渲染序号设置\noverlay.style.top = ${config.point[0]}% \noverlay.style.left = ${config.point[1]}%`)
                 ctx.logger.info(`用户选择了序号 ${choiceIndex + 1}: ID - ${chosenVideo.id}`)
             }
 
@@ -599,9 +599,9 @@ display: none !important;
                     const { bvid, cid, video } = responseData.data;
                     const bilibiliUrl = `https://api.bilibili.com/x/player/playurl?fnval=80&cid=${cid}&bvid=${bvid}`;
                     const playData = await ctx.http.get(bilibiliUrl);
-
-                    //  ctx.logger.info(bilibiliUrl);
-
+                    if (config.loggerinfo) {
+                        ctx.logger.info(bilibiliUrl);
+                    }
                     if (playData.code === 0 && playData.data && playData.data.dash.duration) {
                         const videoDurationSeconds = playData.data.dash.duration;
                         const videoDurationMinutes = videoDurationSeconds / 60;
@@ -616,8 +616,9 @@ display: none !important;
                         }
 
                         const videoUrl = video.url;
-                        //ctx.logger.info(videoUrl);
-
+                        if (config.loggerinfo) {
+                            ctx.logger.info(videoUrl);
+                        }
                         if (videoUrl) {
                             if (options.link) {
                                 await session.send(h.text(videoUrl));
