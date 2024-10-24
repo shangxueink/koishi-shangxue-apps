@@ -77,11 +77,11 @@ exports.Config = Schema.intersect([
         //    Schema.const('2').description('高清晰度优先（清晰的还是去B站看吧）'),
         //]).role('radio').default('1').description("发送的视频清晰度优先策略"),
         BVnumberParsing: Schema.boolean().default(true).description("是否允许根据`独立的BV号`解析视频 `开启后，可以通过视频的BV号解析视频。` <br>  [触发说明见README](https://www.npmjs.com/package/koishi-plugin-bilibili-videolink-analysis)"),
-        //Maximumduration: Schema.number().default(25).description("允许解析的视频最大时长（分钟）`超过这个时长 就不会发视频`").min(1),
-        //Maximumduration_tip: Schema.union([
-        //    Schema.const('不返回文字提示').description('不返回文字提示'),
-        //    Schema.string().description('返回文字提示（请在右侧填写文字内容）').default('视频太长啦！还是去B站看吧~'),
-        //]).description("对过长视频的文字提示内容").default('视频太长啦！还是去B站看吧~'),
+        Maximumduration: Schema.number().default(25).description("允许解析的视频最大时长（分钟）`超过这个时长 就不会发视频`").min(1),
+        Maximumduration_tip: Schema.union([
+            Schema.const('不返回文字提示').description('不返回文字提示'),
+            Schema.string().description('返回文字提示（请在右侧填写文字内容）').default('视频太长啦！还是去B站看吧~'),
+        ]).description("对过长视频的文字提示内容").default('视频太长啦！还是去B站看吧~'),
         MinimumTimeInterval: Schema.number().default(180).description("若干`秒`内 不再处理相同链接 `防止多bot互相触发 导致的刷屏/性能浪费`").min(1),
     }).description("基础设置"),
 
@@ -459,18 +459,49 @@ display: none !important;
             }
         })
 
-    async function handleBilibiliMedia(lastretUrl, config) {
+    async function handleBilibiliMedia(config, session, lastretUrl) {
         const fullAPIurl = `https://api.xingzhige.com/API/b_parse/?url=${encodeURIComponent(lastretUrl)}`;
 
         try {
             // 发起请求，解析 Bilibili 视频信息
-            const data = await ctx.http.get(fullAPIurl);
-            // 检查返回的状态码是否为0，表示成功
-            if (data.code === 0 && data.msg === "video" && data.data && data.data.video) {
-                const videoData = data.data.video;
-                const videoUrl = videoData.url; // 视频直链
-                // 返回视频直链
-                return videoUrl;
+            const responseData = await ctx.http.get(fullAPIurl);
+
+            // 检查返回状态码是否为0且为视频内容
+            if (responseData.code === 0 && responseData.msg === "video" && responseData.data) {
+                const { bvid, cid } = responseData.data;
+
+                // 请求 Bilibili 播放 URL，获取视频信息
+                const bilibiliUrl = `https://api.bilibili.com/x/player/playurl?fnval=80&cid=${cid}&bvid=${bvid}`;
+                const playData = await ctx.http.get(bilibiliUrl);
+                //////
+                ctx.logger.info(bilibiliUrl)
+                // 检查返回的状态码是否为0，表示请求成功
+                if (playData.code === 0 && playData.data && playData.data.dash.duration) {
+                    const videoDurationSeconds = playData.data.dash.duration; // 视频时长，单位为秒
+                    const videoDurationMinutes = videoDurationSeconds / 60; // 转换为分钟
+
+                    // 检查视频时长是否超过配置的最大允许时长
+                    if (videoDurationMinutes > config.Maximumduration) {
+                        // 视频时长超过最大限制，返回提示
+                        if (config.Maximumduration_tip !== '不返回文字提示') {
+                            await session.send(config.Maximumduration_tip)
+                        } else {
+                            return null; // 不返回提示信息
+                        }
+                    }
+
+                    // 视频时长符合要求，继续解析并返回视频直链
+                    const videoUrl = responseData.data.video.url;
+                    //////
+                    ctx.logger.info(videoUrl)
+                    if (videoUrl) {
+                        return videoUrl; // 返回视频直链
+                    } else {
+                        throw new Error("解析视频直链失败");
+                    }
+                } else {
+                    throw new Error("获取播放数据失败");
+                }
             } else {
                 throw new Error("解析视频信息失败或非视频类型内容");
             }
@@ -479,6 +510,7 @@ display: none !important;
             return null;
         }
     }
+
 
     //判断是否需要解析
     async function isProcessLinks(session, config, ctx, lastProcessedUrls, logger) {
@@ -559,7 +591,7 @@ display: none !important;
         }
 
         if (config.VideoParsing_ToLink) {
-            const bilibilimediaDataURL = await handleBilibiliMedia(lastretUrl);
+            const bilibilimediaDataURL = await handleBilibiliMedia(config, session, lastretUrl);
 
             if (options.link) { // 发送链接
                 await session.send(h.text(bilibilimediaDataURL));
@@ -873,41 +905,5 @@ display: none !important;
                 return null;
         }
     }
-    /////////////////////////////////////////////////////////////////////////////////////////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////////////////////////
-    /**
-    * 检查看看一个url是否返回403，或者无法访问，主要用在通过bilibili官方api拿到的视频流
-    * @param url  链接
-    * @returns boolean
-    */
-    async function checkResponseStatus(url) {
-        try {
-            const response = await ctx.http(url, {
-                method: 'GET',
-                headers: {
-                    'Referer': 'no-referrer',
-                    'Range': 'bytes=0-10000'
-                }
-            });
-            //尝试打印一下看看response
-            //await logger.info(response);
-
-            if (response.status === 403 || response.status === 410) {
-                return false;
-            }
-            else if (response.status === 200 || response.status === 206) {
-                return true;
-            }
-            else {
-                return false;
-            }
-        }
-        catch (error) {
-            return false;
-        }
-    }
-
-
 }
 exports.apply = apply;
