@@ -27,6 +27,9 @@ export interface Config {
 }
 
 export const usage = `
+<h2><a href="https://www.npmjs.com/package/koishi-plugin-impart-pro" target="_blank">点我查看README</a></h2>
+
+
 <details>
 <summary>功能列表 </summary>
 
@@ -38,7 +41,7 @@ export const usage = `
 | 重开牛牛         | 牛牛很差怎么办？稳了！直接重开！   |
 | 牛牛排行榜       | 查看牛牛排行榜                     |
 | 看看牛牛 [@某人] | 查询自己或者别人牛牛数据           |
-| 锁牛牛           | 开启/关闭 某人/某频道 的牛牛大作战 |
+| 锁牛牛 [@某人]          | 开启/关闭 某人/某频道 的牛牛大作战 |
 
 </details>
 `;
@@ -273,8 +276,6 @@ export function apply(ctx: Context, config: Config) {
       return;
     });
 
-
-
   ctx.command('impartpro/开导 [user]', '让牛牛成长！')
     .alias('打胶')
     .example("开导 @用户")
@@ -405,7 +406,7 @@ export function apply(ctx: Context, config: Config) {
     });
 
   ctx.command('impartpro/决斗 [user]', '决斗牛牛！')
-    .alias('挑战')
+    //.alias('挑战')
     .alias('嗦牛牛')
     .example("决斗 @用户")
     .userFields(["id"])
@@ -592,6 +593,7 @@ export function apply(ctx: Context, config: Config) {
         return;
       }
     });
+
   ctx.command('impartpro/牛牛排行榜', '查看牛牛排行榜')
     .alias('牛子排行榜')
     .userFields(["id"])
@@ -749,9 +751,8 @@ export function apply(ctx: Context, config: Config) {
       }
     });
 
-
   ctx.command('impartpro/看看牛牛 [user]', '查看牛牛')
-    .alias('查看信息')
+    //.alias('查看信息')
     .example("看看牛牛 @用户")
     .userFields(["id"])
     .action(async ({ session }, user) => {
@@ -845,7 +846,6 @@ export function apply(ctx: Context, config: Config) {
       }
     });
 
-
   async function updateIDbyuserId(userId, platform) {
     // 查询数据库的 binding 表
     const [bindingRecord] = await ctx.database.get('binding', {
@@ -861,7 +861,6 @@ export function apply(ctx: Context, config: Config) {
     // 返回 aid 字段作为对应的 id
     return bindingRecord.aid;
   }
-
 
   async function isUserAllowed(ctx, userId, channelId) {
     // 检查频道级别的锁定状态
@@ -900,7 +899,6 @@ export function apply(ctx: Context, config: Config) {
     const sessionRoles = session.event?.member?.roles || [];
     return sessionRoles.includes('admin') || sessionRoles.includes('owner');
   }
-
 
   // 随机生成长度
   function randomLength([base, variance]: [number, number]): number {
