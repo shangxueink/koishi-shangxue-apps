@@ -27,12 +27,9 @@ export interface Config {
 }
 
 export const usage = `
-<h2><a href="https://www.npmjs.com/package/koishi-plugin-impart-pro" target="_blank">点我查看README</a></h2>
+<h2><a href="https://www.npmjs.com/package/koishi-plugin-impart-pro" target="_blank">点我查看完整README</a></h2>
 
-
-<details>
-<summary>功能列表 </summary>
-
+---
 
 | 指令             | 说明                               |
 | ---------------- | ---------------------------------- |
@@ -43,7 +40,17 @@ export const usage = `
 | 看看牛牛 [@某人] | 查询自己或者别人牛牛数据           |
 | 锁牛牛 [@某人]          | 开启/关闭 某人/某频道 的牛牛大作战 |
 
-</details>
+---
+### 配置项里有 形如 18 ± 45% 的数值
+
+举例说明：
+每次锻炼成功后，牛牛长度的增长范围。
+以默认值 \`[10, 45]\` 为例，表示成功锻炼后牛牛长度增长的基数为 10 厘米，同时允许有 ±45% 的浮动：
+  - **最大值**: $10 + 10 \times 0.45 = 14.5$ 厘米
+  - **最小值**: $10 - 10 \times 0.45 = 5.5$ 厘米
+  因此，锻炼成功时，牛牛的长度会在 5.5 厘米到 14.5 厘米之间随机增长。
+
+---
 `;
 
 export const Config: Schema<Config> = Schema.intersect([
