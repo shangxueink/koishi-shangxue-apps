@@ -90,7 +90,7 @@ exports.Config = Schema.intersect([
     admin_list: Schema.array(Schema.object({
       adminID: Schema.string().description('管理员用户ID'),
       allowcommand: Schema.array(Schema.union(['添加', '删除', '全局添加', '全局删除', '查找关键词', '修改', '查看关键词列表'])).default(['添加', '删除', '修改', '查找关键词', '查看关键词列表']).description('可以使用的指令'),
-    })).role('table').description('额外的管理员列表（ 0 代表所有用户）').default([
+    })).role('table').description('额外的管理员列表（ 0 代表所有用户）<br>需要开启 Only_admin_auth 才生效').default([
       {
         "adminID": "0"
       }
@@ -323,25 +323,34 @@ function apply(ctx, config) {
   // 判断是否为管理员
   function isAdmin(session) {
     const sessionRoles = session.event.member.roles;
-    if (sessionRoles && (sessionRoles.includes('admin')) || (sessionRoles.includes('owner'))) {
-      return true;
-    }
-    return false;
+    return sessionRoles && (sessionRoles.includes('admin') || sessionRoles.includes('owner'));
   }
 
   // 检查用户是否有权限执行该指令
   function hasPermission(session, command) {
     const userId = session.userId;
 
-    // 如果 Only_admin_auth 开启，默认管理员拥有所有权限
-    if (config.Only_admin_auth && isAdmin(session)) {
-      // 查找特定用户的权限配置
-      const adminConfig = config.admin_list.find(admin => admin.adminID === userId);
-      // 如果配置中有该管理员，则以配置为准
-      if (adminConfig) {
-        return adminConfig.allowcommand.includes(command);
+    // 查找特定用户的权限配置
+    const adminConfig = config.admin_list.find(admin => admin.adminID === userId);
+
+    // 如果 Only_admin_auth 开启
+    if (config.Only_admin_auth) {
+      // 如果用户是管理员，检查其权限
+      if (isAdmin(session)) {
+        if (adminConfig) {
+          return adminConfig.allowcommand.includes(command);
+        }
+        return true; // 默认管理员拥有所有权限
       }
-      return true; // 默认管理员拥有所有权限
+      // 如果用户不在 admin_list 中，且不是管理员，则无权限
+      if (!adminConfig) {
+        return false;
+      }
+    }
+
+    // 如果用户在 admin_list 中，检查其权限
+    if (adminConfig) {
+      return adminConfig.allowcommand.includes(command);
     }
 
     // 查找 adminID 为 0 的配置，表示所有用户的默认权限
@@ -350,14 +359,9 @@ function apply(ctx, config) {
       return true;
     }
 
-    // 查找特定用户的权限配置
-    const adminConfig = config.admin_list.find(admin => admin.adminID === userId);
-    if (adminConfig) {
-      return adminConfig.allowcommand.includes(command);
-    }
-
     return false;
   }
+
 
   // 删除关键词回复分支
   async function deleteKeywordReply(session, filePath, keyword, config, specifiedIndex) {
@@ -429,7 +433,7 @@ function apply(ctx, config) {
       .replace(/\\\\/g, '\\\\');                 // 双反斜杠只处理一次
   }
 
-  async function addKeywordReply(session, filePath, keyword, config, isRegex, isGlobal) {
+  async function addKeywordReply(session, filePath, keyword, config, options, isGlobal) {
     let data;
     try {
       data = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
@@ -441,8 +445,8 @@ function apply(ctx, config) {
       keyword = keyword.toLowerCase();
     }
 
-    //const key = isRegex ? `regex:${keyword}` : keyword;
-    const key = isRegex ? `regex:${escapeRegExp(keyword)}` : keyword;
+    const addKeyword = options.unescapeRegExp ? `regex:${keyword}` : `regex:${escapeRegExp(keyword)}`;
+    const key = (options.regex || options.unescapeRegExp) ? addKeyword : keyword;
 
     if (!data[key]) {
       data[key] = [];
@@ -632,14 +636,8 @@ function apply(ctx, config) {
   ctx.command(`keyword-dialogue/${config.command.ViewKeywordList}`)
     .alias('查看关键词列表')
     .action(async ({ session }) => {
-      const onlyAdminAuth = config.Only_admin_auth;
-      if (onlyAdminAuth && !isAdmin(session)) {
-        await session.send('你没有权限执行此操作。');
-        return;
-      }
-
-      if (!hasPermission(session, '查看关键词列表')) {
-        await session.send('你没有权限执行此操作。');
+      if (config.Only_admin_auth && !hasPermission(session, '查看关键词列表')) {
+        await session.send(session.text(".Only_admin_auth"));
         return;
       }
 
@@ -732,12 +730,9 @@ ${pageKeywords.map(keyword => `<div class="keyword">${keyword}</div>`).join('')}
   // 搜索关键词
   ctx.command(`keyword-dialogue/${KeywordOfSearch} [Keyword]`)
     .action(async ({ session }, Keyword) => {
-      if (config.Only_admin_auth && !isAdmin(session)) {
-        await session.send(h.text(session.text(`.Only_admin_auth`)));
-        return;
-      }
-      if (!hasPermission(session, '查找关键词')) {
-        await session.send('你没有权限执行此操作。');
+
+      if (config.Only_admin_auth && !hasPermission(session, '查找关键词')) {
+        await session.send(session.text(".Only_admin_auth"));
         return;
       }
       if (!Keyword) {
@@ -805,12 +800,9 @@ ${pageKeywords.map(keyword => `<div class="keyword">${keyword}</div>`).join('')}
     .alias('删除关键词')
     .option('question', '-q [number] 指定删除回复的序号')
     .action(async ({ session, options }, Keyword) => {
-      if (config.Only_admin_auth && !isAdmin(session)) {
-        await session.send(h.text(session.text(`.Only_admin_auth`)));
-        return;
-      }
-      if (!hasPermission(session, '删除')) {
-        await session.send('你没有权限执行此操作。');
+
+      if (config.Only_admin_auth && !hasPermission(session, '删除')) {
+        await session.send(session.text(".Only_admin_auth"));
         return;
       }
       if (!Keyword) {
@@ -829,12 +821,9 @@ ${pageKeywords.map(keyword => `<div class="keyword">${keyword}</div>`).join('')}
     .alias('全局删除关键词')
     .option('question', '-q [number] 指定删除回复的序号')
     .action(async ({ session, options }, Keyword) => {
-      if (config.Only_admin_auth && !isAdmin(session)) {
-        await session.send(h.text(session.text(`.Only_admin_auth`)));
-        return;
-      }
-      if (!hasPermission(session, '全局删除')) {
-        await session.send('你没有权限执行此操作。');
+
+      if (config.Only_admin_auth && !hasPermission(session, '全局删除')) {
+        await session.send(session.text(".Only_admin_auth"));
         return;
       }
       if (!Keyword) {
@@ -852,13 +841,11 @@ ${pageKeywords.map(keyword => `<div class="keyword">${keyword}</div>`).join('')}
   ctx.command(`keyword-dialogue/${global_add_command} [Keyword]`)
     .alias('全局添加关键词')
     .option('regex', '-x 添加正则关键词')
+    .option('unescapeRegExp', '-u 取消转义以使用自定义正则')
     .action(async ({ session, options }, Keyword) => {
-      if (config.Only_admin_auth && !isAdmin(session)) {
-        await session.send(h.text(session.text(`.Only_admin_auth`)));
-        return;
-      }
-      if (!hasPermission(session, '全局添加')) {
-        await session.send('你没有权限执行此操作。');
+
+      if (config.Only_admin_auth && !hasPermission(session, '全局添加')) {
+        await session.send(session.text(".Only_admin_auth"));
         return;
       }
       if (!isValidKeyword(Keyword)) {
@@ -870,7 +857,7 @@ ${pageKeywords.map(keyword => `<div class="keyword">${keyword}</div>`).join('')}
       if (!fs.existsSync(filePath)) {
         fs.writeFileSync(filePath, JSON.stringify({}, null, 2), 'utf-8');
       }
-      await addKeywordReply(session, filePath, Keyword.trim(), config, options.regex, isGlobal);
+      await addKeywordReply(session, filePath, Keyword.trim(), config, options, isGlobal);
     });
 
   //添加关键词
@@ -878,13 +865,11 @@ ${pageKeywords.map(keyword => `<div class="keyword">${keyword}</div>`).join('')}
     .alias('添加关键词')
     .option('global', '-g 添加全局关键词')
     .option('regex', '-x 添加正则关键词')
+    .option('unescapeRegExp', '-u 取消转义以使用自定义正则')
     .action(async ({ session, options }, Keyword) => {
-      if (config.Only_admin_auth && !isAdmin(session)) {
-        await session.send(h.text(session.text(`.Only_admin_auth`)));
-        return;
-      }
-      if (!hasPermission(session, '添加')) {
-        await session.send('你没有权限执行此操作。');
+
+      if (config.Only_admin_auth && !hasPermission(session, '添加')) {
+        await session.send(session.text(".Only_admin_auth"));
         return;
       }
       if (!isValidKeyword(Keyword)) {
@@ -900,19 +885,16 @@ ${pageKeywords.map(keyword => `<div class="keyword">${keyword}</div>`).join('')}
       if (!fs.existsSync(filePath)) {
         fs.writeFileSync(filePath, JSON.stringify({}, null, 2), 'utf-8');
       }
-      await addKeywordReply(session, filePath, Keyword.trim(), config, options.regex, isGlobal);
+      await addKeywordReply(session, filePath, Keyword.trim(), config, options, isGlobal);
     });
 
   // 修改问答
   ctx.command(`keyword-dialogue/${KeywordOfFix} [Keyword]`)
     .option('question', '-q [number] 指定回复序号')
     .action(async ({ session, options }, Keyword) => {
-      if (config.Only_admin_auth && !isAdmin(session)) {
-        await session.send(h.text(session.text(`.Only_admin_auth`)));
-        return;
-      }
-      if (!hasPermission(session, '修改')) {
-        await session.send('你没有权限执行此操作。');
+
+      if (config.Only_admin_auth && !hasPermission(session, '修改')) {
+        await session.send(session.text(".Only_admin_auth"));
         return;
       }
       if (!isValidKeyword(Keyword)) {
