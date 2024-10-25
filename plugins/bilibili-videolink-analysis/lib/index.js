@@ -54,6 +54,7 @@ exports.usage = `
 
 exports.Config = Schema.intersect([
     Schema.object({
+        demand: Schema.boolean().default(true).description("开启点播指令功能"),
         timeout: Schema.number().role('slider').min(1).max(300).step(1).default(60).description('指定播放视频的输入时限。`单位 秒`'),
         point: Schema.tuple([Number, Number]).description('序号标注位置。分别表示`距离顶部 距离左侧`的百分比').default([50, 50]),
         enable: Schema.boolean().description('是否开启自动解析`选择对应视频 会自动解析视频内容`').default(true),
@@ -126,95 +127,232 @@ function apply(ctx, config) {
         }
         return next();
     });
+    if (config.demand) {
+        ctx.command('B站点播')
+        ctx.command('B站点播/退出登录', '退出B站账号')
+            .action(async ({ session }) => {
+                const page = await ctx.puppeteer.page();
+                await page.goto('https://www.bilibili.com/', { waitUntil: 'networkidle2' });
 
-    ctx.command('B站点播')
-    ctx.command('B站点播/退出登录', '退出B站账号')
-        .action(async ({ session }) => {
-            const page = await ctx.puppeteer.page();
-            await page.goto('https://www.bilibili.com/', { waitUntil: 'networkidle2' });
+                const loginButtonSelector = '.right-entry__outside.go-login-btn';
+                const isLoggedIn = await page.$(loginButtonSelector) === null;
 
-            const loginButtonSelector = '.right-entry__outside.go-login-btn';
-            const isLoggedIn = await page.$(loginButtonSelector) === null;
-
-            if (!isLoggedIn) {
-                await page.close();
-                await session.send(h.text('您尚未登录。'))
-                return;
-            }
-
-            const avatarLinkSelector = '.header-entry-mini';
-            const logoutButtonSelector = '.logout-item';
-
-            try {
-                const avatarElement = await page.$(avatarLinkSelector);
-                if (avatarElement) {
-                    await avatarElement.hover();
-                    await page.waitForSelector(logoutButtonSelector, { visible: true });
-
-                    await page.click(logoutButtonSelector);
-
-                    await new Promise(resolve => setTimeout(resolve, 1000));
-
+                if (!isLoggedIn) {
                     await page.close();
-                    await session.send(h.text('已成功退出登录。'))
-                    return;
-                } else {
-                    await page.close();
-                    await session.send(h.text('找不到用户头像，无法退出登录。'))
+                    await session.send(h.text('您尚未登录。'))
                     return;
                 }
-            } catch (error) {
-                await page.close();
-                logger.error('Error during logout:', error);
-                await session.send(h.text('退出登录时出错。'))
-                return;
-            }
-        });
 
-    ctx.command('B站点播/登录', '登录B站账号')
-        .alias("登陆")
-        .action(async ({ session }) => {
-            const page = await ctx.puppeteer.page();
-            await page.goto('https://www.bilibili.com/', { waitUntil: 'networkidle2' });
+                const avatarLinkSelector = '.header-entry-mini';
+                const logoutButtonSelector = '.logout-item';
 
-            const loginButtonSelector = '.right-entry__outside.go-login-btn';
-            const isLoggedIn = await page.$(loginButtonSelector) === null;
+                try {
+                    const avatarElement = await page.$(avatarLinkSelector);
+                    if (avatarElement) {
+                        await avatarElement.hover();
+                        await page.waitForSelector(logoutButtonSelector, { visible: true });
 
-            if (isLoggedIn) {
-                await page.close();
-                await session.send(h.text('您已经登录了。'))
-                return;
-            }
+                        await page.click(logoutButtonSelector);
 
-            await page.click(loginButtonSelector);
+                        await new Promise(resolve => setTimeout(resolve, 1000));
 
-            const qrCodeSelector = '.login-scan-box img';
-            await page.waitForSelector(qrCodeSelector);
-            const qrCodeUrl = await page.$eval(qrCodeSelector, img => img.src);
+                        await page.close();
+                        await session.send(h.text('已成功退出登录。'))
+                        return;
+                    } else {
+                        await page.close();
+                        await session.send(h.text('找不到用户头像，无法退出登录。'))
+                        return;
+                    }
+                } catch (error) {
+                    await page.close();
+                    logger.error('Error during logout:', error);
+                    await session.send(h.text('退出登录时出错。'))
+                    return;
+                }
+            });
 
-            await session.send(h.image(qrCodeUrl, 'image/png'));
-            await session.send('请扫描二维码进行登录。');
+        ctx.command('B站点播/登录', '登录B站账号')
+            .alias("登陆")
+            .action(async ({ session }) => {
+                const page = await ctx.puppeteer.page();
+                await page.goto('https://www.bilibili.com/', { waitUntil: 'networkidle2' });
 
-            let attempts = 0;
-            let loginSuccessful = false;
+                const loginButtonSelector = '.right-entry__outside.go-login-btn';
+                const isLoggedIn = await page.$(loginButtonSelector) === null;
 
-            while (attempts < 6) {
-                await new Promise(resolve => setTimeout(resolve, 5000)); // Wait 
-                const isStillLoggedIn = await page.$(loginButtonSelector) === null;
-
-                if (isStillLoggedIn) {
-                    loginSuccessful = true;
-                    break;
+                if (isLoggedIn) {
+                    await page.close();
+                    await session.send(h.text('您已经登录了。'))
+                    return;
                 }
 
-                attempts++;
-            }
+                await page.click(loginButtonSelector);
 
-            await page.close();
-            await session.send(h.text(loginSuccessful ? '登录成功！' : '登录失败，请重试。'))
-            return;
-        });
+                const qrCodeSelector = '.login-scan-box img';
+                await page.waitForSelector(qrCodeSelector);
+                const qrCodeUrl = await page.$eval(qrCodeSelector, img => img.src);
 
+                await session.send(h.image(qrCodeUrl, 'image/png'));
+                await session.send('请扫描二维码进行登录。');
+
+                let attempts = 0;
+                let loginSuccessful = false;
+
+                while (attempts < 6) {
+                    await new Promise(resolve => setTimeout(resolve, 5000)); // Wait 
+                    const isStillLoggedIn = await page.$(loginButtonSelector) === null;
+
+                    if (isStillLoggedIn) {
+                        loginSuccessful = true;
+                        break;
+                    }
+
+                    attempts++;
+                }
+
+                await page.close();
+                await session.send(h.text(loginSuccessful ? '登录成功！' : '登录失败，请重试。'))
+                return;
+            });
+
+        ctx.command('B站点播/点播 [keyword]', '点播B站视频')
+            .option('video', '-v 解析返回视频')
+            .option('audio', '-a 解析返回语音')
+            .option('link', '-l 解析返回链接')
+            .option('page', '-p <page:number> 指定页数', { fallback: '1' })
+            .example('点播   遠い空へ  -v')
+            .action(async ({ options, session }, keyword) => {
+                if (!keyword) {
+                    await session.execute('点播 -h')
+                    await session.send(h.text('没输入点播内容'))
+                    return
+                }
+
+
+                const url = `https://search.bilibili.com/video?keyword=${encodeURIComponent(keyword)}&page=${options.page}&o=30`
+                const page = await ctx.puppeteer.page()
+
+                await page.goto(url, {
+                    waitUntil: 'networkidle2'
+                })
+
+                await page.addStyleTag({
+                    content: `
+div.bili-header, 
+div.login-tip, 
+div.v-popover, 
+div.right-entry__outside {
+display: none !important;
+}
+`
+                })
+                // 获取视频列表并为每个视频元素添加序号
+                const videos = await page.evaluate((point) => {
+                    const items = Array.from(document.querySelectorAll('.video-list-item:not([style*="display: none"])'))
+                    return items.map((item, index) => {
+                        const link = item.querySelector('a')
+                        const href = link?.getAttribute('href') || ''
+                        const idMatch = href.match(/\/video\/(BV\w+)\//)
+                        const id = idMatch ? idMatch[1] : ''
+
+                        if (!id) {
+                            // 如果没有提取到视频ID，隐藏这个元素
+                            //const htmlElement = item as HTMLElement
+                            const htmlElement = item
+                            htmlElement.style.display = 'none'
+                        } else {
+                            // 创建一个包含序号的元素，并将其插入到视频元素的正中央
+                            const overlay = document.createElement('div')
+                            overlay.style.position = 'absolute'
+                            overlay.style.top = `${point[0]}%`
+                            overlay.style.left = `${point[1]}%`
+                            overlay.style.transform = 'translate(-50%, -50%)'
+                            overlay.style.fontSize = '48px'
+                            overlay.style.fontWeight = 'bold'
+                            overlay.style.color = 'black'
+                            overlay.style.zIndex = '10'
+                            overlay.style.backgroundColor = 'rgba(255, 255, 255, 0.7)'  // 半透明白色背景，确保数字清晰可见
+                            overlay.style.padding = '10px'
+                            overlay.style.borderRadius = '8px'
+                            overlay.textContent = `${index + 1}` // 序号
+
+                            // 确保父元素有 `position: relative` 以正确定位
+                            //const videoElement = item as HTMLElement
+                            const videoElement = item
+                            videoElement.style.position = 'relative'
+                            videoElement.appendChild(overlay)
+                        }
+
+                        return { id }
+                    }).filter(video => video.id)
+                }, config.point) // 传递配置的 point 参数
+
+                // 如果开启了日志调试模式，打印获取到的视频信息
+                if (config.loggerinfo) {
+                    ctx.logger.info(options)
+                    ctx.logger.info(`共找到 ${videos.length} 个视频:`)
+                    videos.forEach((video, index) => {
+                        ctx.logger.info(`序号 ${index + 1}: ID - ${video.id}`)
+                    })
+                }
+
+                if (videos.length === 0) {
+                    await page.close()
+                    await session.send(h.text('未找到相关视频。'))
+                    return
+                }
+
+                // 动态调整窗口大小以适应视频数量
+                const viewportHeight = 200 + videos.length * 100
+                await page.setViewport({
+                    width: 1440,
+                    height: viewportHeight
+                })
+                let msg;
+                // 截图
+                const videoListElement = await page.$('.video-list.row')
+                if (videoListElement) {
+                    const imgBuf = await videoListElement.screenshot({
+                        captureBeyondViewport: false
+                    })
+                    msg = h.image(imgBuf, 'image/png')
+                }
+
+                await page.close()
+
+                // 发送截图
+                await session.send(msg)
+
+                // 提示用户输入
+                await session.send(`请选择视频的序号：`)
+
+                // 等待用户输入
+                const userChoice = await session.prompt(config.timeout * 1000)
+                const choiceIndex = parseInt(userChoice) - 1
+                if (isNaN(choiceIndex) || choiceIndex < 0 || choiceIndex >= videos.length) {
+                    await session.send(h.text('输入无效，请输入正确的序号。'))
+                    return
+                }
+
+                // 返回用户选择的视频ID
+                const chosenVideo = videos[choiceIndex]
+
+                // 如果开启了日志调试模式，打印用户选择的视频信息
+                if (config.loggerinfo) {
+                    ctx.logger.info(`渲染序号设置\noverlay.style.top = ${config.point[0]}% \noverlay.style.left = ${config.point[1]}%`)
+                    ctx.logger.info(`用户选择了序号 ${choiceIndex + 1}: ID - ${chosenVideo.id}`)
+                }
+
+                if (config.enable) { // 开启自动解析了
+                    session.content = `https://www.bilibili.com/video/${chosenVideo.id}`
+                    const ret = await extractLinks(session, config, ctx, lastProcessedUrls, logger); // 提取链接
+                    if (ret && !isLinkProcessedRecently(ret, lastProcessedUrls, config, logger)) {
+                        await processVideoFromLink(session, config, ctx, lastProcessedUrls, logger, ret, options); // 解析视频并返回
+                    }
+                }
+            })
+    }
     if (config.loggerinfo) {
         ctx.command('B站点播/调试点播 [keyword]', '调试时点播B站视频')
             .option('video', '-v 解析返回视频')
@@ -322,196 +460,6 @@ function apply(ctx, config) {
                 }
             });
     }
-    ctx.command('B站点播/点播 [keyword]', '点播B站视频')
-        .option('video', '-v 解析返回视频')
-        .option('audio', '-a 解析返回语音')
-        .option('link', '-l 解析返回链接')
-        .option('page', '-p <page:number> 指定页数', { fallback: '1' })
-        .example('点播   遠い空へ  -v')
-        .action(async ({ options, session }, keyword) => {
-            if (!keyword) {
-                await session.execute('点播 -h')
-                await session.send(h.text('没输入点播内容'))
-                return
-            }
-
-
-            const url = `https://search.bilibili.com/video?keyword=${encodeURIComponent(keyword)}&page=${options.page}&o=30`
-            const page = await ctx.puppeteer.page()
-
-            await page.goto(url, {
-                waitUntil: 'networkidle2'
-            })
-
-            await page.addStyleTag({
-                content: `
-div.bili-header, 
-div.login-tip, 
-div.v-popover, 
-div.right-entry__outside {
-display: none !important;
-}
-`
-            })
-            // 获取视频列表并为每个视频元素添加序号
-            const videos = await page.evaluate((point) => {
-                const items = Array.from(document.querySelectorAll('.video-list-item:not([style*="display: none"])'))
-                return items.map((item, index) => {
-                    const link = item.querySelector('a')
-                    const href = link?.getAttribute('href') || ''
-                    const idMatch = href.match(/\/video\/(BV\w+)\//)
-                    const id = idMatch ? idMatch[1] : ''
-
-                    if (!id) {
-                        // 如果没有提取到视频ID，隐藏这个元素
-                        //const htmlElement = item as HTMLElement
-                        const htmlElement = item
-                        htmlElement.style.display = 'none'
-                    } else {
-                        // 创建一个包含序号的元素，并将其插入到视频元素的正中央
-                        const overlay = document.createElement('div')
-                        overlay.style.position = 'absolute'
-                        overlay.style.top = `${point[0]}%`
-                        overlay.style.left = `${point[1]}%`
-                        overlay.style.transform = 'translate(-50%, -50%)'
-                        overlay.style.fontSize = '48px'
-                        overlay.style.fontWeight = 'bold'
-                        overlay.style.color = 'black'
-                        overlay.style.zIndex = '10'
-                        overlay.style.backgroundColor = 'rgba(255, 255, 255, 0.7)'  // 半透明白色背景，确保数字清晰可见
-                        overlay.style.padding = '10px'
-                        overlay.style.borderRadius = '8px'
-                        overlay.textContent = `${index + 1}` // 序号
-
-                        // 确保父元素有 `position: relative` 以正确定位
-                        //const videoElement = item as HTMLElement
-                        const videoElement = item
-                        videoElement.style.position = 'relative'
-                        videoElement.appendChild(overlay)
-                    }
-
-                    return { id }
-                }).filter(video => video.id)
-            }, config.point) // 传递配置的 point 参数
-
-            // 如果开启了日志调试模式，打印获取到的视频信息
-            if (config.loggerinfo) {
-                ctx.logger.info(options)
-                ctx.logger.info(`共找到 ${videos.length} 个视频:`)
-                videos.forEach((video, index) => {
-                    ctx.logger.info(`序号 ${index + 1}: ID - ${video.id}`)
-                })
-            }
-
-            if (videos.length === 0) {
-                await page.close()
-                await session.send(h.text('未找到相关视频。'))
-                return
-            }
-
-            // 动态调整窗口大小以适应视频数量
-            const viewportHeight = 200 + videos.length * 100
-            await page.setViewport({
-                width: 1440,
-                height: viewportHeight
-            })
-            let msg;
-            // 截图
-            const videoListElement = await page.$('.video-list.row')
-            if (videoListElement) {
-                const imgBuf = await videoListElement.screenshot({
-                    captureBeyondViewport: false
-                })
-                msg = h.image(imgBuf, 'image/png')
-            }
-
-            await page.close()
-
-            // 发送截图
-            await session.send(msg)
-
-            // 提示用户输入
-            await session.send(`请选择视频的序号：`)
-
-            // 等待用户输入
-            const userChoice = await session.prompt(config.timeout * 1000)
-            const choiceIndex = parseInt(userChoice) - 1
-            if (isNaN(choiceIndex) || choiceIndex < 0 || choiceIndex >= videos.length) {
-                await session.send(h.text('输入无效，请输入正确的序号。'))
-                return
-            }
-
-            // 返回用户选择的视频ID
-            const chosenVideo = videos[choiceIndex]
-
-            // 如果开启了日志调试模式，打印用户选择的视频信息
-            if (config.loggerinfo) {
-                ctx.logger.info(`渲染序号设置\noverlay.style.top = ${config.point[0]}% \noverlay.style.left = ${config.point[1]}%`)
-                ctx.logger.info(`用户选择了序号 ${choiceIndex + 1}: ID - ${chosenVideo.id}`)
-            }
-
-            if (config.enable) { // 开启自动解析了
-                session.content = `https://www.bilibili.com/video/${chosenVideo.id}`
-                const ret = await extractLinks(session, config, ctx, lastProcessedUrls, logger); // 提取链接
-                if (ret && !isLinkProcessedRecently(ret, lastProcessedUrls, config, logger)) {
-                    await processVideoFromLink(session, config, ctx, lastProcessedUrls, logger, ret, options); // 解析视频并返回
-                }
-            }
-        })
-    /*async function handleBilibiliMedia(config, session, lastretUrl) {
-        const fullAPIurl = `https://api.xingzhige.com/API/b_parse/?url=${encodeURIComponent(lastretUrl)}`;
-
-        try {
-            // 发起请求，解析 Bilibili 视频信息
-            const responseData = await ctx.http.get(fullAPIurl);
-
-            // 检查返回状态码是否为0且为视频内容
-            if (responseData.code === 0 && responseData.msg === "video" && responseData.data) {
-                const { bvid, cid } = responseData.data;
-
-                // 请求 Bilibili 播放 URL，获取视频信息
-                const bilibiliUrl = `https://api.bilibili.com/x/player/playurl?fnval=80&cid=${cid}&bvid=${bvid}`;
-                const playData = await ctx.http.get(bilibiliUrl);
-                //////
-                ctx.logger.info(bilibiliUrl)
-                // 检查返回的状态码是否为0，表示请求成功
-                if (playData.code === 0 && playData.data && playData.data.dash.duration) {
-                    const videoDurationSeconds = playData.data.dash.duration; // 视频时长，单位为秒
-                    const videoDurationMinutes = videoDurationSeconds / 60; // 转换为分钟
-
-                    // 检查视频时长是否超过配置的最大允许时长
-                    if (videoDurationMinutes > config.Maximumduration) {
-                        // 视频时长超过最大限制，返回提示
-                        if (config.Maximumduration_tip !== '不返回文字提示') {
-                            await session.send(config.Maximumduration_tip)
-                            return next()
-                        } else {
-                            return null; // 不返回提示信息
-                        }
-                    }
-
-                    // 视频时长符合要求，继续解析并返回视频直链
-                    const videoUrl = responseData.data.video.url;
-                    //////
-                    ctx.logger.info(videoUrl)
-                    if (videoUrl) {
-                        return videoUrl; // 返回视频直链
-                    } else {
-                        throw new Error("解析视频直链失败");
-                    }
-                } else {
-                    throw new Error("获取播放数据失败");
-                }
-            } else {
-                throw new Error("解析视频信息失败或非视频类型内容");
-            }
-        } catch (error) {
-            logger.error("请求解析 API 失败或处理出错:", error);
-            return null;
-        }
-    }*/
-
-
     //判断是否需要解析
     async function isProcessLinks(session, config, ctx, lastProcessedUrls, logger) {
         // 解析内容中的链接
