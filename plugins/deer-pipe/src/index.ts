@@ -28,7 +28,7 @@ export const usage = `
 <body>
 
 <h1>Deer Pipe 插件使用指南</h1>
-<h2><a href="https://www.npmjs.com/package/koishi-plugin-deer-pipe" target="_blank">点我查看README</a></h2>
+<h2><a href="https://github.com/shangxueink/koishi-shangxue-apps/tree/main/plugins/deer-pipe" target="_blank">点我查看README</a></h2>
 <details>
 <summary>详细的配置项功能列表 </summary>
 <h3>签到</h3>
