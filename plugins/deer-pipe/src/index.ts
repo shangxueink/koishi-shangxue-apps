@@ -255,7 +255,8 @@ export async function apply(ctx: Context, config: Config) {
           //"Cancel_sign_in_confirm": "你确定要取消{0}号的签到吗？请再次输入命令确认。",
           "invalid_day": "日期不正确，请输入有效的日期。\n示例： 戒🦌  1",
           "Cancel_sign_in_success": "你已成功取消{0}号的签到。点数变化：{1}",
-          "No_sign_in": "你没有在{0}号签到。"
+          "No_sign_in": "你没有在{0}号签到。",
+          "insufficient_currency": "你的余额不足以戒鹿。"
         }
       }
     }
@@ -833,6 +834,15 @@ ${deer.order === 3 ? '<span class="medal">🥉</span>' : ''}
       let [record] = await ctx.database.get('deerpipe', { userid: session.userId });
 
       if (record) {
+        // 从配置中获取取消签到的奖励或费用
+        const cost = config.cost.checkin_reward.find(c => c.command === '戒鹿').cost;
+        // 检查用户是否有足够的货币
+        const userCurrency = await getUserCurrency(ctx, session.user.id);
+        if (userCurrency < Math.abs(cost)) {
+          await session.send(`${h.at(session.userId)} ${session.text('.insufficient_currency')}`);
+          return;
+        }
+
         // 更新用户名
         const username = session.username;
         if (record.username !== username) {
@@ -852,9 +862,6 @@ ${deer.order === 3 ? '<span class="medal">🥉</span>' : ''}
           }
 
           record.totaltimes -= 1;
-
-          // 从配置中获取取消签到的奖励或费用
-          const cost = config.cost.checkin_reward.find(c => c.command === '戒鹿').cost;
 
           // 更新用户货币
           await updateUserCurrency(ctx, session.user.id, cost);
