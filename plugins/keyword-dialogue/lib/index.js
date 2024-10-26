@@ -86,15 +86,15 @@ exports.Config = Schema.intersect([
   }).description('基础设置'),
 
   Schema.object({
-    Only_admin_auth: Schema.boolean().default(false).description('开启后 仅允许 管理员/群主 使用本插件的指令 `须确保适配器支持获取群员角色`'),
     admin_list: Schema.array(Schema.object({
       adminID: Schema.string().description('管理员用户ID'),
       allowcommand: Schema.array(Schema.union(['添加', '删除', '全局添加', '全局删除', '查找关键词', '修改', '查看关键词列表'])).default(['添加', '删除', '修改', '查找关键词', '查看关键词列表']).description('可以使用的指令'),
-    })).role('table').description('额外的管理员列表（ 0 代表所有用户）<br>需要开启 Only_admin_auth 才生效').default([
+    })).role('table').description('管理员列表（ 0 代表所有用户）<br>独立于 channel_admin_auth ').default([
       {
         "adminID": "0"
       }
     ]),
+    channel_admin_auth: Schema.boolean().default(false).description('开启后 自动允许 管理员/群主 使用本插件的全部指令 `须确保适配器支持获取群员角色`').experimental(),
     Delete_Branch_Only: Schema.boolean().default(true).description('开启后 在删除多段回复的关键词时，必须指定需要删除的序号，而不会直接删除掉这个关键词'),
     Treat_all_as_lowercase: Schema.boolean().default(true).description('开启后 英文关键词匹配无视大写字母`解决英文大小写匹配问题`'),
     Prompt: Schema.string().role('textarea', { rows: [2, 4] }).default('请输入回复内容（输入 取消添加 以取消，输入 结束添加 以结束）：').description('添加时，返回的文字提示'),
@@ -180,10 +180,16 @@ function apply(ctx, config) {
 
   const zh_CN_default = {
     commands: {
+      [ViewKeywordList]: {
+        description: `查看关键词列表`,
+        messages: {
+          "channel_admin_auth": "你没有权限操作此指令。"
+        }
+      },
       [add_command]: {
         description: `添加关键词`,
         messages: {
-          "Only_admin_auth": "仅允许群组管理员操作。",
+          "channel_admin_auth": "你没有权限操作此指令。",
           "no_Valid_Keyword": "请提供一个有效的关键词。",
           "Input_Timeout": "输入超时。",
           "Cancel_operation": "添加操作已取消。",
@@ -194,7 +200,7 @@ function apply(ctx, config) {
       [global_add_command]: {
         description: `添加全局关键词`,
         messages: {
-          "Only_admin_auth": "仅允许群组管理员操作。",
+          "channel_admin_auth": "你没有权限操作此指令。",
           "no_Valid_Keyword": "请提供一个有效的关键词。",
           "Input_Timeout": "输入超时。",
           "Cancel_operation": "添加操作已取消。",
@@ -205,7 +211,7 @@ function apply(ctx, config) {
       [delete_command]: {
         description: `删除关键词`,
         messages: {
-          "Only_admin_auth": "仅允许群组管理员操作。",
+          "channel_admin_auth": "你没有权限操作此指令。",
           "no_Valid_Keyword": "请提供一个有效的关键词。",
           "Keyword_does_not_exist": "关键词 \"{0}\" 不存在。",
           "Reply_deleted": "关键词 \"{0}\" 的回复已删除。"
@@ -214,7 +220,7 @@ function apply(ctx, config) {
       [global_delete_command]: {
         description: `删除全局关键词`,
         messages: {
-          "Only_admin_auth": "仅允许群组管理员操作。",
+          "channel_admin_auth": "你没有权限操作此指令。",
           "no_Valid_Keyword": "请提供一个有效的关键词。",
           "Keyword_does_not_exist": "关键词 \"{0}\" 不存在。",
           "Reply_deleted": "关键词 \"{0}\" 的回复已删除。"
@@ -223,7 +229,7 @@ function apply(ctx, config) {
       [KeywordOfSearch]: {
         description: `查找关键词`,
         messages: {
-          "Only_admin_auth": "仅允许群组管理员操作。",
+          "channel_admin_auth": "你没有权限操作此指令。",
           "no_Valid_Keyword": "请提供一个有效的关键词。",
           "Keyword_not_found": "未找到关键词 \"{0}\" 的相关问答。",
           "Keyword_found": "在 {0} 下找到：\n关键词：{1}\n回复：\n{2}",
@@ -234,7 +240,7 @@ function apply(ctx, config) {
       [KeywordOfFix]: {
         description: `修改关键词`,
         messages: {
-          "Only_admin_auth": "仅允许群组管理员操作。",
+          "channel_admin_auth": "你没有权限操作此指令。",
           "no_Valid_Keyword": "请提供一个有效的关键词。",
           "Keyword_not_found": "未找到关键词 \"{0}\" 的相关问答。",
           "Keyword_found": "在 {0} 下找到：\n关键词：{1}\n回复：\n{2}",
@@ -333,8 +339,8 @@ function apply(ctx, config) {
     // 查找特定用户的权限配置
     const adminConfig = config.admin_list.find(admin => admin.adminID === userId);
 
-    // 如果 Only_admin_auth 开启
-    if (config.Only_admin_auth) {
+    // 如果 channel_admin_auth 开启
+    if (config.channel_admin_auth) {
       // 如果用户是管理员，检查其权限
       if (isAdmin(session)) {
         if (adminConfig) {
@@ -348,20 +354,20 @@ function apply(ctx, config) {
       }
     }
 
-    // 如果用户在 admin_list 中，检查其权限
-    if (adminConfig) {
-      return adminConfig.allowcommand.includes(command);
-    }
-
     // 查找 adminID 为 0 的配置，表示所有用户的默认权限
     const defaultConfig = config.admin_list.find(admin => admin.adminID === '0');
     if (defaultConfig && defaultConfig.allowcommand.includes(command)) {
       return true;
     }
 
+    // 查找特定用户的权限配置
+    //const adminConfig = config.admin_list.find(admin => admin.adminID === userId);
+    if (adminConfig) {
+      return adminConfig.allowcommand.includes(command);
+    }
+
     return false;
   }
-
 
   // 删除关键词回复分支
   async function deleteKeywordReply(session, filePath, keyword, config, specifiedIndex) {
@@ -633,11 +639,10 @@ function apply(ctx, config) {
   }
 
   // 查看关键词列表指令
-  ctx.command(`keyword-dialogue/${config.command.ViewKeywordList}`)
-    .alias('查看关键词列表')
+  ctx.command(`keyword-dialogue/${ViewKeywordList}`)
     .action(async ({ session }) => {
-      if (config.Only_admin_auth && !hasPermission(session, '查看关键词列表')) {
-        await session.send(session.text(".Only_admin_auth"));
+      if (!hasPermission(session, '查看关键词列表')) {
+        await session.send(session.text(".channel_admin_auth"));
         return;
       }
 
@@ -722,6 +727,7 @@ ${pageKeywords.map(keyword => `<div class="keyword">${keyword}</div>`).join('')}
 
           const imageMessage = h.image(imageBuffer, "image/png");
           await session.send(imageMessage);
+          return;
         }
       }
     });
@@ -731,8 +737,8 @@ ${pageKeywords.map(keyword => `<div class="keyword">${keyword}</div>`).join('')}
   ctx.command(`keyword-dialogue/${KeywordOfSearch} [Keyword]`)
     .action(async ({ session }, Keyword) => {
 
-      if (config.Only_admin_auth && !hasPermission(session, '查找关键词')) {
-        await session.send(session.text(".Only_admin_auth"));
+      if (!hasPermission(session, '查找关键词')) {
+        await session.send(session.text(".channel_admin_auth"));
         return;
       }
       if (!Keyword) {
@@ -801,8 +807,8 @@ ${pageKeywords.map(keyword => `<div class="keyword">${keyword}</div>`).join('')}
     .option('question', '-q [number] 指定删除回复的序号')
     .action(async ({ session, options }, Keyword) => {
 
-      if (config.Only_admin_auth && !hasPermission(session, '删除')) {
-        await session.send(session.text(".Only_admin_auth"));
+      if (!hasPermission(session, '删除')) {
+        await session.send(session.text(".channel_admin_auth"));
         return;
       }
       if (!Keyword) {
@@ -822,8 +828,8 @@ ${pageKeywords.map(keyword => `<div class="keyword">${keyword}</div>`).join('')}
     .option('question', '-q [number] 指定删除回复的序号')
     .action(async ({ session, options }, Keyword) => {
 
-      if (config.Only_admin_auth && !hasPermission(session, '全局删除')) {
-        await session.send(session.text(".Only_admin_auth"));
+      if (!hasPermission(session, '全局删除')) {
+        await session.send(session.text(".channel_admin_auth"));
         return;
       }
       if (!Keyword) {
@@ -844,8 +850,8 @@ ${pageKeywords.map(keyword => `<div class="keyword">${keyword}</div>`).join('')}
     .option('unescapeRegExp', '-u 取消转义以使用自定义正则')
     .action(async ({ session, options }, Keyword) => {
 
-      if (config.Only_admin_auth && !hasPermission(session, '全局添加')) {
-        await session.send(session.text(".Only_admin_auth"));
+      if (!hasPermission(session, '全局添加')) {
+        await session.send(session.text(".channel_admin_auth"));
         return;
       }
       if (!isValidKeyword(Keyword)) {
@@ -868,8 +874,8 @@ ${pageKeywords.map(keyword => `<div class="keyword">${keyword}</div>`).join('')}
     .option('unescapeRegExp', '-u 取消转义以使用自定义正则')
     .action(async ({ session, options }, Keyword) => {
 
-      if (config.Only_admin_auth && !hasPermission(session, '添加')) {
-        await session.send(session.text(".Only_admin_auth"));
+      if (!hasPermission(session, '添加')) {
+        await session.send(session.text(".channel_admin_auth"));
         return;
       }
       if (!isValidKeyword(Keyword)) {
@@ -893,8 +899,8 @@ ${pageKeywords.map(keyword => `<div class="keyword">${keyword}</div>`).join('')}
     .option('question', '-q [number] 指定回复序号')
     .action(async ({ session, options }, Keyword) => {
 
-      if (config.Only_admin_auth && !hasPermission(session, '修改')) {
-        await session.send(session.text(".Only_admin_auth"));
+      if (!hasPermission(session, '修改')) {
+        await session.send(session.text(".channel_admin_auth"));
         return;
       }
       if (!isValidKeyword(Keyword)) {
