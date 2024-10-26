@@ -44,9 +44,9 @@ export const usage = `
 
 <h2>获取 API 密钥</h2>
 <p>在使用本插件之前，你需要前往 <a href="https://bigjpg.com/zh" target="_blank">Bigjpg 官网 https://bigjpg.com/zh</a> 注册并获取 API 密钥。此密钥是调用图片放大服务的必需参数。</p>
-<p><a href="https://ghp.ci/https://raw.githubusercontent.com/shangxueink/koishi-shangxue-apps/main/koishi-plugin-image-upscale-bigjpg/2024-09-21_00-23-48.png" target="_blank">点击查看获取 API KEY 图解</a></p>
+<p><a href="https://i0.hdslb.com/bfs/article/e2de1d0d0dea0c9b9ab4a1507202841a312276085.png" target="_blank">点击查看获取 API KEY 图解</a></p>
 
-<p><a href="https://ghp.ci/https://raw.githubusercontent.com/shangxueink/koishi-shangxue-apps/main/koishi-plugin-image-upscale-bigjpg/2024-09-21_00-43-39.png" target="_blank">点击查看 Bigjpg 价格表</a></p>
+<p><a href="https://i0.hdslb.com/bfs/article/ea2d3a1aa6a060eb5981ea8b7416e899312276085.png" target="_blank">点击查看 Bigjpg 价格表</a></p>
 
 <hr>
 </body>

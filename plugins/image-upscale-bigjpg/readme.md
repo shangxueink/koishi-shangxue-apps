@@ -13,20 +13,27 @@
 
 ## 配置项说明
 
-| 配置项              | 类型            | 默认值 | 描述                                                                 |
-| ------------------- | --------------- | ------ | -------------------------------------------------------------------- |
-| `apiKey`            | `string`        | 无     | **必填**，Bigjpg API 密钥，必须从 [Bigjpg](https://bigjpg.com/zh) 获取 |
-| `timeout`           | `number`        | 30     | 等待上传图片的超时时间（单位：秒），默认 30 秒，最小 5 秒，最大 90 秒   |
-| `wait_text_tip`     | `string`        | "已经提交任务咯\~ 任务ID为：" | 提交任务后返回的自定义文字提示                                          |
-| `bigjpg_style`      | `'art' / 'photo'`| `art`  | 图片放大风格，支持卡通插画和照片两种风格                              |
-| `bigjpg_noise`      | `'-1' / '0'`     | `0`    | 降噪程度，`-1` 表示无降噪，`0` 表示低降噪                            |
-| `bigjpg_x2`         | `'1' / '2' / '3' / '4'` | `2`    | 放大倍数，分别表示 2x、4x、8x、16x 倍                                 |
-| `auto_query`        | `boolean`       | `true` | 提交任务后是否自动查询任务状态                                        |
-| `auto_query_time`   | `number`        | `10`   | 自动查询任务的时间间隔（单位：秒），默认 10 秒，范围 1-600 秒         |
-| `query_response_mode` | `'text' / 'image' / 'raw'` | `text`  | 返回任务查询的模式，`text` 返回图片链接，`image` 返回图片，`raw` 返回原始 JSON 数据 |
-| `loggerinfo`        | `boolean`       | `false`| 是否启用日志调试模式                                                  |
+| 配置项                | 类型                       | 默认值                        | 描述                                                                                |
+| --------------------- | -------------------------- | ----------------------------- | ----------------------------------------------------------------------------------- |
+| `apiKey`              | `string`                   | 无                            | **必填**，Bigjpg API 密钥，必须从 [Bigjpg](https://bigjpg.com/zh) 获取              |
+| `timeout`             | `number`                   | 30                            | 等待上传图片的超时时间（单位：秒），默认 30 秒，最小 5 秒，最大 90 秒               |
+| `wait_text_tip`       | `string`                   | "已经提交任务咯\~ 任务ID为：" | 提交任务后返回的自定义文字提示                                                      |
+| `bigjpg_style`        | `'art' / 'photo'`          | `art`                         | 图片放大风格，支持卡通插画和照片两种风格                                            |
+| `bigjpg_noise`        | `'-1' / '0'`               | `0`                           | 降噪程度，`-1` 表示无降噪，`0` 表示低降噪                                           |
+| `bigjpg_x2`           | `'1' / '2' / '3' / '4'`    | `2`                           | 放大倍数，分别表示 2x、4x、8x、16x 倍                                               |
+| `auto_query`          | `boolean`                  | `true`                        | 提交任务后是否自动查询任务状态                                                      |
+| `auto_query_time`     | `number`                   | `10`                          | 自动查询任务的时间间隔（单位：秒），默认 10 秒，范围 1-600 秒                       |
+| `query_response_mode` | `'text' / 'image' / 'raw'` | `text`                        | 返回任务查询的模式，`text` 返回图片链接，`image` 返回图片，`raw` 返回原始 JSON 数据 |
+| `loggerinfo`          | `boolean`                  | `false`                       | 是否启用日志调试模式                                                                |
 
 ## 使用方法
+
+<h2>获取 API 密钥</h2>
+<p>在使用本插件之前，你需要前往 <a href="https://bigjpg.com/zh" target="_blank">Bigjpg 官网 https://bigjpg.com/zh</a> 注册并获取 API 密钥。此密钥是调用图片放大服务的必需参数。</p>
+<p><a href="https://i0.hdslb.com/bfs/article/e2de1d0d0dea0c9b9ab4a1507202841a312276085.png" target="_blank">点击查看获取 API KEY 图解</a></p>
+
+<p><a href="https://i0.hdslb.com/bfs/article/ea2d3a1aa6a060eb5981ea8b7416e899312276085.png" target="_blank">点击查看 Bigjpg 价格表</a></p>
+
 
 ### 图片放大指令
 
