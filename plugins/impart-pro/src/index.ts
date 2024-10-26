@@ -46,9 +46,9 @@ export const usage = `
 举例说明：
 每次锻炼成功后，牛牛长度的增长范围。
 以默认值 \`[10, 45]\` 为例，表示成功锻炼后牛牛长度增长的基数为 10 厘米，同时允许有 ±45% 的浮动：
-  - **最大值**: $10 + 10 \times 0.45 = 14.5$ 厘米
-  - **最小值**: $10 - 10 \times 0.45 = 5.5$ 厘米
-  因此，锻炼成功时，牛牛的长度会在 5.5 厘米到 14.5 厘米之间随机增长。
+- **最大值**: $10 + 10 \times 0.45 = 14.5$ 厘米
+- **最小值**: $10 - 10 \times 0.45 = 5.5$ 厘米
+因此，锻炼成功时，牛牛的长度会在 5.5 厘米到 14.5 厘米之间随机增长。
 
 ---
 `;
@@ -231,7 +231,15 @@ export function apply(ctx: Context, config: Config) {
     .alias("保养牛牛")
     .userFields(["id"])
     .action(async ({ session }) => {
+
       const userId = session.userId;
+      // 检查是否被禁止触发
+      if (!await isUserAllowed(ctx, userId, session.channelId)) {
+        if (config.notallowtip) {
+          await session.send('你没有权限触发这个指令。');
+        }
+        return;
+      }
 
       // 获取用户记录
       let [userRecord] = await ctx.database.get('impartpro', { userid: userId });
@@ -643,97 +651,97 @@ export function apply(ctx: Context, config: Config) {
         }
         // 使用图片渲染
         const leaderboardHTML = `
-  <!DOCTYPE html>
-  <html lang="zh-CN">
-  <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>牛牛排行榜</title>
-  <style>
-  body {
-  font-family: 'Microsoft YaHei', Arial, sans-serif;
-  background-color: #f0f4f8;
-  margin: 0;
-  padding: 20px;
-  display: flex;
-  justify-content: center;
-  align-items: flex-start;
-  }
-  .container {
-  background-color: white;
-  border-radius: 10px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-  padding: 30px;
-  width: 100%;
-  max-width: 500px;
-  }
-  h1 {
-  text-align: center;
-  color: #2c3e50;
-  margin-bottom: 30px;
-  font-size: 28px;
-  }
-  .ranking-list {
-  list-style-type: none;
-  padding: 0;
-  margin: 0;
-  }
-  .ranking-item {
-  display: flex;
-  align-items: center;
-  padding: 15px 10px;
-  border-bottom: 1px solid #ecf0f1;
-  transition: background-color 0.3s;
-  }
-  .ranking-item:hover {
-  background-color: #f8f9fa;
-  }
-  .ranking-number {
-  font-size: 18px;
-  font-weight: bold;
-  margin-right: 15px;
-  min-width: 30px;
-  color: #7f8c8d;
-  }
-  .medal {
-  font-size: 24px;
-  margin-right: 15px;
-  }
-  .name {
-  flex-grow: 1;
-  font-size: 18px;
-  }
-  .length {
-  font-weight: bold;
-  color: #e74c3c;
-  font-size: 18px;
-  }
-  .length::after {
-  content: ' cm';
-  font-size: 14px;
-  color: #95a5a6;
-  }
-  </style>
-  </head>
-  <body>
-  <div class="container">
-  <h1>牛牛排行榜</h1>
-  <ol class="ranking-list">
-  ${rankData.map(record => `
-  <li class="ranking-item">
-  <span class="ranking-number">${record.order}</span>
-  ${record.order === 1 ? '<span class="medal">🥇</span>' : ''}
-  ${record.order === 2 ? '<span class="medal">🥈</span>' : ''}
-  ${record.order === 3 ? '<span class="medal">🥉</span>' : ''}
-  <span class="name">${record.username}</span>
-  <span class="length">${record.length}</span>
-  </li>
-  `).join('')}
-  </ol>
-  </div>
-  </body>
-  </html>
-  `;
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>牛牛排行榜</title>
+<style>
+body {
+font-family: 'Microsoft YaHei', Arial, sans-serif;
+background-color: #f0f4f8;
+margin: 0;
+padding: 20px;
+display: flex;
+justify-content: center;
+align-items: flex-start;
+}
+.container {
+background-color: white;
+border-radius: 10px;
+box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+padding: 30px;
+width: 100%;
+max-width: 500px;
+}
+h1 {
+text-align: center;
+color: #2c3e50;
+margin-bottom: 30px;
+font-size: 28px;
+}
+.ranking-list {
+list-style-type: none;
+padding: 0;
+margin: 0;
+}
+.ranking-item {
+display: flex;
+align-items: center;
+padding: 15px 10px;
+border-bottom: 1px solid #ecf0f1;
+transition: background-color 0.3s;
+}
+.ranking-item:hover {
+background-color: #f8f9fa;
+}
+.ranking-number {
+font-size: 18px;
+font-weight: bold;
+margin-right: 15px;
+min-width: 30px;
+color: #7f8c8d;
+}
+.medal {
+font-size: 24px;
+margin-right: 15px;
+}
+.name {
+flex-grow: 1;
+font-size: 18px;
+}
+.length {
+font-weight: bold;
+color: #e74c3c;
+font-size: 18px;
+}
+.length::after {
+content: ' cm';
+font-size: 14px;
+color: #95a5a6;
+}
+</style>
+</head>
+<body>
+<div class="container">
+<h1>牛牛排行榜</h1>
+<ol class="ranking-list">
+${rankData.map(record => `
+<li class="ranking-item">
+<span class="ranking-number">${record.order}</span>
+${record.order === 1 ? '<span class="medal">🥇</span>' : ''}
+${record.order === 2 ? '<span class="medal">🥈</span>' : ''}
+${record.order === 3 ? '<span class="medal">🥉</span>' : ''}
+<span class="name">${record.username}</span>
+<span class="length">${record.length}</span>
+</li>
+`).join('')}
+</ol>
+</div>
+</body>
+</html>
+`;
 
         const page = await ctx.puppeteer.page();
         await page.setContent(leaderboardHTML, { waitUntil: 'networkidle2' });
