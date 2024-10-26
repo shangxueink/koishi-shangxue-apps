@@ -402,10 +402,10 @@ export async function apply(ctx: Context, config: Config) {
         return;
       }
       // 获取用户余额
-      const balance = await getUserCurrency(ctx, session.user.id);
+      const balance = await getUserCurrency(ctx, await updateIDbyuserId(targetUserId, session.platform)); // 使用 targetUserId 对应的 aid 获取余额
       const imgBuf = await renderSignInCalendar(ctx, targetUserId, targetUsername, currentYear, currentMonth);
       const calendarImage = h.image(imgBuf, 'image/png');
-      await session.send(h.text(session.text(`.balance`, [balance])));
+      await session.send(h.at(targetUserId) + ` ` + h.text(session.text(`.balance`, [balance])));
       await session.send(calendarImage);
     });
 
@@ -919,7 +919,21 @@ ${deer.order === 3 ? '<span class="medal">🥉</span>' : ''}
       return 0; // Return 0 
     }
   }
+  async function updateIDbyuserId(userId, platform) {
+    // 查询数据库的 binding 表
+    const [bindingRecord] = await ctx.database.get('binding', {
+      pid: userId,
+      platform: platform,
+    });
 
+    // 检查是否找到了匹配的记录
+    if (!bindingRecord) {
+      throw new Error('未找到对应的用户记录。');
+    }
+
+    // 返回 aid 字段作为对应的 id
+    return bindingRecord.aid;
+  }
   async function renderSignInCalendar(ctx: Context, userId: string, username: string, year: number, month: number): Promise<Buffer> {
     const [record] = await ctx.database.get('deerpipe', { userid: userId });
     const checkinDates = record?.checkindate || [];
