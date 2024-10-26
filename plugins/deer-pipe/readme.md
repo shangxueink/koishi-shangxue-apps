@@ -95,10 +95,9 @@
 - 类型: `array`
 - 说明: 用户可以在商店中购买的道具及其对应的价格（以货币为单位）。
 ## 4. 调试设置
-- **`calendarimage`**: 每日签到日历图像的 Base64 编码。
+- **`calendarimage`**: 每日签到日历图像的 路径。
 - 类型: `string`
-- 默认值: `data:image/png;base64,iVBO...`
-- 说明: 用于显示每日签到的图片，需填入图片的 Base64 编码。
+- 说明: 用于显示每日签到的图片，需填入图片的 路径。
 - **`loggerinfo`**: 是否启用 debug 日志模式。
 - 类型: `boolean`
 - 默认值: `false`
@@ -118,17 +117,18 @@
 
 那你需要修改本插件配置项为 ` default ` ， 然后重载本插件即可。
 
-## calendarimage配置项说明
+## calendarpngimagepath 配置项说明
 
 这里需要填入一个图片的base64编码后的内容。
 
 我们推荐你前往这里寻找PNG图片 -> https://www.stickpng.com/zh
 
 在找到心仪的PNG图片后，
-可以通过类似 https://www.lddgo.net/convert/imagebasesix 这样的工具，
-将图片转换为base64字符串
 
-然后填入到本插件的对应配置项里
+请把图片放到 koishi 的 `/data`这样的数据文件夹下，
+
+以便`calendarpngimagepath`配置项可以选中
+
 
 ---
 
