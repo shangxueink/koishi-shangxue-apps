@@ -29,28 +29,58 @@ export interface Config {
 export const usage = `
 <h2><a href="https://www.npmjs.com/package/koishi-plugin-impart-pro" target="_blank">点我查看完整README</a></h2>
 
----
+<hr>
 
-| 指令             | 说明                               |
-| ---------------- | ---------------------------------- |
-| 开导 [@某人]     | 长牛牛                             |
-| 决斗 [@某人]     | 战斗！爽~                          |
-| 重开牛牛         | 牛牛很差怎么办？稳了！直接重开！   |
-| 牛牛排行榜       | 查看牛牛排行榜                     |
-| 看看牛牛 [@某人] | 查询自己或者别人牛牛数据           |
-| 锁牛牛 [@某人]          | 开启/关闭 某人/某频道 的牛牛大作战 |
+<table>
+<thead>
+<tr>
+<th>指令</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>开导 [@某人]</td>
+<td>长牛牛</td>
+</tr>
+<tr>
+<td>决斗 [@某人]</td>
+<td>战斗！爽~</td>
+</tr>
+<tr>
+<td>重开牛牛</td>
+<td>牛牛很差怎么办？稳了！直接重开！</td>
+</tr>
+<tr>
+<td>牛牛排行榜</td>
+<td>查看牛牛排行榜</td>
+</tr>
+<tr>
+<td>看看牛牛 [@某人]</td>
+<td>查询自己或者别人牛牛数据</td>
+</tr>
+<tr>
+<td>锁牛牛 [@某人]</td>
+<td>开启/关闭 某人/某频道 的牛牛大作战</td>
+</tr>
+</tbody>
+</table>
 
----
-### 配置项里有 形如 18 ± 45% 的数值
+<hr>
 
-举例说明：
-每次锻炼成功后，牛牛长度的增长范围。
-以默认值 \`[10, 45]\` 为例，表示成功锻炼后牛牛长度增长的基数为 10 厘米，同时允许有 ±45% 的浮动：
-- **最大值**: $10 + 10 \times 0.45 = 14.5$ 厘米
-- **最小值**: $10 - 10 \times 0.45 = 5.5$ 厘米
-因此，锻炼成功时，牛牛的长度会在 5.5 厘米到 14.5 厘米之间随机增长。
+<h3>配置项里有 形如 10 ± 45% 的数值</h3>
 
----
+<p>举例说明：<br>
+每次锻炼成功后，牛牛长度的增长范围。<br>
+以默认值 <code>[10, 45]</code> 为例，表示成功锻炼后牛牛长度增长的基数为 10 厘米，同时允许有 ±45% 的浮动：</p>
+<ul>
+<li><strong>最大值</strong>: 10 + 10 × 0.45 = 14.5 厘米</li>
+<li><strong>最小值</strong>: 10 - 10 × 0.45 = 5.5 厘米</li>
+</ul>
+<p>因此，锻炼成功时，牛牛的长度会在 5.5 厘米到 14.5 厘米之间随机增长。</p>
+
+<hr>
+
 `;
 
 export const Config: Schema<Config> = Schema.intersect([
@@ -767,7 +797,6 @@ ${record.order === 3 ? '<span class="medal">🥉</span>' : ''}
     });
 
   ctx.command('impartpro/看看牛牛 [user]', '查看牛牛')
-    //.alias('查看信息')
     .example("看看牛牛 @用户")
     .userFields(["id"])
     .action(async ({ session }, user) => {
@@ -793,11 +822,13 @@ ${record.order === 3 ? '<span class="medal">🥉</span>' : ''}
       }
 
       const [userRecord] = await ctx.database.get('impartpro', { userid: userId });
+      const balance = await getUserCurrency(await updateIDbyuserId(userId, session.platform)); // 使用 userId 对应的 aid 获取余额
       if (!userRecord) {
         await session.send(`暂时没有${h.at(userId)} 的记录。快输入【生成牛牛】进行初始化吧`);
         return;
       }
-      await session.send(`${h.at(userId)} 的牛牛长度为 ${userRecord.length.toFixed(2)} cm，成长系数为 ${userRecord.growthFactor.toFixed(2)} 。`);
+      await session.send(`${h.at(userId)} 的牛牛长度为 ${userRecord.length.toFixed(2)} cm，成长系数为 ${userRecord.growthFactor.toFixed(2)} 。<p>剩余点数为：${balance.toFixed(2)}`);
+      return;
     });
 
   ctx.command('impartpro/锁牛牛 [user]', '开启/禁止牛牛大作战')
