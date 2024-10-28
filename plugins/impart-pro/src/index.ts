@@ -145,7 +145,7 @@ export const Config: Schema<Config> = Schema.intersect([
     //exerciseRate: Schema.number().role('slider').min(0).max(100).step(1).default(80).description("【锻炼成功】概率。"),
     exerciseWinGrowthRange: Schema.tuple([Number, Number]).description("【锻炼成功】增长的牛牛长度（cm）<br>右侧代表最大的偏差百分比（%）（默认在 10 ± 45%）").default([10, 45]),
     exerciseLossReductionRange: Schema.tuple([Number, Number]).description("【锻炼失败】减少的牛牛长度（cm）<br>右侧代表最大的偏差百分比（%）（默认在 12 ± 45%）").default([12, 45]),
-    exerciseCooldownTime: Schema.number().role('slider').min(0).max(30).step(1).default(5).description("【锻炼牛牛】间隔休息时间（秒）"),
+    exerciseCooldownTime: Schema.number().min(0).max(86400).step(1).default(5).description("【锻炼牛牛】间隔休息时间（秒）"),
   }).description('牛牛设置'),
 
   Schema.object({
@@ -188,7 +188,7 @@ export const Config: Schema<Config> = Schema.intersect([
     duelWinRateFactor2: Schema.number().role('slider').min(-100).max(100).step(1).default(-10).description("【获胜概率 和 牛子长度】之间的额外概率。<br>其实就是为某一方单独加一点概率<br>为0时，双方概率按上表。<br>为100时，较长的一方必胜。<br>为-100时，较短的一方必胜。"),
     duelWinGrowthRange: Schema.tuple([Number, Number]).description("【决斗胜利】增长长度（cm）<br>右侧代表最大的偏差百分比（%）（默认在 10 ± 50%）").default([10, 50]),
     duelLossReductionRange: Schema.tuple([Number, Number]).description("【决斗失败】减少长度（cm）<br>右侧代表最大的偏差百分比（%）（默认在 15 ± 50%）").default([15, 50]),
-    duelCooldownTime: Schema.number().role('slider').min(0).max(100).step(1).default(15).description("【决斗】间隔休息时间（秒）"),
+    duelCooldownTime: Schema.number().min(0).step(1).default(15).description("【决斗】间隔休息时间（秒）"),
     duelLossCurrency: Schema.number().role('slider').min(0).max(100).step(1).default(80).description("【决斗】战败方，缩短长度转化为【货币】的比率（百分比）"),
   }).description('对决设置'),
 
