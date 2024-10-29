@@ -25,12 +25,12 @@ exports.usage = `
 <p> </p>
 <h2>温馨提示：</h2>
 <p><br>请勿将自定义的txt文件与本插件放置在同一目录下，以免插件更新导致文件丢失。</p>
-<p>目前EmojiHub-bili默认提供<code>40套</code>表情包。若您的配置内容有误差，请点击<code>MoreEmojiHub</code>表格右上角按钮内的<code>恢复默认值</code>。</p>
+<p>目前EmojiHub-bili默认提供<code>41套</code>表情包。若您的配置内容有误差，请点击<code>MoreEmojiHub</code>表格右上角按钮内的<code>恢复默认值</code>。</p>
 <p>若开启插件后，指令不出现，<a href="/market?keyword=commands">请重新开关commands插件</a></p>
 `;
 const logger = new Logger('emojihub-bili');
-const defaultMoreEmojiHub = [   
-  // 下面实际有效为 40套
+const defaultMoreEmojiHub = [
+  // 下面实际有效为 41套
   { command: '本地图库示例', source_url: path.join(__dirname, 'txts') },
   { command: '网络图片示例', source_url: 'https://i0.hdslb.com/bfs/article/afc31d0e398204d94478473a497028e6352074746.gif' },
   { command: '2233娘小剧场表情包', source_url: path.join(__dirname, 'txts/2233娘小剧场.txt') },
@@ -51,6 +51,7 @@ const defaultMoreEmojiHub = [
   { command: '阿尼亚表情包', source_url: path.join(__dirname, 'txts/阿尼亚.txt') },
   { command: '白圣女表情包', source_url: path.join(__dirname, 'txts/白圣女.txt') },
   { command: '白圣女漫画表情包', source_url: path.join(__dirname, 'txts/白圣女黑白.txt') },
+  { command: '败犬女主表情包', source_url: path.join(__dirname, 'txts/败犬女主.txt') },
   { command: '柴郡表情包', source_url: path.join(__dirname, 'txts/柴郡.txt') },
   { command: '初音Q版表情包', source_url: path.join(__dirname, 'txts/初音未来Q.txt') },
   { command: '甘城猫猫表情包', source_url: path.join(__dirname, 'txts/甘城猫猫.txt') },
@@ -90,7 +91,7 @@ exports.Config = Schema.intersect([
       command: Schema.string().description('注册的指令名称'),
       //enable: Schema.boolean().description('隐藏指令'),
       source_url: Schema.string().description('表情包文件地址'),
-    })).role('table').description('表情包指令映射 当前默认`40套`txt文件`点击右方按钮 可以恢复到默认值`<br>`表情包文件地址`可以填入`txt文件绝对路径`或者`文件夹绝对路径`或者`图片直链`或者`图片文件绝对路径`').default(defaultMoreEmojiHub),
+    })).role('table').description('表情包指令映射 当前默认`41套`txt文件`点击右方按钮 可以恢复到默认值`<br>`表情包文件地址`可以填入`txt文件绝对路径`或者`文件夹绝对路径`或者`图片直链`或者`图片文件绝对路径`').default(defaultMoreEmojiHub),
 
     searchSubfolders: Schema.boolean().description("是否递归搜索文件夹。`开启后 对于本地文件夹地址 会搜索其子文件夹内全部的图片`").default(true),
 
