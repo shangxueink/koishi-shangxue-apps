@@ -64,6 +64,14 @@ const Config = Schema.intersect([
   }).description('指令控制设置'),
 
   Schema.object({
+    enable_prohibitedKeywords: Schema.boolean().description("启用输出内容屏蔽").default(false),
+    prohibitedKeywords: Schema.array(Schema.object({
+      keywordContent: Schema.string().description("关键词内容，包含这些关键词的任意一项，就会取消本次内容的输出"),
+      isRegex: Schema.boolean().description("是否使用了正则表达式，开启后使用，正则表达生效，否则当做字符串处理"),
+    })).role('table').description("禁止输出的关键词。支持正则表达式。包含这些关键词的任意其中一项，就会取消这次消息的返回。"),
+  }).description('输出内容屏蔽设置'),
+
+  Schema.object({
     loggerinfo: Schema.boolean().default(false).description('日志调试模式'),
   }).description('调试设置'),
 ]);
@@ -425,7 +433,28 @@ async function apply(ctx, config) {
     return false;
   }
 
+  if (config.enable_prohibitedKeywords) {
+    ctx.before('send', async (session, options) => {
+      const prohibitedKeywords = config.prohibitedKeywords;
+      for (const keywordObj of prohibitedKeywords) {
+        const { keywordContent, isRegex } = keywordObj;
+        let match;
+        if (isRegex) {
+          // 去除开头和结尾的斜杠
+          const pattern = keywordContent.replace(/^\/|\/$/g, '');
+          const regex = new RegExp(pattern, 'i'); // 转换后再使用
+          match = regex.test(session.content);
+        } else {
+          match = session.content.includes(keywordContent);
+        }
 
+        if (match) {
+          session.content = '<></>'; // 清空消息
+          break;
+        }
+      }
+    });
+  }
 
   ctx.command(name)
 
