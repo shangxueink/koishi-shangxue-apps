@@ -15,9 +15,29 @@
 
 在koishi插件市场搜索并安装`music-link`
 
-## 使用
-应用中使用下述命令搜索和下载音乐：
-```bash
-下载音乐 [...keywords]
-搜索歌曲 [...keywords]
-```
+
+
+<h2>使用方法</h2>
+
+<p>安装并配置插件后，使用下述命令搜索和下载音乐：</p>
+<hr>
+
+<h3>使用星之阁API搜索QQ、网易云音乐</h3>
+<pre><code>下载音乐 [...keywords]</code></pre>
+<hr>
+
+<h3>使用龙珠API搜索QQ、网易云音乐</h3>
+<pre><code>搜索歌曲 [...keywords]</code></pre>
+<hr>
+
+<h3>如果需要让歌曲链接返回为语音消息/视频消息</h3>
+<p>可以修改对应指令的返回字段表中的下载链接对应的 <code>type</code> 字段，把 <code>text</code> 更改为 <code>audio</code> 就是返回语音，改为 <code>video</code> 就是返回视频消息。</p>
+<hr>
+
+<p>需要注意的是，当配置返回格式为音频/视频的时候，请自行检查是否安装了 <code>silk</code>、<code>ffmpeg</code> 等服务。</p>
+<hr>
+
+<h3>使用 <code>-n 1</code> 直接返回内容</h3>
+<p>在使用命令时，可以通过添加 <code>-n 1</code> 选项直接返回指定序号的歌曲内容。这对于快速获取特定歌曲非常有用。</p>
+<p>例如，使用以下命令可以直接获取第一首歌曲的详细信息：</p>
+<pre><code>搜索歌曲 -n 1 [...keywords]</code></pre>
