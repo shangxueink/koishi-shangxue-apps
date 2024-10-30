@@ -68,7 +68,16 @@ const Config = Schema.intersect([
     prohibitedKeywords: Schema.array(Schema.object({
       keywordContent: Schema.string().description("关键词内容，包含这些关键词的任意一项，就会取消本次内容的输出"),
       isRegex: Schema.boolean().description("是否使用了正则表达式，开启后使用，正则表达生效，否则当做字符串处理"),
-    })).role('table').description("禁止输出的关键词。支持正则表达式。包含这些关键词的任意其中一项，就会取消这次消息的返回。"),
+    })).role('table').description("禁止输出的关键词。支持正则表达式。包含这些关键词的任意其中一项，就会取消这次消息的返回。").default([
+      {
+        "isRegex": true,
+        "keywordContent": "/^你好.*$/"
+      },
+      {
+        "keywordContent": "我是机器人",
+        "isRegex": false
+      }
+    ]),
   }).description('输出内容屏蔽设置'),
 
   Schema.object({
