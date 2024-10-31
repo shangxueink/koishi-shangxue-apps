@@ -242,7 +242,7 @@ export async function apply(ctx: Context, config: Config) {
         description: "补签某日",
         messages: {
           "No_record": "暂无你的签到记录哦，快去签到吧~",
-          "invalid_day": "日期不正确，请输入有效的日期。\n示例： 补🦌  1",
+          "invalid_day": "日期不正确或未到，请输入有效的日期。\n示例： 补🦌  1",
           "Already_resigned": "你已经补签过{0}号了。",
           "Resign_success": "你已成功补签{0}号。点数变化：{1}",
           "Insufficient_balance": "货币点数不足。快去帮别人签到获取点数吧",
@@ -410,7 +410,6 @@ export async function apply(ctx: Context, config: Config) {
       await session.send(calendarImage);
     });
 
-
   ctx.command('deerpipe/鹿 [user]', '鹿管签到', { authority: 1 })
     .alias('🦌')
     .userFields(["id"])
@@ -424,6 +423,7 @@ export async function apply(ctx: Context, config: Config) {
       const cost = config.cost.checkin_reward.find(c => c.command === '鹿').cost;
       let targetUserId = session.userId;
       let targetUsername = session.username;
+      let updateUsername = true; // 标志变量
 
       if (user) {
         const parsedUser = h.parse(user)[0];
@@ -435,7 +435,11 @@ export async function apply(ctx: Context, config: Config) {
           }
 
           targetUserId = id;
-          targetUsername = name || id;
+          if (name) {
+            targetUsername = name;
+          } else {
+            updateUsername = false; // 如果没有 name，不更新用户名
+          }
         } else {
           await session.send(session.text('.invalid_input_user'));
           return;
@@ -468,7 +472,7 @@ export async function apply(ctx: Context, config: Config) {
       if (!targetRecord) {
         targetRecord = {
           userid: targetUserId,
-          username: targetUsername,
+          username: targetUsername || targetUserId, // 用户没有记录时，没有用户名的话，使用 id 作为用户名
           channelId: session.channelId,
           recordtime,
           checkindate: [`${currentDay}=1`],
@@ -478,11 +482,10 @@ export async function apply(ctx: Context, config: Config) {
         };
         await ctx.database.create('deerpipe', targetRecord);
       } else {
-        const has_user_name = user && h.parse(user)[0]?.attrs?.name;
-        if (has_user_name) {
+        // 如果存在 name 字段，才更新 targetRecord.username
+        if (updateUsername) {
           targetRecord.username = targetUsername;
         }
-
         if (targetRecord.recordtime !== recordtime) {
           targetRecord.recordtime = recordtime;
           targetRecord.checkindate = [];
@@ -508,13 +511,14 @@ export async function apply(ctx: Context, config: Config) {
           }
           targetRecord.totaltimes += 1;
         }
-
-        await ctx.database.set('deerpipe', { userid: targetUserId }, {
-          username: targetUsername,
+        const updateData = {
           checkindate: targetRecord.checkindate,
           totaltimes: targetRecord.totaltimes,
           recordtime: targetRecord.recordtime,
-        });
+          ...(updateUsername && { username: targetUsername }) // 仅在需要更新时添加 username
+        };
+
+        await ctx.database.set('deerpipe', { userid: targetUserId }, updateData);
 
         if (!config.enable_deerpipe && newCount > 1) {
           const imgBuf = await renderSignInCalendar(ctx, targetUserId, targetUsername, currentYear, currentMonth);
@@ -594,9 +598,9 @@ export async function apply(ctx: Context, config: Config) {
       let filteredRecords = records;
 
       if (config.Reset_Cycle === '每月') {
-        // 过滤掉当月没有签到的用户
+        // 过滤掉当月没有签到和签到次数为 0 的用户
         filteredRecords = records.filter(record => {
-          return record.recordtime === currentRecordtime;
+          return record.recordtime === currentRecordtime && record.totaltimes > 0; // && record.totaltimes > 0  目前出现了0次的用户，并且用户名都为ID， 不知道什么原因   先过滤掉
         });
       }
 
