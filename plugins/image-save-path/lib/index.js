@@ -1,63 +1,22 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-const koishi_1 = require("koishi");
+const { Schema, Logger, h } = require("koishi");
 const fs = require('node:fs');
-const crypto = require('node:crypto');
 const path = require('node:path');
-const logger = new koishi_1.Logger('image-save-path');
+const crypto = require('node:crypto');
+const logger = new Logger('image-save-path');
 //exports.usage = ` `;
 exports.usage = ` 
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<style>
-.command-explanation {
-  background-color: #677580 ; /* 深色背景 */
-  border-left: 5px solid #009688;
-  margin: 20px 0;
-  padding: 15px;
-  color: white; /* 白色文字 */
-}
-
-.save-path, .save-card {
-  padding: 10px;
-  background-color: #c9d3ec; /* 深色背景 */
-  margin: 10px 0;
-  color: white; /* 白色文字 */
-}
-
-.save-path {
-  border: 2px solid #ff9800;
-}
-
-.save-card {
-  border: 2px solid #3f51b5;
-}
-
-code {
-  color: #d3d3d3; /* 亮灰色文字 */
-}
-</style>
-
-</head>
-<body>
-
-
-
-
-<div class="command-explanation 配置项说明">
-  <p><strong>配置项说明：</strong></p>
-  <p><strong>交互保存图片 指令：</strong>用于触发后接收图片来保存。</p>
-  <p><strong>回复保存图片 指令：</strong>用于保存被回复的图片（机器人未接收到的图片就存不了）。</p>
-  <p><code>defaultImageExtension</code>无需填写<code>点</code>，只需要写<code>png</code>或者<code>jpg</code>等。</p>
-  <p><code>imageSaveMode</code>控制是否启用<code>多路径选择</code>的功能。开启后仅会保存到<code>savePaths</code>的第一行的路径</p>
-  <p><code>savePaths</code>用于映射路径，控制台填写名称和对应的具体路径。请仿照默认的路径<code>E:\\Music\\nums</code>来填写</p>
-  <p>用户交互时，仅需输入左侧的<code>name</code>，而无需输入完整的<code>path</code>内容。</p>
-  <p>两个指令都有<code>-e</code>和<code>-n</code>选项，使用示例<code>指令名称 路径序号 -n 文件名 -e webp</code></p>
-  <p>你也可以直接使用<code>指令名称 路径序号 文件名</code>来快速触发保存</p>
-  <p>不支持同时保存多张图片</p>
+<p><strong>配置项说明：</strong></p>
+<p><strong>交互保存图片 指令：</strong>用于触发后接收图片来保存。</p>
+<p><strong>回复保存图片 指令：</strong>用于保存被回复的图片（机器人未接收到的图片就存不了）。</p>
+<p><code>defaultImageExtension</code>无需填写<code>点</code>，只需要写<code>png</code>或者<code>jpg</code>等。</p>
+<p><code>imageSaveMode</code>控制是否启用<code>多路径选择</code>的功能。开启后仅会保存到<code>savePaths</code>的第一行的路径</p>
+<p><code>savePaths</code>用于映射路径，控制台填写名称和对应的具体路径。请仿照默认的路径<code>E:\\Music\\nums</code>来填写</p>
+<p>用户交互时，仅需输入左侧的<code>name</code>，而无需输入完整的<code>path</code>内容。</p>
+<p>两个指令都有<code>-e</code>和<code>-n</code>选项，使用示例<code>指令名称 路径序号 -n 文件名 -e webp</code></p>
+<p>你也可以直接使用<code>指令名称 路径序号 文件名</code>来快速触发保存</p>
+<p>不支持同时保存多张图片</p>
 </div>
 
 <p>详细使用方法请参考 <a href="https://www.npmjs.com/package/koishi-plugin-image-save-path">本项目的README说明（点我查看）</a></p>
@@ -68,43 +27,52 @@ code {
 <p></p>
 <p>推荐搭配一些从本地发图的插件使用哦\~</p>
 <ul>
-    <li><a href="/market?keyword=emojihub-bili">emojihub-bili（这个可以自动发送本地表情包，与本插件组合实现“表情包小偷”）</a></li>
-    <li><a href="/market?keyword=smmcat-photodisk">smmcat-photodisk（这个可以可视化选图，很好用~）</a></li>
-    <li><a href="/market?keyword=booru-local">booru-local</a></li>
-    <li><a href="/market?keyword=local-pic-selecter">local-pic-selecter</a></li>
-    <li><a href="/market?keyword=get-images-from-local-path">get-images-from-local-path</a></li>
+<li><a href="/market?keyword=emojihub-bili">emojihub-bili（这个可以自动发送本地表情包，与本插件组合实现“表情包小偷”）</a></li>
+<li><a href="/market?keyword=smmcat-photodisk">smmcat-photodisk（这个可以可视化选图，很好用~）</a></li>
+<li><a href="/market?keyword=booru-local">booru-local</a></li>
+<li><a href="/market?keyword=local-pic-selecter">local-pic-selecter</a></li>
+<li><a href="/market?keyword=get-images-from-local-path">get-images-from-local-path</a></li>
 </ul>
 
 `;
 
-exports.Config = koishi_1.Schema.intersect([
+exports.Config = Schema.intersect([
 
-  koishi_1.Schema.object({
-    defaultImageExtension: koishi_1.Schema.string().description("默认图片后缀名").default("png"),
-    imageSaveMode: koishi_1.Schema.boolean().description("开启后不进行路径选择交互，而直接保存到下方配置项的`savePaths`的第一行映射路径").default(false),
-    showSavePath: koishi_1.Schema.boolean().description("保存成功后，告知具体文件保存路径，关闭后只会回复`图片已成功保存。`").default(false),
-    checkDuplicate: koishi_1.Schema.boolean().description("开启后将检查重名文件，避免覆盖，若同名，则在文件名后加`(1)`,`(2)`... ...").default(true),
-    savePaths: koishi_1.Schema.array(koishi_1.Schema.object({
-      name: koishi_1.Schema.string(),
-      path: koishi_1.Schema.string(),
+  Schema.object({
+    defaultImageExtension: Schema.string().description("默认图片后缀名").default("png"),
+    imageSaveMode: Schema.boolean().description("开启后不进行路径选择交互，而直接保存到下方配置项的`savePaths`的第一行映射路径").default(false),
+    showSavePath: Schema.boolean().description("保存成功后，告知具体文件保存路径，关闭后只会回复`图片已成功保存。`").default(false),
+    checkDuplicate: Schema.boolean().description("开启后将检查重名文件，避免覆盖，若同名，则在文件名后加`(1)`,`(2)`... ...").default(true),
+    savePaths: Schema.array(Schema.object({
+      name: Schema.string(),
+      path: Schema.string(),
     })).role('table').description('用于设置图片保存路径的名称和地址映射').default([{ name: "1", path: "C:\\Program Files" }, { name: "2", path: "E:\\Music\\nums" }]),
 
   }).description('基础设置'),
 
-  koishi_1.Schema.object({
-    autosavePics: koishi_1.Schema.boolean().description("自动保存 的总开关 `如需查看详情日志，请开启consoleinfo配置项`").default(true),
-    count: koishi_1.Schema.number().default(5).description('触发自动保存的重复阈值。`某个图片重复出现该次数后，自动保存`'),
-    groupListmapping: koishi_1.Schema.array(koishi_1.Schema.object({
-      enable: koishi_1.Schema.boolean().description('勾选后才启用该群 的自动保存'),
-      groupList: koishi_1.Schema.string().description('开启自动保存图片的群组ID').pattern(/^\S+$/),
-      defaultsavepath: koishi_1.Schema.string().description('保存到的文件夹的绝对路径'),
+  Schema.object({
+    autosavePics: Schema.boolean().description("自动保存 的总开关 `如需查看详情日志，请开启consoleinfo配置项`").default(false),
+    count: Schema.number().default(2).description('触发自动保存的重复阈值。`某个图片重复出现该次数后，自动保存`'),
+    groupListmapping: Schema.array(Schema.object({
+      enable: Schema.boolean().description('勾选后才启用该群 的自动保存'),
+      groupList: Schema.string().description('开启自动保存图片的群组ID').pattern(/^\S+$/),
+      defaultsavepath: Schema.string().description('保存到的文件夹的绝对路径'),
     }))
       .role('table')
-      .description('各群组自动保存的路径映射 `注意群组ID不要多空格什么的`')
+      .description('各群组自动保存的路径映射 `注意不要多空格什么的（私信频道有private前缀）`')
       .default([
-        { enable: true, groupList: '1145141919810', defaultsavepath: path.join(__dirname) },
+        {
+          "enable": true,
+          "groupList": "114514",
+          "defaultsavepath": "C:\\Program Files"
+        },
+        {
+          "groupList": "private:1919810",
+          "enable": true,
+          "defaultsavepath": "C:\\Program Files"
+        }
       ]),
-    consoleinfo: koishi_1.Schema.boolean().default(false).description('日志调试模式')
+    consoleinfo: Schema.boolean().default(false).description('日志调试模式')
   }).description('进阶设置'),
 ])
 
@@ -211,7 +179,7 @@ function apply(ctx, config) {
       if (config.consoleinfo) {
         logger.info('用户输入： ' + image);
       }
-      const urlhselect = koishi_1.h.select(image, 'img').map(item => item.attrs.src);
+      const urlhselect = h.select(image, 'img').map(item => item.attrs.src);
       // 新增的逻辑检查
       if (urlhselect.length > 1 && !config.checkDuplicate) {
         return '未开启重名检查时不允许一次性输入多张图片。';
@@ -233,7 +201,7 @@ function apply(ctx, config) {
     .usage('示例：回复一条含有图片的消息并保存“save-card [pathName] [filename]”')
     .action(async ({ session, options }, pathName, filename) => {
       const quotemessage = session.quote.content;
-      const urlhselect = koishi_1.h.select(quotemessage, 'img').map(item => item.attrs.src);
+      const urlhselect = h.select(quotemessage, 'img').map(item => item.attrs.src);
       const imageExtension = options.ext || config.defaultImageExtension;
       if (!quotemessage) {
         return '请回复带有图片的消息（可能是图片发出在本次启动机器人之前哦~）';
@@ -384,7 +352,7 @@ function apply(ctx, config) {
         return next();
       }
       const userMessagePic = session.content;
-      const imageLinks = koishi_1.h.select(userMessagePic, 'img').map(item => item.attrs.src);
+      const imageLinks = h.select(userMessagePic, 'img').map(item => item.attrs.src);
       if (config.consoleinfo && imageLinks.length > 0) {
         logger.info(`收到图片消息：  \n${userMessagePic}\n提取到链接：  \n${imageLinks}`);
       }
