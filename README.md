@@ -1,4 +1,4 @@
-# koishi-shangxue-apps
+# koishi-shangxue-apps <img src="https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Smilies/Blue%20Heart.png" alt="Blue Heart" width="25" height="25" />
 
 ## 项目简介
 
@@ -46,9 +46,11 @@
    yarn dev
    ```
 
-## 插件语言说明
+## 插件语言说明 
+<img src="https://raw.githubusercontent.com/MikeCodesDotNET/ColoredBadges/master/svg/dev/languages/js.svg" alt="js" style="max-width: 100%;">
 
-在本项目中，部分插件是直接使用 JavaScript 编写的，而不是 TypeScript 编写后编译的。
+
+在本项目中，部分插件是直接使用 JavaScript  编写的，而不是 TypeScript 编写后编译的。
 
 此外，也有一些插件是用 TypeScript 开发的。
 
