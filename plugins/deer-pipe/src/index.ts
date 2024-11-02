@@ -134,9 +134,9 @@ export const Config: Schema<Config> = Schema.intersect([
     cost: Schema.object({
 
       checkin_reward: Schema.array(Schema.object({
-        command: Schema.union(['戴锁', '鹿', '补鹿', '戒鹿', '帮鹿']).description("交互指令"),
+        command: Schema.union(['鹿', '补鹿', '戒鹿']).description("交互指令"),
         cost: Schema.number().description("货币变动"),
-      })).role('table').description('【获取硬币】本插件指令的货币变动').default([{ "command": "鹿", "cost": 100 }, { "command": "帮鹿", "cost": 200 }, { "command": "戴锁", "cost": 0 }, { "command": "补鹿", "cost": -100 }, { "command": "戒鹿", "cost": -100 }]),
+      })).role('table').description('【获取硬币】本插件指令的货币变动').default([{ "command": "鹿", "cost": 100 }, { "command": "补鹿", "cost": -100 }, { "command": "戒鹿", "cost": -100 }]),
 
       store_item: Schema.array(Schema.object({
         item: Schema.string().description("物品名称"),
