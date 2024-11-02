@@ -1,0 +1,29 @@
+{
+  "name": "koishi-plugin-command-creator-extender",
+  "description": "A Koishi plugin to create and extend commands with customizable features.",
+  "version": "1.0.0",
+  "main": "lib",
+  "files": [
+    "lib"
+  ],
+  "keywords": [
+    "bot",
+    "chatbot",
+    "koishi",
+    "plugin",
+    "command",
+    "customization",
+    "mapping"
+  ],
+  "koishi": {
+    "browser": true,
+    "description": {
+      "en": "Create and extend commands with customizable features!",
+      "zh": "创建和扩展具有自定义功能的指令！"
+    }
+  },
+  "license": "MIT",
+  "dependencies": {
+    "koishi": "^4.17.0"
+  }
+}
