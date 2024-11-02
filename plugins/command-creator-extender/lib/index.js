@@ -3,7 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const koishi = require("koishi");
 const { Schema } = require("koishi");
 
-const name = "miao";
+const name = "command-creator-extender";
 
 const usage = `
 <!DOCTYPE html>
