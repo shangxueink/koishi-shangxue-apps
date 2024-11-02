@@ -109,29 +109,31 @@ async function apply(ctx, config) {
         }
       });
   }
-
   ctx.middleware(async (session, next) => {
-    await next();
+    await next(); // ok，直接先执行后面的next
+
     // 移除前导尖括号内容，也就是移除at机器人的元素消息
     if (session.platform === 'qq') {
       session.content = removeLeadingBrackets(session.content);
     }
 
-    // 获取当前执行的指令内容
-    const currentCommand = session.content.split(" ")[0];
+    // 拆分指令和参数
+    const [currentCommand, ...args] = session.content.split(" ");
+    const remainingArgs = args.join(" ");
 
     // 查找匹配的原始指令
     const mappings = config.table2.filter(item => currentCommand.includes(item.rawCommand));
 
     if (mappings.length > 0) {
       if (config.loggerinfo) {
-        ctx.logger.info(`用户 ${session.userId} 触发了 ${currentCommand} ，即将自动执行 ：\n${mappings.map(m => m.nextCommand).join('、')}`);
+        ctx.logger.info(`用户 ${session.userId} 触发了 ${currentCommand} ${remainingArgs}，即将自动执行 ：\n${mappings.map(m => `${m.nextCommand} ${remainingArgs}`).join('\n')}`);
       }
       for (const mapping of mappings) {
-        await session.execute(mapping.nextCommand);
+        await session.execute(`${mapping.nextCommand} ${remainingArgs}`);
       }
     }
   }, true);
+
 }
 
 exports.apply = apply;
