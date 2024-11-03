@@ -35,31 +35,46 @@ const Config = Schema.intersect([
 
     于是就有了这个喵~
     */
-    command_userId_list: Schema.array(Schema.object({
+    command_userId_list: Schema.array(Schema.object({ // command_userId_list
       command: Schema.string().description('指令名称'),
-      userId: Schema.string().description('用户ID'),
+      userId: Schema.string().description('应用对象'),
       enable: Schema.union([
         Schema.const('取消应用'),
         Schema.const('白名单'),
         Schema.const('黑名单'),
       ]).description('应用方法').default('黑名单'),
-    })).role('table').description('【指令-用户】黑白名单<br>左侧填写指令，右侧填写用户ID <br>➣ 注意需要加上指令前缀（如果有）<br>').default([
-      {
-        "command": "help",
-        "userId": "114514",
-        "enable": "黑名单"
-      },
-      {
-        "command": "/help",
-        "userId": "1919",
-        "enable": "黑名单"
-      },
-      {
-        "userId": "810",
-        "enable": "黑名单",
-        "command": "#help"
-      }
-    ]),
+      enableobject: Schema.union([
+        Schema.const('用户ID'),
+        Schema.const('频道ID'),
+        Schema.const('平台名称'),
+      ]).description('应用对象属性').default('用户ID'),
+    })).role('table').description('【指令-用户】黑白名单<br>左侧填写指令，右侧填写用户ID <br>➣ 注意需要加上指令前缀（如果有）<br>黑名单：仅屏蔽此对象<br>白名单：仅允许此对象<br>').default(
+      [
+        {
+          "command": "/help0",
+          "userId": "114514",
+          "enable": "白名单",
+          "enableobject": null
+        },
+        {
+          "command": "/help1",
+          "userId": "114514",
+          "enableobject": "频道ID"
+        },
+        {
+          "command": "/help2",
+          "userId": "private:114514",
+          "enable": "黑名单",
+          "enableobject": "频道ID"
+        },
+        {
+          "command": "/help3",
+          "userId": "qq",
+          "enable": "取消应用",
+          "enableobject": "平台名称"
+        }
+      ]
+    ),
 
   }).description('指令控制设置'),
 
@@ -559,19 +574,37 @@ async function apply(ctx, config) {
     const commandUserIdCheck = config.command_userId_list.find(item => item.command === userCommand);
 
     if (commandUserIdCheck) {
-      if (commandUserIdCheck.enable === '黑名单' && commandUserIdCheck.userId === session.userId) {
-        // 如果用户在黑名单中，阻止执行
-        logInfo(`用户 ${session.userId} 尝试调用指令 ${commandUserIdCheck.command}，但在黑名单中，阻止执行`);
-        return; // 黑名单中的用户不允许执行该指令
-      } else if (commandUserIdCheck.enable === '白名单') {
-        if (commandUserIdCheck.userId === session.userId) {
-          // 用户在白名单中，允许执行
-          logInfo(`用户 ${session.userId} 调用指令 ${commandUserIdCheck.command}，且在白名单中，允许执行`);
-          return next(); // 白名单中的用户允许执行
+      const { enable, userId, enableobject } = commandUserIdCheck;
+      let isMatched = false;
+
+      // 根据 enableobject 判断匹配对象
+      switch (enableobject) {
+        case '用户ID':
+          isMatched = (userId === session.userId);
+          break;
+        case '频道ID':
+          isMatched = (userId === session.channelId);
+          break;
+        case '平台名称':
+          isMatched = (userId === session.platform);
+          break;
+        default:
+          isMatched = (userId === session.userId); // 默认匹配用户ID
+      }
+
+      if (enable === '黑名单' && isMatched) {
+        // 如果在黑名单中，阻止执行
+        logInfo(`对象 ${userId} 尝试调用指令 ${commandUserIdCheck.command}，但在黑名单中，阻止执行`);
+        return; // 黑名单中的对象不允许执行该指令
+      } else if (enable === '白名单') {
+        if (isMatched) {
+          // 在白名单中，允许执行
+          logInfo(`对象 ${userId} 调用指令 ${commandUserIdCheck.command}，且在白名单中，允许执行`);
+          return next(); // 白名单中的对象允许执行
         } else {
-          // 用户不在白名单中，阻止执行
-          logInfo(`用户 ${session.userId} 调用指令 ${commandUserIdCheck.command}，但不在白名单中，不允许执行`);
-          return; // 非白名单用户不允许执行该指令
+          // 不在白名单中，阻止执行
+          logInfo(`对象 ${userId} 调用指令 ${commandUserIdCheck.command}，但不在白名单中，不允许执行`);
+          return; // 非白名单对象不允许执行该指令
         }
       }
     }

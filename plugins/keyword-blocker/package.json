@@ -1,7 +1,7 @@
 {
   "name": "koishi-plugin-keyword-blocker",
   "description": "A plugin to block and unblock keywords",
-  "version": "1.5.7",
+  "version": "1.5.8",
   "main": "lib/index.js",
   "files": [
     "lib"
