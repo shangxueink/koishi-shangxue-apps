@@ -1,7 +1,7 @@
 {
   "name": "koishi-plugin-command-creator-extender",
   "description": "创建和扩展具有自定义功能的指令！",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "main": "lib/index.js",
   "typings": "lib/index.d.ts",
   "files": [

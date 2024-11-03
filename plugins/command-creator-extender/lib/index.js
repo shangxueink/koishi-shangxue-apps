@@ -110,19 +110,20 @@ async function apply(ctx, config) {
       });
   }
   ctx.middleware(async (session, next) => {
-    await next(); // ok，直接先执行后面的next
+    await next(); // 先执行后面的next
 
     // 移除前导尖括号内容，也就是移除at机器人的元素消息
     if (session.platform === 'qq') {
       session.content = removeLeadingBrackets(session.content);
     }
 
-    // 拆分指令和参数
-    const [currentCommand, ...args] = session.content.split(" ");
+    // 修剪内容并拆分指令和参数
+    const trimmedContent = session.content.trim();
+    const [currentCommand, ...args] = trimmedContent.split(/\s+/); // 使用正则表达式确保以空格分割
     const remainingArgs = args.join(" ");
 
     // 查找匹配的原始指令
-    const mappings = config.table2.filter(item => currentCommand.includes(item.rawCommand));
+    const mappings = config.table2.filter(item => currentCommand === item.rawCommand);
 
     if (mappings.length > 0) {
       if (config.loggerinfo) {
@@ -133,6 +134,7 @@ async function apply(ctx, config) {
       }
     }
   }, true);
+
 
 }
 
