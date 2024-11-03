@@ -9,16 +9,8 @@
 - **指令创建**：允许用户创建自定义指令，以满足特定需求。
 - **指令映射**：支持将一个指令映射到多个功能，便于实现复杂调用。
 - **多重调用**：通过 `table2` 表格实现复杂的多重调用逻辑。
-- **位置控制**：在单独发送和拼接发送模式下，均可选择将口癖消息添加在原消息的开头或结尾。
-- **多媒体支持**：支持文本、图片、音频和视频类型的口癖消息。
-- 
-<!DOCTYPE html>
-<html lang="zh">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>插件使用说明</title>
-</head>
+
+
 <body>
 <h1>插件使用说明</h1>
 <p>该插件用于将一个已有的指令映射到其他指令，并允许用户自定义指令。</p>
@@ -39,4 +31,3 @@
 </ul>
 <p>推荐在 <strong>commands</strong> 中创建全新指令，并在 <strong>table2</strong> 表格中指定其对应的调用指令。</p>
 </body>
-</html>
