@@ -425,6 +425,9 @@ export async function apply(ctx: Context, config: Config) {
       let targetUsername = session.username;
       let updateUsername = true; // 标志变量
 
+      ////  这里用于复现部分协议端输入的at没有name字段的情况
+      //user = `<at id="1787850032"/>`;
+      //ctx.logger.info(user)
       if (user) {
         const parsedUser = h.parse(user)[0];
         if (parsedUser?.type === 'at') {
@@ -439,6 +442,7 @@ export async function apply(ctx: Context, config: Config) {
             targetUsername = name;
           } else {
             updateUsername = false; // 如果没有 name，不更新用户名
+            targetUsername = id; // 让 targetUsername 变成 输入用户的id，以确保下面的targetUsername都可以正常使用
           }
         } else {
           await session.send(session.text('.invalid_input_user'));
@@ -519,7 +523,8 @@ export async function apply(ctx: Context, config: Config) {
         };
 
         await ctx.database.set('deerpipe', { userid: targetUserId }, updateData);
-
+        ////
+        //ctx.logger.info(targetUsername)
         if (!config.enable_deerpipe && newCount > 1) {
           const imgBuf = await renderSignInCalendar(ctx, targetUserId, targetUsername, currentYear, currentMonth);
           const calendarImage = h.image(imgBuf, 'image/png');
