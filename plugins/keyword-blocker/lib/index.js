@@ -35,42 +35,43 @@ const Config = Schema.intersect([
 
     于是就有了这个喵~
     */
-    command_userId_list: Schema.array(Schema.object({ // command_userId_list
+    command_userId_list: Schema.array(Schema.object({ 
       command: Schema.string().description('指令名称'),
-      userId: Schema.string().description('应用对象'),
-      enable: Schema.union([
-        Schema.const('取消应用'),
-        Schema.const('白名单'),
-        Schema.const('黑名单'),
-      ]).description('应用方法').default('黑名单'),
+      userId: Schema.string().description('应用对象'),      
       enableobject: Schema.union([
         Schema.const('用户ID'),
         Schema.const('频道ID'),
         Schema.const('平台名称'),
       ]).description('应用对象属性').default('用户ID'),
-    })).role('table').description('【指令-用户】黑白名单<br>左侧填写指令，右侧填写用户ID <br>➣ 注意需要加上指令前缀（如果有）<br>黑名单：仅屏蔽此对象<br>白名单：仅允许此对象<br>').default(
+      enable: Schema.union([
+        Schema.const('取消应用'),
+        Schema.const('白名单'),
+        Schema.const('黑名单'),
+      ]).description('应用方法').default('黑名单'),
+    })).role('table').description('【指令-用户】黑白名单<br>左侧填写指令，右侧填写用户ID <br>➣ 注意需要加上指令前缀（如果有）<br>黑名单：仅屏蔽此对象<br>白名单：仅允许此对象<br>取消应用：该行不生效<br>> 逻辑优先级按照下表降序排序。[详细说明见readme](https://github.com/shangxueink/koishi-shangxue-apps/tree/main/plugins/keyword-blocker)<br>').default(
       [
         {
-          "command": "/help0",
+          "command": "++help",
           "userId": "114514",
-          "enable": "白名单",
-          "enableobject": null
+          "enableobject": null,
+          "enable": "白名单"
         },
         {
-          "command": "/help1",
-          "userId": "114514",
+          "command": "++help",
+          "userId": "1919810",
+          "enable": null,
           "enableobject": "频道ID"
         },
         {
-          "command": "/help2",
+          "command": "++help",
           "userId": "private:114514",
           "enable": "黑名单",
           "enableobject": "频道ID"
         },
         {
-          "command": "/help3",
+          "command": "/help",
           "userId": "qq",
-          "enable": "取消应用",
+          "enable": null,
           "enableobject": "平台名称"
         }
       ]
