@@ -41,6 +41,7 @@ const usage = `
 
 （注：下面的【前缀】均指【全局设置】里的指令前缀）
 
+> 灵感来自 command-creator
 `;
 
 const UserCommand = Schema.object({
