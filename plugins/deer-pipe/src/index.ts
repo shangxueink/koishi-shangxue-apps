@@ -579,7 +579,7 @@ export async function apply(ctx: Context, config: Config) {
 
       const imgBuf = await renderSignInCalendar(ctx, targetUserId, targetUsername, currentYear, currentMonth);
       const calendarImage = h.image(imgBuf, 'image/png');
-      await updateUserCurrency(ctx, session.user.id, cost);
+      await updateUserCurrency(ctx, await updateIDbyuserId(targetUserId, session.platform), cost);
       if (config.enable_blue_tip) {
         await session.send(calendarImage + `<p>` + h.at(targetUserId) + `<p>` + session.text('.Sign_in_success', [targetRecord.totaltimes, cost]) + session.text('.enable_blue_tip'));
       } else {
