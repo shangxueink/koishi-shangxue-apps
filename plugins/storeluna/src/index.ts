@@ -33,8 +33,8 @@ export async function apply(ctx: Context, config: Config) {
                 return
         }
 
-        let visitCountBuffer = new SharedArrayBuffer(4)
-        let visitCount = new Int32Array(visitCountBuffer)
+        //let visitCountBuffer = new SharedArrayBuffer(4)
+        let visitCount = 0
         let syncCount = 0
         let successCount = 0
         let [data, filtereddata]: [SearchResult, SearchObject[]] = (
@@ -62,7 +62,7 @@ export async function apply(ctx: Context, config: Config) {
 
         ctx.setInterval(() => {
                 const reportContent = config.reportContent
-                        .replace('{visitCount}', `${Atomics.load(visitCount, 0)}`)
+                        .replace('{visitCount}', `${visitCount}`)
                         .replace('{syncCount}', `${syncCount}`)
                         .replace('{successCount}', `${successCount}`)
                         .replace('{blacklistCount}', `${blacklistCount}`)
@@ -75,7 +75,7 @@ export async function apply(ctx: Context, config: Config) {
                 ctx.server['get'](serverPath, (ctx) => {
                         ctx.status = 200
                         ctx.body = data
-                        Atomics.add(visitCount, 0, 1)
+                        visitCount++
                 })
                 logger.info(`监听路径: ${serverPath}`)
         } catch (error) {
