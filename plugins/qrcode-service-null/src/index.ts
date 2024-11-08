@@ -9,7 +9,7 @@ export const Config: Schema<Config> = Schema.object({})
 export const usage = `
 为koishi通过二维码生成服务
 
-[使用方法请见readme](https://www.npmjs.com/package/koishi-plugin-qrcode)
+[使用方法请见readme](https://www.npmjs.com/package/koishi-plugin-qrcode-service-null)
 
 `;
 declare module 'koishi' {
