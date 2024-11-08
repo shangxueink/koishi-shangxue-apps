@@ -5,7 +5,7 @@ const { Schema, Logger, h } = require("koishi");
 
 const fs = require('node:fs');
 const path = require('node:path');
-
+const crypto = require('node:crypto');
 
 exports.name = "patina";
 exports.inject = {
@@ -97,7 +97,6 @@ exports.Config = Schema.intersect([
     }).description('包浆'),
 
     Schema.object({
-
         defaultPreset: Schema.union([
             '愈漸升溫', '灼熱苦夏', '褪色老膠', '隔行掃描', '數字信號', '同步失敗', '信號沈默',
             '霓虹泛濫', '壹九零零', '顏色極端', '顛倒黑白', '兩極色溫', '影片光碟', '情迷東京',
@@ -124,14 +123,29 @@ exports.Config = Schema.intersect([
         //scalingMode: Schema.union(['填充', '完整', '拉伸']).description('拉伸方案').default("填充"),// 用不到，只做预设的滤镜 足够了
     }).description('蒸 気 機'),
 
-    /*
     Schema.object({
-    isRevokeEnabled: Schema.boolean().default(false).description("撤回输入图片"), // 是否执行撤回
-    revokeThreshold: Schema.number().role('slider').min(0).max(100).step(1).default(50).description("撤回阈值"), // 撤回阈值
-    isTextPromptEnabled: Schema.boolean().default(false).description("文字提示"), // 是否返回文字提示
-    textPromptContent: Schema.string().default("不准色色！"), // 文字提示内容        
-    }).description('鉴黄'),
-    */
+        waittime: Schema.number().default(5).description("上传图片后等待的鉴定时间。单位 秒<br>（推荐不低于2秒，初次可能时间长 需要7秒左右） <br>建议前往 https://magiconch.com/nsfw/ 查看具体效果"),
+        loadmode: Schema.boolean().default(false).description("是否开启预加载模式（保持页面一直开启，以减少加载时间。否则每次检测都打开/关闭页面）").hidden(), // 暂时还没做好 预载模式的高并发情况
+        //isRevokeEnabled: Schema.boolean().default(false).description("撤回输入图片"), // 是否执行撤回
+        tagname: Schema.array(String).role('table').description("需要检测的图片【违规tag】").default(
+            [
+                "变态",
+                "色情",
+                "性感"
+            ]
+        ),
+        revokeThreshold: Schema.number().role('slider').min(0).max(100).step(1).default(20).description("撤回阈值（即 违规tag 词条的百分数达到多少的时候进行撤回）"), // 撤回阈值        
+        isTextPromptEnabled: Schema.boolean().default(true).description("文字提示，关闭后进入藏匿模式 不会返回任何文字提示（包括检测结果、禁止色色、报错的提示）"), // 是否返回文字提示
+        textPromptContent: Schema.string().default("不准色色！").description("违规图片的文字提示内容"), // 文字提示内容
+    }).description('指令鉴黄'),
+    Schema.object({
+        isenablegrouplist: Schema.boolean().default(false).description("是否开启中间件检测图片 并且自动执行鉴黄"),
+        enablegrouplist: Schema.array(String).role('table').description("要检测的频道ID").default(
+            [
+                "114514"
+            ]
+        ),
+    }).description('中间件鉴黄'),
 
     Schema.object({
         default_title: Schema.string().default("从充电口斜着看").description("默认的图片标题"), // 文字提示内容        
@@ -148,16 +162,162 @@ exports.Config = Schema.intersect([
     }).description('调试设置'),
 ]);
 
-async function downloadImage(ctx, url, filepath) {
-    const response = await ctx.http.get(url);
-    const buffer = Buffer.from(await response);
-    fs.writeFileSync(filepath, buffer);
-}
+
 
 async function apply(ctx, config) {
+    const log = (message) => {
+        if (config.loggerinfo) {
+            ctx.logger.info(message);
+        }
+    };
+    async function downloadImage(ctx, url, filepath) {
+        const response = await ctx.http.get(url);
+        const buffer = Buffer.from(await response);
+        fs.writeFileSync(filepath, buffer);
+    }
+    function generateTempFilePath() {
+        const uniqueId = crypto.randomBytes(16).toString('hex');
+        return path.join(__dirname, `temp-image-${uniqueId}.jpg`);
+    }
+
     ctx.command("patina", "网页小合集")
     // 这些都是海螺的
     // https://lab.magiconch.com/
+    const pagePool = [];
+
+    async function getPage(ctx) {
+        if (pagePool.length > 0) {
+            return pagePool.pop();
+        }
+        return await ctx.puppeteer.page();
+    }
+
+    async function releasePage(page) {
+        if (!config.loadmode) {
+            await page.close();
+        } else {
+            pagePool.push(page);
+        }
+    }
+
+    if (config.isenablegrouplist) {
+        ctx.middleware(async (session, next) => {
+            await next();
+
+            const channelId = session.channelId;
+            // 检查群组ID是否在启用列表中
+            if (!config.enablegrouplist.includes(channelId)) {
+                return next();
+            }
+
+            const userMessagePic = session.content;
+            const imageLinks = h.select(userMessagePic, 'img').map(item => item.attrs.src);
+
+            if (config.consoleinfo && imageLinks.length > 0) {
+                log(`收到图片消息：\n${userMessagePic}\n提取到链接：\n${imageLinks}`);
+            }
+
+            if (!imageLinks.length) {
+                return next();
+            }
+
+            for (const link of imageLinks) {
+                await session.execute(`鉴黄 ${link}`);
+            }
+
+            return next();
+        });
+    }
+
+    ctx.command("patina/鉴黄 [url]", "鉴定色情程度")
+        .action(async ({ session }, url) => {
+            if (!ctx.puppeteer) {
+                if (config.isTextPromptEnabled) {
+                    await session.send("没有开启puppeteer服务");
+                }
+                return;
+            }
+
+            const inputImageUrl = h.select(session.content, 'img').map(item => item.attrs.src)[0] || url;
+            if (!inputImageUrl) {
+                if (config.isTextPromptEnabled) {
+                    await session.send("未检测到有效的图片，请重试。");
+                }
+                return;
+            }
+
+            const tempImagePath = generateTempFilePath();
+
+            let page;
+            try {
+                page = await getPage(ctx);
+                await page.goto('https://magiconch.com/nsfw/', { waitUntil: 'networkidle2' });
+
+                await downloadImage(ctx, inputImageUrl, tempImagePath);
+
+                const [fileChooser] = await Promise.all([
+                    page.waitForFileChooser(),
+                    page.click('#up')
+                ]);
+
+                await fileChooser.accept([tempImagePath]);
+
+                await new Promise(resolve => setTimeout(resolve, config.waittime * 1000));
+
+                const results = await page.evaluate(() => {
+                    const outputElements = document.querySelectorAll('#output p');
+                    return Array.from(outputElements).map(element => {
+                        const name = element.getAttribute('data-name');
+                        const spanElement = element.querySelector('span');
+                        const percentage = spanElement ? spanElement.textContent : '0%';
+                        return { name, percentage };
+                    });
+                });
+
+                let isViolation = false;
+                let violationDetails = '';
+
+                for (const result of results) {
+                    const { name, percentage } = result;
+                    const percentageValue = parseInt(percentage, 10);
+
+                    log(`检测结果：${name} ${percentage}`);
+
+                    if (config.tagname.includes(name) && percentageValue > config.revokeThreshold) {
+                        isViolation = true;
+                        violationDetails += `检测结果：${name} ${percentage}\n`;
+                    }
+                }
+
+                if (isViolation) {
+                    if (config.isTextPromptEnabled) {
+                        await session.send(violationDetails + config.textPromptContent);
+                    }
+                    await session.bot.deleteMessage(session.channelId, session.messageId); // 撤回输入图片
+                }
+
+            } catch (error) {
+                ctx.logger.error('检测图片时出错:', error);
+                if (config.isTextPromptEnabled) {
+                    await session.send("检测图片时出错，请重试。");
+                }
+            } finally {
+                if (fs.existsSync(tempImagePath)) {
+                    setTimeout(() => {
+                        fs.unlink(tempImagePath, (err) => {
+                            if (err) {
+                                ctx.logger.error('删除临时文件时出错:', err);
+                            }
+                        });
+                    }, 1000);
+                }
+                if (page) {
+                    await releasePage(page);
+                }
+            }
+        });
+
+
     ctx.command("patina/福音战士 [text1] [text2] [text3]", "福音戰士標題生成器")
         .option('layout', '-l <layout:string>', '默认排版')
         .option('colorScheme', '-c <colorScheme:string>', '默认文字颜色样式')
@@ -233,15 +393,15 @@ async function apply(ctx, config) {
                 await page.evaluate((colorScheme) => {
                     const colorElements = Array.from(document.querySelectorAll('.config-item .ui-tabs-box a'));
                     colorElements.forEach(el => {
-                        console.log('Element data-text:', el.getAttribute('data-text'));
+                        log('Element data-text:', el.getAttribute('data-text'));
                     });
 
                     const colorElement = colorElements.find(el => el.getAttribute('data-text') === colorScheme);
                     if (colorElement) {
-                        console.log(`Clicking on color scheme: ${colorScheme}`);
+                        log(`Clicking on color scheme: ${colorScheme}`);
                         colorElement.click();
                     } else {
-                        console.warn(`Color scheme "${colorScheme}" not found.`);
+                        log(`Color scheme "${colorScheme}" not found.`);
                     }
                 }, colorScheme);
 
@@ -345,15 +505,6 @@ async function apply(ctx, config) {
                 await page.close();
             }
         });
-
-
-
-    /*
-    ctx.command("鉴黄 [url]", "鉴定色情程度")
-    .action(async ({ session, options }) => {
-    
-    });
-    */
 
     ctx.command("patina/蒸汽机", "蒸汽机滤镜")
         .option('preset', '-p <preset:string>', '预设')
@@ -536,7 +687,7 @@ async function apply(ctx, config) {
                         if (rangeInput && rangeInput.type === 'range') {
                             rangeInput.value = VintageYears;
                             rangeInput.dispatchEvent(new Event('input'));
-                            console.log('设置做旧年份:', VintageYears, '当前滑动条值:', rangeInput.value);
+                            log('设置做旧年份:', VintageYears, '当前滑动条值:', rangeInput.value);
                         }
                     }
                 }, VintageYears);
@@ -549,7 +700,7 @@ async function apply(ctx, config) {
                         if (rangeInput && rangeInput.type === 'range') {
                             rangeInput.value = ImageQuality;
                             rangeInput.dispatchEvent(new Event('input'));
-                            console.log('设置画质:', ImageQuality, '当前滑动条值:', rangeInput.value);
+                            log('设置画质:', ImageQuality, '当前滑动条值:', rangeInput.value);
                         }
                     }
                 }, ImageQuality);
