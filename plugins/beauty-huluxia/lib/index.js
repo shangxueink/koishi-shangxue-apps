@@ -1,13 +1,11 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.apply = exports.Config = exports.inject = exports.name = void 0;
-const koishi = require("koishi");
-const koishi_1 = require("koishi");
-const h = require("koishi");
-const logger = new koishi.Logger('beauty-huluxia');
+const { Schema, Logger, h } = require("koishi");
+const logger = new Logger('beauty-huluxia');
 exports.name = "beauty-huluxia";
 exports.usage = "获取随机🥰葫芦侠美女、黑丝、白丝、淘宝买家秀、coser、jk、二次元色图、帅哥、风景、AI的 图片";
-// 插件指令的说明，展示在插件配置页
+
 exports.usage = `
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Orbitron&display=swap');
@@ -67,21 +65,21 @@ body {
 
 `;
 // exports.usage = ``;
-exports.Config = koishi_1.Schema.intersect([
-  koishi_1.Schema.object({
-    helptipkey: koishi_1.Schema.boolean().description("文字提示开关").default(false),
-    helptip: koishi_1.Schema.string().default('那我去找图啦~').description('找图的文字提示'),
-    consoleinfo: koishi_1.Schema.boolean().description("日志调试模式").default(false),
+exports.Config = Schema.intersect([
+  Schema.object({
+    helptipkey: Schema.boolean().description("文字提示开关").default(false),
+    helptip: Schema.string().default('那我去找图啦~').description('找图的文字提示'),
+    consoleinfo: Schema.boolean().description("日志调试模式").default(false),
   }).description('基础设置'),
 ]);
 
 async function apply(ctx, Config) {
   ctx.command('beauty-huluxia');
   ctx.command('beauty-huluxia/mihoyo-pics');
-  ctx.command('beauty-huluxia/huluxia图片内容');
+  //ctx.command('beauty-huluxia/huluxia图片内容');
   ctx.command('beauty-huluxia/随机图片内容');
 
-  ctx.command("huluxia图片内容/葫芦侠-清凉一夏")
+  ctx.command("随机图片内容/葫芦侠-清凉一夏")
     .action(async ({ session }) => {
       const apiUrl = 'http://lx.linxi.icu/API/meitui.php';
       return sendImageByAPI(session, apiUrl, Config);
@@ -103,7 +101,7 @@ ctx.command("随机图片内容/二次元")
       return sendImageByAPI(session, apiUrl, Config);
   })
       */
-  ctx.command("huluxia图片内容/葫芦侠-三坑少女")
+  ctx.command("随机图片内容/葫芦侠-三坑少女")
     .action(async ({ session }) => {
       const url = 'https://api.pearktrue.cn/api/beautifulgirl/?type=image';
       return sendImageByAPI(session, url, Config);
@@ -145,7 +143,7 @@ ctx.command("随机图片内容/二次元")
           if (Config.consoleinfo) {
             logger.info(url);
           }
-          return koishi.h.image(url);
+          return h.image(url);
         } catch (error) {
           logger.error('API Error:', error.message);
         }
@@ -167,7 +165,7 @@ ctx.command("随机图片内容/二次元")
           if (Config.consoleinfo) {
             logger.info(imageUrl);
           }
-          return koishi.h.image(imageUrl);
+          return h.image(imageUrl);
         } else {
           return '获取coser图片失败，请稍后重试。';
         }
@@ -200,7 +198,7 @@ ctx.command("随机图片内容/二次元")
         if (Config.consoleinfo) {
           logger.info(imageUrl);
         }
-        const imageSegment = koishi.h.image(imageUrl);
+        const imageSegment = h.image(imageUrl);
         const textSegment = `pid: ${pid}\nTags: ${tags}\nAuthor: ${author}`;
         return `${imageSegment}\n${textSegment}`;
       } catch (error) {
@@ -223,7 +221,7 @@ ctx.command("随机图片内容/二次元")
       if (Config.consoleinfo) {
         logger.info(imageUrl);
         } 
-      return koishi.h.image(imageUrl);
+      return h.image(imageUrl);
     } else {
       throw new Error('未找到有效的图片URL，请稍后重试。');
     }
@@ -249,7 +247,7 @@ ctx.command("随机图片内容/二次元")
           if (Config.consoleinfo) {
             logger.info(primaryUrl);
           }
-          return koishi.h.image(primaryUrl);
+          return h.image(primaryUrl);
         } else {
           throw new Error('Non-200 status code');
         }
@@ -259,7 +257,7 @@ ctx.command("随机图片内容/二次元")
         if (Config.consoleinfo) {
           logger.info(backupUrl);
         }
-        return koishi.h.image(backupUrl);
+        return h.image(backupUrl);
       }
     });
   ctx.command("随机图片内容/随机ai图片")
@@ -275,7 +273,7 @@ ctx.command("随机图片内容/二次元")
           if (Config.consoleinfo) {
             logger.info(primaryUrl);
           }
-          return koishi.h.image(primaryUrl);
+          return h.image(primaryUrl);
         } else {
           throw new Error('Non-200 status code');
         }
@@ -285,7 +283,7 @@ ctx.command("随机图片内容/二次元")
         if (Config.consoleinfo) {
           logger.info(backupUrl);
         }
-        return koishi.h.image(backupUrl);
+        return h.image(backupUrl);
       }
     });
   ctx.command("随机图片内容/淘宝买家秀")
@@ -301,7 +299,7 @@ ctx.command("随机图片内容/二次元")
           if (Config.consoleinfo) {
             logger.info(url);
           }
-          return koishi.h.image(url);
+          return h.image(url);
         } catch (error) {
           logger.error('API Error:', error.message);
         }
@@ -688,7 +686,7 @@ async function processImages(data, postUrl, ctx) {
     const randomImages = imagesArray[Math.floor(Math.random() * imagesArray.length)];
     const finalPostUrl = postUrl + randomImages.post_id;
     const finalSubject = randomImages.subject;
-    const imagesMessage = randomImages.images.map(imageUrl => koishi.h.image(imageUrl)).join('\n');
+    const imagesMessage = randomImages.images.map(imageUrl => h.image(imageUrl)).join('\n');
 
     return `${finalSubject}\n${finalPostUrl}\n${imagesMessage}`;
   } else {
@@ -720,7 +718,7 @@ async function processHotPhotos(response, type, postUrl, ctx, recentPosts) {
     const finalPostUrl = `${postUrl}${postId}`;
     const finalsubject = randomPost.post.subject;
     // 构造图片消息
-    const imagesMessage = randomPost.post.images.map(imageUrl => koishi.h.image(imageUrl)).join('\n');
+    const imagesMessage = randomPost.post.images.map(imageUrl => h.image(imageUrl)).join('\n');
     // 返回图片消息和链接
     return `${finalsubject}\n${finalPostUrl}\n${imagesMessage}`;
   } else {
@@ -736,7 +734,7 @@ async function sendImageByAPI(session, apiUrl, Config) {
     if (Config.consoleinfo) {
       logger.info(apiUrl);
     }
-    return koishi.h.image(apiUrl);
+    return h.image(apiUrl);
   } catch (error) {
     logger.error('Failed to send image:', error);
     await session.send('图片发送失败，请检查日志。');
