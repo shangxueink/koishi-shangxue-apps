@@ -35,6 +35,3 @@ koishi插件市场搜索并安装qq-estimate
 - API 可能会有延迟或不稳定，如果在使用时遇到问题，请稍后重试。
 - 插件对于查询结果的准确性不做任何保证。
 
-## 接口声明
-- 估价接口：https://api.pearktrue.cn/api/qq/query.php
-- QQ等级查询接口  0.0.5 及以前 https://api.pearktrue.cn/api/qq/query.php?qq=${qq}     0.0.6更新API https://api.52hyjs.com/api/level?qq=1919892171
