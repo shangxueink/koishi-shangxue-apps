@@ -120,9 +120,11 @@ function apply(ctx, config) {
   }
 
   async function auditText(text, vocabulary, whitelist, blacklist) {
+    const lowerText = text.toLowerCase();
+
     // 检查黑名单
     for (const word of blacklist) {
-      if (text.includes(word)) {
+      if (lowerText.includes(word.toLowerCase())) {
         logInfo(`匹配到黑名单词汇: ${word}`);
         return { result: false, matchedWord: word };
       }
@@ -130,14 +132,14 @@ function apply(ctx, config) {
 
     // 检查白名单
     for (const word of whitelist) {
-      if (text.includes(word)) {
+      if (lowerText.includes(word.toLowerCase())) {
         return { result: true }; // 白名单词汇直接通过
       }
     }
 
     // 检查违禁词
     for (const entry of vocabulary) {
-      if (text.includes(entry)) {
+      if (lowerText.includes(entry.toLowerCase())) {
         logInfo(`匹配到违禁词: 内容: ${entry}`);
         return { result: false, matchedWord: entry };
       }
@@ -155,10 +157,10 @@ function apply(ctx, config) {
     let anothercontent = content.trim().toLowerCase();
 
     if (config.removeLeadingBrackets) {
-      anothercontent = removeLeadingBrackets(content);
+      anothercontent = removeLeadingBrackets(content).toLowerCase();
     }
 
-    const commandConfig = config.Audit_Configuration2.find(item => anothercontent.startsWith(item.commandname));
+    const commandConfig = config.Audit_Configuration2.find(item => anothercontent.startsWith(item.commandname.toLowerCase()));
 
     if (!commandConfig || commandConfig.Audit_value1 === '关闭审核') {
       return next(); // 如果不需要审核的指令，或审核关闭，直接通过消息
@@ -166,9 +168,9 @@ function apply(ctx, config) {
 
     logInfo(`用户输入内容为\n${anothercontent}`);
 
-    const vocabulary = await loadVocabulary();
-    const whitelist = config.Whitelist_input;
-    const blacklist = config.Blacklist_input;
+    const vocabulary = (await loadVocabulary()).map(word => word.toLowerCase());
+    const whitelist = config.Whitelist_input.map(word => word.toLowerCase());
+    const blacklist = config.Blacklist_input.map(word => word.toLowerCase());
 
     const auditResult = await auditText(anothercontent, vocabulary, whitelist, blacklist);
 
@@ -180,7 +182,7 @@ function apply(ctx, config) {
       return next(); // 通过消息，允许处理
     } else {
       if (commandConfig.Audit_value1 === '仅替换关键词为 *** ，允许执行原指令逻辑') {
-        anothercontent = anothercontent.replace(new RegExp(auditResult.matchedWord, 'g'), '***');
+        anothercontent = anothercontent.replace(new RegExp(auditResult.matchedWord, 'gi'), '***');
         logInfo(`关键词已替换为 ***`);
         session.content = anothercontent; // 更新会话内容
         return next(); // 允许继续执行原指令逻辑
@@ -193,6 +195,7 @@ function apply(ctx, config) {
       return; // 屏蔽消息
     }
   }, true);
+
 }
 
 exports.apply = apply;
