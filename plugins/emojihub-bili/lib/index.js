@@ -63,6 +63,7 @@ const defaultMoreEmojiHub = [
   { command: '流萤表情包', source_url: path.join(__dirname, 'txts/流萤.txt') },
   { command: '龙图表情包', source_url: path.join(__dirname, 'txts/龙图.txt') },
   { command: '鹿乃子表情包', source_url: path.join(__dirname, 'txts/鹿乃子.txt') },
+  { command: '玛丽猫表情包', source_url: path.join(__dirname, 'txts/玛丽猫.txt') },
   { command: '小c表情包', source_url: path.join(__dirname, 'txts/蜜汁工坊.txt') },
   { command: '男娘武器库表情包', source_url: path.join(__dirname, 'txts/男娘武器库.txt') },
   { command: '千恋万花表情包', source_url: path.join(__dirname, 'txts/0721.txt') },
