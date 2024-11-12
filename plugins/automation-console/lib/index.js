@@ -114,7 +114,7 @@ exports.Config = Schema.intersect([
             command: Schema.string().description("备注指令").disabled(),
             commandname: Schema.string().description("实际注册的指令名称"),
             command_authority: Schema.number().default(4).description('允许使用指令的权限等级').experimental(),
-        })).role('table').default(defaulttable2).description("指令注册表"),
+        })).role('table').default(defaulttable2).description("指令注册表<br>若要关闭某个指令 可以删掉该行"),
     }).description('基础设置'),
 
     Schema.object({
@@ -152,7 +152,7 @@ async function apply(ctx, config) {
     async function ensureUIControl(page, config, session) {
         if (!page) {
             if (config.auto_execute) {
-                await session.execute("打开UI控制");
+                await session.execute(`${getCommandName("打开UI控制")}`);
                 //await new Promise(resolve => setTimeout(resolve, 1500));// 停顿 1.5 秒 // 因为 这个指令执行需要截图 可能反应不过来 // 好像也不需要
             } else {
                 await session.send("UI控制台未打开，请先使用【打开UI控制】指令。");
@@ -170,336 +170,345 @@ async function apply(ctx, config) {
         const entry = config.table2.find(item => item.command === command);
         return entry ? entry.command_authority : null;
     }
-    ctx.command(`${getCommandName("automation-console")}`, "通过指令操作控制台")
+
+    ctx.command(`${getCommandName("automation-console") || "automation-console"}`, "通过指令操作控制台")
+
     // 打开UI控制 打开puppeteer
-    ctx.command(`${getCommandName("automation-console")}/${getCommandName("打开UI控制")}`, "打开UI控制台", { authority: getCommandAuthority("打开UI控制") })
-        .action(async ({ session }) => {
-            if (page) {
-                await session.send("你已经打开了UI控制页面，请勿重复打开。若要退出，请发送【退出UI控制】");
-                return;
-            }
-
-            try {
-                page = await ctx.puppeteer.page();
-                await page.goto(config.link, { waitUntil: 'networkidle2' });
-
-                if (config.enable_auth) {
-                    const isLoggedIn = await page.evaluate(() => {
-                        return !!document.querySelector('a[href^="/logs"]'); // 匹配所有以 /logs 开头的链接
-                    });
-
-                    if (!isLoggedIn) {
-                        await page.click('a[href^="/login"]');   // 匹配所有以 /login 开头的链接
-                        await page.evaluate(() => {
-                            document.querySelector('input[placeholder="用户名"]').value = '';
-                            document.querySelector('input[placeholder="密码"]').value = '';
-                        });
-
-                        await page.type('input[placeholder="用户名"]', config.text);
-                        await page.type('input[placeholder="密码"]', config.secret);
-
-                        await page.evaluate(() => {
-                            document.querySelectorAll('button.k-button.primary')[1].click();
-                        });
-
-                        await page.waitForSelector('a[href^="/logs"]');  // 匹配所有以 /logs 开头的链接
-                    }
+    if (getCommandName("打开UI控制")) {
+        ctx.command(`${getCommandName("automation-console") || "automation-console"}/${getCommandName("打开UI控制")}`, "打开UI控制台", { authority: getCommandAuthority("打开UI控制") })
+            .action(async ({ session }) => {
+                if (page) {
+                    await session.send("你已经打开了UI控制页面，请勿重复打开。若要退出，请发送【退出UI控制】");
+                    return;
                 }
-                await page.click('a[href="/"]');
-                await session.execute("查看UI控制");
-                await session.send("UI控制台已打开并登录。");
-            } catch (error) {
-                ctx.logger.error('打开UI控制台时出错:', error);
-                await session.send("打开UI控制台时出错，请重试。");
-            }
-        });
 
+                try {
+                    page = await ctx.puppeteer.page();
+                    await page.goto(config.link, { waitUntil: 'networkidle2' });
+
+                    if (config.enable_auth) {
+                        const isLoggedIn = await page.evaluate(() => {
+                            return !!document.querySelector('a[href^="/logs"]'); // 匹配所有以 /logs 开头的链接
+                        });
+
+                        if (!isLoggedIn) {
+                            await page.click('a[href^="/login"]');   // 匹配所有以 /login 开头的链接
+                            await page.evaluate(() => {
+                                document.querySelector('input[placeholder="用户名"]').value = '';
+                                document.querySelector('input[placeholder="密码"]').value = '';
+                            });
+
+                            await page.type('input[placeholder="用户名"]', config.text);
+                            await page.type('input[placeholder="密码"]', config.secret);
+
+                            await page.evaluate(() => {
+                                document.querySelectorAll('button.k-button.primary')[1].click();
+                            });
+
+                            await page.waitForSelector('a[href^="/logs"]');  // 匹配所有以 /logs 开头的链接
+                        }
+                    }
+                    await page.click('a[href="/"]');
+                    await session.execute(`${getCommandName("查看UI控制")}`);
+                    await session.send("UI控制台已打开并登录。");
+                } catch (error) {
+                    ctx.logger.error('打开UI控制台时出错:', error);
+                    await session.send("打开UI控制台时出错，请重试。");
+                }
+            });
+    }
     // 查看UI控制  就是截图啦~
-    ctx.command(`${getCommandName("automation-console")}/${getCommandName("查看UI控制")}`, "查看UI控制台当前页面", { authority: getCommandAuthority("查看UI控制") })
-        .action(async ({ session }) => {
-            if (!await ensureUIControl(page, config, session)) return; // 打开UI控制
-            try {
-                const screenshot = await page.screenshot();
-                await session.send(h.image("data:image/jpeg;base64," + screenshot.toString('base64')));
-            } catch (error) {
-                ctx.logger.error('查看UI控制台时出错:', error);
-                await session.send("查看UI控制台时出错，请重试。");
-            }
-        });
-
+    if (getCommandName("查看UI控制")) {
+        ctx.command(`${getCommandName("automation-console") || "automation-console"}/${getCommandName("查看UI控制")}`, "查看UI控制台当前页面", { authority: getCommandAuthority("查看UI控制") })
+            .action(async ({ session }) => {
+                if (!await ensureUIControl(page, config, session)) return; // 打开UI控制
+                try {
+                    const screenshot = await page.screenshot();
+                    await session.send(h.image("data:image/jpeg;base64," + screenshot.toString('base64')));
+                } catch (error) {
+                    ctx.logger.error('查看UI控制台时出错:', error);
+                    await session.send("查看UI控制台时出错，请重试。");
+                }
+            });
+    }
     // 退出UI控制 关闭puppeteer
-    ctx.command(`${getCommandName("automation-console")}/${getCommandName("退出UI控制")}`, "关闭UI控制台", { authority: getCommandAuthority("退出UI控制") })
-        .action(async ({ session }) => {
-            if (!await ensureUIControl(page, config, session)) return; // 打开UI控制
+    if (getCommandName("退出UI控制")) {
+        ctx.command(`${getCommandName("automation-console") || "automation-console"}/${getCommandName("退出UI控制")}`, "关闭UI控制台", { authority: getCommandAuthority("退出UI控制") })
+            .action(async ({ session }) => {
+                if (!await ensureUIControl(page, config, session)) return; // 打开UI控制
 
-            try {
-                await page.close();
-                page = null;
-                await session.send("UI控制台已关闭。");
-            } catch (error) {
-                ctx.logger.error('关闭UI控制台时出错:', error);
-                await session.send("关闭UI控制台时出错，请重试。");
-            }
-        });
-
+                try {
+                    await page.close();
+                    page = null;
+                    await session.send("UI控制台已关闭。");
+                } catch (error) {
+                    ctx.logger.error('关闭UI控制台时出错:', error);
+                    await session.send("关闭UI控制台时出错，请重试。");
+                }
+            });
+    }
     // 软重启Koishi 并且 关闭puppeteer
-    ctx.command(`${getCommandName("automation-console")}/${getCommandName("软重启")}`, "重启Koishi控制台", { authority: getCommandAuthority("软重启") })
-        .action(async ({ session }) => {
-            if (!await ensureUIControl(page, config, session)) return; // 打开UI控制
+    if (getCommandName("软重启")) {
+        ctx.command(`${getCommandName("automation-console") || "automation-console"}/${getCommandName("软重启")}`, "重启Koishi控制台", { authority: getCommandAuthority("软重启") })
+            .action(async ({ session }) => {
+                if (!await ensureUIControl(page, config, session)) return; // 打开UI控制
 
-            try {
-                await page.click('a[href^="/plugins/"]');// 匹配所有以 /plugins/ 开头的链接
+                try {
+                    await page.click('a[href^="/plugins/"]');// 匹配所有以 /plugins/ 开头的链接
 
-                // 点击【全局设置】
-                await page.waitForSelector('.item .label[title="全局设置"]');
-                await page.click('.item .label[title="全局设置"]');
+                    // 点击【全局设置】
+                    await page.waitForSelector('.item .label[title="全局设置"]');
+                    await page.click('.item .label[title="全局设置"]');
 
-                // 提示重启
-                await session.send("正在【退出UI控制】并且【重启Koishi】...");
+                    // 提示重启
+                    await session.send("正在【退出UI控制】并且【重启Koishi】...");
 
-                // 点击重载按钮
-                await page.evaluate(() => {
-                    const buttons = document.querySelectorAll('.right .menu-item:not(.disabled)');
-                    if (buttons.length >= 3) {
-                        buttons[0].click(); // 点击第一个可用按钮【重载插件】
-                    }
-                });
+                    // 点击重载按钮
+                    await page.evaluate(() => {
+                        const buttons = document.querySelectorAll('.right .menu-item:not(.disabled)');
+                        if (buttons.length >= 3) {
+                            buttons[0].click(); // 点击第一个可用按钮【重载插件】
+                        }
+                    });
 
-                // 重启后关闭页面实例
-                await page.close();
-                page = null;
-            } catch (error) {
-                ctx.logger.error('重启Koishi时出错:', error);
-                await session.send("重启Koishi时出错，请重试。");
-            }
-        });
-
+                    // 重启后关闭页面实例
+                    await page.close();
+                    page = null;
+                } catch (error) {
+                    ctx.logger.error('重启Koishi时出错:', error);
+                    await session.send("重启Koishi时出错，请重试。");
+                }
+            });
+    }
     // 配置插件
-    ctx.command(`${getCommandName("automation-console")}/${getCommandName("配置插件")} [pluginname] [pluginchoice] [pluginoperation]`, "搜索插件", { authority: getCommandAuthority("配置插件") })
-        .example("配置插件 commands  1  1")
-        .action(async ({ session }, pluginname, pluginchoice, pluginoperation) => {
-            if (!await ensureUIControl(page, config, session)) return; // 打开UI控制
-            try {
-                // 进入插件页面
-                await page.click('a[href^="/plugins/"]'); // 匹配所有以 /plugins/ 开头的链接
+    if (getCommandName("配置插件")) {
+        ctx.command(`${getCommandName("automation-console") || "automation-console"}/${getCommandName("配置插件")} [pluginname] [pluginchoice] [pluginoperation]`, "搜索插件", { authority: getCommandAuthority("配置插件") })
+            .example("配置插件 commands  1  1")
+            .action(async ({ session }, pluginname, pluginchoice, pluginoperation) => {
+                if (!await ensureUIControl(page, config, session)) return; // 打开UI控制
+                try {
+                    // 进入插件页面
+                    await page.click('a[href^="/plugins/"]'); // 匹配所有以 /plugins/ 开头的链接
 
-                // 获取所有插件的名称
-                const plugins = await page.evaluate(() => {
-                    const elements = document.querySelectorAll('.label[title]');
-                    return Array.from(elements).map(el => el.getAttribute('title'));
-                });
-
-                // 如果没有提供插件名称关键词，则请求用户输入
-                let keyword = pluginname || await session.prompt("请输入要操作的插件关键词：", config.wait_for_prompt * 1000);
-                log(keyword);
-
-                // 找到匹配的插件
-                const matches = plugins.filter(name => name.includes(keyword));
-                if (matches.length === 0) {
-                    await session.send("没有找到匹配的插件。");
-                    return;
-                }
-
-                // 使用配置项限制返回的插件数量
-                const limitedMatches = matches.slice(0, config.maxlist);
-
-                // 如果没有提供 pluginchoice ，才请求用户输入
-                let choiceIndex = pluginchoice ? parseInt(pluginchoice, 10) - 1 : null;
-                if (choiceIndex === null || isNaN(choiceIndex) || choiceIndex < 0 || choiceIndex >= limitedMatches.length) {
-                    let message = "找到多个匹配的插件，请选择：\n";
-                    limitedMatches.forEach((name, index) => {
-                        message += `${index + 1}. ${name}\n`;
-                    });
-                    await session.send(message);
-                    choiceIndex = parseInt(await session.prompt(config.wait_for_prompt * 1000), 10) - 1;
-                }
-
-                if (isNaN(choiceIndex) || choiceIndex < 0 || choiceIndex >= limitedMatches.length) {
-                    await session.send("无效的选择。");
-                    return;
-                }
-
-                const selectedPlugin = limitedMatches[choiceIndex];
-
-                // 操作插件
-                await page.click(`.label[title="${selectedPlugin}"]`);
-                await session.execute("查看UI控制"); // 反馈状态
-
-                // 检查可用按钮数量
-                const buttonCount = await page.evaluate(() => {
-                    return document.querySelectorAll('.right .menu-item:not(.disabled)').length;
-                });
-
-                if (buttonCount < 6) {
-                    await session.send("可用按钮不足6个，非普通插件，请前往控制台操作！");
-                    return;
-                }
-
-                // 如果没有提供 pluginoperation ，才请求用户输入
-                let operation = pluginoperation ? parseInt(pluginoperation, 10) : null;
-                if (operation === null || isNaN(operation) || operation < 1 || operation > 5) {
-                    await session.send("请选择操作的按钮序号：\n1.【启用插件/停用插件】\n2.【保存配置/重载配置】\n3.【重命名】\n4.【移除插件】\n5.【克隆配置】");
-                    operation = parseInt(await session.prompt(config.wait_for_prompt * 1000), 10);
-                }
-
-                if (isNaN(operation) || operation < 1 || operation > 5) {
-                    await session.send("无法操作此插件。");
-                    return;
-                }
-
-                if ([1, 2, 5].includes(operation)) {
-                    // 执行简单操作
-                    await page.evaluate((operation) => {
-                        const buttons = document.querySelectorAll('.right .menu-item:not(.disabled)');
-                        buttons[operation - 1].click();
-                    }, operation);
-
-                    await session.send("操作已完成。");
-                    await session.execute("查看UI控制"); // 反馈状态
-                    return;
-                } else if (operation === 3) {
-                    // 重命名
-                    await page.evaluate(() => {
-                        const buttons = document.querySelectorAll('.right .menu-item:not(.disabled)');
-                        buttons[2].click(); // 点击重命名
+                    // 获取所有插件的名称
+                    const plugins = await page.evaluate(() => {
+                        const elements = document.querySelectorAll('.label[title]');
+                        return Array.from(elements).map(el => el.getAttribute('title'));
                     });
 
-                    await session.send("请发送重命名的插件名称：");
-                    const newName = await session.prompt(config.wait_for_prompt * 1000);
+                    // 如果没有提供插件名称关键词，则请求用户输入
+                    let keyword = pluginname || await session.prompt("请输入要操作的插件关键词：", config.wait_for_prompt * 1000);
+                    log(keyword);
 
-                    await page.evaluate((newName) => {
-                        const input = document.querySelector('.el-dialog .el-input__inner');
-                        input.value = newName;
-                        const event = new Event('input', { bubbles: true });
-                        input.dispatchEvent(event);
-                        const confirmButton = document.querySelector('.el-dialog__footer .el-button--primary');
-                        confirmButton.click();
-                    }, newName);
+                    // 找到匹配的插件
+                    const matches = plugins.filter(name => name.includes(keyword));
+                    if (matches.length === 0) {
+                        await session.send("没有找到匹配的插件。");
+                        return;
+                    }
 
-                    await session.send("重命名操作已完成。");
-                    await session.execute("查看UI控制"); // 反馈状态
-                    return;
-                } else if (operation === 4) {
-                    // 移除插件
-                    await page.evaluate(() => {
-                        const buttons = document.querySelectorAll('.right .menu-item:not(.disabled)');
-                        buttons[3].click(); // 点击移除插件
+                    // 使用配置项限制返回的插件数量
+                    const limitedMatches = matches.slice(0, config.maxlist);
+
+                    // 如果没有提供 pluginchoice ，才请求用户输入
+                    let choiceIndex = pluginchoice ? parseInt(pluginchoice, 10) - 1 : null;
+                    if (choiceIndex === null || isNaN(choiceIndex) || choiceIndex < 0 || choiceIndex >= limitedMatches.length) {
+                        let message = "找到多个匹配的插件，请选择：\n";
+                        limitedMatches.forEach((name, index) => {
+                            message += `${index + 1}. ${name}\n`;
+                        });
+                        await session.send(message);
+                        choiceIndex = parseInt(await session.prompt(config.wait_for_prompt * 1000), 10) - 1;
+                    }
+
+                    if (isNaN(choiceIndex) || choiceIndex < 0 || choiceIndex >= limitedMatches.length) {
+                        await session.send("无效的选择。");
+                        return;
+                    }
+
+                    const selectedPlugin = limitedMatches[choiceIndex];
+
+                    // 操作插件
+                    await page.click(`.label[title="${selectedPlugin}"]`);
+                    await session.execute(`${getCommandName("查看UI控制")}`); // 反馈状态
+
+                    // 检查可用按钮数量
+                    const buttonCount = await page.evaluate(() => {
+                        return document.querySelectorAll('.right .menu-item:not(.disabled)').length;
                     });
 
-                    await page.evaluate(() => {
-                        const confirmButton = document.querySelector('.el-dialog__footer .el-button--danger');
-                        confirmButton.click();
-                    });
+                    if (buttonCount < 6) {
+                        await session.send("可用按钮不足6个，非普通插件，请前往控制台操作！");
+                        return;
+                    }
 
-                    await session.send("移除插件操作已完成。");
-                    await session.execute("查看UI控制"); // 反馈状态
-                    return;
+                    // 如果没有提供 pluginoperation ，才请求用户输入
+                    let operation = pluginoperation ? parseInt(pluginoperation, 10) : null;
+                    if (operation === null || isNaN(operation) || operation < 1 || operation > 5) {
+                        await session.send("请选择操作的按钮序号：\n1.【启用插件/停用插件】\n2.【保存配置/重载配置】\n3.【重命名】\n4.【移除插件】\n5.【克隆配置】");
+                        operation = parseInt(await session.prompt(config.wait_for_prompt * 1000), 10);
+                    }
+
+                    if (isNaN(operation) || operation < 1 || operation > 5) {
+                        await session.send("此插件无法执行此操作。");
+                        return;
+                    }
+
+                    if ([1, 2, 5].includes(operation)) {
+                        // 执行简单操作
+                        await page.evaluate((operation) => {
+                            const buttons = document.querySelectorAll('.right .menu-item:not(.disabled)');
+                            buttons[operation - 1].click();
+                        }, operation);
+
+                        await session.send("操作已完成。");
+                        await session.execute(`${getCommandName("查看UI控制")}`); // 反馈状态
+                        return;
+                    } else if (operation === 3) {
+                        // 重命名
+                        await page.evaluate(() => {
+                            const buttons = document.querySelectorAll('.right .menu-item:not(.disabled)');
+                            buttons[2].click(); // 点击重命名
+                        });
+
+                        await session.send("请发送重命名的插件名称：");
+                        const newName = await session.prompt(config.wait_for_prompt * 1000);
+
+                        await page.evaluate((newName) => {
+                            const input = document.querySelector('.el-dialog .el-input__inner');
+                            input.value = newName;
+                            const event = new Event('input', { bubbles: true });
+                            input.dispatchEvent(event);
+                            const confirmButton = document.querySelector('.el-dialog__footer .el-button--primary');
+                            confirmButton.click();
+                        }, newName);
+
+                        await session.send("重命名操作已完成。");
+                        await session.execute(`${getCommandName("查看UI控制")}`); // 反馈状态
+                        return;
+                    } else if (operation === 4) {
+                        // 移除插件
+                        await page.evaluate(() => {
+                            const buttons = document.querySelectorAll('.right .menu-item:not(.disabled)');
+                            buttons[3].click(); // 点击移除插件
+                        });
+
+                        await page.evaluate(() => {
+                            const confirmButton = document.querySelector('.el-dialog__footer .el-button--danger');
+                            confirmButton.click();
+                        });
+
+                        await session.send("移除插件操作已完成。");
+                        await session.execute(`${getCommandName("查看UI控制")}`); // 反馈状态
+                        return;
+                    }
+
+                } catch (error) {
+                    ctx.logger.error('操作插件时出错:', error);
+                    await session.send("操作插件时出错，请重试。");
                 }
-
-            } catch (error) {
-                ctx.logger.error('操作插件时出错:', error);
-                await session.send("操作插件时出错，请重试。");
-            }
-        });
-
-
+            });
+    }
     // 刷新插件市场
-    ctx.command(`${getCommandName("automation-console")}/${getCommandName("刷新插件市场")}`, "刷新插件市场", { authority: getCommandAuthority("刷新插件市场") })
-        .action(async ({ session }) => {
-            if (!await ensureUIControl(page, config, session)) return; // 打开UI控制
+    if (getCommandName("刷新插件市场")) {
+        ctx.command(`${getCommandName("automation-console") || "automation-console"}/${getCommandName("刷新插件市场")}`, "刷新插件市场", { authority: getCommandAuthority("刷新插件市场") })
+            .action(async ({ session }) => {
+                if (!await ensureUIControl(page, config, session)) return; // 打开UI控制
 
-            try {
-                // 切换到 /market 页面
-                await page.click('a[href^="/market"]');
+                try {
+                    // 切换到 /market 页面
+                    await page.click('a[href^="/market"]');
 
-                // 在页面上下文中执行脚本，查找并点击按钮
-                await page.evaluate(() => {
-                    const buttons = document.querySelectorAll('.right .menu-item');
-                    if (buttons && buttons.length > 1) {
-                        buttons[1].click(); // 点击第二个按钮（刷新按钮）
-                    } else {
-                        throw new Error("未找到刷新按钮");
-                    }
-                });
+                    // 在页面上下文中执行脚本，查找并点击按钮
+                    await page.evaluate(() => {
+                        const buttons = document.querySelectorAll('.right .menu-item');
+                        if (buttons && buttons.length > 1) {
+                            buttons[1].click(); // 点击第二个按钮（刷新按钮）
+                        } else {
+                            throw new Error("未找到刷新按钮");
+                        }
+                    });
 
-                // 反馈状态
-                //await session.execute("查看UI控制"); // 无需了 因为插件市场更新内容不会立即显示出来
-                await session.send("插件市场已点击刷新按钮");
-            } catch (error) {
-                ctx.logger.error("刷新插件市场时出错:", error);
-                await session.send("刷新插件市场失败，请重试。");
-            }
-        });
-
-    //小火箭更新
-    ctx.command(`${getCommandName("automation-console")}/${getCommandName("小火箭更新依赖")}`, "小火箭更新", { authority: getCommandAuthority("小火箭更新依赖") })
-        .action(async ({ session }) => {
-            if (!await ensureUIControl(page, config, session)) return; // 打开UI控制
-
-            try {
-                // 切换到 /dependencies 页面
-                await page.click('a[href^="/dependencies"]');
-
-                // 在页面上下文中执行脚本，查找按钮
-                const canUpdate = await page.evaluate(() => {
-                    const buttons = document.querySelectorAll('.right .menu-item');
-                    const updateButton = buttons[0]; // 假设第一个是【全部更新】按钮
-                    const refreshButton = buttons[3]; // 假设第四个是【刷新】按钮
-
-                    if (!updateButton || updateButton.classList.contains('disabled')) {
-                        return false; // 【全部更新】按钮不可按
-                    }
-
-                    refreshButton.click(); // 点击【刷新】按钮
-                    return true; // 【全部更新】按钮可用
-                });
-
-                if (!canUpdate) {
-                    await session.send("当前已经全部是最新依赖了，无需更新");
-                    return;
+                    // 反馈状态
+                    //  await session.execute(`${getCommandName("查看UI控制")}`); // 反馈状态 // 无需了 因为插件市场更新内容不会立即显示出来
+                    await session.send("插件市场已点击刷新按钮");
+                } catch (error) {
+                    ctx.logger.error("刷新插件市场时出错:", error);
+                    await session.send("刷新插件市场失败，请重试。");
                 }
+            });
+    }
+    //小火箭更新
+    if (getCommandName("小火箭更新依赖")) {
+        ctx.command(`${getCommandName("automation-console") || "automation-console"}/${getCommandName("小火箭更新依赖")}`, "小火箭更新", { authority: getCommandAuthority("小火箭更新依赖") })
+            .action(async ({ session }) => {
+                if (!await ensureUIControl(page, config, session)) return; // 打开UI控制
 
-                // 等待3秒
-                await new Promise(resolve => setTimeout(resolve, config.resolvetimeout * 1000));
+                try {
+                    // 切换到 /dependencies 页面
+                    await page.click('a[href^="/dependencies"]');
 
-                // 点击【全部更新】按钮
-                await page.evaluate(() => {
-                    const buttons = document.querySelectorAll('.right .menu-item');
-                    const updateButton = buttons[0];
-                    updateButton.click();
-                });
+                    // 在页面上下文中执行脚本，查找按钮
+                    const canUpdate = await page.evaluate(() => {
+                        const buttons = document.querySelectorAll('.right .menu-item');
+                        const updateButton = buttons[0]; // 假设第一个是【全部更新】按钮
+                        const refreshButton = buttons[3]; // 假设第四个是【刷新】按钮
 
-                // 点击【应用更改】按钮
-                await page.evaluate(() => {
-                    const buttons = document.querySelectorAll('.right .menu-item');
-                    const applyChangesButton = buttons[1]; // 假设第二个是【应用更改】按钮
-                    applyChangesButton.click();
-                });
+                        if (!updateButton || updateButton.classList.contains('disabled')) {
+                            return false; // 【全部更新】按钮不可按
+                        }
 
-                // 等待确认安装弹窗并点击【确认安装】
-                await page.waitForSelector('.el-button--primary', { visible: true });
-                await page.evaluate(() => {
-                    const confirmButton = document.querySelector('.el-button--primary');
-                    confirmButton.click();
-                });
+                        refreshButton.click(); // 点击【刷新】按钮
+                        return true; // 【全部更新】按钮可用
+                    });
 
-                await session.send("已确认安装");
-            } catch (error) {
-                ctx.logger.error("小火箭更新依赖时出错:", error);
-                await session.send("更新依赖失败，请重试。");
-            }
-        });
+                    if (!canUpdate) {
+                        await session.send("当前已经全部是最新依赖了，无需更新");
+                        return;
+                    }
 
+                    // 等待3秒
+                    await new Promise(resolve => setTimeout(resolve, config.resolvetimeout * 1000));
+
+                    // 点击【全部更新】按钮
+                    await page.evaluate(() => {
+                        const buttons = document.querySelectorAll('.right .menu-item');
+                        const updateButton = buttons[0];
+                        updateButton.click();
+                    });
+
+                    // 点击【应用更改】按钮
+                    await page.evaluate(() => {
+                        const buttons = document.querySelectorAll('.right .menu-item');
+                        const applyChangesButton = buttons[1]; // 假设第二个是【应用更改】按钮
+                        applyChangesButton.click();
+                    });
+
+                    // 等待确认安装弹窗并点击【确认安装】
+                    await page.waitForSelector('.el-button--primary', { visible: true });
+                    await page.evaluate(() => {
+                        const confirmButton = document.querySelector('.el-button--primary');
+                        confirmButton.click();
+                    });
+
+                    await session.send("已确认安装");
+                } catch (error) {
+                    ctx.logger.error("小火箭更新依赖时出错:", error);
+                    await session.send("更新依赖失败，请重试。");
+                }
+            });
+    }
     // 查看日志
-    ctx.command(`${getCommandName("automation-console")}/${getCommandName("查看日志")}`, "查看日志截图", { authority: getCommandAuthority("查看日志") })
-        .action(async ({ session }) => {
-            if (!await ensureUIControl(page, config, session)) return; // 打开UI控制
-            // 切换到 /logs 页面
-            await page.click('a[href^="/logs"]');
-            // 反馈状态
-            await session.execute("查看UI控制");
-        });
-
+    if (getCommandName("查看日志")) {
+        ctx.command(`${getCommandName("automation-console") || "automation-console"}/${getCommandName("查看日志")}`, "查看日志截图", { authority: getCommandAuthority("查看日志") })
+            .action(async ({ session }) => {
+                if (!await ensureUIControl(page, config, session)) return; // 打开UI控制
+                // 切换到 /logs 页面
+                await page.click('a[href^="/logs"]');
+                // 反馈状态
+                await session.execute(`${getCommandName("查看UI控制")}`); // 反馈状态
+            });
+    }
 
 
 }
