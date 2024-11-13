@@ -124,7 +124,8 @@ exports.Config = Schema.intersect([
     }).description('auth登录设置'),
 
     Schema.object({
-        auto_execute: Schema.boolean().default(false).description("开启后，在【UI控制台未打开】时，自动执行【打开UI控制】").experimental(),
+        auto_execute_openUI: Schema.boolean().default(true).description("开启后，在【UI控制台未打开】时，自动执行【打开UI控制】").experimental(),
+        auto_execute_closeUI: Schema.boolean().default(true).description("开启后，在执行对应的指令完毕时，自动执行【退出UI控制】").experimental(),
         wait_for_prompt: Schema.number().default(30).description("等待用户输入内容的超时时间（单位：秒）"), // await session.prompt(config.wait_for_prompt * 1000);
     }).description('进阶设置'),
 
@@ -143,6 +144,17 @@ exports.Config = Schema.intersect([
 
 async function apply(ctx, config) {
     let page;
+    const getCommandName_automation = getCommandName("automation-console");
+    const getCommandName_openUI = getCommandName("打开UI控制");
+    const getCommandName_cancanUI = getCommandName("查看UI控制");
+    const getCommandName_closeUI = getCommandName("退出UI控制");
+    const getCommandName_plugins = getCommandName("配置插件");
+    const getCommandName_refreshmarket = getCommandName("刷新插件市场");
+    const getCommandName_restart = getCommandName("软重启");
+    const getCommandName_yarn_up_to_latest = getCommandName("小火箭更新依赖");
+    const getCommandName_cancanlogs = getCommandName("查看日志");
+
+
 
     const log = (message) => {
         if (config.loggerinfo) {
@@ -151,8 +163,8 @@ async function apply(ctx, config) {
     };
     async function ensureUIControl(page, config, session) {
         if (!page) {
-            if (config.auto_execute) {
-                await session.execute(`${getCommandName("打开UI控制")}`);
+            if (config.auto_execute_openUI) {
+                await session.execute(`${getCommandName_openUI}`);
                 //await new Promise(resolve => setTimeout(resolve, 1500));// 停顿 1.5 秒 // 因为 这个指令执行需要截图 可能反应不过来 // 好像也不需要
             } else {
                 await session.send("UI控制台未打开，请先使用【打开UI控制】指令。");
@@ -161,6 +173,13 @@ async function apply(ctx, config) {
         }
         return true;
     }
+    async function closeUIIfEnabled(session, config) {
+        if (config.auto_execute_closeUI) {
+            await session.execute(`${getCommandName_closeUI}`);
+        }
+    }
+
+
     function getCommandName(command) {
         const entry = config.table2.find(item => item.command === command);
         return entry ? entry.commandname : null;
@@ -171,11 +190,11 @@ async function apply(ctx, config) {
         return entry ? entry.command_authority : null;
     }
 
-    ctx.command(`${getCommandName("automation-console") || "automation-console"}`, "通过指令操作控制台")
+    ctx.command(`${getCommandName_automation || "automation-console"}`, "通过指令操作控制台")
 
     // 打开UI控制 打开puppeteer
-    if (getCommandName("打开UI控制")) {
-        ctx.command(`${getCommandName("automation-console") || "automation-console"}/${getCommandName("打开UI控制")}`, "打开UI控制台", { authority: getCommandAuthority("打开UI控制") })
+    if (getCommandName_openUI) {
+        ctx.command(`${getCommandName_automation || "automation-console"}/${getCommandName_openUI}`, "打开UI控制台", { authority: getCommandAuthority("打开UI控制") })
             .action(async ({ session }) => {
                 if (page) {
                     await session.send("你已经打开了UI控制页面，请勿重复打开。若要退出，请发送【退出UI控制】");
@@ -209,7 +228,7 @@ async function apply(ctx, config) {
                         }
                     }
                     await page.click('a[href="/"]');
-                    await session.execute(`${getCommandName("查看UI控制")}`);
+                    await session.execute(`${getCommandName_cancanUI}`);
                     await session.send("UI控制台已打开并登录。");
                 } catch (error) {
                     ctx.logger.error('打开UI控制台时出错:', error);
@@ -218,8 +237,8 @@ async function apply(ctx, config) {
             });
     }
     // 查看UI控制  就是截图啦~
-    if (getCommandName("查看UI控制")) {
-        ctx.command(`${getCommandName("automation-console") || "automation-console"}/${getCommandName("查看UI控制")}`, "查看UI控制台当前页面", { authority: getCommandAuthority("查看UI控制") })
+    if (getCommandName_cancanUI) {
+        ctx.command(`${getCommandName_automation || "automation-console"}/${getCommandName_cancanUI}`, "查看UI控制台当前页面", { authority: getCommandAuthority("查看UI控制") })
             .action(async ({ session }) => {
                 if (!await ensureUIControl(page, config, session)) return; // 打开UI控制
                 try {
@@ -232,8 +251,8 @@ async function apply(ctx, config) {
             });
     }
     // 退出UI控制 关闭puppeteer
-    if (getCommandName("退出UI控制")) {
-        ctx.command(`${getCommandName("automation-console") || "automation-console"}/${getCommandName("退出UI控制")}`, "关闭UI控制台", { authority: getCommandAuthority("退出UI控制") })
+    if (getCommandName_closeUI) {
+        ctx.command(`${getCommandName_automation || "automation-console"}/${getCommandName_closeUI}`, "关闭UI控制台", { authority: getCommandAuthority("退出UI控制") })
             .action(async ({ session }) => {
                 if (!await ensureUIControl(page, config, session)) return; // 打开UI控制
 
@@ -248,8 +267,8 @@ async function apply(ctx, config) {
             });
     }
     // 软重启Koishi 并且 关闭puppeteer
-    if (getCommandName("软重启")) {
-        ctx.command(`${getCommandName("automation-console") || "automation-console"}/${getCommandName("软重启")}`, "重启Koishi控制台", { authority: getCommandAuthority("软重启") })
+    if (getCommandName_restart) {
+        ctx.command(`${getCommandName_automation || "automation-console"}/${getCommandName_restart}`, "重启Koishi控制台", { authority: getCommandAuthority("软重启") })
             .action(async ({ session }) => {
                 if (!await ensureUIControl(page, config, session)) return; // 打开UI控制
 
@@ -261,7 +280,7 @@ async function apply(ctx, config) {
                     await page.click('.item .label[title="全局设置"]');
 
                     // 提示重启
-                    await session.send("正在【退出UI控制】并且【重启Koishi】...");
+                    await session.send("正在【重启Koishi】...");
 
                     // 点击重载按钮
                     await page.evaluate(() => {
@@ -272,7 +291,7 @@ async function apply(ctx, config) {
                     });
 
                     // 重启后关闭页面实例
-                    await page.close();
+                    await session.execute(`${getCommandName_closeUI}`); // if (config.auto_execute_closeUI) {} // 都重启koishi了 当然应该关闭了                    
                     page = null;
                 } catch (error) {
                     ctx.logger.error('重启Koishi时出错:', error);
@@ -281,8 +300,8 @@ async function apply(ctx, config) {
             });
     }
     // 配置插件
-    if (getCommandName("配置插件")) {
-        ctx.command(`${getCommandName("automation-console") || "automation-console"}/${getCommandName("配置插件")} [pluginname] [pluginchoice] [pluginoperation]`, "搜索插件", { authority: getCommandAuthority("配置插件") })
+    if (getCommandName_plugins) {
+        ctx.command(`${getCommandName_automation || "automation-console"}/${getCommandName_plugins} [pluginname] [pluginchoice] [pluginoperation]`, "搜索插件", { authority: getCommandAuthority("配置插件") })
             .example("配置插件 commands  1  1")
             .action(async ({ session }, pluginname, pluginchoice, pluginoperation) => {
                 if (!await ensureUIControl(page, config, session)) return; // 打开UI控制
@@ -297,13 +316,18 @@ async function apply(ctx, config) {
                     });
 
                     // 如果没有提供插件名称关键词，则请求用户输入
-                    let keyword = pluginname || await session.prompt("请输入要操作的插件关键词：", config.wait_for_prompt * 1000);
+                    let keyword = pluginname;
+                    if (!pluginname) {
+                        await session.send("请输入要操作的插件名：")
+                        keyword = await session.prompt(config.wait_for_prompt * 1000);
+                    }
                     log(keyword);
 
                     // 找到匹配的插件
                     const matches = plugins.filter(name => name.includes(keyword));
                     if (matches.length === 0) {
                         await session.send("没有找到匹配的插件。");
+                        await closeUIIfEnabled(session, config);  // 自动关闭
                         return;
                     }
 
@@ -323,6 +347,7 @@ async function apply(ctx, config) {
 
                     if (isNaN(choiceIndex) || choiceIndex < 0 || choiceIndex >= limitedMatches.length) {
                         await session.send("无效的选择。");
+                        await closeUIIfEnabled(session, config);  // 自动关闭
                         return;
                     }
 
@@ -330,7 +355,7 @@ async function apply(ctx, config) {
 
                     // 操作插件
                     await page.click(`.label[title="${selectedPlugin}"]`);
-                    await session.execute(`${getCommandName("查看UI控制")}`); // 反馈状态
+                    await session.execute(`${getCommandName_cancanUI}`); // 反馈状态
 
                     // 检查可用按钮数量
                     const buttonCount = await page.evaluate(() => {
@@ -339,6 +364,7 @@ async function apply(ctx, config) {
 
                     if (buttonCount < 6) {
                         await session.send("可用按钮不足6个，非普通插件，请前往控制台操作！");
+                        await closeUIIfEnabled(session, config);  // 自动关闭
                         return;
                     }
 
@@ -351,6 +377,7 @@ async function apply(ctx, config) {
 
                     if (isNaN(operation) || operation < 1 || operation > 5) {
                         await session.send("此插件无法执行此操作。");
+                        await closeUIIfEnabled(session, config);  // 自动关闭
                         return;
                     }
 
@@ -362,7 +389,8 @@ async function apply(ctx, config) {
                         }, operation);
 
                         await session.send("操作已完成。");
-                        await session.execute(`${getCommandName("查看UI控制")}`); // 反馈状态
+                        await session.execute(`${getCommandName_cancanUI}`); // 反馈状态
+                        await closeUIIfEnabled(session, config);  // 自动关闭
                         return;
                     } else if (operation === 3) {
                         // 重命名
@@ -384,7 +412,8 @@ async function apply(ctx, config) {
                         }, newName);
 
                         await session.send("重命名操作已完成。");
-                        await session.execute(`${getCommandName("查看UI控制")}`); // 反馈状态
+                        await session.execute(`${getCommandName_cancanUI}`); // 反馈状态
+                        await closeUIIfEnabled(session, config);  // 自动关闭
                         return;
                     } else if (operation === 4) {
                         // 移除插件
@@ -399,19 +428,21 @@ async function apply(ctx, config) {
                         });
 
                         await session.send("移除插件操作已完成。");
-                        await session.execute(`${getCommandName("查看UI控制")}`); // 反馈状态
+                        await session.execute(`${getCommandName_cancanUI}`); // 反馈状态
+                        await closeUIIfEnabled(session, config);  // 自动关闭
                         return;
                     }
 
                 } catch (error) {
                     ctx.logger.error('操作插件时出错:', error);
                     await session.send("操作插件时出错，请重试。");
+                    await closeUIIfEnabled(session, config);  // 自动关闭
                 }
             });
     }
     // 刷新插件市场
-    if (getCommandName("刷新插件市场")) {
-        ctx.command(`${getCommandName("automation-console") || "automation-console"}/${getCommandName("刷新插件市场")}`, "刷新插件市场", { authority: getCommandAuthority("刷新插件市场") })
+    if (getCommandName_refreshmarket) {
+        ctx.command(`${getCommandName_automation || "automation-console"}/${getCommandName_refreshmarket}`, "刷新插件市场", { authority: getCommandAuthority("刷新插件市场") })
             .action(async ({ session }) => {
                 if (!await ensureUIControl(page, config, session)) return; // 打开UI控制
 
@@ -430,17 +461,19 @@ async function apply(ctx, config) {
                     });
 
                     // 反馈状态
-                    //  await session.execute(`${getCommandName("查看UI控制")}`); // 反馈状态 // 无需了 因为插件市场更新内容不会立即显示出来
+                    //  await session.execute(`${getCommandName_cancanUI}`); // 反馈状态 // 无需了 因为插件市场更新内容不会立即显示出来
                     await session.send("插件市场已点击刷新按钮");
+                    await closeUIIfEnabled(session, config);  // 自动关闭
                 } catch (error) {
                     ctx.logger.error("刷新插件市场时出错:", error);
                     await session.send("刷新插件市场失败，请重试。");
+                    await closeUIIfEnabled(session, config);  // 自动关闭
                 }
             });
     }
     //小火箭更新
-    if (getCommandName("小火箭更新依赖")) {
-        ctx.command(`${getCommandName("automation-console") || "automation-console"}/${getCommandName("小火箭更新依赖")}`, "小火箭更新", { authority: getCommandAuthority("小火箭更新依赖") })
+    if (getCommandName_yarn_up_to_latest) {
+        ctx.command(`${getCommandName_automation || "automation-console"}/${getCommandName_yarn_up_to_latest}`, "小火箭更新", { authority: getCommandAuthority("小火箭更新依赖") })
             .action(async ({ session }) => {
                 if (!await ensureUIControl(page, config, session)) return; // 打开UI控制
 
@@ -464,10 +497,11 @@ async function apply(ctx, config) {
 
                     if (!canUpdate) {
                         await session.send("当前已经全部是最新依赖了，无需更新");
+                        await closeUIIfEnabled(session, config);  // 自动关闭
                         return;
                     }
 
-                    // 等待3秒
+                    // 等待==秒
                     await new Promise(resolve => setTimeout(resolve, config.resolvetimeout * 1000));
 
                     // 点击【全部更新】按钮
@@ -492,21 +526,25 @@ async function apply(ctx, config) {
                     });
 
                     await session.send("已确认安装");
+                    await closeUIIfEnabled(session, config);  // 自动关闭
                 } catch (error) {
                     ctx.logger.error("小火箭更新依赖时出错:", error);
                     await session.send("更新依赖失败，请重试。");
+                    await closeUIIfEnabled(session, config);  // 自动关闭
                 }
             });
     }
     // 查看日志
-    if (getCommandName("查看日志")) {
-        ctx.command(`${getCommandName("automation-console") || "automation-console"}/${getCommandName("查看日志")}`, "查看日志截图", { authority: getCommandAuthority("查看日志") })
+    if (getCommandName_cancanlogs) {
+        ctx.command(`${getCommandName_automation || "automation-console"}/${getCommandName_cancanlogs}`, "查看日志截图", { authority: getCommandAuthority("查看日志") })
             .action(async ({ session }) => {
                 if (!await ensureUIControl(page, config, session)) return; // 打开UI控制
                 // 切换到 /logs 页面
                 await page.click('a[href^="/logs"]');
                 // 反馈状态
-                await session.execute(`${getCommandName("查看UI控制")}`); // 反馈状态
+                await session.execute(`${getCommandName_cancanUI}`); // 反馈状态
+                await closeUIIfEnabled(session, config);  // 自动关闭
+                return;
             });
     }
 
