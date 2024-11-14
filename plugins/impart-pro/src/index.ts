@@ -229,7 +229,8 @@ interface impartproTable {
   channelId: string;
   length: number;
   growthFactor: number;
-  lastGrowthTime: string;
+  lastGrowthTime: string; // 开导间隔
+  lastDuelTime: string; // 决斗间隔
   locked: boolean;
 }
 
@@ -251,7 +252,8 @@ export function apply(ctx: Context, config: Config) {
     channelId: 'string', // 频道名称
     length: 'float', // 牛牛长度
     growthFactor: 'float', // 牛牛成长值
-    lastGrowthTime: 'string', // 双方对战使用的，记录时间用的。用于冷却时间的计算    
+    lastGrowthTime: 'string', // 增长牛牛的最新时间 用于冷却时间的计算    
+    lastDuelTime: 'string', // 双方对战使用的，记录时间用的。用于冷却时间的计算    
     locked: 'boolean'
   }, {
     primary: ['userid'],
@@ -373,6 +375,7 @@ export function apply(ctx: Context, config: Config) {
           length: initialLength,
           growthFactor: growthFactor,
           lastGrowthTime: new Date().toISOString(), // 使用 ISO 字符串
+          lastDuelTime: new Date().toISOString(), // 使用 ISO 字符串
           locked: false
         };
         await ctx.database.create('impartpro', userRecord);
@@ -502,8 +505,8 @@ export function apply(ctx: Context, config: Config) {
       }
 
       // 检查冷却时间
-      const lastAttackerTime = new Date(attackerRecord.lastGrowthTime).getTime();
-      const lastDefenderTime = new Date(defenderRecord.lastGrowthTime).getTime();
+      const lastAttackerTime = new Date(attackerRecord.lastDuelTime).getTime();
+      const lastDefenderTime = new Date(defenderRecord.lastDuelTime).getTime();
       const cooldownTime = config.duelCooldownTime * 1000;
 
       if (currentTime - lastAttackerTime < cooldownTime || currentTime - lastDefenderTime < cooldownTime) {
@@ -566,17 +569,17 @@ export function apply(ctx: Context, config: Config) {
       }
 
       // 更新双方记录
-      attackerRecord.lastGrowthTime = new Date(currentTime).toISOString();
-      defenderRecord.lastGrowthTime = new Date(currentTime).toISOString();
+      attackerRecord.lastDuelTime = new Date(currentTime).toISOString();
+      defenderRecord.lastDuelTime = new Date(currentTime).toISOString();
 
       await ctx.database.set('impartpro', { userid: session.userId }, {
         length: attackerRecord.length,
-        lastGrowthTime: attackerRecord.lastGrowthTime,
+        lastDuelTime: attackerRecord.lastDuelTime,
       });
 
       await ctx.database.set('impartpro', { userid: userId }, {
         length: defenderRecord.length,
-        lastGrowthTime: defenderRecord.lastGrowthTime,
+        lastDuelTime: defenderRecord.lastDuelTime,
       });
 
       // 输出双方胜率
@@ -617,7 +620,7 @@ export function apply(ctx: Context, config: Config) {
         await ctx.database.set('impartpro', { userid: userId }, {
           length: initialLength,
           growthFactor: growthFactor,
-          lastGrowthTime: currentTime,
+          lastDuelTime: currentTime,
         });
         await session.send(`牛牛重置成功，当前长度为 ${initialLength.toFixed(2)} cm，成长系数为 ${growthFactor.toFixed(2)}。`);
         return;
@@ -630,6 +633,7 @@ export function apply(ctx: Context, config: Config) {
           length: initialLength,
           growthFactor: growthFactor,
           lastGrowthTime: currentTime,
+          lastDuelTime: currentTime,
           locked: false
         };
 
