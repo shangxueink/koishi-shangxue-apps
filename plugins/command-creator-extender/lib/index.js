@@ -1,5 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
+const { reverse } = require("dns");
 const koishi = require("koishi");
 const { Schema } = require("koishi");
 
@@ -83,6 +84,7 @@ const Config = Schema.intersect([
     ])
   }).description('指令设置'),
   Schema.object({
+    reverse_order: Schema.boolean().default(false).description('逆序执行指令（先执行下一个指令再执行原始指令）').experimental(),
     loggerinfo: Schema.boolean().default(false).description('日志调试模式'),
   }).description('调试设置'),
 
@@ -111,8 +113,9 @@ async function apply(ctx, config) {
       });
   }
   ctx.middleware(async (session, next) => {
-    await next(); // 先执行后面的next
-
+    if (!config.reverse_order) {
+      await next(); // 先执行后面的next
+    }
     // 移除前导尖括号内容，也就是移除at机器人的元素消息
     if (session.platform === 'qq') {
       session.content = removeLeadingBrackets(session.content);
@@ -134,6 +137,7 @@ async function apply(ctx, config) {
         await session.execute(`${mapping.nextCommand} ${remainingArgs}`);
       }
     }
+    return next(); // next
   }, true);
 
 
