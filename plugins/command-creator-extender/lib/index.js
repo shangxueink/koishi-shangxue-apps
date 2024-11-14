@@ -57,31 +57,28 @@ const UserCommand = Schema.object({
 const Config = Schema.intersect([
   Schema.object({
     table2: Schema.array(Schema.object({
-      rawCommand: Schema.string().description('原始指令（如果有指令前缀，需要加上）'),
-      nextCommand: Schema.string().description('自动执行的下一个指令（如果有指令前缀 需要去除）'),
-    })).role('table').description('指令调用映射表').default(
+      rawCommand: Schema.string().description('当接收到消息'),
+      nextCommand: Schema.string().description('自动执行的下一个指令（无需指令前缀）'),
+    })).role('table').description('指令调用映射表<br>因为不是注册指令 只是匹配接收到的消息 所以如果你希望有前缀触发的话，需要加上前缀<br>当然你也可以写已有的指令名称比如【/help】').default(
       [
         {
-          "rawCommand": "++一键打卡",
+          "rawCommand": "/help",
+          "nextCommand": "status"
+        },
+        {
+          "rawCommand": "/一键打卡",
           "nextCommand": "今日运势"
         },
         {
-          "rawCommand": "++一键打卡",
+          "rawCommand": "/一键打卡",
           "nextCommand": "签到"
         },
         {
-          "rawCommand": "++一键打卡",
+          "rawCommand": "/一键打卡",
           "nextCommand": "鹿"
         }
       ]
     ),
-    commands: Schema.array(UserCommand).description('自定义创建一些指令').default([
-      {
-        "mode": "reply",
-        "name": "一键打卡",
-        "content": "即将自动打卡... ..."
-      }
-    ])
   }).description('指令设置'),
   Schema.object({
     reverse_order: Schema.boolean().default(false).description('逆序执行指令（先执行下一个指令再执行原始指令）').experimental(),
@@ -97,21 +94,6 @@ function removeLeadingBrackets(content) {
 
 async function apply(ctx, config) {
 
-  for (const command of config.commands) {
-    ctx.command(command.name)
-      .action(async ({ session }) => {
-        switch (command.mode) {
-          case 'reply':
-            await session.send(command.content);
-            break;
-          case 'execute':
-            let content = session.content.split(" ");
-            content.shift();
-            await session.execute(`${command.content}${content.length > 0 ? " " + content.join(" ") : ""}`);
-            break;
-        }
-      });
-  }
   ctx.middleware(async (session, next) => {
     if (!config.reverse_order) {
       await next(); // 先执行后面的next
