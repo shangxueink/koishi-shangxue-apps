@@ -1,22 +1,12 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-const { reverse } = require("dns");
-const koishi = require("koishi");
+
 const { Schema } = require("koishi");
 
 const name = "command-creator-extender";
 
 const usage = `
-<!DOCTYPE html>
-<html lang="zh">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>插件使用说明</title>
-</head>
-<body>
-<h1>插件使用说明</h1>
-<p>该插件用于将一个已有的指令映射到其他指令，并允许用户自定义指令。</p>
+<p>本插件用于将一个已有的指令映射到其他指令，并允许用户自定义指令。</p>
 <h2>功能</h2>
 <ul>
 <li>指令映射：通过配置表将输入指令映射到多个输出指令。</li>
@@ -24,17 +14,13 @@ const usage = `
 <li>日志调试：启用调试模式以输出详细日志信息。</li>
 </ul>
 <h2>使用方法</h2>
-<p>您可以在 <strong>table2</strong> 表格中指定【已经注册的指令】的调用关系。</p>
-<p>如果希望创建一个全新的指令，可以使用 <strong>commands</strong> 配置项。</p>
+<p>您可以在 <strong>table2</strong> 表格中指定【关键词或已经注册的指令】的调用关系。</p>
 <h3>注意事项</h3>
 <ul>
-<li><strong>table2</strong>：在执行完【原始指令】之后，会自动执行右侧的【下一个指令】。可以指定多个重复的【原始指令】以实现多重调用。</li>
-<li><strong>commands</strong>：用于创建自定义的指令，实现【创建一个指令去调用另一个指令】或【创建一个指令返回指定内容】的功能。</li>
-<li>需要注意：在同一个 Koishi 环境中，【指令名称不可以重复】，即配置项<strong>commands.name</strong>不可以与已有指令重复。<strong>table2</strong>配置项里的指令必须都已经存在。</li>
+<li><strong>table2</strong>：在执行完【关键词或原始指令】之后，会自动执行右侧的【下一个指令】。可以指定多个重复的【关键词或原始指令】以实现多重调用。</li>
 </ul>
-<p>推荐在 <strong>commands</strong> 中创建全新指令，并在 <strong>table2</strong> 表格中指定其对应的调用指令。</p>
 </body>
-</html>
+
 
 ---
 
@@ -42,24 +28,16 @@ const usage = `
 
 （注：下面的【前缀】均指【全局设置】里的指令前缀）
 
-> 灵感来自 command-creator
+> 灵感来自 [command-creator](/market?keyword=command-creater)
 `;
 
-const UserCommand = Schema.object({
-  name: Schema.string().description("需要创建的指令名（无需指令前缀）").required(),
-  content: Schema.string().description("【指令内容】").required(),
-  mode: Schema.union([
-    Schema.const("reply").description("发送【指令内容】（直接返回）"),
-    Schema.const("execute").description("调用【指令内容】（功能有点类似上表的右列）")
-  ]).description("触发指令后").role("radio").required()
-});
 
 const Config = Schema.intersect([
   Schema.object({
     table2: Schema.array(Schema.object({
-      rawCommand: Schema.string().description('当接收到消息'),
+      rawCommand: Schema.string().description('【当接收到消息】或【原始指令】'),
       nextCommand: Schema.string().description('自动执行的下一个指令（无需指令前缀）'),
-    })).role('table').description('指令调用映射表<br>因为不是注册指令 只是匹配接收到的消息 所以如果你希望有前缀触发的话，需要加上前缀<br>当然你也可以写已有的指令名称比如【/help】').default(
+    })).role('table').description('指令调用映射表<br>因为不是注册指令 只是匹配接收到的消息 所以如果你希望有前缀触发的话，需要加上前缀<br>当然你也可以写已有的指令名称比如【/help】（需要指令前缀）').default(
       [
         {
           "rawCommand": "/help",
