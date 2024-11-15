@@ -35,9 +35,9 @@ const Config = Schema.intersect([
 
     于是就有了这个喵~
     */
-    command_userId_list: Schema.array(Schema.object({ 
+    command_userId_list: Schema.array(Schema.object({
       command: Schema.string().description('指令名称'),
-      userId: Schema.string().description('应用对象'),      
+      userId: Schema.string().description('应用对象'),
       enableobject: Schema.union([
         Schema.const('用户ID'),
         Schema.const('频道ID'),
@@ -76,7 +76,24 @@ const Config = Schema.intersect([
         }
       ]
     ),
-
+    /*
+    为了快速实现【对某个频道仅允许使用指定指令】的情况 就有了这个配置项
+    */
+    command_channelId_list: Schema.array(Schema.object({
+      channelId: Schema.string().description('应用的频道'),
+      command: Schema.string().description('允许调用的指令'),
+    })).role('table').description('快速实现【对某个频道仅允许使用指定指令】<br> 相当于指定 在某个频道内允许触发的指令').default(
+      [
+        {
+          "channelId": "1919810",
+          "command": "status"
+        },
+        {
+          "channelId": "private:114514",
+          "command": "status"
+        }
+      ]
+    ),
   }).description('指令控制设置'),
 
   Schema.object({
@@ -97,6 +114,7 @@ const Config = Schema.intersect([
   }).description('输出内容屏蔽设置'),
 
   Schema.object({
+    removeLeadingBrackets: Schema.boolean().default(true).description('移除接收到的尖括号内容，比如at元素（仅推荐qq平台使用）'),
     loggerinfo: Schema.boolean().default(false).description('日志调试模式'),
   }).description('调试设置'),
 ]);
@@ -556,10 +574,11 @@ async function apply(ctx, config) {
   // 前置中间件，检查是否有屏蔽的关键词或用户
   ctx.middleware(async (session, next) => {
     // 移除前导尖括号内容
-    if (session.platform === 'qq') {
-      session.content = removeLeadingBrackets(session.content);
+    let blockercontent = session.content
+    if (config.removeLeadingBrackets) {
+      blockercontent = removeLeadingBrackets(blockercontent);
     }
-    const userCommand = session.content.split(" ")[0]; // 获取指令的第一个词
+    const userCommand = blockercontent.split(" ")[0]; // 获取指令的第一个词
     const record = await ctx.database.get("blockedKeywords", { platform: session.platform, channelId: session.channelId });
     const globalRecord = await ctx.database.get("blockedKeywords", { platform: session.platform, channelId: 'global' });
     const blockedKeywords = (record[0]?.blockedkeywords || []).concat(globalRecord[0]?.blockedkeywords || []);
@@ -610,6 +629,14 @@ async function apply(ctx, config) {
       }
     }
 
+    // 检查频道指令限制
+    const commandChannelCheck = config.command_channelId_list.find(item => item.channelId === session.channelId);
+    if (commandChannelCheck) {
+      if (commandChannelCheck.command !== userCommand) {
+        logInfo(`频道 ${session.channelId} 仅允许指令 ${commandChannelCheck.command}，阻止执行 ${userCommand}`);
+        return; // 仅允许特定指令
+      }
+    }
 
     if (config.Allow_trigger) {
       // 允许通过某些指令      
@@ -626,7 +653,7 @@ async function apply(ctx, config) {
         config.blockChannel
       ];
       for (const command of allowedCommands) {
-        if (session.content.includes(command)) {
+        if (blockercontent.includes(command)) {
           return next();
         }
       }
@@ -649,9 +676,9 @@ async function apply(ctx, config) {
     }
 
     // 检查是否是取消屏蔽词指令，并且包含已屏蔽的关键词
-    if (session.content.includes(config.unblockCommand) || session.content.includes(config.global_unblockCommand)) {
+    if (blockercontent.includes(config.unblockCommand) || blockercontent.includes(config.global_unblockCommand)) {
       for (const keyword of blockedKeywords) {
-        if (session.content.includes(keyword)) {
+        if (blockercontent.includes(keyword)) {
           return next(); // 允许取消屏蔽词指令通过
         }
       }
@@ -668,12 +695,8 @@ async function apply(ctx, config) {
       }
     }
 
-
     return next();
   }, true /* true 表示这是前置中间件 */);
-
-
-
 }
 
 exports.apply = apply;
