@@ -83,7 +83,7 @@ exports.Config =
         HoroscopeDescriptionTextColor: Schema.string().default("rgba(255,255,255,1)").role('color').description('`运势说明文字`颜色'),
         DashedboxThickn: Schema.number().role('slider').min(0).max(20).step(1).default(5).description('`虚线框`的粗细'),
         Dashedboxcolor: Schema.string().default("rgba(255, 255, 255, 0.5)").role('color').description('`虚线框`的颜色'),
-        //textfont: Schema.string().description("`请填写.ttf 字体文件的绝对路径`").default(path.join(__dirname, '/font/mark.ttf')),
+        fontPath: Schema.string().description("`请填写.ttf 字体文件的绝对路径`").default(path.join(__dirname, '../font/千图马克手写体.ttf')),
       }).collapse().description('可自定义各种颜色搭配和字体'),
     }).description('面板调节'),
     Schema.object({
@@ -113,6 +113,7 @@ exports.Config =
       maintenanceCostPerUnit: Schema.number().role('slider').min(0).max(1000).step(1).default(100).description("签到获得的货币数量"),
     }).description('monetary·通用货币设置'),
     Schema.object({
+      Repeated_signin_for_different_groups: Schema.boolean().default(false).description("允许同一个用户从不同群组签到"),
       consoleinfo: Schema.boolean().default(false).description("日志调试模式`日常使用无需开启`"),
     }).description('调试功能'),
   ])
@@ -169,6 +170,12 @@ function apply(ctx, config) {
       exports.logger.error(message);
     }
   }
+  // 读取 TTF 字体文件并转换为 Base64 编码
+  function getFontBase64(fontPath) {
+    const fontBuffer = fs.readFileSync(fontPath);
+    return fontBuffer.toString('base64');
+  }
+
   // 删除记录的函数
   async function deleteImageRecord(messageId, imageURL) {
     try {
@@ -267,8 +274,8 @@ ${dJson.unsignText}\n
         let backgroundImage = getRandomBackground(config);
         let BackgroundURL = backgroundImage.replace(/\\/g, '/');
         // 读取 Base64 字体字符串
-        const fontPath = path.join(__dirname, '../font/千图马克手写体.txt');
-        const fontBase64 = fs.readFileSync(fontPath, 'utf8');  // 从文件中读取 Base64 编码的字体内容
+        logInfo(config.HTML_setting.fontPath)
+        const fontBase64 = getFontBase64(config.HTML_setting.fontPath);  // 从文件中读取 Base64 编码的字体内容
         let insertHTMLuseravatar = session.event.user.avatar;
         let luckyStarHTML = `
 .lucky-star {
@@ -892,20 +899,31 @@ ${dJson.unsignText}
       await ctx.database.create('jrysprprdata', { userid: userId, channelId, lastSignIn: dateString });
     }
   }
+
   // 检查用户是否已签到
   async function alreadySignedInToday(ctx, userId, channelId) {
     const currentTime = new Date();
     const dateString = currentTime.toISOString().split('T')[0]; // 获取当前日期字符串
 
-    const [record] = await ctx.database.get('jrysprprdata', { userid: userId, channelId });
+    if (!config.Repeated_signin_for_different_groups) {
+      // 如果不允许从不同群组签到，检查所有群组
+      const records = await ctx.database.get('jrysprprdata', { userid: userId });
 
-    if (record) {
-      // 检查最后签到日期是否是今天
-      return record.lastSignIn === dateString;
+      // 检查是否有任何记录的签到日期是今天
+      return records.some(record => record.lastSignIn === dateString);
+    } else {
+      // 仅检查当前群组
+      const [record] = await ctx.database.get('jrysprprdata', { userid: userId, channelId });
+
+      if (record) {
+        // 检查最后签到日期是否是今天
+        return record.lastSignIn === dateString;
+      }
     }
 
     // 如果没有记录，表示未签到
     return false;
   }
+
 }
 exports.apply = apply;
