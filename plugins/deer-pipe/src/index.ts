@@ -134,9 +134,28 @@ export const Config: Schema<Config> = Schema.intersect([
     cost: Schema.object({
 
       checkin_reward: Schema.array(Schema.object({
-        command: Schema.union(['鹿', '补鹿', '戒鹿']).description("交互指令"),
+        command: Schema.union(['鹿', '补鹿', '戒鹿', "帮人补鹿"]).description("交互指令"),
         cost: Schema.number().description("货币变动"),
-      })).role('table').description('【获取硬币】本插件指令的货币变动').default([{ "command": "鹿", "cost": 100 }, { "command": "补鹿", "cost": -100 }, { "command": "戒鹿", "cost": -100 }]),
+      })).role('table').description('【获取硬币】本插件指令的货币变动').default(
+        [
+          {
+            "command": "鹿",
+            "cost": 100
+          },
+          {
+            "command": "补鹿",
+            "cost": -100
+          },
+          {
+            "command": "戒鹿",
+            "cost": -100
+          },
+          {
+            "command": "帮人补鹿",
+            "cost": -500
+          }
+        ]
+      ),
 
       store_item: Schema.array(Schema.object({
         item: Schema.string().description("物品名称"),
@@ -218,7 +237,7 @@ export async function apply(ctx: Context, config: Config) {
           "invalid_input_user": "请艾特指定用户。\n示例： 🦌  @用户",
           "invalid_userid": "不可用的用户，请换一个用户帮他签到吧~",
           "enable_blue_tip": "还可以帮助未签到的人签到，以获取补签次数哦！\n使用示例： 鹿  @用户",
-          "Sign_in_success": "你已经签到{0}次啦~ 继续加油咪~\n本次签到获得 {1} 点货币。",
+          "Sign_in_success": " 你已经签到{0}次啦~ 继续加油咪~\n本次签到获得 {1} 点货币。",
           "not_allowHelp": "该用户已禁止他人帮助签到。",
           "use_key_to_help": "你使用了一个【钥匙】打开了{0}的锁！"
         }
@@ -244,7 +263,9 @@ export async function apply(ctx: Context, config: Config) {
           "No_record": "暂无你的签到记录哦，快去签到吧~",
           "invalid_day": "日期不正确或未到，请输入有效的日期。\n示例： 补🦌  1",
           "Already_resigned": "你已经补签过{0}号了。",
-          "Resign_success": "你已成功补签{0}号。点数变化：{1}",
+          "Resign_success": " 你已成功补签{0}号。点数变化：{1}",
+          "help_others_Resign_success": " 你已成功补签{0}号。",
+          "help_others_Resign_success_cost": " 点数变化：{0}",
           "Insufficient_balance": "货币点数不足。快去帮别人签到获取点数吧",
           "maximum_times_per_day": "{0}号的签到次数已经达到上限 {1} 次，请换别的日期补签吧\~"
         }
@@ -254,7 +275,7 @@ export async function apply(ctx: Context, config: Config) {
         messages: {
           //"Cancel_sign_in_confirm": "你确定要取消{0}号的签到吗？请再次输入命令确认。",
           "invalid_day": "日期不正确，请输入有效的日期。\n示例： 戒🦌  1",
-          "Cancel_sign_in_success": "你已成功取消{0}号的签到。点数变化：{1}",
+          "Cancel_sign_in_success": " 你已成功取消{0}号的签到。点数变化：{1}",
           "No_sign_in": "你没有在{0}号签到。",
           "insufficient_currency": "你的余额不足以戒鹿。"
         }
@@ -373,7 +394,7 @@ export async function apply(ctx: Context, config: Config) {
     .alias('看🦌')
     .alias('看看日历')
     .userFields(["id"])
-    .example('看鹿  @用户')
+    .example('看鹿 @用户')
     .action(async ({ session }, user) => {
       const currentDate = new Date();
       const currentYear = currentDate.getFullYear();
@@ -413,7 +434,7 @@ export async function apply(ctx: Context, config: Config) {
   ctx.command('deerpipe/鹿 [user]', '鹿管签到', { authority: 1 })
     .alias('🦌')
     .userFields(["id"])
-    .example('鹿  @用户')
+    .example('鹿 @用户')
     .action(async ({ session }, user) => {
       const currentDate = new Date();
       const currentYear = currentDate.getFullYear();
@@ -581,9 +602,9 @@ export async function apply(ctx: Context, config: Config) {
       const calendarImage = h.image(imgBuf, 'image/png');
       await updateUserCurrency(ctx, await updateIDbyuserId(targetUserId, session.platform), cost);
       if (config.enable_blue_tip) {
-        await session.send(calendarImage + `<p>` + h.at(targetUserId) + `<p>` + session.text('.Sign_in_success', [targetRecord.totaltimes, cost]) + session.text('.enable_blue_tip'));
+        await session.send(calendarImage + `<p>` + h.at(targetUserId) + session.text('.Sign_in_success', [targetRecord.totaltimes, cost]) + session.text('.enable_blue_tip'));
       } else {
-        await session.send(calendarImage + `<p>` + h.at(targetUserId) + `<p>` + session.text('.Sign_in_success', [targetRecord.totaltimes, cost]));
+        await session.send(calendarImage + `<p>` + h.at(targetUserId) + session.text('.Sign_in_success', [targetRecord.totaltimes, cost]));
       }
       return;
     });
@@ -731,18 +752,42 @@ ${deer.order === 3 ? '<span class="medal">🥉</span>' : ''}
       return;
     });
 
-  ctx.command('deerpipe/补鹿 <day>', '补签某日', { authority: 1 })
+  ctx.command('deerpipe/补鹿 [day] [user]', '补签某日', { authority: 1 })
     .alias('补🦌')
     .userFields(["id"])
-    .example('补🦌  1')
-    .action(async ({ session }, day: string) => {
+    .example('补鹿 1')
+    .example('补鹿 1 @用户')
+    .action(async ({ session }, day: string, user) => {
       const dayNum = parseInt(day, 10);
-      const cost = config.cost.checkin_reward.find(c => c.command === '补鹿').cost;
       const currentDate = new Date();
       const currentYear = currentDate.getFullYear();
       const currentMonth = currentDate.getMonth() + 1;
       const currentDay = currentDate.getDate();
-      const recordtime = `${currentYear}-${currentMonth}`;
+      let targetUserId = session.userId;
+      let targetUsername = session.username;
+
+      // 默认消耗货币为补签自己
+      let cost = config.cost.checkin_reward.find(c => c.command === '补鹿').cost;
+
+      // 处理用户输入
+      if (user) {
+        const parsedUser = h.parse(user)[0];
+        if (parsedUser?.type === 'at') {
+          const { id, name } = parsedUser.attrs;
+          if (!id) {
+            await session.send(session.text('.invalid_userid'));
+            return;
+          }
+
+          // 如果是为他人补签，调整目标用户和消耗
+          targetUserId = id;
+          targetUsername = name || id; // 使用名字或ID
+          cost = config.cost.checkin_reward.find(c => c.command === '帮人补鹿').cost;
+        } else {
+          await session.send(session.text('.invalid_input_user'));
+          return;
+        }
+      }
 
       // 校验输入日期
       if (isNaN(dayNum) || dayNum < 1 || dayNum > 31 || dayNum > currentDay) {
@@ -751,15 +796,15 @@ ${deer.order === 3 ? '<span class="medal">🥉</span>' : ''}
       }
 
       // 获取用户记录
-      let [record] = await ctx.database.get('deerpipe', { userid: session.userId });
+      let [record] = await ctx.database.get('deerpipe', { userid: targetUserId });
       if (!record) {
         await session.send(session.text('.No_record'));
         return;
       }
 
-      // 获取用户余额
-      const balance = await getUserCurrency(ctx, session.user.id);
-      if (balance < Math.abs(cost)) {
+      // 检查目标用户余额
+      const balance = await getUserCurrency(ctx, await updateIDbyuserId(session.userId, session.platform));
+      if (balance < Math.abs(cost)) { // 使用绝对值进行检查
         await session.send(session.text('.Insufficient_balance'));
         return;
       }
@@ -770,7 +815,7 @@ ${deer.order === 3 ? '<span class="medal">🥉</span>' : ''}
         record.username = username;
       }
 
-      // 更严格的日期匹配逻辑，确保找到确切的 dayNum
+      // 查找指定日期记录
       const dayRecordIndex = record.checkindate.findIndex(date => {
         const [dayStr] = date.split('=');
         return parseInt(dayStr, 10) === dayNum;
@@ -778,7 +823,7 @@ ${deer.order === 3 ? '<span class="medal">🥉</span>' : ''}
 
       let dayRecord = dayRecordIndex !== -1 ? record.checkindate[dayRecordIndex] : `${dayNum}=0`;
       const [dayStr, count] = dayRecord.includes('=') ? dayRecord.split('=') : [dayRecord, '0'];
-      const currentSignInCount = parseInt(count) || 0; // 当前当天签到次数
+      const currentSignInCount = parseInt(count) || 0;
 
       // 检查是否超过签到次数上限
       if (currentSignInCount >= config.maximum_times_per_day) {
@@ -789,7 +834,7 @@ ${deer.order === 3 ? '<span class="medal">🥉</span>' : ''}
       // 更新签到次数
       let newCount = currentSignInCount + 1;
       if (dayRecordIndex !== -1 && !config.enable_deerpipe && currentSignInCount > 0) {
-        await session.send(`${h.at(session.userId)} ${session.text('.Already_resigned', [dayNum])}`);
+        await session.send(`${h.at(targetUserId)} ${session.text('.Already_resigned', [dayNum])}`);
         return;
       }
 
@@ -803,30 +848,35 @@ ${deer.order === 3 ? '<span class="medal">🥉</span>' : ''}
       // 更新总签到次数
       record.totaltimes += 1;
 
-      // 执行货币扣除
-      await updateUserCurrency(ctx, session.user.id, cost);
+      // 扣除货币
+      await updateUserCurrency(ctx, await updateIDbyuserId(session.userId, session.platform), -Math.abs(cost));
 
       // 更新数据库
-      await ctx.database.set('deerpipe', { userid: session.userId }, {
+      await ctx.database.set('deerpipe', { userid: targetUserId }, {
         username: record.username,
         checkindate: record.checkindate,
         totaltimes: record.totaltimes,
       });
 
       // 渲染签到日历
-      const imgBuf = await renderSignInCalendar(ctx, session.userId, username, currentYear, currentMonth);
+      const imgBuf = await renderSignInCalendar(ctx, targetUserId, targetUsername, currentYear, currentMonth);
       const calendarImage = h.image(imgBuf, 'image/png');
 
       // 发送签到成功信息
-      await session.send(calendarImage + `<p>` + h.at(session.userId) + `<p>` + session.text('.Resign_success', [dayNum, cost]));
+      if (user) {
+        await session.send(calendarImage + `<p>` + h.at(targetUserId) + session.text('.help_others_Resign_success', [dayNum]) + `<p>` + h.at(session.userId) + session.text('.help_others_Resign_success_cost', [cost]));
+      } else {
+        await session.send(calendarImage + `<p>` + h.at(targetUserId) + session.text('.Resign_success', [dayNum, cost]));
+      }
       return;
     });
+
 
   ctx.command('deerpipe/戒鹿 [day]', '取消某日签到', { authority: 1 })
     .alias('戒🦌')
     .alias('寸止')
     .userFields(["id"])
-    .example('戒🦌  1')
+    .example('戒鹿 1')
     .action(async ({ session }, day?: string) => {
       const currentDate = new Date();
       const currentYear = currentDate.getFullYear();
@@ -884,7 +934,7 @@ ${deer.order === 3 ? '<span class="medal">🥉</span>' : ''}
 
           const imgBuf = await renderSignInCalendar(ctx, session.userId, username, currentYear, currentMonth);
           const calendarImage = h.image(imgBuf, 'image/png');
-          await session.send(calendarImage + `<p>` + h.at(session.userId) + `<p>` + session.text('.Cancel_sign_in_success', [dayNum, cost]));
+          await session.send(calendarImage + `<p>` + h.at(session.userId) + session.text('.Cancel_sign_in_success', [dayNum, cost]));
 
         } else {
           await session.send(`${h.at(session.userId)} ${session.text('.No_sign_in', [dayNum])}`);
