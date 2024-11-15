@@ -5,20 +5,6 @@ import path from 'node:path';
 import fs from 'fs';
 export const name = 'deer-pipe';
 
-export interface Config {
-  calendarpngimagepath2: any;
-  calendarpngimagepath1: any;
-  currency: string;
-  Reset_Cycle: string;
-  //enable_use_key_to_help: boolean;
-  cost: any;
-  maximum_times_per_day: any;
-  enable_blue_tip: any;
-  enable_allchannel: any;
-  enable_deerpipe: boolean;
-  leaderboard_people_number: number;
-  loggerinfo: boolean;
-}
 
 export const usage = `
 <!DOCTYPE html>
@@ -117,7 +103,7 @@ export const usage = `
 </html>
 `;
 
-export const Config: Schema<Config> = Schema.intersect([
+export const Config: Schema = Schema.intersect([
   Schema.object({
     enable_deerpipe: Schema.boolean().description('开启后，允许重复签到<br>关闭后就没有重复签到的玩法').default(false),
     maximum_times_per_day: Schema.number().description('每日签到次数上限`小鹿怡..什么伤身来着`').default(3).min(2),
@@ -165,12 +151,25 @@ export const Config: Schema<Config> = Schema.intersect([
     }).collapse().description('货币平衡设置<br>涉及游戏平衡，谨慎修改'),
   }).description('monetary·通用货币设置'),
   Schema.object({
-    calendarpngimagepath1: Schema.path().default(path.join(__dirname, '../png/1.png'))
-      .description('日历的每日背景图像（填入图片的路径哦）<br>使用方法[参考readme](https://github.com/shangxueink/koishi-shangxue-apps/tree/main/plugins/deer-pipe)').experimental(),
-    calendarpngimagepath2: Schema.path().default(path.join(__dirname, '../png/2.png'))
-      .description('日历的每日完成标志（填入图片的路径哦）<br>使用方法[参考readme](https://github.com/shangxueink/koishi-shangxue-apps/tree/main/plugins/deer-pipe)').experimental(),
-    loggerinfo: Schema.boolean().description('debug日志输出模式').default(false).experimental(),
-  }).description('调试设置'),
+    calendarImagePreset1: Schema.union([
+      Schema.const('0').description('自定义路径（参见下方的路径选择配置项）'),
+      Schema.const('1').description('鹿管（默认）'),
+      Schema.const('2').description('心奈'),
+    ]).role('radio').description("日历图片预设1-背景图").default("1"),
+
+    calendarImagePreset2: Schema.union([
+      Schema.const('0').description('自定义路径（参见下方的路径选择配置项）'),
+      Schema.const('1').description('红勾（默认）'),
+      Schema.const('2').description('壹佰分盖章'),
+    ]).role('radio').description("日历图片预设2-完成符号").default("1"),
+
+    calendarImagePath1: Schema.path().description('日历每日背景图像路径（请选择图片）<br>使用方法详见[readme](https://github.com/shangxueink/koishi-shangxue-apps/tree/main/plugins/deer-pipe)').experimental(),
+
+    calendarImagePath2: Schema.path().description('日历每日完成标志路径（请选择图片）<br>使用方法详见[readme](https://github.com/shangxueink/koishi-shangxue-apps/tree/main/plugins/deer-pipe)').experimental(),
+
+    loggerInfo: Schema.boolean().description('启用调试日志输出模式').default(false).experimental(),
+  }).description('调试设置')
+
 ]);
 interface DeerPipeTable {
   userid: string;
@@ -192,7 +191,7 @@ declare module 'koishi' {
 
 export const inject = ['database', 'puppeteer', 'monetary'];
 
-export async function apply(ctx: Context, config: Config) {
+export async function apply(ctx: Context, config) {
   ctx.model.extend('deerpipe', {
     userid: 'string', // 用户ID
     username: 'string', // 名字。用于排行榜
@@ -213,8 +212,23 @@ export async function apply(ctx: Context, config: Config) {
     return data.toString('base64');
   }
 
-  const calendarpngimagebase64_1 = await readFileAsBase64(config.calendarpngimagepath1);
-  const calendarpngimagebase64_2 = await readFileAsBase64(config.calendarpngimagepath2);
+  // 根据预设值选择对应的图片路径
+  const presetPaths = {
+    '1': path.join(__dirname, '../png/1/1.png'),
+    '2': path.join(__dirname, '../png/2/1.png'),
+  };
+
+  const presetPaths2 = {
+    '1': path.join(__dirname, '../png/1/2.png'),
+    '2': path.join(__dirname, '../png/2/2.png'),
+  };
+
+  const calendarImagePath1 = config.calendarImagePreset1 === '0' ? config.calendarImagePath1 : presetPaths[config.calendarImagePreset1];
+
+  const calendarImagePath2 = config.calendarImagePreset2 === '0' ? config.calendarImagePath2 : presetPaths2[config.calendarImagePreset2];
+
+  const calendarpngimagebase64_1 = await readFileAsBase64(calendarImagePath1);
+  const calendarpngimagebase64_2 = await readFileAsBase64(calendarImagePath2);
 
 
   const zh_CN_default = {
