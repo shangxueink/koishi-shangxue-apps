@@ -68,6 +68,7 @@ exports.Config = Schema.intersect([
         Lowest_resolution: Schema.tuple([Number, Number]).default([50, 50]).description("允许输入图的最小分辨率（需要canvas服务）"),
         Highest_resolution: Schema.tuple([Number, Number]).default([5000, 5000]).description("允许输入图的最大分辨率（需要canvas服务）"),
         Allowable_range_of_picture_scale: Schema.number().default(50).description("允许输入图片的最大比例偏差（理想输入应该为1:1的图，偏差大 影响观感与渲染）<br> 与1:1为100%相比 比如 16:9 = 1.777 误差为77%<br>0 表示取消应用"),
+        icontoppx: Schema.number().default(8).description("用户输入图片渲染 距离顶部的空白区大小（顶着头不好看）"),
     }).description('进阶设置'),
 
     Schema.object({
@@ -170,6 +171,7 @@ text-align: center;
 display: inline-block;
 }
 .icon {
+top: ${config.icontoppx}px;
 position: relative;
 }
 .icon img {
