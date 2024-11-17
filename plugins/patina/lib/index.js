@@ -158,6 +158,12 @@ exports.Config = Schema.intersect([
     }).description('福音戰士標題生成器'),
 
     Schema.object({
+        Full_color_output: Schema.boolean().default(false).description("全彩输出，关闭后变成黑白图<br>黑白可能效果更好  可以前往 https://uyanide.github.io/Mirage_Colored/ 体验"),
+        Output_Size: Schema.number().default(1200).description("输出尺寸<br>(指 长和宽 中的较大值)<br>(0 即为不指定)"),
+        Mixed_Weight: Schema.number().role('slider').min(0).max(1).step(0.02).default(0.7).description("【里图】混合权重<br>数值越大 里图 越隐隐约约可以看见"),
+    }).description('幻影坦克生成器'),
+
+    Schema.object({
         loggerinfo: Schema.boolean().default(false).description("日志调试模式"),
     }).description('调试设置'),
 ]);
@@ -197,6 +203,138 @@ async function apply(ctx, config) {
             await page.close();
         } else {
             pagePool.push(page);
+        }
+    }
+
+    ctx.command("幻影 [img1] [img2]", "制作幻影坦克图片")
+        .alias("幻影坦克")
+        .example("幻影")
+        .example("幻影 [图片]")
+        .example("幻影 [图片] [图片]")
+        .example("幻影 QQ号 QQ号")
+        .example("幻影 @用户 @用户")
+        .option('fullColor', '-c', '全彩输出')
+        .option('size', '-s <size:number>', '输出尺寸')
+        .option('weight', '-w <weight:number>', '里图混合权重')
+        .action(async ({ session, options }, img1, img2) => {
+            const miragehtml = path.join(__dirname, '../html/mirage.html');
+
+            if (!ctx.puppeteer) {
+                await session.send("没有开启puppeteer服务");
+                return;
+            }
+
+            // 获取表图
+            if (!img1) {
+                await session.send("请发送一张图片作为【表图】：");
+                img1 = await session.prompt(30000);
+            }
+            img1 = extractImageUrl(img1);
+
+            // 获取里图
+            if (!img2) {
+                await session.send("请发送一张图片作为【里图】：");
+                img2 = await session.prompt(30000);
+            }
+            img2 = extractImageUrl(img2);
+
+            if (!img1 || !img2) {
+                await session.send("未检测到有效的图片，请重试。");
+                return;
+            }
+
+            log(`图片URL1: ${img1}`);
+            log(`图片URL2: ${img2}`);
+
+            const page = await ctx.puppeteer.page();
+            const tempCoverPath = path.join(__dirname, 'temp-cover.jpg');
+            const tempInnerPath = path.join(__dirname, 'temp-inner.jpg');
+
+            try {
+                // 下载并保存图片
+                await downloadImage(ctx, img1, tempCoverPath);
+                await downloadImage(ctx, img2, tempInnerPath);
+
+                await page.goto(`file://${miragehtml}`, { waitUntil: 'networkidle2' });
+
+                // 配置全彩输出
+                const fullColor = options.fullColor !== undefined ? options.fullColor : config.Full_color_output;
+                await page.evaluate((fullColor) => {
+                    const checkbox = document.getElementById('isColoredCheckbox');
+                    if (checkbox && checkbox.checked !== fullColor) {
+                        checkbox.click();
+                    }
+                }, fullColor);
+
+                // 配置输出尺寸
+                const size = options.size !== undefined ? options.size : config.Output_Size;
+                await page.evaluate((size) => {
+                    const sizeInput = document.getElementById('maxSizeInput');
+                    if (sizeInput) {
+                        sizeInput.value = size;
+                        sizeInput.dispatchEvent(new Event('input'));
+                    }
+                }, size);
+
+                // 配置里图混合权重
+                const weight = options.weight !== undefined ? options.weight : config.Mixed_Weight;
+                await page.evaluate((weight) => {
+                    const weightInput = document.getElementById('innerWeightRange');
+                    if (weightInput) {
+                        weightInput.value = weight;
+                        weightInput.dispatchEvent(new Event('input'));
+                    }
+                }, weight);
+
+                // 上传表图
+                const [coverFileChooser] = await Promise.all([
+                    page.waitForFileChooser(),
+                    page.click('label[for="coverFileInput"]'),
+                ]);
+                await coverFileChooser.accept([tempCoverPath]);
+
+                // 上传里图
+                const [innerFileChooser] = await Promise.all([
+                    page.waitForFileChooser(),
+                    page.click('label[for="innerFileInput"]'),
+                ]);
+                await innerFileChooser.accept([tempInnerPath]);
+
+                // 等待生成的输出图像
+                await page.waitForSelector('#outputCanvas', { timeout: 10000 });
+
+                const outputImageBase64 = await page.evaluate(() => {
+                    const canvas = document.getElementById('outputCanvas');
+                    return canvas ? canvas.toDataURL('image/png') : null;
+                });
+
+                if (outputImageBase64) {
+                    await session.send(h.image(outputImageBase64));
+                } else {
+                    await session.send("处理图像时出错，请重试。");
+                }
+            } catch (error) {
+                ctx.logger.error('处理图像时出错:', error);
+                await session.send("处理图像时出错，请重试。");
+            } finally {
+                if (fs.existsSync(tempCoverPath)) fs.unlinkSync(tempCoverPath);
+                if (fs.existsSync(tempInnerPath)) fs.unlinkSync(tempInnerPath);
+                await page.close();
+            }
+        });
+
+    function extractImageUrl(input) {
+        // 匹配 <at id="数字"/> 或 <at id="数字" name="名称"/>
+        const atMatch = input.match(/<at id="(\d+)"(?: name="[^"]*")?\/>/);
+        // 匹配纯数字的 QQ 号
+        const qqMatch = input.match(/^\d+$/);
+
+        if (atMatch) {
+            return `http://q.qlogo.cn/headimg_dl?dst_uin=${atMatch[1]}&spec=640`;
+        } else if (qqMatch) {
+            return `http://q.qlogo.cn/headimg_dl?dst_uin=${qqMatch[0]}&spec=640`;
+        } else {
+            return h.select(input, 'img').map(item => item.attrs.src)[0] || input;
         }
     }
 
