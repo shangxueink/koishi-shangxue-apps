@@ -85,12 +85,13 @@ async function apply(ctx, config) {
 
     // 加载水印图片并获取其尺寸
     const watermarkBase64 = fs.readFileSync(config.Watermarkpath, { encoding: 'base64' });
-
     ctx.command("无语 [text] [img]", "无语思维插件")
         .alias("思维")
         .example("无语")
         .example("无语 koishi")
         .example("无语 koishi [图片]")
+        .example("无语 koishi QQ号") // 兼容输入的【QQ号】作为输入图片
+        .example("无语 koishi @用户") // 兼容输入的【@用户】作为输入图片
         .action(async ({ session }, text, img) => {
             if (!ctx.puppeteer || !ctx.canvas) {
                 await session.send("没有开启puppeteer服务或者canvas服务");
@@ -102,6 +103,19 @@ async function apply(ctx, config) {
                 await session.send(promptMessage);
                 text = await session.prompt(30000);
             }
+            // 处理 QQ 号和 @用户输入
+            if (img) {
+                // 匹配 <at id="数字"/> 或 <at id="数字" name="名称"/>
+                const atMatch = img.match(/<at id="(\d+)"(?: name="[^"]*")?\/>/);
+                // 匹配纯数字的 QQ 号
+                const qqMatch = img.match(/^\d+$/);
+
+                if (atMatch) {
+                    img = `http://q.qlogo.cn/headimg_dl?dst_uin=${atMatch[1]}&spec=640`;
+                } else if (qqMatch) {
+                    img = `http://q.qlogo.cn/headimg_dl?dst_uin=${qqMatch[0]}&spec=640`;
+                }
+            }
 
             if (!img) {
                 await session.send("请发送需要转换的图片：");
@@ -112,7 +126,11 @@ async function apply(ctx, config) {
                 await session.send("未检测到有效的图片，请重试。");
                 return;
             }
-            img = h.select(img, 'img').map(item => item.attrs.src)[0];
+
+            // 检查 img 
+            img = h.select(img, 'img').map(item => item.attrs.src)[0] || img; // 图片元素或者直链
+
+
             log(`文本内容: ${text}`);
             log(`图片URL: ${img}`);
 
