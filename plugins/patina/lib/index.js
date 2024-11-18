@@ -282,8 +282,9 @@ async function apply(ctx, config) {
             log(`图片URL2: ${img2}`);
 
             const page = await ctx.puppeteer.page();
-            const tempCoverPath = path.join(__dirname, 'temp-cover.jpg');
-            const tempInnerPath = path.join(__dirname, 'temp-inner.jpg');
+            // 将原来的固定路径改为动态生成的临时路径
+            const tempCoverPath = generateTempFilePath('cover');
+            const tempInnerPath = generateTempFilePath('inner');
 
             try {
                 // 下载并保存图片
@@ -357,6 +358,11 @@ async function apply(ctx, config) {
                 await page.close();
             }
         });
+    function generateTempFilePath(prefix) {
+        const uniqueId = crypto.randomBytes(16).toString('hex');
+        const timestamp = Date.now();
+        return path.join(__dirname, `${prefix}-${timestamp}-${uniqueId}.jpg`);
+    }
 
     function extractImageUrl(input) {
         // 匹配 <at id="数字"/> 或 <at id="数字" name="名称"/>
