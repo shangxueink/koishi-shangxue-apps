@@ -1,6 +1,6 @@
 {
   "name": "koishi-plugin-patina",
-  "version": "1.4.1",
+  "version": "1.4.3",
   "description": "/*有趣HTML合集*/ 幻影坦克、电子包浆、蒸気機、斜着看... 许多有趣的功能，旨在通过 puppeteer 来让你的bot获得更多功能！",
   "main": "lib/index.js",
   "typings": "lib/index.d.ts",

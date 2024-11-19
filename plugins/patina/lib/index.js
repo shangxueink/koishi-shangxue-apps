@@ -210,7 +210,7 @@ exports.Config = Schema.intersect([
 
 
 async function apply(ctx, config) {
-    const log = (message) => {
+    const loggerinfo = (message) => {
         if (config.loggerinfo) {
             ctx.logger.info(message);
         }
@@ -278,8 +278,8 @@ async function apply(ctx, config) {
                 return;
             }
 
-            log(`图片URL1: ${img1}`);
-            log(`图片URL2: ${img2}`);
+            loggerinfo(`图片URL1: ${img1}`);
+            loggerinfo(`图片URL2: ${img2}`);
 
             const page = await ctx.puppeteer.page();
             // 将原来的固定路径改为动态生成的临时路径
@@ -393,7 +393,7 @@ async function apply(ctx, config) {
             const imageLinks = h.select(userMessagePic, 'img').map(item => item.attrs.src);
 
             if (config.consoleinfo && imageLinks.length > 0) {
-                log(`收到图片消息：\n${userMessagePic}\n提取到链接：\n${imageLinks}`);
+                loggerinfo(`收到图片消息：\n${userMessagePic}\n提取到链接：\n${imageLinks}`);
             }
 
             if (!imageLinks.length) {
@@ -460,7 +460,7 @@ async function apply(ctx, config) {
                     const { name, percentage } = result;
                     const percentageValue = parseInt(percentage, 10);
 
-                    log(`检测结果：${name} ${percentage}`);
+                    loggerinfo(`检测结果：${name} ${percentage}`);
 
                     if (config.tagname.includes(name) && percentageValue > config.revokeThreshold) {
                         isViolation = true;
@@ -473,8 +473,11 @@ async function apply(ctx, config) {
                         await session.send(violationDetails + config.textPromptContent);
                     }
                     await session.bot.deleteMessage(session.channelId, session.messageId); // 撤回输入图片
+                } else {
+                    if (config.isTextPromptEnabled) {
+                        await session.send("未检测到违规内容");
+                    }
                 }
-
             } catch (error) {
                 ctx.logger.error('检测图片时出错:', error);
                 if (config.isTextPromptEnabled) {
@@ -572,15 +575,15 @@ async function apply(ctx, config) {
                 await page.evaluate((colorScheme) => {
                     const colorElements = Array.from(document.querySelectorAll('.config-item .ui-tabs-box a'));
                     colorElements.forEach(el => {
-                        log('Element data-text:', el.getAttribute('data-text'));
+                        //loggerinfo('Element data-text:', el.getAttribute('data-text'));
                     });
 
                     const colorElement = colorElements.find(el => el.getAttribute('data-text') === colorScheme);
                     if (colorElement) {
-                        log(`Clicking on color scheme: ${colorScheme}`);
+                        //loggerinfo(`Clicking on color scheme: ${colorScheme}`);
                         colorElement.click();
                     } else {
-                        log(`Color scheme "${colorScheme}" not found.`);
+                        //loggerinfo(`Color scheme "${colorScheme}" not found.`);
                     }
                 }, colorScheme);
 
@@ -866,7 +869,7 @@ async function apply(ctx, config) {
                         if (rangeInput && rangeInput.type === 'range') {
                             rangeInput.value = VintageYears;
                             rangeInput.dispatchEvent(new Event('input'));
-                            log('设置做旧年份:', VintageYears, '当前滑动条值:', rangeInput.value);
+                            //loggerinfo('设置做旧年份:', VintageYears, '当前滑动条值:', rangeInput.value);
                         }
                     }
                 }, VintageYears);
@@ -879,7 +882,7 @@ async function apply(ctx, config) {
                         if (rangeInput && rangeInput.type === 'range') {
                             rangeInput.value = ImageQuality;
                             rangeInput.dispatchEvent(new Event('input'));
-                            log('设置画质:', ImageQuality, '当前滑动条值:', rangeInput.value);
+                            //loggerinfo('设置画质:', ImageQuality, '当前滑动条值:', rangeInput.value);
                         }
                     }
                 }, ImageQuality);
