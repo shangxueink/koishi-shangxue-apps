@@ -358,11 +358,6 @@ async function apply(ctx, config) {
                 await page.close();
             }
         });
-    function generateTempFilePath(prefix) {
-        const uniqueId = crypto.randomBytes(16).toString('hex');
-        const timestamp = Date.now();
-        return path.join(__dirname, `${prefix}-${timestamp}-${uniqueId}.jpg`);
-    }
 
     function extractImageUrl(input) {
         // 匹配 <at id="数字"/> 或 <at id="数字" name="名称"/>
