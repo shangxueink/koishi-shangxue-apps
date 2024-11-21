@@ -224,7 +224,20 @@ async function apply(ctx, config) {
         const uniqueId = crypto.randomBytes(16).toString('hex');
         return path.join(__dirname, `temp-image-${uniqueId}.jpg`);
     }
+    function extractImageUrl(input) {
+        // 匹配 <at id="数字"/> 或 <at id="数字" name="名称"/>
+        const atMatch = input.match(/<at id="(\d+)"(?: name="[^"]*")?\/>/);
+        // 匹配纯数字的 QQ 号
+        const qqMatch = input.match(/^\d+$/);
 
+        if (atMatch) {
+            return `http://q.qlogo.cn/headimg_dl?dst_uin=${atMatch[1]}&spec=640`;
+        } else if (qqMatch) {
+            return `http://q.qlogo.cn/headimg_dl?dst_uin=${qqMatch[0]}&spec=640`;
+        } else {
+            return h.select(input, 'img').map(item => item.attrs.src)[0] || input;
+        }
+    }
     ctx.command("patina", "网页小合集")
     // 这些都是海螺的
     // https://lab.magiconch.com/
@@ -248,7 +261,7 @@ async function apply(ctx, config) {
     ctx.command("patina/幻影 [img1] [img2]", "制作幻影坦克图片")
         .alias("幻影坦克")
         .example("幻影").example("幻影 [图片]").example("幻影 [图片] [图片]").example("幻影 QQ号 QQ号").example("幻影 @用户 @用户")
-        .option('color', '-c', '全彩输出')
+        .option('fullColor', '-f', '全彩输出')
         .option('size', '-s <size:number>', '输出尺寸')
         .option('weight', '-w <weight:number>', '里图混合权重')
         .action(async ({ session, options }, img1, img2) => {
@@ -358,21 +371,6 @@ async function apply(ctx, config) {
                 await page.close();
             }
         });
-
-    function extractImageUrl(input) {
-        // 匹配 <at id="数字"/> 或 <at id="数字" name="名称"/>
-        const atMatch = input.match(/<at id="(\d+)"(?: name="[^"]*")?\/>/);
-        // 匹配纯数字的 QQ 号
-        const qqMatch = input.match(/^\d+$/);
-
-        if (atMatch) {
-            return `http://q.qlogo.cn/headimg_dl?dst_uin=${atMatch[1]}&spec=640`;
-        } else if (qqMatch) {
-            return `http://q.qlogo.cn/headimg_dl?dst_uin=${qqMatch[0]}&spec=640`;
-        } else {
-            return h.select(input, 'img').map(item => item.attrs.src)[0] || input;
-        }
-    }
 
     if (config.isenablegrouplist) {
         ctx.middleware(async (session, next) => {
