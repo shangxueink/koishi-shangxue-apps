@@ -423,7 +423,7 @@ async function apply(ctx, config) {
                 return;
             }
 
-            const inputImageUrl = h.select(session.content, 'img').map(item => item.attrs.src)[0] || url;
+            const inputImageUrl = h.select(session.quote?.content || session.content, 'img').map(item => item.attrs.src)[0] || url;
             if (!inputImageUrl) {
                 if (config.isTextPromptEnabled) {
                     await session.send("未检测到有效的图片，请重试。");
