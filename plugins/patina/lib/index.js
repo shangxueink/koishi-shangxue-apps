@@ -225,19 +225,35 @@ async function apply(ctx, config) {
         return path.join(__dirname, `temp-image-${uniqueId}.jpg`);
     }
     function extractImageUrl(input) {
-        // 匹配 <at id="数字"/> 或 <at id="数字" name="名称"/>
-        const atMatch = input.match(/<at id="(\d+)"(?: name="[^"]*")?\/>/);
-        // 匹配纯数字的 QQ 号
-        const qqMatch = input.match(/^\d+$/);
-
-        if (atMatch) {
-            return `http://q.qlogo.cn/headimg_dl?dst_uin=${atMatch[1]}&spec=640`;
-        } else if (qqMatch) {
-            return `http://q.qlogo.cn/headimg_dl?dst_uin=${qqMatch[0]}&spec=640`;
-        } else {
-            return h.select(input, 'img').map(item => item.attrs.src)[0] || input;
+        const parsedElements = h.parse(input);
+        // 遍历解析后的元素
+        for (const element of parsedElements) {
+            // 检查是否为 'at' 类型
+            if (element.type === 'at') {
+                const { id } = element.attrs;
+                if (id) {
+                    // 返回 QQ 头像 URL
+                    return `http://q.qlogo.cn/headimg_dl?dst_uin=${id}&spec=640`;
+                }
+            }
+            // 检查是否为 'img' 类型
+            if (element.type === 'img') {
+                const { src } = element.attrs;
+                if (src) {
+                    // 返回图片的 src 属性
+                    return src;
+                }
+            }
         }
+        // 检查输入是否为纯数字（QQ 号）
+        if (/^\d+$/.test(input)) {
+            return `http://q.qlogo.cn/headimg_dl?dst_uin=${input}&spec=640`;
+        }
+
+        // 如果未找到有效的图片 URL，返回原始输入
+        return input;
     }
+
     ctx.command("patina", "网页小合集")
     // 这些都是海螺的
     // https://lab.magiconch.com/
@@ -258,7 +274,7 @@ async function apply(ctx, config) {
         }
     }
 
-    ctx.command("patina/幻影 [img1] [img2]", "制作幻影坦克图片")
+    ctx.command("patina/幻影 <img1> <img2>", "制作幻影坦克图片")
         .alias("幻影坦克")
         .example("幻影").example("幻影 [图片]").example("幻影 [图片] [图片]").example("幻影 QQ号 QQ号").example("幻影 @用户 @用户")
         .option('fullColor', '-f', '全彩输出')
@@ -266,31 +282,28 @@ async function apply(ctx, config) {
         .option('weight', '-w <weight:number>', '里图混合权重')
         .action(async ({ session, options }, img1, img2) => {
             const miragehtml = path.join(__dirname, '../html/mirage.html');
-
+            loggerinfo(img1);
+            loggerinfo(img2);
             if (!ctx.puppeteer) {
                 await session.send("没有开启puppeteer服务");
                 return;
             }
-
             // 获取表图
             if (!img1) {
                 await session.send("请发送一张图片作为【表图】：");
                 img1 = await session.prompt(30000);
             }
             img1 = extractImageUrl(img1);
-
             // 获取里图
             if (!img2) {
                 await session.send("请发送一张图片作为【里图】：");
                 img2 = await session.prompt(30000);
             }
             img2 = extractImageUrl(img2);
-
             if (!img1 || !img2) {
                 await session.send("未检测到有效的图片，请重试。");
                 return;
             }
-
             loggerinfo(`图片URL1: ${img1}`);
             loggerinfo(`图片URL2: ${img2}`);
 
