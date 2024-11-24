@@ -86,7 +86,7 @@ cron 表达式，指定自动备份的时间。默认为每天 0 点执行。
 exports.Config = Schema.intersect([
   Schema.object({
     BackupList: Schema.array(String).role('table').default([
-      "data",
+      "data/koishi.db",
       "package.json",
       "koishi.yml"
     ]).description("需要备份的文件/文件夹<br>使用path模块<br>path.join(ctx.baseDir, '这里是表格需要填入的内容')<br>最终的路径必须在ctx.baseDir下，否则跳过处理"),
