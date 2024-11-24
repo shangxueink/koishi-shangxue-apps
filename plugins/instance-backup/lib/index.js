@@ -192,9 +192,12 @@ async function apply(ctx, config) {
         await copyRecursive(path.join(src, entry), path.join(dest, entry));
       }
     } else {
+      // 确保目标文件夹存在
+      await fs.mkdir(path.dirname(dest), { recursive: true });
       await fs.copyFile(src, dest);
     }
   }
+
 
   // 管理备份实例数量
   async function manageBackupInstances(basePath, maxInstances) {
