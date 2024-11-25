@@ -54,9 +54,9 @@ exports.Config = Schema.intersect([
     showSavePath: Schema.boolean().description("保存成功后，告知具体文件保存路径，关闭后只会回复`图片已成功保存。`").default(false),
     checkDuplicate: Schema.boolean().description("开启后将检查重名文件，避免覆盖，若同名，则在文件名后加`(1)`,`(2)`... ...").default(true),
     savePaths: Schema.array(Schema.object({
-      name: Schema.string(),
-      path: Schema.string(),
-    })).role('table').description('用于设置图片保存路径的名称和地址映射').default([{ name: "1", path: "C:\\Program Files" }, { name: "2", path: "E:\\Music\\nums" }]),
+      name: Schema.string().description("备注名称"),
+      path: Schema.string().description("文件夹路径"),
+    })).role('table').description('用于设置图片保存路径的名称和地址映射').default([{ name: "第一个", path: "C:\\Program Files" }, { name: "第二个", path: "E:\\Music\\nums" }]),
   }).description('基础设置'),
 
   Schema.object({
@@ -98,7 +98,6 @@ function apply(ctx, config) {
     }
   };
   ctx.command('保存图片 [路径序号:number] [文件名:string]', '保存图片到指定路径')
-    .alias('save-image')
     .option('ext', '-e <ext:string>', '指定图片后缀名')
     .option('name', '-n <name:string>', '严格指定文件重命名')
     .action(async ({ session, options }, 路径序号, 文件名) => {
@@ -141,7 +140,7 @@ function apply(ctx, config) {
         if (!selected) return '请选择正确的路径。';
         selectedPath = selected.path;
       } else {
-        await session.send('请选择路径的序号：\n' + config.savePaths.map((item, index) => `${item.name}: ${item.path}`).join('\n'));
+        await session.send('请选择路径的序号：\n' + config.savePaths.map((item, index) => `${index + 1}: ${item.name}: ${item.path}`).join('\n'));
         const input = parseInt(await session.prompt(30000), 10) - 1;
         const selected = config.savePaths[input];
         if (!selected) return '请选择正确的路径。';
@@ -170,46 +169,53 @@ function apply(ctx, config) {
 
 
   async function saveImages(urls, selectedPath, safeFilename, imageExtension, config, session, ctx) {
+    let firstMessageSent = false;
+    let duplicateMessages = [];
+
     for (let i = 0; i < urls.length; i++) {
       let url = urls[i];
       let fileRoot = path.join(selectedPath, safeFilename);
       let fileExt = `.${imageExtension}`;
       let targetPath = `${fileRoot}${fileExt}`;
-      let index = 0; // 用于记录尝试的文件序号
+      let index = 0;
 
       loggerinfo('提取到的图片链接：' + url);
 
       if (config.checkDuplicate) {
         while (fs.existsSync(targetPath)) {
-          index++; // 文件存在时，序号递增
-          targetPath = `${fileRoot}(${index})${fileExt}`; // 更新目标文件路径
+          index++;
+          targetPath = `${fileRoot}(${index})${fileExt}`;
         }
       }
-      // 下载并保存图片
+
       try {
         const buffer = await ctx.http.get(url);
         if (buffer.byteLength === 0) throw new Error('下载的数据为空');
         await fs.promises.writeFile(targetPath, Buffer.from(buffer));
 
-        // 根据是否存在重名文件发送不同消息
         if (index > 0) {
-          // 文件名有修改，包含序号
-          await session.send(`出现同名文件，已保存为 ${safeFilename}(${index})${fileExt}`);
+          duplicateMessages.push(`出现同名文件，已保存为 ${safeFilename}(${index})${fileExt}`);
         } else {
-          // 未发现重名，直接保存
-          if (config.showSavePath) {
-            await session.send(`图片已保存到：${targetPath}`);
-          } else {
-            await session.send(`图片已成功保存。`);
+          if (!firstMessageSent) {
+            if (config.showSavePath) {
+              await session.send(`图片已保存到：${targetPath}`);
+            } else {
+              await session.send(`图片已成功保存。`);
+            }
+            firstMessageSent = true;
           }
-
         }
       } catch (error) {
         ctx.logger.error('保存图片时出错： ' + error.message);
         await session.send(`保存图片时出错：${error.message}`);
       }
     }
+
+    if (duplicateMessages.length > 0) {
+      await session.send(duplicateMessages.join('\n'));
+    }
   }
+
 
 
   async function calculateHash(filename) {
