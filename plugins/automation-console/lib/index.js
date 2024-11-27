@@ -105,43 +105,49 @@ const defaulttable2 = [
         "command": "查看日志",
         "commandname": "查看最新日志",
         "command_authority": 3
+    },
+    {
+        "command": "插件市场搜索插件",
+        "commandname": "插件市场搜索插件",
+        "command_authority": 3
     }
 ]
-exports.Config = Schema.intersect([
-    Schema.object({
-        link: Schema.string().role('link').default('http://127.0.0.1:5140').description("需要控制的koishi控制台地址<br>必须可用访问哦，预期的地址是koishi的【欢迎】页面"),
-        table2: Schema.array(Schema.object({
-            command: Schema.string().description("备注指令").disabled(),
-            commandname: Schema.string().description("实际注册的指令名称"),
-            command_authority: Schema.number().default(4).description('允许使用指令的权限等级').experimental(),
-        })).role('table').default(defaulttable2).description("指令注册表<br>若要关闭某个指令 可以删掉该行"),
-    }).description('基础设置'),
+exports.Config =
+    Schema.intersect([
+        Schema.object({
+            link: Schema.string().role('link').default('http://127.0.0.1:5140').description("需要控制的koishi控制台地址<br>必须可用访问哦，预期的地址是koishi的【欢迎】页面"),
+            table2: Schema.array(Schema.object({
+                command: Schema.string().description("备注指令").disabled(),
+                commandname: Schema.string().description("实际注册的指令名称"),
+                command_authority: Schema.number().default(4).description('允许使用指令的权限等级').experimental(),
+            })).role('table').default(defaulttable2).description("指令注册表<br>若要关闭某个指令 可以删掉该行"),
+        }).description('基础设置'),
 
-    Schema.object({
-        enable_auth: Schema.boolean().description("目标link地址是否开启了auth插件").default(false),
-        text: Schema.string().default("admin").description("auth插件的用户名"),
-        secret: Schema.string().role('secret').default('password').description("auth插件的登录密码"),
-    }).description('auth登录设置'),
+        Schema.object({
+            enable_auth: Schema.boolean().description("目标link地址是否开启了auth插件").default(false),
+            text: Schema.string().default("admin").description("auth插件的用户名"),
+            secret: Schema.string().role('secret').default('password').description("auth插件的登录密码"),
+        }).description('auth登录设置'),
 
-    Schema.object({
-        auto_execute_openUI: Schema.boolean().default(true).description("开启后，在【UI控制台未打开】时，自动执行【打开UI控制】").experimental(),
-        auto_execute_closeUI: Schema.boolean().default(true).description("开启后，在执行对应的指令完毕时，自动执行【退出UI控制】").experimental(),
-        wait_for_prompt: Schema.number().default(30).description("等待用户输入内容的超时时间（单位：秒）"), // await session.prompt(config.wait_for_prompt * 1000);
-    }).description('进阶设置'),
+        Schema.object({
+            auto_execute_openUI: Schema.boolean().default(true).description("开启后，在【UI控制台未打开】时，自动执行【打开UI控制】").experimental(),
+            auto_execute_closeUI: Schema.boolean().default(true).description("开启后，在执行对应的指令完毕时，自动执行【退出UI控制】").experimental(),
+            wait_for_prompt: Schema.number().default(30).description("等待用户输入内容的超时时间（单位：秒）"), // await session.prompt(config.wait_for_prompt * 1000);
+        }).description('进阶设置'),
 
-    Schema.object({
-        maxlist: Schema.number().default(5).description("【找到多个匹配的插件】时，返回的最大数量"),
-    }).description('【插件配置】相关指令设置'),
+        Schema.object({
+            maxlist: Schema.number().default(5).description("【找到多个匹配的插件】时，返回的最大数量"),
+        }).description('【插件配置】相关指令设置'),
 
-    Schema.object({
-        resolvetimeout: Schema.number().default(10).description("【刷新】依赖后需要等待的时间（单位：秒）"),
-    }).description('【依赖管理】相关指令设置'),
+        Schema.object({
+            resolvetimeout: Schema.number().default(10).description("【刷新】依赖后需要等待的时间（单位：秒）"),
+        }).description('【依赖管理】相关指令设置'),
 
-    Schema.object({
-        resolvesetTimeout: Schema.boolean().default(false).description("截图时，等待1.5秒再截图<br>防止截图太快了 没截到").experimental(),
-        loggerinfo: Schema.boolean().default(false).description("日志调试模式").experimental(),
-    }).description('调试设置'),
-]);
+        Schema.object({
+            resolvesetTimeout: Schema.boolean().default(false).description("截图时，等待1.5秒再截图<br>防止截图太快了 没截到").experimental(),
+            loggerinfo: Schema.boolean().default(false).description("日志调试模式").experimental(),
+        }).description('调试设置'),
+    ]);
 
 async function apply(ctx, config) {
     let page;
@@ -154,6 +160,7 @@ async function apply(ctx, config) {
     const getCommandName_restart = getCommandName("软重启");
     const getCommandName_yarn_up_to_latest = getCommandName("小火箭更新依赖");
     const getCommandName_cancanlogs = getCommandName("查看日志");
+    const getCommandName_search_market_plugins = getCommandName("插件市场搜索插件");
 
     const log = (message) => {
         if (config.loggerinfo) {
@@ -195,6 +202,132 @@ async function apply(ctx, config) {
 
     ctx.command(`${getCommandName_automation || "automation-console"}`, "通过指令操作控制台")
 
+    // 插件市场搜索插件并配置插件
+    if (getCommandName_search_market_plugins) {
+        ctx.command(`${getCommandName_automation || "automation-console"}/${getCommandName_search_market_plugins} [...pluginname]`, "插件市场搜索插件", { authority: getCommandAuthority("插件市场搜索插件") })
+            .example("插件市场搜索插件  puppeteer  email:1919892171@qq.com")
+            .action(async ({ session }, ...args) => {
+                if (!await ensureUIControl(page, config, session)) return;
+
+                try {
+                    await page.click('a[href^="/market"]');
+
+                    let pluginname = args.join(' ').trim();
+                    if (!pluginname) {
+                        await session.send("请发送需要搜索的插件名称：");
+                        pluginname = await session.prompt(config.wait_for_prompt * 1000);
+                    }
+
+                    const keywords = pluginname.split(' ');
+
+                    for (const keyword of keywords) {
+                        await page.type('.search-container input', keyword);
+                        await page.click('.market-hint.text-center');
+                    }
+
+                    const results = await page.evaluate(() => {
+                        const elements = document.querySelectorAll('.package-list .title.truncate');
+                        return Array.from(elements).map(el => el.getAttribute('title'));
+                    });
+
+                    if (results.length === 0) {
+                        await session.send("没有找到匹配的插件。");
+                        await closeUIIfEnabled(session, config);
+                        return;
+                    }
+
+                    let message = "找到以下匹配结果，请输入需要操作的插件序号：\n";
+                    results.forEach((name, index) => {
+                        message += `${index + 1}. ${name}\n`;
+                    });
+                    await session.send(message);
+
+                    const choiceIndex = parseInt(await session.prompt(config.wait_for_prompt * 1000), 10) - 1;
+                    if (isNaN(choiceIndex) || choiceIndex < 0 || choiceIndex >= results.length) {
+                        await session.send("无效的选择。");
+                        await closeUIIfEnabled(session, config);
+                        return;
+                    }
+
+                    await page.evaluate((choiceIndex) => {
+                        const buttons = document.querySelectorAll('.package-list .el-button');
+                        buttons[choiceIndex].click();
+                    }, choiceIndex);
+
+                    const isBatchModeChecked = await page.evaluate(() => {
+                        const checkbox = document.querySelector('.el-checkbox__label');
+                        return checkbox && checkbox.classList.contains('is-checked');
+                    });
+
+                    if (isBatchModeChecked) {
+                        await page.evaluate(() => {
+                            const checkbox = document.querySelector('.el-checkbox__label');
+                            checkbox.click();
+                        });
+                    }
+
+                    const operations = await page.evaluate(() => {
+                        const ops = [];
+                        const buttons = document.querySelectorAll('.right .el-button span');
+                        buttons.forEach(button => {
+                            if (button.innerText.includes('安装')) {
+                                ops.push('安装');
+                            }
+                            if (button.innerText.includes('配置')) {
+                                ops.push('配置');
+                            }
+                            if (button.innerText.includes('卸载')) {
+                                ops.push('卸载');
+                            }
+                            if (button.innerText.includes('更新')) {
+                                ops.push('更新');
+                            }
+                        });
+                        return ops;
+                    });
+
+                    let operationMessage = "该插件可选操作为：\n";
+                    operations.forEach((op, index) => {
+                        operationMessage += `${index + 1}. ${op}\n`;
+                    });
+                    await session.send(operationMessage);
+
+                    const operationChoice = parseInt(await session.prompt(config.wait_for_prompt * 1000), 10) - 1;
+                    if (isNaN(operationChoice) || operationChoice < 0 || operationChoice >= operations.length) {
+                        await session.send("无效的选择。");
+                        await closeUIIfEnabled(session, config);
+                        return;
+                    }
+
+                    const selectedOperation = operations[operationChoice];
+                    if (selectedOperation === '更新') {
+                        await session.send("请使用小火箭更新指令哦");
+                    } else {
+                        await page.evaluate(async (selectedOperation) => {
+                            const button = Array.from(document.querySelectorAll('.right .el-button span')).find(el => el.innerText.includes(selectedOperation));
+                            if (button) button.click();
+
+                            if (selectedOperation === '卸载') {
+                                // 等待新页面加载
+                                await new Promise(resolve => setTimeout(resolve, 1000));
+                                // 点击新页面中的“删除”按钮
+                                const deleteButton = Array.from(document.querySelectorAll('.el-button.el-button--danger span')).find(el => el.innerText.includes('删除'));
+                                if (deleteButton) deleteButton.click();
+                            }
+                        }, selectedOperation);
+
+                        await session.send(`${selectedOperation}操作已完成。`);
+                    }
+
+                    await closeUIIfEnabled(session, config);
+
+                } catch (error) {
+                    ctx.logger.error('插件市场搜索插件时出错:', error);
+                    await session.send("插件市场搜索插件时出错，请重试。");
+                    await closeUIIfEnabled(session, config);
+                }
+            });
+    }
     // 打开UI控制 打开puppeteer
     if (getCommandName_openUI) {
         ctx.command(`${getCommandName_automation || "automation-console"}/${getCommandName_openUI}`, "打开UI控制台", { authority: getCommandAuthority("打开UI控制") })
@@ -576,8 +709,6 @@ async function apply(ctx, config) {
                 return;
             });
     }
-
-
 }
 
 exports.apply = apply;
