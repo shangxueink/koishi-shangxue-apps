@@ -138,6 +138,7 @@ exports.Config = Schema.intersect([
     }).description('【依赖管理】相关指令设置'),
 
     Schema.object({
+        resolvesetTimeout: Schema.boolean().default(false).description("截图时，等待1.5秒再截图<br>防止截图太快了 没截到").experimental(),
         loggerinfo: Schema.boolean().default(false).description("日志调试模式").experimental(),
     }).description('调试设置'),
 ]);
@@ -154,18 +155,20 @@ async function apply(ctx, config) {
     const getCommandName_yarn_up_to_latest = getCommandName("小火箭更新依赖");
     const getCommandName_cancanlogs = getCommandName("查看日志");
 
-
-
     const log = (message) => {
         if (config.loggerinfo) {
             ctx.logger.info(message);
         }
     };
+
     async function ensureUIControl(page, config, session) {
         if (!page) {
             if (config.auto_execute_openUI) {
                 await session.execute(`${getCommandName_openUI}`);
-                //await new Promise(resolve => setTimeout(resolve, 1500));// 停顿 1.5 秒 // 因为 这个指令执行需要截图 可能反应不过来 // 好像也不需要
+                if (config.resolvesetTimeout) {
+                    await new Promise(resolve => setTimeout(resolve, 1500));// 停顿 1.5 秒 
+                    // 因为 这个指令执行需要截图 可能反应不过来 // 好像也不需要 // 还是改成配置项比较好
+                }
             } else {
                 await session.send("UI控制台未打开，请先使用【打开UI控制】指令。");
                 return false;
@@ -173,12 +176,12 @@ async function apply(ctx, config) {
         }
         return true;
     }
+
     async function closeUIIfEnabled(session, config) {
         if (config.auto_execute_closeUI) {
             await session.execute(`${getCommandName_closeUI}`);
         }
     }
-
 
     function getCommandName(command) {
         const entry = config.table2.find(item => item.command === command);
@@ -354,7 +357,12 @@ async function apply(ctx, config) {
                     const selectedPlugin = limitedMatches[choiceIndex];
 
                     // 操作插件
-                    await page.click(`.label[title="${selectedPlugin}"]`);
+                    //await page.click(`.label[title="${selectedPlugin}"]`); // 这样写的话 同名插件 实际操作的时候会操作第一个
+                    await page.evaluate((selectedPlugin, choiceIndex) => {
+                        const elements = Array.from(document.querySelectorAll('.label[title]'));
+                        const targetElement = elements.filter(el => el.getAttribute('title') === selectedPlugin)[choiceIndex];
+                        targetElement.click();
+                    }, selectedPlugin, choiceIndex);
                     await session.execute(`${getCommandName_cancanUI}`); // 反馈状态
 
                     // 检查可用按钮数量
@@ -371,17 +379,38 @@ async function apply(ctx, config) {
                     // 如果没有提供 pluginoperation ，才请求用户输入
                     let operation = pluginoperation ? parseInt(pluginoperation, 10) : null;
                     if (operation === null || isNaN(operation) || operation < 1 || operation > 5) {
-                        await session.send("请选择操作的按钮序号：\n1.【启用插件/停用插件】\n2.【保存配置/重载配置】\n3.【重命名】\n4.【移除插件】\n5.【克隆配置】");
+                        await session.send("请选择操作的按钮序号：\n0.双击【启用插件/停用插件】\n1.单击【启用插件/停用插件】\n2.【保存配置/重载配置】\n3.【重命名】\n4.【移除插件】\n5.【克隆配置】");
                         operation = parseInt(await session.prompt(config.wait_for_prompt * 1000), 10);
                     }
 
-                    if (isNaN(operation) || operation < 1 || operation > 5) {
+                    if (isNaN(operation) || operation < 0 || operation > 5) {
                         await session.send("此插件无法执行此操作。");
                         await closeUIIfEnabled(session, config);  // 自动关闭
                         return;
                     }
 
-                    if ([1, 2, 5].includes(operation)) {
+                    if (operation === 0) {
+                        // 双击启用/停用插件
+                        await page.evaluate(() => {
+                            const buttons = document.querySelectorAll('.right .menu-item:not(.disabled)');
+                            buttons[0].click(); // 第一次点击
+                        });
+
+                        await new Promise(resolve => setTimeout(resolve, 1000)); // 等待一秒
+
+                        await page.evaluate(() => {
+                            const buttons = document.querySelectorAll('.right .menu-item:not(.disabled)');
+                            buttons[0].click(); // 第二次点击
+                        });
+
+                        // 截图并返回
+                        const screenshot = await page.screenshot();
+                        await session.send('插件已双击操作完成。', screenshot);
+
+                        await session.execute(`${getCommandName_cancanUI}`); // 反馈状态
+                        await closeUIIfEnabled(session, config);  // 自动关闭
+                        return;
+                    } else if ([1, 2, 5].includes(operation)) {
                         // 执行简单操作
                         await page.evaluate((operation) => {
                             const buttons = document.querySelectorAll('.right .menu-item:not(.disabled)');
