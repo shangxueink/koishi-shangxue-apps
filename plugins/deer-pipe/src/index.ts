@@ -101,6 +101,12 @@ export const usage = `
 >  以实现【在 jrys-prpr 签到获得的可以在本插件使用】的效果。
 </body>
 </html>
+
+---
+
+本插件的排行榜用户昵称可以通过 [callme](/market?keyword=callme) 插件自定义
+
+在未指定 callme 插件的名称的时候，默认使用 适配器的username，或者userid
 `;
 
 export const Config: Schema = Schema.intersect([
@@ -302,7 +308,7 @@ export async function apply(ctx: Context, config) {
   ctx.command('deerpipe', '鹿管签到')
 
   ctx.command('deerpipe/购买 [item]', '购买签到道具', { authority: 1 })
-    .userFields(["id"])
+    .userFields(["id", "name", "permissions"])
     .action(async ({ session }, item) => {
       const userId = session.userId;
       const storeItems = config.cost.store_item; // 从配置中获取商店商品列表
@@ -333,7 +339,7 @@ export async function apply(ctx: Context, config) {
           // 初始化用户记录
           userRecord = {
             userid: userId,
-            username: session.username,
+            username: session.user.name || session.username,
             channelId: session.channelId,
             recordtime: '',
             checkindate: [],
@@ -364,7 +370,7 @@ export async function apply(ctx: Context, config) {
   ctx.command('deerpipe/戴锁', '允许/禁止别人帮你鹿', { authority: 1 })
     .alias('脱锁')
     .alias('带锁')
-    .userFields(["id"])
+    .userFields(["id", "name", "permissions"])
     .action(async ({ session }) => {
       const userId = session.userId;
       const [user] = await ctx.database.get('deerpipe', { userid: userId });
@@ -407,14 +413,14 @@ export async function apply(ctx: Context, config) {
   ctx.command('deerpipe/看鹿 [user]', '查看用户签到日历', { authority: 1 })
     .alias('看🦌')
     .alias('看看日历')
-    .userFields(["id"])
+    .userFields(["id", "name", "permissions"])
     .example('看鹿 @用户')
     .action(async ({ session }, user) => {
       const currentDate = new Date();
       const currentYear = currentDate.getFullYear();
       const currentMonth = currentDate.getMonth() + 1;
       let targetUserId = session.userId;
-      let targetUsername = session.username;
+      let targetUsername = session.user.name || session.username;
       if (user) {
         const parsedUser = h.parse(user)[0];
         if (parsedUser?.type === 'at') {
@@ -447,7 +453,7 @@ export async function apply(ctx: Context, config) {
 
   ctx.command('deerpipe/鹿 [user]', '鹿管签到', { authority: 1 })
     .alias('🦌')
-    .userFields(["id"])
+    .userFields(["id", "name", "permissions"])
     .example('鹿 @用户')
     .action(async ({ session }, user) => {
       const currentDate = new Date();
@@ -457,7 +463,7 @@ export async function apply(ctx: Context, config) {
       const recordtime = `${currentYear}-${currentMonth}`;
       const cost = config.cost.checkin_reward.find(c => c.command === '鹿').cost;
       let targetUserId = session.userId;
-      let targetUsername = session.username;
+      let targetUsername = session.user.name || session.username;
       let updateUsername = true; // 标志变量
 
       ////  这里用于复现部分协议端输入的at没有name字段的情况
@@ -579,7 +585,7 @@ export async function apply(ctx: Context, config) {
         if (!helperRecord) {
           helperRecord = {
             userid: session.userId,
-            username: session.username,
+            username: session.user.name || session.username,
             channelId: session.channelId,
             recordtime,
             checkindate: [],
@@ -768,7 +774,7 @@ ${deer.order === 3 ? '<span class="medal">🥉</span>' : ''}
 
   ctx.command('deerpipe/补鹿 [day] [user]', '补签某日', { authority: 1 })
     .alias('补🦌')
-    .userFields(["id"])
+    .userFields(["id", "name", "permissions"])
     .example('补鹿 1')
     .example('补鹿 1 @用户')
     .action(async ({ session }, day: string, user) => {
@@ -778,7 +784,7 @@ ${deer.order === 3 ? '<span class="medal">🥉</span>' : ''}
       const currentMonth = currentDate.getMonth() + 1;
       const currentDay = currentDate.getDate();
       let targetUserId = session.userId;
-      let targetUsername = session.username;
+      let targetUsername = session.user.name || session.username;
 
       // 默认消耗货币为补签自己
       let cost = config.cost.checkin_reward.find(c => c.command === '补鹿').cost;
@@ -824,7 +830,7 @@ ${deer.order === 3 ? '<span class="medal">🥉</span>' : ''}
       }
 
       // 更新用户名
-      const username = session.username;
+      const username = session.user.name || session.username;
       if (record.username !== username) {
         record.username = username;
       }
@@ -889,7 +895,7 @@ ${deer.order === 3 ? '<span class="medal">🥉</span>' : ''}
   ctx.command('deerpipe/戒鹿 [day]', '取消某日签到', { authority: 1 })
     .alias('戒🦌')
     .alias('寸止')
-    .userFields(["id"])
+    .userFields(["id", "name", "permissions"])
     .example('戒鹿 1')
     .action(async ({ session }, day?: string) => {
       const currentDate = new Date();
@@ -917,7 +923,7 @@ ${deer.order === 3 ? '<span class="medal">🥉</span>' : ''}
         }
 
         // 更新用户名
-        const username = session.username;
+        const username = session.user.name || session.username;
         if (record.username !== username) {
           record.username = username;
         }
