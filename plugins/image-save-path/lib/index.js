@@ -4,7 +4,7 @@ const { Schema, h } = require("koishi");
 const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
-exports.name = "image-save-path'";
+exports.name = "image-save-path";
 exports.inject = {
   required: ['http']
 };
@@ -13,10 +13,10 @@ exports.usage = `
 <p><strong>配置项说明：</strong></p>
 <p><strong>保存图片 指令：</strong>用于触发后接收图片来保存。也可以用于保存被回复的图片（机器人未接收到的图片就存不了）。</p>
 效果预览：
-<li><a href="https://i0.hdslb.com/bfs/article/0b293dc3751bea6f6f73dfc3c2eac439312276085.png" target="_blank">交互保存图片</a></li>
-<li><a href="https://i0.hdslb.com/bfs/article/b0feedf358c1a29e2475ac8c1991b222312276085.png" target="_blank">回复保存图片</a></li>
-<li><a href="https://i0.hdslb.com/bfs/article/a3f0844195795fc7e51f947e689fd744312276085.png" target="_blank">批量保存图片</a></li>
-<li><a href="https://i0.hdslb.com/bfs/article/23e26c25d805e0d5d5d76958e5950d56312276085.png" target="_blank">中间件批量保存图片</a></li>
+<li><a href="https://i0.hdslb.com/bfs/article/0b293dc3751bea6f6f73dfc3c2eac439312276085.png" target="_blank" referrerpolicy="no-referrer">交互保存图片</a></li>
+<li><a href="https://i0.hdslb.com/bfs/article/b0feedf358c1a29e2475ac8c1991b222312276085.png" target="_blank" referrerpolicy="no-referrer">回复保存图片</a></li>
+<li><a href="https://i0.hdslb.com/bfs/article/a3f0844195795fc7e51f947e689fd744312276085.png" target="_blank" referrerpolicy="no-referrer">批量保存图片</a></li>
+<li><a href="https://i0.hdslb.com/bfs/article/23e26c25d805e0d5d5d76958e5950d56312276085.png" target="_blank" referrerpolicy="no-referrer">中间件批量保存图片</a></li>
 
 ---
 
