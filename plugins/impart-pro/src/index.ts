@@ -81,6 +81,10 @@ export const usage = `
 
 <hr>
 
+
+本插件的排行榜用户昵称可以通过 [callme](/market?keyword=callme) 插件自定义
+
+在未指定 callme 插件的名称的时候，默认使用 适配器的 username，或者userid
 `;
 
 export const Config: Schema<Config> = Schema.intersect([
@@ -261,7 +265,7 @@ export function apply(ctx: Context, config: Config) {
 
   ctx.command('impartpro/保养', '通过花费货币来增加牛牛的长度')
     .alias("保养牛牛")
-    .userFields(["id"])
+    .userFields(["id", "name", "permissions"])
     .action(async ({ session }) => {
 
       const userId = session.userId;
@@ -326,10 +330,10 @@ export function apply(ctx: Context, config: Config) {
   ctx.command('impartpro/开导 [user]', '让牛牛成长！')
     .alias('打胶')
     .example("开导 @用户")
-    .userFields(["id"])
+    .userFields(["id", "name", "permissions"])
     .action(async ({ session }, user) => {
       let userId = session.userId;
-      let username = session.username;
+      let username = session.user.name || session.username;
       const currentTime = Date.now(); // 使用 Date.now() 获取当前时间戳
 
       // 检查是否被禁止触发
@@ -457,10 +461,10 @@ export function apply(ctx: Context, config: Config) {
     //.alias('挑战')
     .alias('嗦牛牛')
     .example("决斗 @用户")
-    .userFields(["id"])
+    .userFields(["id", "name", "permissions"])
     .action(async ({ session }, user) => {
       let userId = session.userId;
-      let username = session.username;
+      let username = session.user.name || session.username;
       const currentTime = Date.now();
 
       // 检查是否被禁止触发
@@ -598,10 +602,10 @@ export function apply(ctx: Context, config: Config) {
 
   ctx.command('impartpro/重开牛牛', '重开一个牛牛~')
     .alias('生成牛牛')
-    .userFields(["id"])
+    .userFields(["id", "name", "permissions"])
     .action(async ({ session }) => {
       const userId = session.userId;
-      const username = session.username;
+      const username = session.user.name || session.username;
       const initialLength = randomLength(config.defaultLength);
       const growthFactor = Math.random();
       const currentTime = new Date().toISOString();
@@ -645,7 +649,7 @@ export function apply(ctx: Context, config: Config) {
 
   ctx.command('impartpro/牛牛排行榜', '查看牛牛排行榜')
     .alias('牛子排行榜')
-    .userFields(["id"])
+    .userFields(["id", "name", "permissions"])
     .action(async ({ session }) => {
       // 检查是否被禁止触发
       if (!await isUserAllowed(ctx, session.userId, session.channelId)) {
@@ -802,10 +806,10 @@ ${record.order === 3 ? '<span class="medal">🥉</span>' : ''}
 
   ctx.command('impartpro/看看牛牛 [user]', '查看牛牛')
     .example("看看牛牛 @用户")
-    .userFields(["id"])
+    .userFields(["id", "name", "permissions"])
     .action(async ({ session }, user) => {
       let userId = session.userId;
-      let username = session.username;
+      let username = session.user.name || session.username;
       // 检查是否被禁止触发
       if (!await isUserAllowed(ctx, userId, session.channelId)) {
         if (config.notallowtip) {
@@ -839,7 +843,7 @@ ${record.order === 3 ? '<span class="medal">🥉</span>' : ''}
     .alias('开启牛牛大作战')
     .alias('关闭牛牛大作战')
     .example("锁牛牛 @用户")
-    .userFields(["id"])
+    .userFields(["id", "name", "permissions"])
     .action(async ({ session }, user) => {
       const permissionScope = config.permissionScope;
       const onlybotownerList = config.onlybotowner_list;
