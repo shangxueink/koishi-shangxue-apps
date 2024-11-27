@@ -97,10 +97,10 @@ function apply(ctx, config) {
       ctx.logger.info(message);
     }
   };
-  ctx.command('保存图片 [路径序号:number] [文件名:string]', '保存图片到指定路径')
+  ctx.command('保存图片 [路径名称] [文件名] [图片]', '保存图片到指定路径')
     .option('ext', '-e <ext:string>', '指定图片后缀名')
     .option('name', '-n <name:string>', '严格指定文件重命名')
-    .action(async ({ session, options }, 路径序号, 文件名) => {
+    .action(async ({ session, options }, 路径名称, 文件名, 图片) => {
       const quotemessage = session.quote?.content;
       let urlhselect;
 
@@ -111,6 +111,12 @@ function apply(ctx, config) {
           return '请回复带有图片的消息。';
         }
         loggerinfo('触发回复的目标消息内容： ' + quotemessage);
+      } else if (图片) {
+        urlhselect = h.select(图片, 'img').map(item => item.attrs.src);
+        if (!urlhselect) {
+          return '输入的图片无效。';
+        }
+        loggerinfo('用户直接输入的图片内容为： ' + urlhselect);
       } else {
         // 处理“交互保存图片”
         await session.send('请发送图片：');
@@ -132,18 +138,19 @@ function apply(ctx, config) {
       if (config.imageSaveMode) {
         selectedPath = config.savePaths[0]?.path;
         if (!selectedPath) return '没有设置默认保存路径。';
-        if (路径序号 && (!quotemessage || !路径序号.includes(urlhselect[0]))) {
+        if (路径名称 && (!quotemessage || !路径名称.includes(urlhselect[0]))) {
           return '路径指定无效。请关闭 imageSaveMode 配置项。';
         }
-      } else if (路径序号 !== undefined) {
-        const selected = config.savePaths[路径序号 - 1];
-        if (!selected) return '请选择正确的路径。';
+      } else if (路径名称 !== undefined) {
+        // 通过名称查找路径
+        const selected = config.savePaths.find(item => item.name === 路径名称);
+        if (!selected) return '请选择正确的路径名称。';
         selectedPath = selected.path;
       } else {
-        await session.send('请选择路径的序号：\n' + config.savePaths.map((item, index) => `${index + 1}: ${item.name}: ${item.path}`).join('\n'));
-        const input = parseInt(await session.prompt(30000), 10) - 1;
-        const selected = config.savePaths[input];
-        if (!selected) return '请选择正确的路径。';
+        await session.send('请选择路径的名称：\n' + config.savePaths.map(item => `${item.name}: ${item.path}`).join('\n'));
+        const input = await session.prompt(30000);
+        const selected = config.savePaths.find(item => item.name === input);
+        if (!selected) return '请选择正确的路径名称。';
         selectedPath = selected.path;
       }
 
@@ -166,7 +173,6 @@ function apply(ctx, config) {
         return `保存图片时出错：${error.message}`;
       }
     });
-
 
   async function saveImages(urls, selectedPath, safeFilename, imageExtension, config, session, ctx) {
     let firstMessageSent = false;
