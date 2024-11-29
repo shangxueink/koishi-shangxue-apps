@@ -70,46 +70,52 @@ const defaulttable2 = [
     {
         "command": "automation-console",
         "commandname": "automation-console",
-        "command_authority": 1
+        "command_authority": 4
     },
     {
         "command": "打开UI控制",
-        "commandname": "打开UI"
+        "commandname": "打开UI",
+        "command_authority": 4
     },
     {
         "command": "查看UI控制",
-        "commandname": "查看UI"
+        "commandname": "查看UI",
+        "command_authority": 4
     },
     {
         "command": "退出UI控制",
-        "commandname": "退出UI"
+        "commandname": "退出UI",
+        "command_authority": 4
     },
     {
         "command": "软重启",
-        "commandname": "软重启"
+        "commandname": "软重启",
+        "command_authority": 4
     },
     {
         "command": "配置插件",
-        "commandname": "配置插件"
+        "commandname": "配置插件",
+        "command_authority": 4
     },
     {
         "command": "刷新插件市场",
         "commandname": "刷新插件市场",
-        "command_authority": 1
+        "command_authority": 4
     },
     {
         "command": "小火箭更新依赖",
-        "commandname": "小火箭更新依赖"
+        "commandname": "小火箭更新依赖",
+        "command_authority": 4
     },
     {
         "command": "查看日志",
         "commandname": "查看最新日志",
-        "command_authority": 3
+        "command_authority": 4
     },
     {
         "command": "插件市场搜索插件",
         "commandname": "插件市场搜索插件",
-        "command_authority": 3
+        "command_authority": 4
     }
 ]
 exports.Config =
