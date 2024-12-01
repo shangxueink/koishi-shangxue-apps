@@ -373,52 +373,51 @@ function apply(ctx, config) {
     const exitCommands = config.exitCommand.split(/[,，]/).map(cmd => cmd.trim());
     const exitCommandTip = config.menuExitCommandTip ? `退出选择请发[${exitCommands}]中的任意内容<br /><br />` : '';
 
-    ctx.middleware(async (session, next) => {
-        try {
-            // 解析消息内容
-            const messageElements = await h.parse(session.content);
+    if (config.enablemiddleware) {
+        ctx.middleware(async (session, next) => {
+            try {
+                // 解析消息内容
+                const messageElements = await h.parse(session.content);
 
-            // 遍历解析后的消息元素
-            for (const element of messageElements) {
-                // 确保元素类型为 'json' 并且有数据
-                if (element.type === 'json' && element.attrs && element.attrs.data) {
-                    const jsonData = JSON.parse(element.attrs.data);
+                // 遍历解析后的消息元素
+                for (const element of messageElements) {
+                    // 确保元素类型为 'json' 并且有数据
+                    if (element.type === 'json' && element.attrs && element.attrs.data) {
+                        const jsonData = JSON.parse(element.attrs.data);
+                        logInfo(jsonData);
+                        // 检查是否存在 musicMeta 和 tag
+                        const musicMeta = jsonData.meta.music;
+                        if (musicMeta && musicMeta.tag) {
+                            const tag = musicMeta.tag;
+                            const title = musicMeta.title;
+                            const desc = musicMeta.desc;
+                            // 根据音乐标签选择 API
+                            let command;
+                            let usedId = config.used_id;
+                            if (tag === 'QQ音乐') {
+                                command = config.used_command === "command1" ? config.command1 : config.command3;
+                            } else if (tag === '网易云音乐') {
+                                command = config.used_command === "command1" ? config.command1 : config.command3;
+                                usedId += 10;
+                                // 理想情况下 这样是可以的，但是如果歌单不足10个，就不行了 以后再改吧
+                            }
 
-                    // 检查是否存在 musicMeta 和 tag
-                    const musicMeta = jsonData.meta.music;
-                    if (musicMeta && musicMeta.tag) {
-                        const tag = musicMeta.tag;
-                        const title = musicMeta.title;
-
-                        // 根据音乐标签选择 API
-                        let command;
-                        let usedId = config.used_id;
-
-                        if (tag === 'QQ音乐') {
-                            command = config.used_command === "command1" ? config.command1 : config.command3;
-                        } else if (tag === '网易云音乐') {
-                            command = config.used_command === "command1" ? config.command1 : config.command3;
-                            usedId += 10;
-                            // 理想情况下 这样是可以的，但是如果歌单不足10个，就不行了 以后再改吧
-                        }
-
-                        if (command) {
-                            await session.execute(`${command} -n ${usedId} ${title}`);
+                            if (command) {
+                                await session.execute(`${command} -n ${usedId} “${title} ${desc}”`);
+                            }
                         }
                     }
                 }
+            } catch (error) {
+                logInfo(error);
+                await session.send('处理消息时出错。');
             }
-        } catch (error) {
-            logInfo(error);
-            await session.send('处理消息时出错。');
-        }
+            // 如果没有匹配到任何 json 数据，继续下一个中间件
+            return next();
+        });
+    }
 
-        // 如果没有匹配到任何 json 数据，继续下一个中间件
-        return next();
-    });
-
-
-    ctx.command(name)
+    ctx.command(name, "下载歌曲")
     ctx.command(name + '/' + config.command1 + '  [...keywords]', '搜索歌曲')
         .option('quality', '-q <value:number> 品质因数')
         .option('number', '-n <number:number> 歌曲序号')
