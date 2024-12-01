@@ -88,7 +88,7 @@ exports.Config = Schema.intersect([
   Schema.object({
     admin_list: Schema.array(Schema.object({
       adminID: Schema.string().description('管理员用户ID'),
-      allowcommand: Schema.array(Schema.union(['添加', '删除', '全局添加', '全局删除', '查找关键词', '修改', '查看关键词列表'])).default(['添加', '删除', '修改', '查找关键词', '查看关键词列表']).description('可以使用的指令'),
+      allowcommand: Schema.array(Schema.union(['添加', '删除', '全局添加', '全局删除', '查找关键词', '修改', '查看关键词列表'])).default(['添加', '删除', '修改', '查找关键词']).description('可以使用的指令'),
     })).role('table').description('管理员列表（ 0 代表所有用户）<br>独立于 channel_admin_auth ').default([
       {
         "adminID": "0"
@@ -646,6 +646,7 @@ function apply(ctx, config) {
         await session.send(session.text(".channel_admin_auth"));
         return;
       }
+
       // 根据配置项确定搜索范围
       const searchFiles = (() => {
         switch (config.Search_Range) {
@@ -659,7 +660,6 @@ function apply(ctx, config) {
             return [];
         }
       })();
-
 
       let keywords = [];
       for (const file of searchFiles) {
@@ -679,7 +679,7 @@ function apply(ctx, config) {
 
       if (config.Type_of_ViewKeywordList === '1') {
         // 返回文字列表
-        const message = keywords.map(keyword => `${keyword}`).join('\n');
+        const message = keywords.join('\n');
         await session.send(h.text(message));
       } else if (config.Type_of_ViewKeywordList === '2') {
         // 分页处理
@@ -736,7 +736,6 @@ ${pageKeywords.map(keyword => `<div class="keyword">${keyword}</div>`).join('')}
 </html>
         `;
 
-
           await page.setContent(content);
           await page.setViewport({ width: 1080, height: 1920 });
 
@@ -745,11 +744,9 @@ ${pageKeywords.map(keyword => `<div class="keyword">${keyword}</div>`).join('')}
 
           const imageMessage = h.image(imageBuffer, "image/png");
           await session.send(imageMessage);
-          return;
         }
       }
     });
-
 
   // 搜索关键词
   ctx.command(`keyword-dialogue/${KeywordOfSearch} [Keyword]`)
