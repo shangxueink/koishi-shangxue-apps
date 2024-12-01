@@ -146,13 +146,14 @@ exports.Config = Schema.intersect([
   Schema.object({
     Search_Range: Schema.union([
       Schema.const('1').description('仅在当前频道搜索问答'),
-      Schema.const('2').description('搜索全部问答'),
-    ]).role('radio').default('1').description("搜索范围"),
+      Schema.const('2').description('搜索全部频道的问答'),
+      Schema.const('3').description('当前频道搜索问答 + 全局问答'),
+    ]).role('radio').default('3').description("搜索范围，`查看关键词列表`和`查找关键词`指令的搜索范围"),
     Find_Return_Preset: Schema.union([
       Schema.const('1').description('仅返回问答的内容'),
       Schema.const('2').description('仅返回问答所在的频道ID/位置'),
       Schema.const('3').description('返回问答的内容，并且返回问答所在的频道ID/位置'),
-    ]).role('radio').default('1').description("返回信息"),
+    ]).role('radio').default('1').description("搜索关键词的 返回信息。"),
     Return_Limit: Schema.union([
       Schema.const('1').description('返回查找到的全部问答'),
       Schema.const('2').description('仅返回一条问答（模糊匹配）'),
@@ -404,7 +405,7 @@ function apply(ctx, config) {
     if (config.Delete_Branch_Only && replies.length > 1) {
       if (specifiedIndex === null || specifiedIndex === undefined) {
         // 未指定删除的分支，直接提示用户使用删除命令
-        await session.send(`关键词 "${keyword}" 有多个回复，请指定需要删除的分支。\n可以使用请使用如下指令来删除指定序号的回复：\n删除 -q [数字] ${keyword}`);
+        await session.send(`关键词 "${keyword}" 有多个回复，请指定需要删除的分支。\n请使用如下指令来删除指定序号的回复：\n删除 -q [数字] ${keyword}`);
         return;
       } else if (specifiedIndex > 0 && specifiedIndex <= replies.length) {
         // 删除指定序号的回复
@@ -645,20 +646,37 @@ function apply(ctx, config) {
         await session.send(session.text(".channel_admin_auth"));
         return;
       }
+      // 根据配置项确定搜索范围
+      const searchFiles = (() => {
+        switch (config.Search_Range) {
+          case '1':
+            return [`${session.channelId}.json`]; // 仅搜索当前频道
+          case '2':
+            return fs.readdirSync(root).filter(file => file.endsWith('.json')); // 搜索所有文件
+          case '3':
+            return [`${session.channelId}.json`, 'global.json']; // 搜索当前频道和全局
+          default:
+            return [];
+        }
+      })();
 
-      const filePath = path.join(root, `${session.channelId}.json`);
-      if (!fs.existsSync(filePath)) {
-        await session.send('没有找到关键词数据。');
-        return;
+
+      let keywords = [];
+      for (const file of searchFiles) {
+        const filePath = path.join(root, file);
+        if (fs.existsSync(filePath)) {
+          const data = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+          keywords = keywords.concat(Object.keys(data));
+        }
       }
 
-      const data = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
-      const keywords = Object.keys(data);
+      keywords = Array.from(new Set(keywords)); // 去重
 
       if (keywords.length === 0) {
         await session.send('当前没有关键词。');
         return;
       }
+
       if (config.Type_of_ViewKeywordList === '1') {
         // 返回文字列表
         const message = keywords.map(keyword => `${keyword}`).join('\n');
@@ -749,9 +767,19 @@ ${pageKeywords.map(keyword => `<div class="keyword">${keyword}</div>`).join('')}
       const searchRange = config.Search_Range;
       const returnPreset = config.Find_Return_Preset;
       const returnLimit = config.Return_Limit;
-      const searchFiles = searchRange === '2'
-        ? fs.readdirSync(root).filter(file => file.endsWith('.json'))
-        : [`${session.channelId}.json`];
+      const searchFiles = (() => {
+        switch (searchRange) {
+          case '1':
+            return [`${session.channelId}.json`];
+          case '2':
+            return fs.readdirSync(root).filter(file => file.endsWith('.json'));
+          case '3':
+            return [`${session.channelId}.json`, 'global.json'];
+          default:
+            return [`${session.channelId}.json`]; // 默认本频道内搜索
+        }
+      })();
+
 
       let results = [];
       for (const file of searchFiles) {
