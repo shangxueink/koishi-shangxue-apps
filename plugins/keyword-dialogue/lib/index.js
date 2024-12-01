@@ -369,7 +369,6 @@ function apply(ctx, config) {
 
     return false;
   }
-
   // 删除关键词回复分支
   async function deleteKeywordReply(session, filePath, keyword, config, specifiedIndex) {
     if (!fs.existsSync(filePath)) {
@@ -387,10 +386,13 @@ function apply(ctx, config) {
     // 查找关键词
     let found = false;
     let replies;
+    let matchedKey;
     for (const key in data) {
       const normalizedKey = config.Treat_all_as_lowercase ? key.toLowerCase() : key;
-      if (normalizedKey === keyword || normalizedKey === `regex:${keyword}`) {
+      const strippedKey = normalizedKey.startsWith('regex:') ? normalizedKey.slice(6) : normalizedKey;
+      if (strippedKey === keyword) {
         replies = data[key];
+        matchedKey = key;
         found = true;
         break;
       }
@@ -413,7 +415,7 @@ function apply(ctx, config) {
 
         // 如果删除后没有回复了，则删除整个关键词
         if (replies.length === 0) {
-          delete data[keyword];
+          delete data[matchedKey];
           await session.send(h.unescape(session.text(`.Reply_deleted`, [keyword])));
         } else {
           await session.send(h.unescape(`已删除关键词 "${keyword}" 的第 ${specifiedIndex} 条回复。`));
@@ -427,11 +429,12 @@ function apply(ctx, config) {
       }
     } else {
       // 不使用分支删除，直接删除整个关键词
-      delete data[keyword];
+      delete data[matchedKey];
       fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf-8');
       await session.send(h.unescape(session.text(`.Reply_deleted`, [keyword])));
     }
   }
+
 
   function escapeRegExp(string) {
     return string
