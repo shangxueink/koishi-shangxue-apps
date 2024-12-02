@@ -6,7 +6,6 @@ on:
       - main
   schedule:
     - cron: "0 * * * *"  # 每小时执行一次
-
 jobs:
   autogreen:
     runs-on: ubuntu-latest
