@@ -17,8 +17,9 @@ jobs:
         run: |
           git config --local user.email "1919892171@qq.com"
           git config --local user.name "shangxueink"
-          git remote set-url origin https://${{ github.actor }}:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}
+          git remote set-url origin https://${{ github.actor }}:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
           git stash
+          git reset --hard
           git pull --rebase
           git commit --allow-empty -m "A commit an hour, a green square acquired."
           git push
