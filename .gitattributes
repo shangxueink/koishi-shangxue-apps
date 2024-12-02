@@ -1,9 +1,10 @@
-* text eol=lf
+* text=auto
 
 *.png -text
 *.jpg -text
 *.ico -text
 *.gif -text
 *.webp -text
+
 
 yarn-*.cjs linguist-vendored
