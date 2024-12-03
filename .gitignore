@@ -1,5 +1,8 @@
+lib
+dist
 /cache
 /temp
+/data
 
 .env.local
 
