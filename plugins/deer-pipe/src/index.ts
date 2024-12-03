@@ -122,7 +122,7 @@ export const Config: Schema = Schema.intersect([
     Reset_Cycle: Schema.union(['每月', '不重置']).default("每月").description("签到数据重置周期。（相当于重新开始排名）"),
   }).description('签到次数·排行榜设置'),
   Schema.object({
-    currency: Schema.string().default('deerpipe').description('monetary 的 currency 字段'),
+    currency: Schema.string().default('default').description('monetary 的 currency 字段'),
     cost: Schema.object({
 
       checkin_reward: Schema.array(Schema.object({
@@ -180,7 +180,7 @@ export const Config: Schema = Schema.intersect([
 interface DeerPipeTable {
   userid: string;
   username: string;
-  channelId: string;
+  channelId: string[];
   recordtime: string;
   checkindate: string[];
   totaltimes: number;
@@ -201,7 +201,7 @@ export async function apply(ctx: Context, config) {
   ctx.model.extend('deerpipe', {
     userid: 'string', // 用户ID
     username: 'string', // 名字。用于排行榜
-    channelId: 'string', // 频道ID，用于排行榜
+    channelId: 'list', // 频道ID数组，用于支持多个群组
     recordtime: 'string', // 最新签到的年月，用于记录更新
     allowHelp: 'boolean', // 是否允许被别人帮助签到，默认为 true
     checkindate: 'list', // 当前月份的签到的日期号
@@ -305,9 +305,9 @@ export async function apply(ctx: Context, config) {
 
   ctx.i18n.define("zh-CN", zh_CN_default);
 
-  ctx.command('deerpipe', '鹿管签到')
+  ctx.command('鹿管签到', '鹿管签到').alias('deerpipe')
 
-  ctx.command('deerpipe/购买 [item]', '购买签到道具', { authority: 1 })
+  ctx.command('鹿管签到/购买 [item]', '购买签到道具', { authority: 1 })
     .userFields(["id", "name", "permissions"])
     .action(async ({ session }, item) => {
       const userId = session.userId;
@@ -340,7 +340,7 @@ export async function apply(ctx: Context, config) {
           userRecord = {
             userid: userId,
             username: session.user.name || session.username,
-            channelId: session.channelId,
+            channelId: await updateChannelId(session.userId, session.channelId),
             recordtime: '',
             checkindate: [],
             totaltimes: 0,
@@ -367,7 +367,7 @@ export async function apply(ctx: Context, config) {
       }
     });
 
-  ctx.command('deerpipe/戴锁', '允许/禁止别人帮你鹿', { authority: 1 })
+  ctx.command('鹿管签到/戴锁', '允许/禁止别人帮你鹿', { authority: 1 })
     .alias('脱锁')
     .alias('带锁')
     .userFields(["id", "name", "permissions"])
@@ -410,7 +410,7 @@ export async function apply(ctx: Context, config) {
     });
 
   //看看日历
-  ctx.command('deerpipe/看鹿 [user]', '查看用户签到日历', { authority: 1 })
+  ctx.command('鹿管签到/看鹿 [user]', '查看用户签到日历', { authority: 1 })
     .alias('看🦌')
     .alias('看看日历')
     .userFields(["id", "name", "permissions"])
@@ -444,14 +444,14 @@ export async function apply(ctx: Context, config) {
         return;
       }
       // 获取用户余额
-      const balance = await getUserCurrency(ctx, await updateIDbyuserId(targetUserId, session.platform)); // 使用 targetUserId 对应的 aid 获取余额
+      const balance = await getUserCurrency(ctx, await updateIDbyuserId(targetUserId, session)); // 使用 targetUserId 对应的 aid 获取余额
       const imgBuf = await renderSignInCalendar(ctx, targetUserId, targetUsername, currentYear, currentMonth);
       const calendarImage = h.image(imgBuf, 'image/png');
       await session.send(h.at(targetUserId) + ` ` + h.text(session.text(`.balance`, [balance])));
       await session.send(calendarImage);
     });
 
-  ctx.command('deerpipe/鹿 [user]', '鹿管签到', { authority: 1 })
+  ctx.command('鹿管签到/鹿 [user]', '鹿管签到', { authority: 1 })
     .alias('🦌')
     .userFields(["id", "name", "permissions"])
     .example('鹿 @用户')
@@ -502,7 +502,7 @@ export async function apply(ctx: Context, config) {
           await ctx.database.set('deerpipe', { userid: targetUserId }, {
             //userid: targetUserId, // 主键
             username: targetUsername,
-            channelId: session.channelId,
+            channelId: await updateChannelId(targetUserId, session.channelId), // 更新 channelId 数组
             recordtime,
             checkindate: [],
             totaltimes: 0,
@@ -518,7 +518,7 @@ export async function apply(ctx: Context, config) {
         targetRecord = {
           userid: targetUserId,
           username: targetUsername || targetUserId, // 用户没有记录时，没有用户名的话，使用 id 作为用户名
-          channelId: session.channelId,
+          channelId: await updateChannelId(targetUserId, session.channelId), // 更新 channelId 数组
           recordtime,
           checkindate: [`${currentDay}=1`],
           totaltimes: 1,
@@ -527,6 +527,8 @@ export async function apply(ctx: Context, config) {
         };
         await ctx.database.create('deerpipe', targetRecord);
       } else {
+        // 更新已有记录的 channelId 数组
+        targetRecord.channelId = await updateChannelId(targetUserId, session.channelId);
         // 如果存在 name 字段，才更新 targetRecord.username
         if (updateUsername) {
           targetRecord.username = targetUsername;
@@ -560,6 +562,7 @@ export async function apply(ctx: Context, config) {
           checkindate: targetRecord.checkindate,
           totaltimes: targetRecord.totaltimes,
           recordtime: targetRecord.recordtime,
+          channelId: targetRecord.channelId, // 更新后的 channelId
           ...(updateUsername && { username: targetUsername }) // 仅在需要更新时添加 username
         };
 
@@ -586,7 +589,7 @@ export async function apply(ctx: Context, config) {
           helperRecord = {
             userid: session.userId,
             username: session.user.name || session.username,
-            channelId: session.channelId,
+            channelId: await updateChannelId(targetUserId, session.channelId), // 更新 channelId 数组
             recordtime,
             checkindate: [],
             totaltimes: 0,
@@ -620,7 +623,7 @@ export async function apply(ctx: Context, config) {
 
       const imgBuf = await renderSignInCalendar(ctx, targetUserId, targetUsername, currentYear, currentMonth);
       const calendarImage = h.image(imgBuf, 'image/png');
-      await updateUserCurrency(ctx, await updateIDbyuserId(targetUserId, session.platform), cost);
+      await updateUserCurrency(ctx, await updateIDbyuserId(targetUserId, session), cost);
       if (config.enable_blue_tip) {
         await session.send(calendarImage + `<p>` + h.at(targetUserId) + session.text('.Sign_in_success', [targetRecord.totaltimes, cost]) + session.text('.enable_blue_tip'));
       } else {
@@ -629,33 +632,37 @@ export async function apply(ctx: Context, config) {
       return;
     });
 
-  ctx.command('deerpipe/鹿管排行榜', '查看签到排行榜', { authority: 1 })
+  ctx.command('鹿管签到/鹿管排行榜', '查看签到排行榜', { authority: 1 })
     .alias('🦌榜')
     .alias('鹿榜')
     .action(async ({ session }) => {
       const enableAllChannel = config.enable_allchannel;
-      const query = enableAllChannel ? {} : { channelId: session.channelId };
-      const records = await ctx.database.get('deerpipe', query);
 
+      // 获取所有记录，如果不启用跨群组，则过滤 channelId
+      const records = await ctx.database.get('deerpipe', {});
+      const filteredRecords = enableAllChannel
+        ? records
+        : records.filter(record => record.channelId?.includes(session.channelId));
+      loggerinfo(filteredRecords)
       const currentMonth = new Date().getMonth() + 1;
       const currentYear = new Date().getFullYear();
       const currentRecordtime = `${currentYear}-${currentMonth}`;
 
-      let filteredRecords = records;
+      // 筛选出当月有签到记录的用户
+      let validRecords = filteredRecords.filter(record => {
+        return record.recordtime === currentRecordtime && record.totaltimes > 0;
+      });
 
-      if (config.Reset_Cycle === '每月') {
-        // 过滤掉当月没有签到和签到次数为 0 的用户
-        filteredRecords = records.filter(record => {
-          return record.recordtime === currentRecordtime && record.totaltimes > 0; // && record.totaltimes > 0  目前出现了0次的用户，并且用户名都为ID， 不知道什么原因   先过滤掉
-        });
-      }
+      // 按签到次数排序
+      validRecords.sort((a, b) => b.totaltimes - a.totaltimes);
 
-      const sortedRecords = filteredRecords.sort((a, b) => b.totaltimes - a.totaltimes);
-      const topRecords = sortedRecords.slice(0, config.leaderboard_people_number);
+      const topRecords = validRecords.slice(0, config.leaderboard_people_number);
 
+      // 构造排行榜数据
       const rankData = topRecords.map((record, index) => ({
         order: index + 1,
         card: record.username,
+        channels: record.channelId?.join(', ') || '未知', // 展示所在群组
         sum: record.totaltimes,
       }));
 
@@ -720,6 +727,11 @@ margin-right: 15px;
 flex-grow: 1;
 font-size: 18px;
 }
+.channels {
+font-size: 14px;
+color: #7f8c8d;
+margin-left: 10px;
+}
 .count {
 font-weight: bold;
 color: #e74c3c;
@@ -743,6 +755,7 @@ ${deer.order === 1 ? '<span class="medal">🥇</span>' : ''}
 ${deer.order === 2 ? '<span class="medal">🥈</span>' : ''}
 ${deer.order === 3 ? '<span class="medal">🥉</span>' : ''}
 <span class="name">${deer.card}</span>
+<!--span class="channels">${deer.channels}</span-->
 <span class="count">${deer.sum}</span>
 </li>
 `).join('')}
@@ -755,24 +768,19 @@ ${deer.order === 3 ? '<span class="medal">🥉</span>' : ''}
       const page = await ctx.puppeteer.page();
       await page.setContent(leaderboardHTML, { waitUntil: 'networkidle2' });
       const leaderboardElement = await page.$('.container');
-
-
       const boundingBox = await leaderboardElement.boundingBox();
       await page.setViewport({
         width: Math.ceil(boundingBox.width),
         height: Math.ceil(boundingBox.height),
       });
-
       const imgBuf = await leaderboardElement.screenshot({ captureBeyondViewport: false });
       const leaderboardImage = h.image(imgBuf, 'image/png');
-
       await page.close();
-
       await session.send(leaderboardImage);
       return;
     });
 
-  ctx.command('deerpipe/补鹿 [day] [user]', '补签某日', { authority: 1 })
+  ctx.command('鹿管签到/补鹿 [day] [user]', '补签某日', { authority: 1 })
     .alias('补🦌')
     .userFields(["id", "name", "permissions"])
     .example('补鹿 1')
@@ -823,7 +831,7 @@ ${deer.order === 3 ? '<span class="medal">🥉</span>' : ''}
       }
 
       // 检查目标用户余额
-      const balance = await getUserCurrency(ctx, await updateIDbyuserId(session.userId, session.platform));
+      const balance = await getUserCurrency(ctx, await updateIDbyuserId(session.userId, session));
       if (balance < Math.abs(cost)) { // 使用绝对值进行检查
         await session.send(session.text('.Insufficient_balance'));
         return;
@@ -869,7 +877,7 @@ ${deer.order === 3 ? '<span class="medal">🥉</span>' : ''}
       record.totaltimes += 1;
 
       // 扣除货币
-      await updateUserCurrency(ctx, await updateIDbyuserId(session.userId, session.platform), -Math.abs(cost));
+      await updateUserCurrency(ctx, await updateIDbyuserId(session.userId, session), -Math.abs(cost));
 
       // 更新数据库
       await ctx.database.set('deerpipe', { userid: targetUserId }, {
@@ -892,7 +900,7 @@ ${deer.order === 3 ? '<span class="medal">🥉</span>' : ''}
     });
 
 
-  ctx.command('deerpipe/戒鹿 [day]', '取消某日签到', { authority: 1 })
+  ctx.command('鹿管签到/戒鹿 [day]', '取消某日签到', { authority: 1 })
     .alias('戒🦌')
     .alias('寸止')
     .userFields(["id", "name", "permissions"])
@@ -1005,15 +1013,16 @@ ${deer.order === 3 ? '<span class="medal">🥉</span>' : ''}
       return 0; // Return 0 
     }
   }
-  async function updateIDbyuserId(userId, platform) {
+  async function updateIDbyuserId(userId, session) {
     // 查询数据库的 binding 表
     const [bindingRecord] = await ctx.database.get('binding', {
       pid: userId,
-      platform: platform,
+      platform: session.platform,
     });
 
     // 检查是否找到了匹配的记录
     if (!bindingRecord) {
+      await session.send("未找到对应的用户记录，请重试。")
       throw new Error('未找到对应的用户记录。');
     }
 
@@ -1158,6 +1167,20 @@ ${checkedIn && count > 1 ? `<div class="multiple-sign">×${count}</div>` : ''}
 `;
 
     return calendarHTML;
+  }
+
+  // 更新用户的 channelId 数组，如果不存在则添加
+  async function updateChannelId(userId, newChannelId) {
+    const [userRecord] = await ctx.database.get('deerpipe', { userid: userId });
+    if (!userRecord) {
+      return [newChannelId]; // 如果用户不存在，直接返回当前频道ID
+    }
+    const currentChannels = userRecord.channelId || [];
+    if (!currentChannels.includes(newChannelId)) {
+      currentChannels.push(newChannelId);
+      //await ctx.database.set('deerpipe', { userid: userId }, { channelId: currentChannels });
+    }
+    return currentChannels;
   }
 
 
