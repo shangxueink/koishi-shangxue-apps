@@ -4,6 +4,8 @@ import { } from 'koishi-plugin-monetary'
 export const name = 'impart-pro';
 
 export interface Config {
+  randomdrawing: string;
+  milliliter_range: number[];
   duelLossCurrency: number;
   maintenanceCostPerUnit: any;
   currency: string;
@@ -197,6 +199,15 @@ export const Config: Schema<Config> = Schema.intersect([
   }).description('对决设置'),
 
   Schema.object({
+    randomdrawing: Schema.union([
+      Schema.const('1').description('仅在本群（可能会抽到已经退群的人）'),
+      Schema.const('2').description('所有用户（可能遇到不认识的哦）'),
+      Schema.const('3').description('必须输入用户（@用户）'),
+    ]).role('radio').description('`注入`指令 的 随机抽取时的范围').default("1"),
+    milliliter_range: Schema.tuple([Number, Number]).description("注入毫升数的范围<br>默认`10 ± 100%`，即 0 ~ 20 mL").default([10, 100]),
+  }).description('注入功能设置'),
+
+  Schema.object({
     imagemode: Schema.boolean().description('开启后，排行榜将使用 puppeteer 渲染图片发送').default(true),
     leaderboardPeopleNumber: Schema.number().description('排行榜显示人数').default(15).min(3),
     enableAllChannel: Schema.boolean().description('开启后，排行榜将展示全部用户排名`关闭则仅展示当前频道的用户排名`').default(false),
@@ -216,7 +227,7 @@ export const Config: Schema<Config> = Schema.intersect([
   }).description('管理设置'),
 
   Schema.object({
-    currency: Schema.string().default('impartpro').description('monetary 数据库的 currency 字段名称'),
+    currency: Schema.string().default('default').description('monetary 数据库的 currency 字段名称'),
     maintenanceCostPerUnit: Schema.number().role('slider').min(0).max(1).step(0.01).default(0.1).description("【保养】钱币与长度的转化比率。0.1则为`10:1`，十个货币换 1 cm"),
   }).description('monetary·通用货币设置'),
 
@@ -230,8 +241,9 @@ export const Config: Schema<Config> = Schema.intersect([
 interface impartproTable {
   userid: string;
   username: string;
-  channelId: string;
+  channelId: string[];
   length: number;
+  injectml: string;
   growthFactor: number;
   lastGrowthTime: string; // 开导间隔
   lastDuelTime: string; // 决斗间隔
@@ -253,8 +265,9 @@ export function apply(ctx: Context, config: Config) {
   ctx.model.extend('impartpro', {
     userid: 'string',// 用户ID唯一标识
     username: 'string', // 用户名
-    channelId: 'string', // 频道名称
+    channelId: 'list', // 频道ID数组，用于支持多个群组
     length: 'float', // 牛牛长度
+    injectml: 'string', // 被注入的ml 会每日更新 格式应该是【日期-毫升数】
     growthFactor: 'float', // 牛牛成长值
     lastGrowthTime: 'string', // 增长牛牛的最新时间 用于冷却时间的计算    
     lastDuelTime: 'string', // 双方对战使用的，记录时间用的。用于冷却时间的计算    
@@ -263,11 +276,119 @@ export function apply(ctx: Context, config: Config) {
     primary: ['userid'],
   });
 
+  ctx.command('impartpro', '在群里玩银帕')
+
+  ctx.command('impartpro/injectml [user]', '注入群友')
+    .alias("注入")
+    .userFields(["id", "name", "permissions"])
+    .example("injectml")
+    .example("injectml @用户")
+    .action(async ({ session }, user) => {
+      // 检查是否被禁止触发
+      if (!await isUserAllowed(ctx, session.userId, session.channelId)) {
+        if (config.notallowtip) {
+          await session.send('你没有权限触发这个指令。');
+        }
+        return;
+      }
+
+      const currentDate = new Date();
+      const day = currentDate.getDate(); // 获取当天日期
+      const formattedDate = `${day}`; // 格式化为字符串格式
+      // 解析配置的注入范围并生成随机毫升数
+      const milliliterRange = config.milliliter_range as [number, number];
+      const randomML = randomLength(milliliterRange).toFixed(2); // 使用随机生成函数 
+      let targetUserId = null;
+      let targetUsername = null;
+
+      if (user) {
+        // 如果输入了用户，则优先使用指定用户
+        const parsedUser = h.parse(user)[0];
+        if (parsedUser?.type === 'at') {
+          targetUserId = parsedUser.attrs.id;
+          targetUsername = parsedUser.attrs.name;
+          if (targetUserId = session.userId) {
+            await session.send("不允许自己注入自己哦~ 换一个用户吧");
+            return;
+          }
+        } else {
+          await session.send("输入的用户格式不正确，请使用 @用户 格式。");
+          return;
+        }
+      } else {
+        // 获取符合范围的用户列表
+        const records = await ctx.database.get('impartpro', {}); // 获取所有用户数据
+        let filteredRecords;
+        const drawingScope = config.randomdrawing || "1"; // 默认为仅本群
+        if (drawingScope === "1") {
+          // 当前群组的用户
+          filteredRecords = records.filter(
+            record => record.channelId?.includes(session.channelId) &&
+              !record.userid.startsWith('channel_') &&
+              record.userid !== session.userId // 避免抽到自己
+          );
+        } else if (drawingScope === "2") {
+          // 全部用户，剔除特殊标志用户
+          filteredRecords = records.filter(
+            record => !record.userid.startsWith('channel_') &&
+              record.userid !== session.userId // 避免抽到自己
+          );
+        }
+
+        if (!filteredRecords || filteredRecords.length === 0) {
+          await session.send("未找到符合条件的用户。");
+          return;
+        }
+
+        // 从符合条件的用户中随机选择一个
+        const randomIndex = Math.floor(Math.random() * filteredRecords.length);
+        const targetRecord = filteredRecords[randomIndex];
+        targetUserId = targetRecord.userid;
+        targetUsername = targetRecord.username || `用户 ${targetUserId}`;
+      }
+
+      if (!targetUserId) {
+        await session.send("未找到目标用户，请检查输入。");
+        return;
+      }
+
+      // 更新目标用户的 injectml 字段
+      const [targetRecord] = await ctx.database.get('impartpro', { userid: targetUserId });
+      if (!targetRecord) {
+        await session.send(`未找到用户 ${targetUserId} 的记录。请先 开导 ${h.at(targetUserId)}`);
+        return;
+      }
+
+      // 检查并初始化 injectml 字段，仅保留当天的数据
+      let injectData: Record<string, number> = {};
+      if (targetRecord.injectml) {
+        const [date, ml] = targetRecord.injectml.split('-');
+        if (date === formattedDate && !isNaN(parseFloat(ml))) {
+          injectData[formattedDate] = parseFloat(ml);
+        } else {
+          // 格式不对或不是当天的数据，初始化
+          injectData[formattedDate] = 0;
+        }
+      } else {
+        injectData[formattedDate] = 0;
+      }
+
+      // 累加当日注入量
+      injectData[formattedDate] += parseFloat(randomML);
+      const updatedInjectML = `${formattedDate}-${injectData[formattedDate].toFixed(2)}`;
+      await ctx.database.set('impartpro', { userid: targetUserId }, { injectml: updatedInjectML });
+
+      // 返回成功消息
+      const totalML = injectData[formattedDate].toFixed(2); // 当日总注入量
+      const imageLink = `http://q.qlogo.cn/headimg_dl?dst_uin=${targetUserId}&spec=640`; // 头像链接
+      await session.send(h.text(`现在咱将随机抽取一位幸运群友送给 ${session.username}！\n好诶！${session.username} 给 ${targetUsername} 注入了${randomML}毫升！\n${targetUsername}当日的总注入量为${totalML}毫升`) + `<p>` + h.image(imageLink));
+    });
+
+
   ctx.command('impartpro/保养', '通过花费货币来增加牛牛的长度')
     .alias("保养牛牛")
     .userFields(["id", "name", "permissions"])
     .action(async ({ session }) => {
-
       const userId = session.userId;
       // 检查是否被禁止触发
       if (!await isUserAllowed(ctx, userId, session.channelId)) {
@@ -321,6 +442,7 @@ export function apply(ctx: Context, config: Config) {
       // 更新记录
       await ctx.database.set('impartpro', { userid: userId }, {
         length: userRecord.length,
+        channelId: await updateChannelId(userId, session.channelId),
       });
 
       await session.send(`你花费了 ${desiredLength / costPerUnit} 货币，增加了 ${desiredLength} cm。`);
@@ -375,15 +497,16 @@ export function apply(ctx: Context, config: Config) {
         userRecord = {
           userid: userId,
           username: username,
-          channelId: session.channelId,
+          channelId: await updateChannelId(userId, session.channelId),
           length: initialLength,
+          injectml: "0-0",
           growthFactor: growthFactor,
           lastGrowthTime: new Date().toISOString(), // 使用 ISO 字符串
           lastDuelTime: new Date().toISOString(), // 使用 ISO 字符串
           locked: false
         };
         await ctx.database.create('impartpro', userRecord);
-        await session.send(`自动初始化成功！你的牛牛初始长度为 ${initialLength.toFixed(2)} cm。初始生长系数为：${growthFactor.toFixed(2)}`);
+        await session.send(`${h.at(userId)} 自动初始化成功！你的牛牛初始长度为 ${initialLength.toFixed(2)} cm。初始生长系数为：${growthFactor.toFixed(2)}`);
         return;
       }
 
@@ -451,6 +574,7 @@ export function apply(ctx: Context, config: Config) {
       await ctx.database.set('impartpro', { userid: userId }, {
         length: userRecord.length,
         lastGrowthTime: userRecord.lastGrowthTime,
+        channelId: await updateChannelId(userId, session.channelId),
       });
 
       await session.send(`${h.at(userId)} 锻炼${isSuccess ? '成功' : '失败'}！牛牛强化后长度为 ${enhancedLength.toFixed(2)} cm。`);
@@ -458,7 +582,6 @@ export function apply(ctx: Context, config: Config) {
     });
 
   ctx.command('impartpro/决斗 [user]', '决斗牛牛！')
-    //.alias('挑战')
     .alias('嗦牛牛')
     .example("决斗 @用户")
     .userFields(["id", "name", "permissions"])
@@ -579,11 +702,13 @@ export function apply(ctx: Context, config: Config) {
       await ctx.database.set('impartpro', { userid: session.userId }, {
         length: attackerRecord.length,
         lastDuelTime: attackerRecord.lastDuelTime,
+        channelId: await updateChannelId(session.userId, session.channelId),
       });
 
       await ctx.database.set('impartpro', { userid: userId }, {
         length: defenderRecord.length,
         lastDuelTime: defenderRecord.lastDuelTime,
+        channelId: await updateChannelId(userId, session.channelId),
       });
 
       // 输出双方胜率
@@ -625,6 +750,7 @@ export function apply(ctx: Context, config: Config) {
           length: initialLength,
           growthFactor: growthFactor,
           lastDuelTime: currentTime,
+          channelId: await updateChannelId(userId, session.channelId),
         });
         await session.send(`牛牛重置成功，当前长度为 ${initialLength.toFixed(2)} cm，成长系数为 ${growthFactor.toFixed(2)}。`);
         return;
@@ -633,8 +759,9 @@ export function apply(ctx: Context, config: Config) {
         userRecord = {
           userid: userId,
           username: username,
-          channelId: session.channelId,
+          channelId: await updateChannelId(userId, session.channelId),
           length: initialLength,
+          injectml: "0-0",
           growthFactor: growthFactor,
           lastGrowthTime: currentTime,
           lastDuelTime: currentTime,
@@ -646,6 +773,178 @@ export function apply(ctx: Context, config: Config) {
         return;
       }
     });
+
+  ctx.command('impartpro/injectleaderboard', '查看注入排行榜')
+    .alias('注入排行榜')
+    .userFields(["id", "name", "permissions"])
+    .action(async ({ session }) => {
+      // 检查是否被禁止触发
+      if (!await isUserAllowed(ctx, session.userId, session.channelId)) {
+        if (config.notallowtip) {
+          await session.send('你没有权限触发这个指令。');
+        }
+        return;
+      }
+
+      const leaderboardPeopleNumber = config.leaderboardPeopleNumber || 10; // 默认排行榜人数为 10
+      const enableAllChannel = config.enableAllChannel;
+      const currentDate = new Date();
+      const day = currentDate.getDate().toString(); // 获取当天日期
+
+      // 获取当前群组的用户记录
+      const records = await ctx.database.get('impartpro', {});
+      const filteredRecords = enableAllChannel
+        ? records.filter(record => record.username !== '频道')
+        : records.filter(record => record.channelId?.includes(session.channelId) && record.username !== '频道');
+
+      // 解析每个用户的 injectml 字段，仅保留当天数据
+      const validRecords = filteredRecords.map(record => {
+        if (!record.injectml) return null; // 没有数据的用户跳过
+        const [date, ml] = record.injectml.split('-'); // 解析 injectml 格式
+        if (date === day && !isNaN(parseFloat(ml))) {
+          return {
+            username: record.username || `用户 ${record.userid}`,
+            milliliter: parseFloat(ml),
+          };
+        }
+        return null;
+      }).filter(Boolean); // 过滤掉无效记录
+
+      if (validRecords.length === 0) {
+        await session.send('当前没有可用的注入排行榜数据。');
+        return;
+      }
+
+      // 排序并获取前 N 名
+      validRecords.sort((a, b) => b.milliliter - a.milliliter);
+      const topRecords = validRecords.slice(0, leaderboardPeopleNumber);
+
+      // 构造排行榜数据
+      const rankData = topRecords.map((record, index) => ({
+        order: index + 1,
+        username: record.username,
+        milliliter: record.milliliter.toFixed(2),
+      }));
+
+      if (config.imagemode) {
+        if (!ctx.puppeteer) {
+          await session.send("没有开启 puppeteer 服务");
+          return;
+        }
+
+        // 使用 HTML 构建排行榜
+        const leaderboardHTML = `
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>今日注入排行榜</title>
+<style>
+body {
+font-family: 'Microsoft YaHei', Arial, sans-serif;
+background-color: #f0f4f8;
+margin: 0;
+padding: 20px;
+display: flex;
+justify-content: center;
+align-items: flex-start;
+}
+.container {
+background-color: white;
+border-radius: 10px;
+box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+padding: 30px;
+width: 100%;
+max-width: 500px;
+}
+h1 {
+text-align: center;
+color: #2c3e50;
+margin-bottom: 30px;
+font-size: 28px;
+}
+.ranking-list {
+list-style-type: none;
+padding: 0;
+margin: 0;
+}
+.ranking-item {
+display: flex;
+align-items: center;
+padding: 15px 10px;
+border-bottom: 1px solid #ecf0f1;
+transition: background-color 0.3s;
+}
+.ranking-item:hover {
+background-color: #f8f9fa;
+}
+.ranking-number {
+font-size: 18px;
+font-weight: bold;
+margin-right: 15px;
+min-width: 30px;
+color: #7f8c8d;
+}
+.medal {
+font-size: 24px;
+margin-right: 15px;
+}
+.name {
+flex-grow: 1;
+font-size: 18px;
+}
+.milliliter {
+font-weight: bold;
+color: #3498db;
+font-size: 18px;
+}
+.milliliter::after {
+content: ' mL';
+font-size: 14px;
+color: #95a5a6;
+}
+</style>
+</head>
+<body>
+<div class="container">
+<h1>今日注入排行榜</h1>
+<ol class="ranking-list">
+${rankData.map(record => `
+<li class="ranking-item">
+<span class="ranking-number">${record.order}</span>
+${record.order === 1 ? '<span class="medal">🥇</span>' : ''}
+${record.order === 2 ? '<span class="medal">🥈</span>' : ''}
+${record.order === 3 ? '<span class="medal">🥉</span>' : ''}
+<span class="name">${record.username}</span>
+<span class="milliliter">${record.milliliter}</span>
+</li>
+`).join('')}
+</ol>
+</div>
+</body>
+</html>
+`;
+
+        const page = await ctx.puppeteer.page();
+        await page.setContent(leaderboardHTML, { waitUntil: 'networkidle2' });
+        const leaderboardElement = await page.$('.container');
+        const boundingBox = await leaderboardElement.boundingBox();
+        await page.setViewport({
+          width: Math.ceil(boundingBox.width),
+          height: Math.ceil(boundingBox.height),
+        });
+        const imgBuf = await leaderboardElement.screenshot({ captureBeyondViewport: false });
+        const leaderboardImage = h.image(imgBuf, 'image/png');
+        await page.close();
+        await session.send(leaderboardImage);
+      } else {
+        // 使用文本渲染排行榜
+        const leaderboard = rankData.map(record => `${record.order}. ${record.username}: ${record.milliliter} mL`).join('\n');
+        await session.send(`今日注入排行榜：\n${leaderboard}`);
+      }
+    });
+
 
   ctx.command('impartpro/牛牛排行榜', '查看牛牛排行榜')
     .alias('牛子排行榜')
@@ -661,12 +960,17 @@ export function apply(ctx: Context, config: Config) {
 
       const leaderboardPeopleNumber = config.leaderboardPeopleNumber;
       const enableAllChannel = config.enableAllChannel;
-      const channelId = enableAllChannel ? undefined : session.channelId;
+      // const channelId = enableAllChannel ? undefined : session.channelId;
 
       // 获取排行榜数据并过滤掉特殊记录
-      const records = await ctx.database.get('impartpro', channelId ? { channelId } : {});
-      const validRecords = records.filter(record => record.username !== '频道');
+      const records = await ctx.database.get('impartpro', {});
+      const filteredRecords = enableAllChannel
+        ? records
+        : records.filter(record => record.channelId?.includes(session.channelId));
 
+      const validRecords = filteredRecords.filter(record => record.username !== '频道');
+
+      loggerinfo(validRecords)
       if (validRecords.length === 0) {
         await session.send('当前没有可用的排行榜数据。');
         return;
@@ -870,31 +1174,51 @@ ${record.order === 3 ? '<span class="medal">🥉</span>' : ''}
         }
 
         // 针对特定用户
-        const [record] = await ctx.database.get('impartpro', { userid: userId, channelId });
+        const [record] = await ctx.database.get('impartpro', {}).then(records =>
+          records.filter(record => record.userid === userId && record.channelId?.includes(session.channelId))
+        );
+
 
         if (!record) {
           // 初始化用户记录
-          await ctx.database.create('impartpro', { userid: userId, username, channelId, locked: true });
+          //await ctx.database.create('impartpro', { userid: userId, username, channelId, locked: true });
+          await ctx.database.create('impartpro', {
+            userid: userId,
+            username,
+            channelId: [session.channelId], // 初始化为数组
+            locked: true
+          });
+
           await session.send(`用户 ${username} 已被禁止触发牛牛大作战。`);
         } else {
           // 切换用户状态
           const newStatus = !record.locked;
-          await ctx.database.set('impartpro', { userid: userId, channelId }, { locked: newStatus });
+          await ctx.database.set('impartpro', { userid: userId }, { locked: newStatus });
           await session.send(`用户 ${username} 已${newStatus ? '被禁止' : '可以'}触发牛牛大作战。`);
         }
       } else {
         // 针对整个频道
         const specialUserId = `channel_${channelId}`;
-        const [channelRecord] = await ctx.database.get('impartpro', { userid: specialUserId, channelId });
+        //const [channelRecord] = await ctx.database.get('impartpro', { userid: specialUserId, channelId });
+        const [channelRecord] = await ctx.database.get('impartpro', {}).then(records =>
+          records.filter(record => record.userid === specialUserId && record.channelId?.includes(session.channelId))
+        );
 
         if (!channelRecord) {
           // 初始化频道记录
-          await ctx.database.create('impartpro', { userid: specialUserId, username: '频道', channelId, locked: true });
+          //await ctx.database.create('impartpro', { userid: specialUserId, username: '频道', channelId, locked: true });
+          await ctx.database.create('impartpro', {
+            userid: specialUserId,
+            username: '频道',
+            channelId: [session.channelId], // 初始化为数组
+            locked: true
+          });
+
           await session.send(`牛牛大作战已在本频道被禁止。`);
         } else {
           // 切换频道状态
           const newStatus = !channelRecord.locked;
-          await ctx.database.set('impartpro', { userid: specialUserId, channelId }, { locked: newStatus });
+          await ctx.database.set('impartpro', { userid: specialUserId }, { locked: newStatus });
           await session.send(`牛牛大作战已在本频道${newStatus ? '被禁止' : '开启'}。`);
         }
       }
@@ -1002,5 +1326,19 @@ ${record.order === 3 ? '<span class="medal">🥉</span>' : ''}
       return 0; // Return 0 
     }
   }
+  // 更新用户的 channelId 数组，如果不存在则添加
+  async function updateChannelId(userId, newChannelId) {
+    const [userRecord] = await ctx.database.get('impartpro', { userid: userId });
+    if (!userRecord) {
+      return [newChannelId]; // 如果用户不存在，直接返回当前频道ID
+    }
+    const currentChannels = userRecord.channelId || [];
+    if (!currentChannels.includes(newChannelId)) {
+      currentChannels.push(newChannelId);
+      //await ctx.database.set('deerpipe', { userid: userId }, { channelId: currentChannels });
+    }
+    return currentChannels;
+  }
+
 }
 
