@@ -1,0 +1,40 @@
+name: Publish Package
+
+on:
+  push:
+    branches:
+      - main  # 触发条件，推送到 main 分支时
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v2
+        with:
+          node-version: '22'  # 使用 Node.js 22
+
+      - name: 检查 package.json
+        run: |
+          if [ ! -f ./publish/package.json ]; then
+            echo "未在 publish 目录中找到 package.json，退出执行。"
+            exit 1
+          fi
+
+      - name: 安装依赖
+        working-directory: ./publish  # 指定工作目录为 publish 文件夹
+        run: npm install
+
+      - name: 发布包
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}  # 使用 GitHub Secrets 存储 NPM Token
+        working-directory: ./publish  # 指定工作目录为 publish 文件夹
+        run: npm publish
+
+      - name: 清理
+        run: |
+          rm -rf ./publish/*  # 删除 publish 文件夹下的所有内容
