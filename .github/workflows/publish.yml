@@ -57,7 +57,7 @@ jobs:
       - name: 清理
         if: env.package_json_exists == 'true'  # 只有在存在 package.json 时才执行
         run: |
-          rm -rf ./publish/**/*  # 删除 publish 文件夹下的所有内容，但保留文件夹
+          find ./publish -mindepth 1 -delete
 
       - name: 提交并推送清理更改
         if: env.package_json_exists == 'true'
