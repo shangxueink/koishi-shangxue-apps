@@ -33,10 +33,16 @@ jobs:
         working-directory: ./publish  # 指定工作目录为 publish 文件夹
         run: npm install
 
-      - name: 发布包
-        if: env.package_json_exists == 'true'  # 只有在存在 package.json 时才执行
+      - name: 登录 NPM
+        run: echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" > ~/.npmrc
+        
+      - name: 验证 NPM Token
+        run: npm whoami
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}  # 使用 GitHub Secrets 存储 NPM Token
+
+      - name: 发布包
+        if: env.package_json_exists == 'true'  # 只有在存在 package.json 时才执行
         working-directory: ./publish  # 指定工作目录为 publish 文件夹
         run: npm publish
 
