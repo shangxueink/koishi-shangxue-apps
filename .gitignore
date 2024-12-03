@@ -1,9 +1,5 @@
-lib
-dist
 /cache
-/data
 /temp
-external
 
 .env.local
 
