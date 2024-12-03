@@ -19,22 +19,28 @@ jobs:
           node-version: '22'  # 使用 Node.js 22
 
       - name: 检查 package.json
+        id: check_package_json
         run: |
           if [ ! -f ./publish/package.json ]; then
-            echo "未在 publish 目录中找到 package.json，退出执行。"
-            exit 1
+            echo "未在 publish 目录中找到 package.json，工作流将结束。"
+            echo "::set-output name=package_json_exists::false"
+          else
+            echo "::set-output name=package_json_exists::true"
           fi
 
       - name: 安装依赖
+        if: steps.check_package_json.outputs.package_json_exists == 'true'  # 只有在存在 package.json 时才执行
         working-directory: ./publish  # 指定工作目录为 publish 文件夹
         run: npm install
 
       - name: 发布包
+        if: steps.check_package_json.outputs.package_json_exists == 'true'  # 只有在存在 package.json 时才执行
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}  # 使用 GitHub Secrets 存储 NPM Token
         working-directory: ./publish  # 指定工作目录为 publish 文件夹
         run: npm publish
 
       - name: 清理
+        if: steps.check_package_json.outputs.package_json_exists == 'true'  # 只有在存在 package.json 时才执行
         run: |
           rm -rf ./publish/*  # 删除 publish 文件夹下的所有内容
