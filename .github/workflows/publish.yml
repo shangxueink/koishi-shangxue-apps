@@ -60,11 +60,23 @@ jobs:
           rm -rf ./publish/**/*  # 删除 publish 文件夹下的所有内容，但保留文件夹
 
       - name: 提交并推送清理更改
-        if: env.package_json_exists == 'true'  # 只有在存在 package.json 时才执行
+        if: env.package_json_exists == 'true'
         run: |
           git config --global user.name "GitHub Action"
           git config --global user.email "action@github.com"
-          git add -f ./publish/* ./publish/lib ./publish/dist ./publish/data  # 强制添加指定文件 用于发布npm
+
+          # 检查并添加文件夹
+          if [ -d ./publish/dist ]; then
+            git add -f ./publish/dist
+          fi
+          if [ -d ./publish/data ]; then
+            git add -f ./publish/data
+          fi
+
+          # 添加其他文件
+          git add -f ./publish/* ./publish/lib
+
+          # 提交和推送
           git commit -m "清理 publish 文件夹"
           git push
 
