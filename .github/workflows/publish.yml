@@ -1,4 +1,4 @@
-name: Publish Package
+name: Publish Package and Heartbeat
 
 on:
   push:
@@ -50,3 +50,23 @@ jobs:
         if: env.package_json_exists == 'true'  # 只有在存在 package.json 时才执行
         run: |
           rm -rf ./publish/*  # 删除 publish 文件夹下的所有内容
+
+      - name: 提交并推送清理更改
+        if: env.package_json_exists == 'true'  # 只有在存在 package.json 时才执行
+        run: |
+          git config --global user.name "GitHub Action"
+          git config --global user.email "action@github.com"
+          git add ./publish/*
+          git commit -m "清理 publish 文件夹"
+          git push
+
+      - name: 心跳提交
+        run: |
+          git config --local user.email "1919892171@qq.com"
+          git config --local user.name "shangxueink"
+          git remote set-url origin https://${{ github.actor }}:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
+          git stash
+          git reset --hard
+          git pull --rebase
+          git commit --allow-empty -m "小学还在维护此仓库哦~"
+          git push
