@@ -47,17 +47,18 @@ jobs:
         if: env.package_json_exists == 'true'  # 只有在存在 package.json 时才执行
         working-directory: ./publish  # 指定工作目录为 publish 文件夹
         run: |
-          if npm publish; then
+          if npm publish --access public; then
             echo "包发布成功"
           else
             echo "包发布失败：版本号可能已存在或其他错误"
             exit 1  # 退出以标记工作流为失败
           fi
 
+
       - name: 清理
         if: env.package_json_exists == 'true'  # 只有在存在 package.json 时才执行
-        run: |  # 删除所有文件和文件夹，但保留 README.md
-          find ./publish -mindepth 1 -not -name 'LICENSE.txt' -delete 
+        run: |  # 删除所有文件和文件夹，但保留 LICENSE.txt
+          find ./publish -mindepth 1 -not -name 'README.md' -delete 
 
       - name: 提交并推送清理更改
         if: env.package_json_exists == 'true'
