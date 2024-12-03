@@ -99,9 +99,13 @@ async function apply(ctx, config) {
             }
 
             if (!text) {
-                const promptMessage = config.fastmakemode ? "请输入【什么什么思维】内容：" : "请输入文本内容：";
+                const promptMessage = config.fastmakemode ? "《_____思维》\n请发送填空的文字内容：" : "请输入文本内容：";
                 await session.send(promptMessage);
                 text = await session.prompt(30000);
+                if (!text) {
+                    await session.send("未检测到有效的图片，自动退出。");
+                    return; // 自动退出
+                }
             }
             // 处理 QQ 号和 @用户输入
             if (img) {
@@ -123,12 +127,12 @@ async function apply(ctx, config) {
             }
 
             if (!img) {
-                await session.send("未检测到有效的图片，请重试。");
+                await session.send("未检测到有效的图片，自动退出。");
                 return;
             }
 
             // 检查 img 
-            img = h.select(img, 'img').map(item => item.attrs.src)[0] || img; // 图片元素或者直链
+            img = h.select(img, 'img').map(item => item.attrs?.src)[0] || img; // 图片元素或者直链
 
 
             log(`文本内容: ${text}`);

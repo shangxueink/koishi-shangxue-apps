@@ -1,6 +1,6 @@
 {
   "name": "koishi-plugin-speechless-mind",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "description": "/*梗图生成*/ 生成梗图「无语，和你说不下去，典型的_____思维」的meme图哦！[点我查看](https://i0.hdslb.com/bfs/article/00bf52c9f36bf40e63fd28334338a71d312276085.png) [插件预览效果图](https://i0.hdslb.com/bfs/article/5d9001575731061e467cc1c3d77f6a54312276085.png) 好像很好玩的样子（（（嘻嘻",
   "main": "lib/index.js",
   "typings": "lib/index.d.ts",
