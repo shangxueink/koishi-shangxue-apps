@@ -4,6 +4,8 @@ on:
   push:
     branches:
       - main  # 触发条件，推送到 main 分支时
+  schedule:
+    - cron: '0 * * * *'  # 每小时的第0分钟触发心跳提交
 
 jobs:
   publish:
@@ -44,12 +46,18 @@ jobs:
       - name: 发布包
         if: env.package_json_exists == 'true'  # 只有在存在 package.json 时才执行
         working-directory: ./publish  # 指定工作目录为 publish 文件夹
-        run: npm publish
+        run: |
+          if npm publish; then
+            echo "包发布成功"
+          else
+            echo "包发布失败：版本号可能已存在或其他错误"
+            exit 1  # 退出以标记工作流为失败
+          fi
 
       - name: 清理
         if: env.package_json_exists == 'true'  # 只有在存在 package.json 时才执行
         run: |
-          rm -rf ./publish/*  # 删除 publish 文件夹下的所有内容
+          rm -rf ./publish/**/*  # 删除 publish 文件夹下的所有内容，但保留文件夹
 
       - name: 提交并推送清理更改
         if: env.package_json_exists == 'true'  # 只有在存在 package.json 时才执行
@@ -59,6 +67,14 @@ jobs:
           git add ./publish/*
           git commit -m "清理 publish 文件夹"
           git push
+
+  heartbeat:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule'  # 仅在定时触发时执行
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
 
       - name: 心跳提交
         run: |
