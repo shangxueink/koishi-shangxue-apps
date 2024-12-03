@@ -56,8 +56,8 @@ jobs:
 
       - name: 清理
         if: env.package_json_exists == 'true'  # 只有在存在 package.json 时才执行
-        run: |
-          find ./publish -mindepth 1 -delete
+        run: |  # 删除所有文件和文件夹，但保留 README.md
+          find ./publish -mindepth 1 -not -name 'README.md' -delete 
 
       - name: 提交并推送清理更改
         if: env.package_json_exists == 'true'
