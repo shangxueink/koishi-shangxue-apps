@@ -58,7 +58,7 @@ jobs:
       - name: 清理
         if: env.package_json_exists == 'true'  # 只有在存在 package.json 时才执行
         run: |  # 删除所有文件和文件夹，但保留 LICENSE.txt
-          find ./publish -mindepth 1 -not -name 'README.md' -delete 
+          find ./publish -mindepth 1 -not -name 'LICENSE.txt' -delete 
 
       - name: 提交并推送清理更改
         if: env.package_json_exists == 'true'
