@@ -278,11 +278,11 @@ export function apply(ctx: Context, config: Config) {
 
   ctx.command('impartpro', '在群里玩银帕')
 
-  ctx.command('impartpro/injectml [user]', '注入群友')
-    .alias("注入")
+  ctx.command('impartpro/注入 [user]', '注入群友')
+    .alias("injectml")
     .userFields(["id", "name", "permissions"])
-    .example("injectml")
-    .example("injectml @用户")
+    .example("注入")
+    .example("注入 @用户")
     .action(async ({ session }, user) => {
       // 检查是否被禁止触发
       if (!await isUserAllowed(ctx, session.userId, session.channelId)) {
@@ -381,7 +381,7 @@ export function apply(ctx: Context, config: Config) {
       // 返回成功消息
       const totalML = injectData[formattedDate].toFixed(2); // 当日总注入量
       const imageLink = `http://q.qlogo.cn/headimg_dl?dst_uin=${targetUserId}&spec=640`; // 头像链接
-      await session.send(h.text(`现在咱将随机抽取一位幸运群友送给 ${session.username}！\n好诶！${session.username} 给 ${targetUsername} 注入了${randomML}毫升！\n${targetUsername}当日的总注入量为${totalML}毫升`) + `<p>` + h.image(imageLink));
+      await session.send(h.text(`现在咱将随机抽取一位幸运群友送给 ${session.username}！\n好诶！${session.username} 给 ${targetUsername} 注入了${randomML}毫升的脱氧核糖核酸，\n${targetUsername}当日的总注入量为${totalML}毫升`) + `<p>` + h.image(imageLink));
     });
 
 
@@ -774,8 +774,8 @@ export function apply(ctx: Context, config: Config) {
       }
     });
 
-  ctx.command('impartpro/injectleaderboard', '查看注入排行榜')
-    .alias('注入排行榜')
+  ctx.command('impartpro/注入排行榜', '查看注入排行榜')
+    .alias('injectleaderboard')
     .userFields(["id", "name", "permissions"])
     .action(async ({ session }) => {
       // 检查是否被禁止触发
