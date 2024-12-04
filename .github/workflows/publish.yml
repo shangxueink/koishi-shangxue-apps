@@ -10,7 +10,6 @@ on:
 jobs:
   publish:
     runs-on: ubuntu-latest
-    
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
@@ -36,64 +35,69 @@ jobs:
         run: npm install
 
       - name: 登录 NPM
-        run: echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" > ~/.npmrc
-        
+        run: echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" > \~/.npmrc
+
       - name: 验证 NPM Token
         run: npm whoami
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}  # 使用 GitHub Secrets 存储 NPM Token
 
-      - name: 创建文件夹
+      - name: 发布包
+        if: env.package_json_exists == 'true'  # 只有在存在 package.json 时才执行
+        working-directory: ./publish  # 指定工作目录为 publish 文件夹
         run: |
+          # 创建 npmpublish 和 npmpublish_temp 文件夹
           mkdir -p ./publish/npmpublish
           mkdir -p ./publish/npmpublish_temp
 
-      - name: 移动 LICENSE.txt 到临时文件夹
-        run: |
-          cp ./publish/LICENSE.txt ./publish/npmpublish_temp/LICENSE.txt
+          # 将 LICENSE.txt 移动到 npmpublish_temp
+          cp ./publish/LICENSE.txt ./publish/npmpublish_temp/
 
-      - name: 发布包
-        if: env.package_json_exists == 'true'  # 只有在存在 package.json 时才执行
-        working-directory: ./publish/npmpublish  # 指定工作目录为 npmpublish 文件夹
-        run: |
-          # 删除 npmpublish 文件夹下的所有内容
-          rm -rf ./npmpublish/*
-          # 将 LICENSE.txt 拷贝到 npmpublish 文件夹
-          cp ./npmpublish_temp/LICENSE.txt ./npmpublish/
-          # 发布包
-          if npm publish --access public; then
+          # 删除 npmpublish 文件夹下的所有文件（如果有）
+          rm -rf ./publish/npmpublish/*
+
+          # 复制文件到 npmpublish 文件夹下进行发布
+          cp -r ./publish/* ./publish/npmpublish/
+
+          # 把 LICENSE.txt 从 npmpublish_temp 复制回 npmpublish
+          cp ./publish/npmpublish_temp/LICENSE.txt ./publish/npmpublish/
+
+          # 发布 npm 包
+          if npm publish --access public --directory=./publish/npmpublish; then
             echo "包发布成功"
           else
             echo "包发布失败：版本号可能已存在或其他错误"
             exit 1  # 退出以标记工作流为失败
           fi
 
+      - name: 清理
+        if: env.package_json_exists == 'true'  # 只有在存在 package.json 时才执行
+        run: |
+          # 删除 npmpublish 和 npmpublish_temp 文件夹下的所有内容（清理）
+          rm -rf ./publish/npmpublish/*
+          rm -rf ./publish/npmpublish_temp/*
+
       - name: 提交并推送清理更改
         if: env.package_json_exists == 'true'
         run: |
           git config --global user.name "GitHub Action"
           git config --global user.email "action@github.com"
-
           # 检查并添加文件夹
-          if [ -d ./publish/npmpublish/dist ]; then
-            git add -f ./publish/npmpublish/dist
+          if [ -d ./publish/npmpublish ]; then
+            git add -f ./publish/npmpublish
           fi
-          if [ -d ./publish/npmpublish/data ]; then
-            git add -f ./publish/npmpublish/data
+          if [ -d ./publish/npmpublish_temp ]; then
+            git add -f ./publish/npmpublish_temp
           fi
-
           # 添加其他文件
-          git add -f ./publish/npmpublish/* ./publish/npmpublish/lib
-
+          git add -f ./publish/*
           # 提交和推送
           git commit -m "清理 publish 文件夹"
           git push
 
-
   heartbeat:
     runs-on: ubuntu-latest
     if: github.event_name == 'schedule'  # 仅在定时触发时执行
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
@@ -106,5 +110,5 @@ jobs:
           git stash
           git reset --hard
           git pull --rebase
-          git commit --allow-empty -m "小学还在维护此仓库哦~"
+          git commit --allow-empty -m "小学还在维护此仓库哦\~"
           git push
