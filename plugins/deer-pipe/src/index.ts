@@ -111,6 +111,7 @@ export const usage = `
 
 export const Config: Schema = Schema.intersect([
   Schema.object({
+    maximum_helpsignin_times_per_day: Schema.number().description('每日帮助别人签到次数上限（不受重复签到开关控制）').default(5).min(1),
     enable_deerpipe: Schema.boolean().description('开启后，允许重复签到<br>关闭后就没有重复签到的玩法').default(false),
     maximum_times_per_day: Schema.number().description('每日签到次数上限`小鹿怡..什么伤身来着`').default(3).min(2),
     enable_blue_tip: Schema.boolean().description('开启后，签到后会返回补签玩法提示').default(false),
@@ -126,13 +127,17 @@ export const Config: Schema = Schema.intersect([
     cost: Schema.object({
 
       checkin_reward: Schema.array(Schema.object({
-        command: Schema.union(['鹿', '补鹿', '戒鹿', "帮人补鹿"]).description("交互指令"),
+        command: Schema.union(['鹿', "鹿@用户", '补鹿', '戒鹿', "补鹿@用户"]).description("交互指令"),
         cost: Schema.number().description("货币变动"),
       })).role('table').description('【获取硬币】本插件指令的货币变动').default(
         [
           {
             "command": "鹿",
             "cost": 100
+          },
+          {
+            "command": "鹿@用户",
+            "cost": 150
           },
           {
             "command": "补鹿",
@@ -143,7 +148,7 @@ export const Config: Schema = Schema.intersect([
             "cost": -100
           },
           {
-            "command": "帮人补鹿",
+            "command": "补鹿@用户",
             "cost": -500
           }
         ]
@@ -184,7 +189,7 @@ interface DeerPipeTable {
   recordtime: string;
   checkindate: string[];
   totaltimes: number;
-  //resigntimes: number;
+  helpsignintimes: string;
   allowHelp: boolean;
   itemInventory: string[];
 }
@@ -205,7 +210,7 @@ export async function apply(ctx: Context, config) {
     recordtime: 'string', // 最新签到的年月，用于记录更新
     allowHelp: 'boolean', // 是否允许被别人帮助签到，默认为 true
     checkindate: 'list', // 当前月份的签到的日期号
-    // resigntimes: 'integer', // 剩余的补签次数，限制用户补签  // 不需要了，改为使用点数。
+    helpsignintimes: 'string', // 每日签到帮助人数，格式【日期=人数】
     totaltimes: 'integer', // 鹿管签到总次数。用于排行榜
     itemInventory: 'list',    // 道具清单，记录该玩家拥有的道具
   }, {
@@ -343,6 +348,7 @@ export async function apply(ctx: Context, config) {
             channelId: await updateChannelId(session.userId, session.channelId),
             recordtime: '',
             checkindate: [],
+            helpsignintimes: "",
             totaltimes: 0,
             allowHelp: true,
             itemInventory: [item], // 添加购买的物品
@@ -521,6 +527,7 @@ export async function apply(ctx: Context, config) {
           channelId: await updateChannelId(targetUserId, session.channelId), // 更新 channelId 数组
           recordtime,
           checkindate: [`${currentDay}=1`],
+          helpsignintimes: "",
           totaltimes: 1,
           allowHelp: true,
           itemInventory: [],
@@ -592,13 +599,13 @@ export async function apply(ctx: Context, config) {
             channelId: await updateChannelId(targetUserId, session.channelId), // 更新 channelId 数组
             recordtime,
             checkindate: [],
+            helpsignintimes: "", // 初始化为空
             totaltimes: 0,
             allowHelp: true,
             itemInventory: [],
           };
           await ctx.database.create('deerpipe', helperRecord);
         }
-
         if (!targetRecord.allowHelp) {
           const hasKey = helperRecord.itemInventory.includes('钥匙');
           if (hasKey) { // && config.enable_use_key_to_help
@@ -615,8 +622,34 @@ export async function apply(ctx: Context, config) {
             return;
           }
         }
+        // 初始化或解析 helpsignintimes 字段
+        const helpsignintimes = {};
+        if (helperRecord.helpsignintimes) {
+          const entries = helperRecord.helpsignintimes.split(',').map(entry => entry.split('='));
+          for (const [date, count] of entries) {
+            if (date && !isNaN(parseInt(count))) {
+              helpsignintimes[date] = parseInt(count);
+            }
+          }
+        }
+        // 初始化当天的帮助次数
+        if (!helpsignintimes[currentDay]) {
+          helpsignintimes[currentDay] = 0;
+        }
+        // 检查当天帮助次数是否达到上限
+        if (helpsignintimes[currentDay] >= config.maximum_helpsignin_times_per_day) {
+          await session.send(`你今天已经帮助别人签到 ${config.maximum_helpsignin_times_per_day} 次，抵达上限，无法继续帮助\~`);
+          return;
+        }
+        // 增加帮助次数
+        helpsignintimes[currentDay] += 1;
+        // 更新 helpsignintimes 字段
+        const updatedHelpsignintimes = Object.entries(helpsignintimes)
+          .map(([date, count]) => `${date}=${count}`)
+          .join(',');
+        await ctx.database.set('deerpipe', { userid: session.userId }, { helpsignintimes: updatedHelpsignintimes });
 
-        const reward = cost * 1.5;
+        const reward = config.cost.checkin_reward.find(c => c.command === '鹿@用户').cost;
         await updateUserCurrency(ctx, session.user.id, reward);
         await session.send(`${h.at(session.userId)} ${session.text('.Help_sign_in', [targetUserId, reward])}`);
       }
@@ -810,7 +843,7 @@ ${deer.order === 3 ? '<span class="medal">🥉</span>' : ''}
           // 如果是为他人补签，调整目标用户和消耗
           targetUserId = id;
           targetUsername = name || id; // 使用名字或ID
-          cost = config.cost.checkin_reward.find(c => c.command === '帮人补鹿').cost;
+          cost = config.cost.checkin_reward.find(c => c.command === '补鹿@用户').cost;
         } else {
           await session.send(session.text('.invalid_input_user'));
           return;
@@ -1185,4 +1218,3 @@ ${checkedIn && count > 1 ? `<div class="multiple-sign">×${count}</div>` : ''}
 
 
 }
-
