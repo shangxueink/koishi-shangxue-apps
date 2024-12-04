@@ -80,7 +80,7 @@ publish/
 │   ├── readme.md
 │   └── ...  # 上传其他需要发布的文件
 └── npmpublish_temp/
-    └── LICENSE.txt # 模板文件，无需修改
+    └── LICENSE.txt # 模板文件，请勿改动
 ```
 
 在 `npmpublish` 目录下，确保包含 `package.json` 和其他相关文件，以便顺利发布 npm 包。
