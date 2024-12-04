@@ -59,6 +59,41 @@
 🔄 虽然都可以 HMR 热重载，但在进行二次开发时，请根据插件的编写语言进行区分来修改项目。
 
 
+
+## 项目更新状态 ⚠️
+
+如果你发现本项目的提交（commit）长时间未更新，这意味着作者暂停了本项目的更新，并且不再维护。
+
+请自行判断项目的使用情况。
+
+## 发布 npm 包指南 📦
+
+本项目的贡献者可以在 `.publish/npmpublish` 目录下放置需要发布的 npm 包。
+
+发布时，请确保将所有相关文件放在该目录中。
+
+### 目录结构
+
+```
+publish/
+├── npmpublish/
+│   ├── lib
+│   ├── dist
+│   ├── LICENSE.txt # 已经存在，无需上传
+│   ├── package.json
+│   ├── readme.md
+│   └── ...  # 上传其他需要发布的文件
+└── npmpublish_temp/
+    └── LICENSE.txt # 模板文件，无需修改
+```
+
+在 `npmpublish` 目录下，确保包含 `package.json` 和其他相关文件，以便顺利发布 npm 包。
+
+具体实现效果 [请参见.github文件](.github/workflows/publish.yml)
+
+
+
+
 ## 贡献指南
 
 欢迎大家使用这些插件，并提出问题反馈。
@@ -71,3 +106,4 @@
 本项目采用 MIT 许可证，详情请参见 [LICENSE](./LICENSE) 文件。
 
 ---
+
