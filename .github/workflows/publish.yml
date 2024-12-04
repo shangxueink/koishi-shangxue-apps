@@ -35,7 +35,7 @@ jobs:
         run: npm install
 
       - name: 登录 NPM
-        run: echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" > \~/.npmrc
+        run: echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" > ~/.npmrc
 
       - name: 验证 NPM Token
         run: npm whoami
