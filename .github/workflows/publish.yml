@@ -43,24 +43,30 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}  # 使用 GitHub Secrets 存储 NPM Token
 
+      - name: 创建文件夹
+        run: |
+          mkdir -p ./publish/npmpublish
+          mkdir -p ./publish/npmpublish_temp
+
+      - name: 移动 LICENSE.txt 到临时文件夹
+        run: |
+          cp ./publish/LICENSE.txt ./publish/npmpublish_temp/LICENSE.txt
+
       - name: 发布包
         if: env.package_json_exists == 'true'  # 只有在存在 package.json 时才执行
-        working-directory: ./publish  # 指定工作目录为 publish 文件夹
+        working-directory: ./publish/npmpublish  # 指定工作目录为 npmpublish 文件夹
         run: |
+          # 删除 npmpublish 文件夹下的所有内容
+          rm -rf ./npmpublish/*
+          # 将 LICENSE.txt 拷贝到 npmpublish 文件夹
+          cp ./npmpublish_temp/LICENSE.txt ./npmpublish/
+          # 发布包
           if npm publish --access public; then
             echo "包发布成功"
           else
             echo "包发布失败：版本号可能已存在或其他错误"
             exit 1  # 退出以标记工作流为失败
           fi
-
-      - name: 清理
-        if: env.package_json_exists == 'true'  # 只有在存在 package.json 时才执行
-        run: |  # 删除所有文件和文件夹，但保留 LICENSE.txt
-          # 删除所有文件和文件夹
-          rm -rf ./publish/*
-          # 确保 LICENSE.txt 被保留
-          cp ./publish/LICENSE.txt ./publish/
 
       - name: 提交并推送清理更改
         if: env.package_json_exists == 'true'
@@ -69,15 +75,15 @@ jobs:
           git config --global user.email "action@github.com"
 
           # 检查并添加文件夹
-          if [ -d ./publish/dist ]; then
-            git add -f ./publish/dist
+          if [ -d ./publish/npmpublish/dist ]; then
+            git add -f ./publish/npmpublish/dist
           fi
-          if [ -d ./publish/data ]; then
-            git add -f ./publish/data
+          if [ -d ./publish/npmpublish/data ]; then
+            git add -f ./publish/npmpublish/data
           fi
 
           # 添加其他文件
-          git add -f ./publish/* ./publish/lib
+          git add -f ./publish/npmpublish/* ./publish/npmpublish/lib
 
           # 提交和推送
           git commit -m "清理 publish 文件夹"
