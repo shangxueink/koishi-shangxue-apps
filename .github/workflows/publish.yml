@@ -10,6 +10,7 @@ on:
 jobs:
   publish:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
@@ -19,11 +20,16 @@ jobs:
         with:
           node-version: '22'  # 使用 Node.js 22
 
+      - name: 创建文件夹
+        run: |
+          mkdir -p ./publish/npmpublish
+          mkdir -p ./publish/npmpublish_temp
+
       - name: 检查 package.json
         id: check_package_json
         run: |
-          if [ ! -f ./publish/package.json ]; then
-            echo "未在 publish 目录中找到 package.json，工作流将结束。"
+          if [ ! -f ./publish/npmpublish/package.json ]; then
+            echo "未在 publish/npmpublish 目录中找到 package.json，工作流将结束。"
             echo "package_json_exists=false" >> $GITHUB_ENV
           else
             echo "package_json_exists=true" >> $GITHUB_ENV
@@ -31,12 +37,12 @@ jobs:
 
       - name: 安装依赖
         if: env.package_json_exists == 'true'  # 只有在存在 package.json 时才执行
-        working-directory: ./publish  # 指定工作目录为 publish 文件夹
+        working-directory: ./publish/npmpublish  # 指定工作目录为 publish/npmpublish 文件夹
         run: npm install
 
       - name: 登录 NPM
         run: echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" > ~/.npmrc
-
+        
       - name: 验证 NPM Token
         run: npm whoami
         env:
@@ -44,26 +50,10 @@ jobs:
 
       - name: 发布包
         if: env.package_json_exists == 'true'  # 只有在存在 package.json 时才执行
-        working-directory: ./publish  # 指定工作目录为 publish 文件夹
+        working-directory: ./publish/npmpublish  # 指定工作目录为 publish/npmpublish 文件夹
         run: |
-          # 创建 npmpublish 和 npmpublish_temp 文件夹
-          mkdir -p ./publish/npmpublish
-          mkdir -p ./publish/npmpublish_temp
-
-          # 将 LICENSE.txt 移动到 npmpublish_temp
-          cp ./publish/LICENSE.txt ./publish/npmpublish_temp/
-
-          # 删除 npmpublish 文件夹下的所有文件（如果有）
-          rm -rf ./publish/npmpublish/*
-
-          # 复制文件到 npmpublish 文件夹下进行发布
-          cp -r ./publish/* ./publish/npmpublish/
-
-          # 把 LICENSE.txt 从 npmpublish_temp 复制回 npmpublish
-          cp ./publish/npmpublish_temp/LICENSE.txt ./publish/npmpublish/
-
           # 发布 npm 包
-          if npm publish --access public --directory=./publish/npmpublish; then
+          if npm publish --access public; then
             echo "包发布成功"
           else
             echo "包发布失败：版本号可能已存在或其他错误"
@@ -73,9 +63,10 @@ jobs:
       - name: 清理
         if: env.package_json_exists == 'true'  # 只有在存在 package.json 时才执行
         run: |
-          # 删除 npmpublish 和 npmpublish_temp 文件夹下的所有内容（清理）
+          # 删除 npmpublish 文件夹下的所有文件（如果有）
           rm -rf ./publish/npmpublish/*
-          rm -rf ./publish/npmpublish_temp/*
+          # 从 npmpublish_temp 拷贝 LICENSE.txt 到 npmpublish
+          cp ./publish/npmpublish_temp/LICENSE.txt ./publish/npmpublish/
 
       - name: 提交并推送清理更改
         if: env.package_json_exists == 'true'
@@ -110,5 +101,5 @@ jobs:
           git stash
           git reset --hard
           git pull --rebase
-          git commit --allow-empty -m "小学还在维护此仓库哦\~"
+          git commit --allow-empty -m "小学还在维护此仓库哦~"
           git push
