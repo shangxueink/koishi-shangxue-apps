@@ -10,7 +10,9 @@
 - 有时候本项目代码上传并不及时，若与实际最新版有误差，请以 npm 平台为准。
 
 
-## 如何在项目模板中引入此仓库
+## 如何在项目模板中开发此仓库（开发者指南） 🛠️
+
+### 引入此仓库
 
 1. **创建项目模板**  🚀
    ```shell
@@ -48,9 +50,10 @@
    yarn dev
    ```
 
-## 插件语言说明 
-<img src="https://raw.githubusercontent.com/MikeCodesDotNET/ColoredBadges/master/svg/dev/languages/js.svg" alt="js" style="max-width: 100%;">
 
+
+### 插件语言说明 
+<img src="https://raw.githubusercontent.com/MikeCodesDotNET/ColoredBadges/master/svg/dev/languages/js.svg" alt="js" style="max-width: 50%;">
 
 在本项目中，部分插件是直接使用 JavaScript  编写的，而不是 TypeScript 编写后编译的。
 
@@ -59,14 +62,7 @@
 🔄 虽然都可以 HMR 热重载，但在进行二次开发时，请根据插件的编写语言进行区分来修改项目。
 
 
-
-## 项目更新状态 ⚠️
-
-如果你发现本项目的提交（commit）长时间未更新，这意味着作者暂停了本项目的更新，并且不再维护。
-
-请自行判断项目的使用情况。
-
-## 发布 npm 包指南 📦
+### 发布 npm 包 📦
 
 本项目的贡献者可以在 `.publish/npmpublish` 目录下放置需要发布的 npm 包。
 
@@ -77,7 +73,7 @@
 ```
 publish/
 ├── npmpublish/
-│   ├── lib
+│   ├── lib 
 │   ├── dist
 │   ├── LICENSE.txt # 已经存在，无需上传
 │   ├── package.json
@@ -90,6 +86,13 @@ publish/
 在 `npmpublish` 目录下，确保包含 `package.json` 和其他相关文件，以便顺利发布 npm 包。
 
 具体实现效果 [请参见.github文件](.github/workflows/publish.yml)
+
+
+## 项目更新状态 ⚠️
+
+如果你发现本项目的提交（commit）长时间未更新，这意味着作者暂停了本项目的更新，并且不再维护。
+
+请自行判断项目的使用情况。
 
 
 
@@ -106,4 +109,3 @@ publish/
 本项目采用 MIT 许可证，详情请参见 [LICENSE](./LICENSE) 文件。
 
 ---
-
