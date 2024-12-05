@@ -339,7 +339,14 @@ function apply(ctx, config) {
 
     // 查找特定用户的权限配置
     const adminConfig = config.admin_list.find(admin => admin.adminID === userId);
-
+    // 查找 adminID 为 0 的配置，表示所有用户的默认权限
+    const defaultConfig = config.admin_list.find(admin => admin.adminID === '0');
+    if (defaultConfig && defaultConfig.allowcommand.includes(command)) {
+      return true;
+    }
+    if (adminConfig) {
+      return adminConfig.allowcommand.includes(command);
+    }
     // 如果 channel_admin_auth 开启
     if (config.channel_admin_auth) {
       // 如果用户是管理员，检查其权限
@@ -349,24 +356,13 @@ function apply(ctx, config) {
         }
         return true; // 默认管理员拥有所有权限
       }
-      // 如果用户不在 admin_list 中，且不是管理员，则无权限
+      // 如果用户不在 admin_list 中，且不是管理员，则按照 defaultConfig 返回
       if (!adminConfig) {
-        return false;
+        if (defaultConfig && defaultConfig.allowcommand.includes(command)) {
+          return true;
+        }
       }
     }
-
-    // 查找 adminID 为 0 的配置，表示所有用户的默认权限
-    const defaultConfig = config.admin_list.find(admin => admin.adminID === '0');
-    if (defaultConfig && defaultConfig.allowcommand.includes(command)) {
-      return true;
-    }
-
-    // 查找特定用户的权限配置
-    //const adminConfig = config.admin_list.find(admin => admin.adminID === userId);
-    if (adminConfig) {
-      return adminConfig.allowcommand.includes(command);
-    }
-
     return false;
   }
   // 删除关键词回复分支
