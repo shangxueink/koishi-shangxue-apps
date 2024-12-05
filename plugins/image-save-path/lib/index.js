@@ -278,7 +278,7 @@ function apply(ctx, config) {
         const preciseFilename = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}-${String(date.getHours()).padStart(2, '0')}-${String(date.getMinutes()).padStart(2, '0')}-${String(date.getSeconds()).padStart(2, '0')}-${String(date.getMilliseconds()).padStart(3, '0')}.png`;
         const finalPath = path.join(outputPath, preciseFilename);
         fs.renameSync(tempPath, finalPath);
-        ctx.logger.info(`图片已保存到：${finalPath}`);
+        loggerinfo(`图片已保存到：${finalPath}`);
         hashRecords[hash].path = finalPath;
         hashRecords[hash].saved = true;
       } else {
@@ -309,7 +309,7 @@ function apply(ctx, config) {
       const imageLinks = h.select(userMessagePic, 'img').map(item => item.attrs.src);
 
       if (imageLinks.length > 0) {
-        ctx.logger.info(`收到图片消息，提取到链接：\n${imageLinks}`);
+        loggerinfo(`收到图片消息，提取到链接：\n${imageLinks}`);
       }
 
       if (!imageLinks.length) {
