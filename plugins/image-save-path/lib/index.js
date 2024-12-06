@@ -13,24 +13,113 @@ exports.usage = `
 <p><strong>配置项说明：</strong></p>
 <p><strong>保存图片 指令：</strong>用于触发后接收图片来保存。也可以用于保存被回复的图片（机器人未接收到的图片就存不了）。</p>
 效果预览：
-<li><a href="https://i0.hdslb.com/bfs/article/0b293dc3751bea6f6f73dfc3c2eac439312276085.png" target="_blank" referrerpolicy="no-referrer">交互保存图片</a></li>
-<li><a href="https://i0.hdslb.com/bfs/article/b0feedf358c1a29e2475ac8c1991b222312276085.png" target="_blank" referrerpolicy="no-referrer">回复保存图片</a></li>
+<li><a href="https://i0.hdslb.com/bfs/article/a2780975ccbf74c422dd7f0333af0172312276085.png" target="_blank" referrerpolicy="no-referrer">交互保存图片</a></li>
+<li><a href="https://i0.hdslb.com/bfs/article/144dac10d99a911648b9016c620fa49a312276085.png" target="_blank" referrerpolicy="no-referrer">回复保存图片</a></li>
 <li><a href="https://i0.hdslb.com/bfs/article/a3f0844195795fc7e51f947e689fd744312276085.png" target="_blank" referrerpolicy="no-referrer">批量保存图片</a></li>
 <li><a href="https://i0.hdslb.com/bfs/article/23e26c25d805e0d5d5d76958e5950d56312276085.png" target="_blank" referrerpolicy="no-referrer">中间件批量保存图片</a></li>
 
+
+
 ---
 
-<p><code>defaultImageExtension</code>无需填写<code>点</code>，只需要写<code>png</code>或者<code>jpg</code>等。</p>
-<p><code>imageSaveMode</code>控制是否启用<code>多路径选择</code>的功能。开启后仅会保存到<code>savePaths</code>的第一行的路径</p>
-<p><code>savePaths</code>用于映射路径，控制台填写名称和对应的具体路径。请仿照默认的路径<code>E:\\Music\\nums</code>来填写</p>
-<p>用户交互时，仅需输入左侧的<code>name</code>，而无需输入完整的<code>path</code>内容。</p>
-<p>两个指令都有<code>-e</code>和<code>-n</code>选项，使用示例<code>指令名称 路径序号 -n 文件名 -e webp</code></p>
-<p>你也可以直接使用<code>指令名称 路径序号 文件名</code>来快速触发保存</p>
-<p>不支持同时保存多张图片</p>
-</div>
 
-<p>详细使用方法请参考 <a href="https://www.npmjs.com/package/koishi-plugin-image-save-path">本项目的README说明（点我查看）</a></p>
-<p>目前经测试支持Windows操作系统，其他的不知道呢~</p>
+<h2>💡 使用示例</h2>
+<h3>快速保存</h3>
+<pre><code>保存图片 我的图片 -e jpg</code></pre>
+<p>👉 将图片保存为 <code>我的图片.jpg</code>。</p>
+
+<h3>路径选择</h3>
+<pre><code>保存图片 我的图片 表情包</code></pre>
+<p>👉 将图片保存到 <code>E:\\Images\\Memes</code>。</p>
+
+<h3>回复保存</h3>
+<pre><code>回复带图片的消息 + 保存图片 我的回复图片</code></pre>
+<p>👉 将回复消息中的图片保存为 <code>我的回复图片</code>。</p>
+
+
+---
+
+
+<details>
+<summary>点击此处————查看完整使用方法说明</summary>
+
+<h2>🚀 使用方法</h2>
+<h3>1️⃣ 交互保存（不指定路径，\`imageSaveMode\` 开启时）</h3>
+<p>在开启 <code>imageSaveMode</code> 的情况下，插件会自动保存图片到 <code>savePaths</code> 配置的第一个路径，无需用户额外指定路径。</p>
+<p><strong>指令示例：</strong></p>
+<pre><code>保存图片 文件名</code></pre>
+<ul>
+<li>用户发送图片后，插件会直接保存到默认路径。</li>
+<li>如果没有设置默认路径，会提示错误 <strong>没有设置默认保存路径</strong>。</li>
+</ul>
+
+<h3>2️⃣ 交互保存（指定路径，\`imageSaveMode\` 开启时）</h3>
+<p>在 <code>imageSaveMode</code> 开启时，用户仍可指定路径。如果路径无效，插件会提示重新选择。</p>
+<p><strong>指令示例：</strong></p>
+<pre><code>保存图片 文件名 路径名称</code></pre>
+<ul>
+<li>插件会检查路径名称是否匹配 <code>savePaths</code> 中的配置。</li>
+<li>如果匹配成功，直接保存到对应路径。</li>
+<li>如果匹配失败，与用户交互重新选择路径。</li>
+</ul>
+
+<h3>3️⃣ 回复交互保存</h3>
+<p>当用户回复一条包含图片的消息，并使用 <code>保存图片</code> 指令时，插件会提取回复消息中的图片进行保存。</p>
+<p><strong>指令示例：</strong></p>
+<pre><code>保存图片 文件名</code></pre>
+<ul>
+<li>如果 <code>imageSaveMode</code> 开启，图片将保存到默认路径。</li>
+<li>如果未开启，则与用户交互选择路径。</li>
+</ul>
+
+<h3>4️⃣ 批量保存</h3>
+<p>插件支持批量保存多张图片，但需要在配置中启用 <code>checkDuplicate</code> 选项。</p>
+<p><strong>指令示例：</strong></p>
+<pre><code>保存图片 文件名 -e png</code></pre>
+<ul>
+<li>批量保存时，所有图片会被自动重命名，避免重复。</li>
+<li>如果未启用 <code>checkDuplicate</code>，一次只允许保存一张图片。</li>
+</ul>
+
+<h3>5️⃣ 中间件监听保存</h3>
+<p>通过配置中间件监听，插件可以实时保存满足条件的图片消息。</p>
+<ul>
+<li>自动提取图片消息并保存到默认路径。</li>
+<li>适合监控群聊、频道等图片流量大的场景。</li>
+</ul>
+
+<h2>⚙️ 配置项说明</h2>
+
+<h3><code>defaultImageExtension</code></h3>
+<p><strong>说明：</strong>图片默认保存的格式后缀，不需要填写 <code>.</code>，例如 <code>png</code> 或 <code>jpg</code>。</p>
+<p><strong>默认值：</strong> <code>png</code></p>
+
+<h3><code>imageSaveMode</code></h3>
+<p><strong>说明：</strong>是否启用多路径选择功能。</p>
+<ul>
+<li><strong>开启时：</strong>图片保存到 <code>savePaths</code> 的第一个路径。</li>
+<li><strong>关闭时：</strong>用户可以交互选择保存路径。</li>
+</ul>
+<p><strong>默认值：</strong> <code>false</code></p>
+
+<h3><code>savePaths</code></h3>
+<p><strong>说明：</strong>配置路径映射关系。用户输入路径名称即可对应保存到指定路径。</p>
+<pre><code>
+[
+{ "name": "默认路径", "path": "E:\\Images\\Default" },
+{ "name": "表情包", "path": "E:\\Images\\Memes" }
+]
+</code></pre>
+
+<h3><code>checkDuplicate</code></h3>
+<p><strong>说明：</strong>是否启用重名检查。</p>
+<ul>
+<li><strong>启用时：</strong>自动为重名文件生成唯一名称。</li>
+<li><strong>禁用时：</strong>仅允许保存一张图片。</li>
+</ul>
+<p><strong>默认值：</strong> <code>false</code></p>
+
+</details>
 
 ---
 
@@ -50,9 +139,9 @@ exports.usage = `
 exports.Config = Schema.intersect([
   Schema.object({
     defaultImageExtension: Schema.string().description("默认图片后缀名").default("png"),
-    imageSaveMode: Schema.boolean().description("开启后不进行路径选择交互，而直接保存到下方配置项的`savePaths`的第一行映射路径").default(false),
     showSavePath: Schema.boolean().description("保存成功后，告知具体文件保存路径，关闭后只会回复`图片已成功保存。`").default(false),
     checkDuplicate: Schema.boolean().description("开启后将检查重名文件，避免覆盖，若同名，则在文件名后加`(1)`,`(2)`... ...").default(true),
+    imageSaveMode: Schema.boolean().description("开启后，默认选择了第一个路径，可以缺省路径参数<br>当然也支持输入路径参数<br>[此配置项效果图](https://i0.hdslb.com/bfs/article/1d34ae45de7e3c875eec0caee5444149312276085.png)").default(false),
     savePaths: Schema.array(Schema.object({
       name: Schema.string().description("备注名称"),
       path: Schema.string().description("文件夹路径"),
@@ -61,7 +150,6 @@ exports.Config = Schema.intersect([
 
   Schema.object({
     autosavePics: Schema.boolean().description("自动保存 的总开关 `如需查看详情日志，请开启consoleinfo配置项`").default(false),
-    //count: Schema.number().default(2).description('触发自动保存的重复阈值。`某个图片重复出现该次数后，自动保存`'),
     groupListmapping: Schema.array(Schema.object({
       enable: Schema.boolean().description('勾选后启用自动保存'),
       groupList: Schema.string().description('需要监听的群组ID').pattern(/^\S+$/),
@@ -97,28 +185,32 @@ function apply(ctx, config) {
       ctx.logger.info(message);
     }
   };
-  ctx.command('保存图片 [路径名称] [文件名] [图片]', '保存图片到指定路径')
+
+  ctx.command('保存图片 [文件名] [路径名称] [图片]', '保存图片到指定路径')
     .option('ext', '-e <ext:string>', '指定图片后缀名')
     .option('name', '-n <name:string>', '严格指定文件重命名')
-    .action(async ({ session, options }, 路径名称, 文件名, 图片) => {
+    .action(async ({ session, options }, 文件名, 路径名称, 图片) => {
       const quotemessage = session.quote?.content;
       let urlhselect;
+      loggerinfo('session.content： ' + session.content);
 
+      // 处理图片源
       if (quotemessage) {
-        // 处理“回复保存图片”
+        // 回复保存图片
         urlhselect = h.select(quotemessage, 'img').map(item => item.attrs.src);
-        if (!quotemessage || !urlhselect) {
+        if (!urlhselect) {
           return '请回复带有图片的消息。';
         }
         loggerinfo('触发回复的目标消息内容： ' + quotemessage);
       } else if (图片) {
+        // 用户直接输入图片
         urlhselect = h.select(图片, 'img').map(item => item.attrs.src);
         if (!urlhselect) {
           return '输入的图片无效。';
         }
         loggerinfo('用户直接输入的图片内容为： ' + urlhselect);
       } else {
-        // 处理“交互保存图片”
+        // 交互保存图片
         await session.send('请发送图片：');
         const image = await session.prompt(30000);
         urlhselect = h.select(image, 'img').map(item => item.attrs.src);
@@ -135,30 +227,72 @@ function apply(ctx, config) {
 
       // 选择保存路径
       let selectedPath;
-      if (config.imageSaveMode) {
-        selectedPath = config.savePaths[0]?.path;
-        if (!selectedPath) return '没有设置默认保存路径。';
-        if (路径名称 && (!quotemessage || !路径名称.includes(urlhselect[0]))) {
-          return '路径指定无效。请关闭 imageSaveMode 配置项。';
+
+      // 处理路径名称
+      if (路径名称) {
+        // 移除尖括号及其内容
+        路径名称 = 路径名称.replace(/<.*?>/g, '').trim(); // adapter-onebot 特性，可能会把回复的内容当做输入参数，跟在输入最后面
+        if (路径名称.length <= 1) {
+          // 如果长度小于等于 1，认为路径名称无效
+          路径名称 = undefined;
+        } else {
+          loggerinfo('路径名称： ' + 路径名称);
         }
-      } else if (路径名称 !== undefined) {
-        // 通过名称查找路径
-        const selected = config.savePaths.find(item => item.name === 路径名称);
-        if (!selected) return '请选择正确的路径名称。';
-        selectedPath = selected.path;
+      }
+
+      if (config.imageSaveMode) {
+        // 如果开启了 imageSaveMode
+        if (路径名称) {
+          // 查找路径名称是否匹配
+          const selected = config.savePaths.find(item => item.name === 路径名称);
+          if (!selected) {
+            // 如果未找到匹配路径，与用户交互选择路径
+            await session.send('路径名称无效，请选择路径的名称（冒号左侧为名称）：\n' + config.savePaths.map(item => `${item.name}: ${item.path}`).join('\n'));
+            const input = await session.prompt(30000);
+            const selected = config.savePaths.find(item => item.name === input);
+            if (!selected) return '请选择正确的路径名称。';
+            selectedPath = selected.path;
+          } else {
+            // 如果找到匹配路径，使用用户指定的路径
+            selectedPath = selected.path;
+          }
+        } else {
+          // 路径名称无效，默认使用第一个路径
+          selectedPath = config.savePaths[0]?.path;
+          if (!selectedPath) return '没有设置默认保存路径。';
+        }
       } else {
-        await session.send('请选择路径的名称：\n' + config.savePaths.map(item => `${item.name}: ${item.path}`).join('\n'));
-        const input = await session.prompt(30000);
-        const selected = config.savePaths.find(item => item.name === input);
-        if (!selected) return '请选择正确的路径名称。';
-        selectedPath = selected.path;
+        // 如果未开启 imageSaveMode
+        if (路径名称) {
+          // 查找路径名称是否匹配
+          const selected = config.savePaths.find(item => item.name === 路径名称);
+          if (!selected) {
+            // 如果未找到匹配路径，与用户交互选择路径
+            await session.send('路径名称无效，请选择路径的名称（冒号左侧为名称）：\n' + config.savePaths.map(item => `${item.name}: ${item.path}`).join('\n'));
+            const input = await session.prompt(30000);
+            const selected = config.savePaths.find(item => item.name === input);
+            if (!selected) return '请选择正确的路径名称。';
+            selectedPath = selected.path;
+          } else {
+            // 如果找到匹配路径，使用用户指定的路径
+            selectedPath = selected.path;
+          }
+        } else {
+          // 路径名称无效，与用户交互选择路径
+          await session.send('请选择路径的名称（冒号左侧为名称）：\n' + config.savePaths.map(item => `${item.name}: ${item.path}`).join('\n'));
+          const input = await session.prompt(30000);
+          const selected = config.savePaths.find(item => item.name === input);
+          if (!selected) return '请选择正确的路径名称。';
+          selectedPath = selected.path;
+        }
       }
 
       // 处理文件名
       let safeFilename;
       if (options.name) {
         safeFilename = options.name;
-      } else if (!文件名 || (quotemessage && 文件名.includes(urlhselect[0]))) {
+      } else if (!文件名) {
+        // 如果文件名未指定，生成默认文件名
         const date = new Date();
         safeFilename = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}-${String(date.getHours()).padStart(2, '0')}-${String(date.getMinutes()).padStart(2, '0')}`;
       } else {
@@ -166,6 +300,7 @@ function apply(ctx, config) {
       }
       safeFilename = safeFilename.replace(/[\u0000-\u001f\u007f-\u009f\/\\:*?"<>|]/g, '_');
 
+      // 保存图片
       try {
         await saveImages(urlhselect, selectedPath, safeFilename, imageExtension, config, session, ctx);
       } catch (error) {
@@ -173,6 +308,9 @@ function apply(ctx, config) {
         return `保存图片时出错：${error.message}`;
       }
     });
+
+
+
 
   async function saveImages(urls, selectedPath, safeFilename, imageExtension, config, session, ctx) {
     let firstMessageSent = false;

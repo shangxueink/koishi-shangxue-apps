@@ -1,89 +1,139 @@
-# koishi-plugin-image-save-path
 
+# koishi-plugin-image-save-path 使用说明 📦
 [![npm](https://img.shields.io/npm/v/koishi-plugin-image-save-path?style=flat-square)](https://www.npmjs.com/package/koishi-plugin-image-save-path)
 
-`koishi-plugin-image-save-path`插件，允许用户将图片保存到服务器上特定的路径。
 
-
-## 功能
-
-- 允许用户指定图片的保存路径。
-- 支持多个路径选择。
-- 自定义图片的后缀名。
-- 支持快速保存模式，直接保存到默认路径。
-- 允许对需要保存的图片进行重命名。
+一个用于保存图片到本地指定路径的强大插件，支持多种保存方式和灵活的交互方式！
 
 
 
-## 效果预览
-<li><a href="https://i0.hdslb.com/bfs/article/0b293dc3751bea6f6f73dfc3c2eac439312276085.png" target="_blank">交互保存图片</a></li>
-<li><a href="https://i0.hdslb.com/bfs/article/b0feedf358c1a29e2475ac8c1991b222312276085.png" target="_blank">回复保存图片</a></li>
-<li><a href="https://i0.hdslb.com/bfs/article/a3f0844195795fc7e51f947e689fd744312276085.png" target="_blank">批量保存图片</a></li>
-<li><a href="https://i0.hdslb.com/bfs/article/23e26c25d805e0d5d5d76958e5950d56312276085.png" target="_blank">中间件批量保存图片</a></li>
+
+## 🛠️ 功能简介
+`保存图片` 指令可以实现以下功能：
+- **交互保存**：支持与用户交互选择路径。
+- **回复保存**：直接保存回复消息中的图片。
+- **批量保存**：自动处理多张图片。
+- **中间件监听**：实时监听并保存指定消息中的图片。
 
 
-## 指令说明
-
-此插件提供了`保存图片`指令，允许用户保存图片到特定路径。
-
-基本上用户需要像这样交互
-```
-用户：保存图片
-```
-```
-机器人： 请选择路径的序号：
-```
-
-```
-用户：[路径序号名称]
-```
-```
-机器人：请发送图片：
-```
-```
-用户：[图片]
-```
+### 效果预览
+<li><a href="https://i0.hdslb.com/bfs/article/a2780975ccbf74c422dd7f0333af0172312276085.png" target="_blank" referrerpolicy="no-referrer">交互保存图片</a></li>
+<li><a href="https://i0.hdslb.com/bfs/article/144dac10d99a911648b9016c620fa49a312276085.png" target="_blank" referrerpolicy="no-referrer">回复保存图片</a></li>
+<li><a href="https://i0.hdslb.com/bfs/article/a3f0844195795fc7e51f947e689fd744312276085.png" target="_blank" referrerpolicy="no-referrer">批量保存图片</a></li>
+<li><a href="https://i0.hdslb.com/bfs/article/23e26c25d805e0d5d5d76958e5950d56312276085.png" target="_blank" referrerpolicy="no-referrer">中间件批量保存图片</a></li>
 
 
-不过也可以像下面这样：
-```
-用户：保存图片  [路径名称]
-```
 
-```
-机器人：请发送图片：
-```
+<h2>💡 使用示例</h2>
+<h3>快速保存</h3>
+<pre><code>保存图片 我的图片 -e jpg</code></pre>
+<p>👉 将图片保存为 <code>我的图片.jpg</code>。</p>
 
-```
-用户：[图片]
-```
+<h3>路径选择</h3>
+<pre><code>保存图片 我的图片 表情包</code></pre>
+<p>👉 将图片保存到 <code>E:\\Images\\Memes</code>。</p>
 
-此外本插件还提供了两个选项：-n 和 -e，以增强其功能。
-
--n 选项：这个选项允许用户为保存的图片指定一个具体的文件名。在命令中使用 -n 后跟上所需的文件名。
-```
-保存图片 -n 测试文件
-```
--e 选项：这个选项允许用户指定图片的后缀名。在命令中使用 -e 后跟上所需的图片后缀名。
-```
-保存图片 -e webp
-```
-
-你也可以一次性指定所有的选项，例如：
-```
-交互保存图片 路径序号 -n 图片名 -e webp
-```
-
-对于`保存图片`指令，同时也支持从回复的消息里获取图片。
+<h3>回复保存</h3>
+<pre><code>回复带图片的消息 + 保存图片 我的回复图片</code></pre>
+<p>👉 将回复消息中的图片保存为 <code>我的回复图片</code>。</p>
 
 
-### 配置项说明
-- **defaultImageExtension**：默认的图片后缀名，如`png`或`jpg`。
-- **imageSaveMode**：开启后，用户在保存图片时不进行路径选择交互，图片直接保存到`savePaths`的第一行的路径。
-- **savePaths**：用于设置图片保存路径的名称和地址映射。在控制台中，用户需要填写路径的`name`和对应的`path`。
+---
 
-在配置了配置项内容后，用户可以直接输入 `指令名称 路径序号  文件命名` 快捷触发保存。
+---
 
+---
+<h2>🚀 使用方法</h2>
+<h3>1️⃣ 交互保存（不指定路径，`imageSaveMode` 开启时）</h3>
+<p>在开启 <code>imageSaveMode</code> 的情况下，插件会自动保存图片到 <code>savePaths</code> 配置的第一个路径，无需用户额外指定路径。</p>
+<p><strong>指令示例：</strong></p>
+<pre><code>保存图片 文件名</code></pre>
+<ul>
+<li>用户发送图片后，插件会直接保存到默认路径。</li>
+<li>如果没有设置默认路径，会提示错误 <strong>没有设置默认保存路径</strong>。</li>
+</ul>
+
+<h3>2️⃣ 交互保存（指定路径，`imageSaveMode` 开启时）</h3>
+<p>在 <code>imageSaveMode</code> 开启时，用户仍可指定路径。如果路径无效，插件会提示重新选择。</p>
+<p><strong>指令示例：</strong></p>
+<pre><code>保存图片 文件名 路径名称</code></pre>
+<ul>
+<li>插件会检查路径名称是否匹配 <code>savePaths</code> 中的配置。</li>
+<li>如果匹配成功，直接保存到对应路径。</li>
+<li>如果匹配失败，与用户交互重新选择路径。</li>
+</ul>
+
+<h3>3️⃣ 回复交互保存</h3>
+<p>当用户回复一条包含图片的消息，并使用 <code>保存图片</code> 指令时，插件会提取回复消息中的图片进行保存。</p>
+<p><strong>指令示例：</strong></p>
+<pre><code>保存图片 文件名</code></pre>
+<ul>
+<li>如果 <code>imageSaveMode</code> 开启，图片将保存到默认路径。</li>
+<li>如果未开启，则与用户交互选择路径。</li>
+</ul>
+
+<h3>4️⃣ 批量保存</h3>
+<p>插件支持批量保存多张图片，但需要在配置中启用 <code>checkDuplicate</code> 选项。</p>
+<p><strong>指令示例：</strong></p>
+<pre><code>保存图片 文件名 -e png</code></pre>
+<ul>
+<li>批量保存时，所有图片会被自动重命名，避免重复。</li>
+<li>如果未启用 <code>checkDuplicate</code>，一次只允许保存一张图片。</li>
+</ul>
+
+<h3>5️⃣ 中间件监听保存</h3>
+<p>通过配置中间件监听，插件可以实时保存满足条件的图片消息。</p>
+<ul>
+<li>自动提取图片消息并保存到默认路径。</li>
+<li>适合监控群聊、频道等图片流量大的场景。</li>
+</ul>
+
+<h2>⚙️ 配置项说明</h2>
+
+<h3><code>defaultImageExtension</code></h3>
+<p><strong>说明：</strong>图片默认保存的格式后缀，不需要填写 <code>.</code>，例如 <code>png</code> 或 <code>jpg</code>。</p>
+<p><strong>默认值：</strong> <code>png</code></p>
+
+<h3><code>imageSaveMode</code></h3>
+<p><strong>说明：</strong>是否启用多路径选择功能。</p>
+<ul>
+<li><strong>开启时：</strong>图片保存到 <code>savePaths</code> 的第一个路径。</li>
+<li><strong>关闭时：</strong>用户可以交互选择保存路径。</li>
+</ul>
+<p><strong>默认值：</strong> <code>false</code></p>
+
+<h3><code>savePaths</code></h3>
+<p><strong>说明：</strong>配置路径映射关系。用户输入路径名称即可对应保存到指定路径。</p>
+<pre><code>
+[
+{ "name": "默认路径", "path": "E:\\Images\\Default" },
+{ "name": "表情包", "path": "E:\\Images\\Memes" }
+]
+</code></pre>
+
+<h3><code>checkDuplicate</code></h3>
+<p><strong>说明：</strong>是否启用重名检查。</p>
+<ul>
+<li><strong>启用时：</strong>自动为重名文件生成唯一名称。</li>
+<li><strong>禁用时：</strong>仅允许保存一张图片。</li>
+</ul>
+<p><strong>默认值：</strong> <code>false</code></p>
+
+
+
+
+---
+
+
+## 🔗 推荐搭配插件
+- emojihub-bili：发送本地表情包，配合实现“表情包小偷”功能。
+- smmcat-photodisk：支持可视化选图，非常实用！
+- booru-local：本地图库管理插件。
+
+
+## 🖥️ 系统支持
+- **Windows**：已测试支持
+- **其他系统**：未测试 🤷‍♂️
 
 ## 注意事项
 
