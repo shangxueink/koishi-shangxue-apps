@@ -1,0 +1,45 @@
+{
+    "msg_type": 2,
+    "msg_id": "${session.messageId}",
+    "markdown": {
+        "content": "## **emoji~😺**\n### 😽来了哦！\n![img#${originalWidth}px #${originalHeight}px](${imageurl})"
+    },
+    "keyboard": {
+        "content": {
+            "rows": [
+                {
+                    "buttons": [
+                        {
+                            "render_data": {
+                                "label": "再来一张😺",
+                                "style": 2
+                            },
+                            "action": {
+                                "type": 2,
+                                "permission": {
+                                    "type": 2
+                                },
+                                "data": "${command}",
+                                "enter": true
+                            }
+                        },
+                        {
+                            "render_data": {
+                                "label": "返回列表😽",
+                                "style": 2
+                            },
+                            "action": {
+                                "type": 2,
+                                "permission": {
+                                    "type": 2
+                                },
+                                "data": "${config.emojihub_bili_command}",
+                                "enter": true
+                            }
+                        }
+                    ]
+                }
+            ]
+        }
+    }
+}
