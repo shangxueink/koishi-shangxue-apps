@@ -287,8 +287,9 @@ export async function apply(ctx: Context, config) {
     }
   };
   ctx.i18n.define("zh-CN", zh_CN_default);
-  ctx.command('鹿管签到', '鹿管签到').alias('deerpipe')
-  ctx.command('鹿管签到/购买 [item]', '购买签到道具', { authority: 1 })
+  ctx.command('鹿管签到', '鹿管签到')
+    .alias('deerpipe')
+  ctx.command('鹿管签到/鹿管购买 [item]', '购买签到道具', { authority: 1 })
     .userFields(["id", "name", "permissions"])
     .action(async ({ session }, item) => {
       const userId = session.userId;
@@ -633,9 +634,8 @@ export async function apply(ctx: Context, config) {
         await session.send(message);
       }
     });
-  ctx.command('鹿管签到/鹿管排行榜', '查看签到排行榜', { authority: 1 })
+  ctx.command('鹿管签到/鹿榜', '查看签到排行榜', { authority: 1 })
     .alias('🦌榜')
-    .alias('鹿榜')
     .action(async ({ session }) => {
       const enableAllChannel = config.enable_allchannel;
       // 获取所有记录，如果不启用跨群组，则过滤 channelId
