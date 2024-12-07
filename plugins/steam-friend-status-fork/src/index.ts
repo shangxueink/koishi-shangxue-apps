@@ -347,19 +347,31 @@ export function apply(ctx: Context, config: Config) {
     await ctx.database.remove('SteamUser', { userId: userid })
     return '解绑成功'
   }
-  //查询数据库中玩家信息
-  async function getSteamUserInfoByDatabase(ctx: Context, steamusers: SteamUser[], steamApiKey: string): Promise<SteamUserInfo> {
-    let steamIds: string[] = []
-    for (let i = 0; i < steamusers.length; i++) {
-      steamIds.push(steamusers[i].steamId.toString())
+  // 查询数据库中玩家信息
+  async function getSteamUserInfoByDatabase(ctx: Context, steamusers: SteamUser[], steamApiKey: string): Promise<SteamUserInfo | undefined> {
+    try {
+      let steamIds: string[] = [];
+      for (let i = 0; i < steamusers.length; i++) {
+        steamIds.push(steamusers[i].steamId.toString());
+      }
+
+      const requestUrl = `${steamWebApiUrl}?key=${steamApiKey}&steamids=${steamIds.join(',')}`;
+      //ctx.logger.info(`Fetching Steam user info from API: ${requestUrl}`);
+
+      const response = await ctx.http.get(requestUrl);
+      if (!response || response.response.players.length === 0) {
+        //ctx.logger.warn('No players found in the response or response is undefined.');
+        return undefined;
+      }
+
+      //ctx.logger.info('Steam user info fetched successfully.');
+      return response as SteamUserInfo;
+    } catch (error) {
+      ctx.logger.error('Error fetching Steam user info:', error);
+      return undefined;
     }
-    const requestUrl = `${steamWebApiUrl}?key=${steamApiKey}&steamIds=${steamIds.join(',')}`
-    const response = await ctx.http.get(requestUrl)
-    if (!response || response.response.players.length === 0) {
-      return undefined
-    }
-    return response as SteamUserInfo
   }
+
   //检查用户是否存在
   async function getSteamUserInfo(ctx: Context, steamApiKey: string, steamid: string): Promise<SteamUserInfo> {
     const requestUrl = `${steamWebApiUrl}?key=${steamApiKey}&steamIds=${steamid}`
@@ -545,7 +557,11 @@ export function apply(ctx: Context, config: Config) {
     const allUserData = await ctx.database.get('SteamUser', {})
     const userdata = await getSteamUserInfoByDatabase(ctx, allUserData, config.SteamApiKey)
     const changeMessage: { [key: string]: string } = await getUserStatusChanged(ctx, userdata, config.useSteamName)
-    if (Object.keys(changeMessage).length > 0) {
+    // 检查 changeMessage 是否为 undefined 或 null
+    if (!changeMessage || Object.keys(changeMessage).length === 0) {
+      return;
+    }
+    if (Object?.keys(changeMessage)?.length > 0) {
       const supportPlatform = ['onebot', 'red', 'chronocat']
       const channel = await ctx.database.get('channel', { usingSteam: true, platform: supportPlatform })
       for (let i = 0; i < channel.length; i++) {
@@ -573,6 +589,8 @@ export function apply(ctx: Context, config: Config) {
           }
         }
       }
+    } else {
+      return
     }
   }
   //更新头像信息

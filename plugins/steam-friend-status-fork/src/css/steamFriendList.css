@@ -96,7 +96,28 @@ ul {
     display: flex;
     flex-direction: column;
     justify-content: center;
+    justify-content: space-between;
+    /* 左右对齐 */
+    white-space: nowrap;
+    /* 不允许换行 */
+    overflow: hidden;
+    /* 隐藏溢出内容 */
+    text-overflow: ellipsis;
+    /* 溢出部分显示为省略号 */
+    max-width: 170px;
+    /* 设置最大宽度，防止过长文本影响布局 */
 }
+
+.friend .name-and-status .name-gaming,
+.friend .name-and-status .name-online,
+.friend .name-and-status .name-offline {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 170px;
+    /* 左半部分最大宽度 */
+}
+
 
 .status-offline {
     padding-left: 10px;
