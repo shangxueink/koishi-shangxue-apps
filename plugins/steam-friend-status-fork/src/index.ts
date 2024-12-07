@@ -76,8 +76,8 @@ export function apply(ctx: Context, config: Config) {
 
   initBotsHeadshots(ctx);
   ctx.setInterval(function () { steamInterval(ctx, config) }, config.interval * 1000)
-
-  ctx.command('绑定steam <steamid:text>')
+  ctx.command('steam-friend-status', "查询群友steam状态")
+  ctx.command('steam-friend-status/绑定steam <steamid:text>')
     .usage('绑定steam账号，参数可以是好友码也可以是ID')
     .action(async ({ session }, steamid) => {
       if (steamid == undefined) {
@@ -87,21 +87,21 @@ export function apply(ctx: Context, config: Config) {
       return result
     })
 
-  ctx.command('解绑steam')
+  ctx.command('steam-friend-status/解绑steam')
     .usage('解绑steam账号')
     .action(async ({ session }) => {
       const result = await unbindPlayer(ctx, session)
       return result
     })
 
-  ctx.command('解绑全部steam')
+  ctx.command('steam-friend-status/解绑全部steam')
     .usage('解绑在所有群的steam账号')
     .action(async ({ session }) => {
       const result = await unbindAll(ctx, session)
       return result
     })
 
-  ctx.command('steam <word:text>')
+  ctx.command('steam-friend-status/steam群报 <word:text>')
     .usage('开启或关闭群通报，输入[steam on/off]或者[开启/关闭steam]来开关')
     .shortcut('开启steam', { args: ['on'] })
     .shortcut('关闭steam', { args: ['off'] })
@@ -134,19 +134,24 @@ export function apply(ctx: Context, config: Config) {
       }
     })
 
-  ctx.command('更新steam')
+  ctx.command('steam-friend-status/更新steam')
     .usage('更新绑定的steam用户的头像')
     .action(async ({ session }) => {
       await updataPlayerHeadshots(ctx, config.SteamApiKey)
       return "更新成功"
     })
 
-  ctx.command('看看steam')
+  ctx.command('steam-friend-status/看看steam')
     .usage('查看当前绑定过的玩家状态')
     .action(async ({ session }) => {
       //ctx.logger.info(session)
-      if (session.event.channel.name) {
-        ctx.database.set('channel', { id: session.channelId }, { channelName: session.event.channel.name })
+      // 获取群组昵称
+      const { channelId, bot, event } = session;
+      const groupList = await bot.getGuildList();
+      const groups = groupList.data;
+      const channelName = getNameFromChannelId(groups, channelId);
+      if (channelName) {
+        ctx.database.set('channel', { id: session.channelId }, { channelName: channelName })
       }
       const allUserData = await ctx.database.get('SteamUser', {})
       const users = await selectUsersByGroup(allUserData, session.event.channel.id)
@@ -169,7 +174,7 @@ export function apply(ctx: Context, config: Config) {
 
     })
 
-  ctx.command('steam信息')
+  ctx.command('steam-friend-status/steam信息')
     .usage('查看自己的好友码和ID')
     .action(async ({ session }) => {
       return `你的好友码为: ${await getSelfFriendcode(ctx, session)}`
@@ -290,7 +295,7 @@ export function apply(ctx: Context, config: Config) {
       }
       await ctx.database.create('SteamUser', userData)
       const headshot = await ctx.http.get(playerData.avatarmedium, { responseType: 'arraybuffer' })
-      const filepath = path.join(__dirname, `img/steamuser${playerData.steamid}.jpg`)
+      const filepath = path.join(sourcepath, `img/steamuser${playerData.steamid}.jpg`)
       fs.writeFileSync(filepath, Buffer.from(headshot))
       return '绑定成功'
     }
@@ -314,7 +319,7 @@ export function apply(ctx: Context, config: Config) {
     const userData = (await ctx.database.get('SteamUser', { userId: userid }))[0]
     if (userData && userData.effectGroups.includes(channelid)) {
       if (userData.effectGroups.length == 1) {
-        const filepath = path.join(__dirname, `img/steamuser${userData.steamId}.jpg`)
+        const filepath = path.join(sourcepath, `img/steamuser${userData.steamId}.jpg`)
         fs.unlink(filepath, (err) => { ctx.logger.error('删除头像出错', err) })
         ctx.database.remove('SteamUser', { userId: userid })
       }
@@ -337,7 +342,7 @@ export function apply(ctx: Context, config: Config) {
     if (userData.length < 1) {
       return '用户未曾绑定，无法解绑'
     }
-    const filepath = path.join(__dirname, `img/steamuser${userData[0].steamId}.jpg`)
+    const filepath = path.join(sourcepath, `img/steamuser${userData[0].steamId}.jpg`)
     fs.unlink(filepath, (err) => { ctx.logger.error('删除头像出错', err) })
     await ctx.database.remove('SteamUser', { userId: userid })
     return '解绑成功'
@@ -558,7 +563,7 @@ export function apply(ctx: Context, config: Config) {
               image = await getFriendStatusImg(ctx, userInGroup, channel[i].assignee)
             }
             else {
-              image = await getFriendStatusImg(ctx, userInGroup, channel[i].assignee, channel[i].id)
+              image = await getFriendStatusImg(ctx, userInGroup, channel[i].assignee, channel[i].id, channel[i].channelName)
             }
             groupMessage.push(image)
           }
