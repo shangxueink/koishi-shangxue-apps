@@ -185,8 +185,31 @@ function apply(ctx, config) {
       ctx.logger.info(message);
     }
   };
-
-  ctx.command('保存图片 [文件名] [路径名称] [图片]', '保存图片到指定路径')
+  // 本地化支持
+  const applyI18nresult = {
+    commands: {
+      "保存图片": {
+        description: "保存图片到指定路径",
+        messages: {
+          "notfound_image": "请回复带有图片的消息。",
+          "waitinput": "请发送图片：",
+          "invalidimage": "输入的图片无效。",
+          "errorimage": "无法提取图片URL。",
+          "cannotcheckDuplicate": "未开启重名检查时不允许一次性输入多张图片。",
+          "path_invalid": "路径名称无效，请选择路径的名称（冒号左侧为名称）：",
+          "notselected": "请选择正确的路径名称。",
+          "nodefaultpath": "没有设置默认保存路径。",
+          "path_select_prompt": "请选择路径的名称（冒号左侧为名称）：",
+          "image_save_success": "图片已成功保存。",
+          "image_save_error": "保存图片时出错：{0}",
+          "image_save_location": "图片已保存到：{0}",
+          "image_save_rename": "出现同名文件，已保存为 {0}({1}){2}",
+        }
+      }
+    }
+  };
+  ctx.i18n.define("zh-CN", applyI18nresult);
+  ctx.command('保存图片 [文件名] [路径名称] [图片]')
     .option('ext', '-e <ext:string>', '指定图片后缀名')
     .option('name', '-n <name:string>', '严格指定文件重命名')
     .action(async ({ session, options }, 文件名, 路径名称, 图片) => {
@@ -199,30 +222,36 @@ function apply(ctx, config) {
         // 回复保存图片
         urlhselect = h.select(quotemessage, 'img').map(item => item.attrs.src);
         if (!urlhselect) {
-          return '请回复带有图片的消息。';
+          await session.send(session.text(".notfound_image"))
+          return;
         }
         loggerinfo('触发回复的目标消息内容： ' + quotemessage);
       } else if (图片) {
         // 用户直接输入图片
         urlhselect = h.select(图片, 'img').map(item => item.attrs.src);
         if (!urlhselect) {
-          return '输入的图片无效。';
+          await session.send(session.text(".notfound_image"))
+          return;
         }
         loggerinfo('用户直接输入的图片内容为： ' + urlhselect);
       } else {
         // 交互保存图片
-        await session.send('请发送图片：');
+        await session.send(session.text(".waitinput"))
         const image = await session.prompt(30000);
         urlhselect = h.select(image, 'img').map(item => item.attrs.src);
         if (!urlhselect) {
-          return '无法提取图片URL。';
+          //return '无法提取图片URL。';
+          await session.send(session.text(".errorimage"))
+          return;
         }
         loggerinfo('用户输入： ' + image);
       }
 
       const imageExtension = options.ext || config.defaultImageExtension;
       if (urlhselect.length > 1 && !config.checkDuplicate) {
-        return '未开启重名检查时不允许一次性输入多张图片。';
+        // return '未开启重名检查时不允许一次性输入多张图片。';
+        await session.send(session.text(".cannotcheckDuplicate"))
+        return;
       }
 
       // 选择保存路径
@@ -247,10 +276,10 @@ function apply(ctx, config) {
           const selected = config.savePaths.find(item => item.name === 路径名称);
           if (!selected) {
             // 如果未找到匹配路径，与用户交互选择路径
-            await session.send('路径名称无效，请选择路径的名称（冒号左侧为名称）：\n' + config.savePaths.map(item => `${item.name}: ${item.path}`).join('\n'));
+            await session.send(session.text("path_invalid") + '\n' + config.savePaths.map(item => `${item.name}: ${item.path}`).join('\n'));
             const input = await session.prompt(30000);
             const selected = config.savePaths.find(item => item.name === input);
-            if (!selected) return '请选择正确的路径名称。';
+            if (!selected) return session.text(".notselected");
             selectedPath = selected.path;
           } else {
             // 如果找到匹配路径，使用用户指定的路径
@@ -259,7 +288,7 @@ function apply(ctx, config) {
         } else {
           // 路径名称无效，默认使用第一个路径
           selectedPath = config.savePaths[0]?.path;
-          if (!selectedPath) return '没有设置默认保存路径。';
+          if (!selectedPath) return session.text(".nodefaultpath");
         }
       } else {
         // 如果未开启 imageSaveMode
@@ -268,10 +297,10 @@ function apply(ctx, config) {
           const selected = config.savePaths.find(item => item.name === 路径名称);
           if (!selected) {
             // 如果未找到匹配路径，与用户交互选择路径
-            await session.send('路径名称无效，请选择路径的名称（冒号左侧为名称）：\n' + config.savePaths.map(item => `${item.name}: ${item.path}`).join('\n'));
+            await session.send(session.text(".path_invalid") + '\n' + config.savePaths.map(item => `${item.name}: ${item.path}`).join('\n'));
             const input = await session.prompt(30000);
             const selected = config.savePaths.find(item => item.name === input);
-            if (!selected) return '请选择正确的路径名称。';
+            if (!selected) return session.text(".notselected");
             selectedPath = selected.path;
           } else {
             // 如果找到匹配路径，使用用户指定的路径
@@ -279,10 +308,10 @@ function apply(ctx, config) {
           }
         } else {
           // 路径名称无效，与用户交互选择路径
-          await session.send('请选择路径的名称（冒号左侧为名称）：\n' + config.savePaths.map(item => `${item.name}: ${item.path}`).join('\n'));
+          await session.send(session.text("path_invalid") + '\n' + config.savePaths.map(item => `${item.name}: ${item.path}`).join('\n'));
           const input = await session.prompt(30000);
           const selected = config.savePaths.find(item => item.name === input);
-          if (!selected) return '请选择正确的路径名称。';
+          if (!selected) return session.text(".notselected");
           selectedPath = selected.path;
         }
       }
@@ -305,7 +334,9 @@ function apply(ctx, config) {
         await saveImages(urlhselect, selectedPath, safeFilename, imageExtension, config, session, ctx);
       } catch (error) {
         ctx.logger.error('保存图片时出错： ' + error.message);
-        return `保存图片时出错：${error.message}`;
+        //return `保存图片时出错：${error.message}`;
+        await session.send(session.text(`.image_save_error`, [error.message]));
+        return;
       }
     });
 
@@ -338,20 +369,24 @@ function apply(ctx, config) {
         await fs.promises.writeFile(targetPath, Buffer.from(buffer));
 
         if (index > 0) {
-          duplicateMessages.push(`出现同名文件，已保存为 ${safeFilename}(${index})${fileExt}`);
+          //duplicateMessages.push(`出现同名文件，已保存为 ${safeFilename}(${index})${fileExt}`);
+          duplicateMessages.push(session.text(`.image_save_rename`, [safeFilename, index, fileExt]));
         } else {
           if (!firstMessageSent) {
             if (config.showSavePath) {
-              await session.send(`图片已保存到：${targetPath}`);
+              //await session.send(`图片已保存到：${targetPath}`);
+              await session.send(session.text(`.image_save_location`, [targetPath]));
             } else {
-              await session.send(`图片已成功保存。`);
+              //await session.send(`图片已成功保存。`);
+              await session.send(session.text(`.image_save_success`));
             }
             firstMessageSent = true;
           }
         }
       } catch (error) {
         ctx.logger.error('保存图片时出错： ' + error.message);
-        await session.send(`保存图片时出错：${error.message}`);
+        await session.send(session.text(`.image_save_error`, [error.message]));
+        // await session.send(`保存图片时出错：${error.message}`);
       }
     }
 
