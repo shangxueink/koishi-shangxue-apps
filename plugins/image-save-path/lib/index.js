@@ -191,15 +191,13 @@ function apply(ctx, config) {
       "保存图片": {
         description: "保存图片到指定路径",
         messages: {
-          "notfound_image": "请回复带有图片的消息。",
-          "waitinput": "请发送图片：",
-          "invalidimage": "输入的图片无效。",
-          "errorimage": "无法提取图片URL。",
-          "cannotcheckDuplicate": "未开启重名检查时不允许一次性输入多张图片。",
-          "path_invalid": "路径名称无效，请选择路径的名称（冒号左侧为名称）：",
-          "notselected": "请选择正确的路径名称。",
-          "nodefaultpath": "没有设置默认保存路径。",
-          "path_select_prompt": "请选择路径的名称（冒号左侧为名称）：",
+          "image_save_notfound_image": "请回复带有图片的消息。",
+          "image_save_waitinput": "请发送图片：",
+          "image_save_invalidimage": "输入的图片无效。",
+          "image_save_path_select_prompt": "未开启重名检查时不允许一次性输入多张图片。",
+          "image_save_path_invalid": "路径名称无效，请选择路径的名称（冒号左侧为名称）：",
+          "image_save_notselected": "请选择正确的路径名称。",
+          "image_save_no_defaultpath": "没有设置默认保存路径。",
           "image_save_success": "图片已成功保存。",
           "image_save_error": "保存图片时出错：{0}",
           "image_save_location": "图片已保存到：{0}",
@@ -222,7 +220,7 @@ function apply(ctx, config) {
         // 回复保存图片
         urlhselect = h.select(quotemessage, 'img').map(item => item.attrs.src);
         if (!urlhselect) {
-          await session.send(session.text(".notfound_image"))
+          await session.send(session.text(".image_save_notfound_image"))
           return;
         }
         loggerinfo('触发回复的目标消息内容： ' + quotemessage);
@@ -230,18 +228,18 @@ function apply(ctx, config) {
         // 用户直接输入图片
         urlhselect = h.select(图片, 'img').map(item => item.attrs.src);
         if (!urlhselect) {
-          await session.send(session.text(".notfound_image"))
+          await session.send(session.text(".image_save_notfound_image"))
           return;
         }
         loggerinfo('用户直接输入的图片内容为： ' + urlhselect);
       } else {
         // 交互保存图片
-        await session.send(session.text(".waitinput"))
+        await session.send(session.text(".image_save_waitinput"))
         const image = await session.prompt(30000);
         urlhselect = h.select(image, 'img').map(item => item.attrs.src);
         if (!urlhselect) {
           //return '无法提取图片URL。';
-          await session.send(session.text(".errorimage"))
+          await session.send(session.text(".image_save_invalidimage"))
           return;
         }
         loggerinfo('用户输入： ' + image);
@@ -250,7 +248,7 @@ function apply(ctx, config) {
       const imageExtension = options.ext || config.defaultImageExtension;
       if (urlhselect.length > 1 && !config.checkDuplicate) {
         // return '未开启重名检查时不允许一次性输入多张图片。';
-        await session.send(session.text(".cannotcheckDuplicate"))
+        await session.send(session.text(".image_save_path_select_prompt"))
         return;
       }
 
@@ -276,10 +274,10 @@ function apply(ctx, config) {
           const selected = config.savePaths.find(item => item.name === 路径名称);
           if (!selected) {
             // 如果未找到匹配路径，与用户交互选择路径
-            await session.send(session.text("path_invalid") + '\n' + config.savePaths.map(item => `${item.name}: ${item.path}`).join('\n'));
+            await session.send(session.text("image_save_path_invalid") + '\n' + config.savePaths.map(item => `${item.name}: ${item.path}`).join('\n'));
             const input = await session.prompt(30000);
             const selected = config.savePaths.find(item => item.name === input);
-            if (!selected) return session.text(".notselected");
+            if (!selected) return session.text(".image_save_notselected");
             selectedPath = selected.path;
           } else {
             // 如果找到匹配路径，使用用户指定的路径
@@ -288,7 +286,7 @@ function apply(ctx, config) {
         } else {
           // 路径名称无效，默认使用第一个路径
           selectedPath = config.savePaths[0]?.path;
-          if (!selectedPath) return session.text(".nodefaultpath");
+          if (!selectedPath) return session.text(".image_save_no_defaultpath");
         }
       } else {
         // 如果未开启 imageSaveMode
@@ -297,10 +295,10 @@ function apply(ctx, config) {
           const selected = config.savePaths.find(item => item.name === 路径名称);
           if (!selected) {
             // 如果未找到匹配路径，与用户交互选择路径
-            await session.send(session.text(".path_invalid") + '\n' + config.savePaths.map(item => `${item.name}: ${item.path}`).join('\n'));
+            await session.send(session.text(".image_save_path_invalid") + '\n' + config.savePaths.map(item => `${item.name}: ${item.path}`).join('\n'));
             const input = await session.prompt(30000);
             const selected = config.savePaths.find(item => item.name === input);
-            if (!selected) return session.text(".notselected");
+            if (!selected) return session.text(".image_save_notselected");
             selectedPath = selected.path;
           } else {
             // 如果找到匹配路径，使用用户指定的路径
@@ -308,10 +306,10 @@ function apply(ctx, config) {
           }
         } else {
           // 路径名称无效，与用户交互选择路径
-          await session.send(session.text("path_invalid") + '\n' + config.savePaths.map(item => `${item.name}: ${item.path}`).join('\n'));
+          await session.send(session.text("image_save_path_invalid") + '\n' + config.savePaths.map(item => `${item.name}: ${item.path}`).join('\n'));
           const input = await session.prompt(30000);
           const selected = config.savePaths.find(item => item.name === input);
-          if (!selected) return session.text(".notselected");
+          if (!selected) return session.text(".image_save_notselected");
           selectedPath = selected.path;
         }
       }
