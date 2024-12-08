@@ -414,7 +414,7 @@ export async function apply(ctx: Context, config) {
       await session.send(calendarImage);
     });
   // 【鹿 [user]】指令，仅对 session.userId 进行签到
-  ctx.command('鹿 [user]', '鹿管签到', { authority: 1 })
+  ctx.command('鹿管签到/鹿 [user]', '鹿管签到', { authority: 1 })
     .alias('🦌')
     .userFields(["id", "name", "permissions"])
     .example('鹿')
@@ -523,7 +523,7 @@ export async function apply(ctx: Context, config) {
       return;
     });
   // 【帮鹿 [user]】指令，仅允许对输入的 user 进行签到
-  ctx.command('帮鹿 [user]', '帮助用户签到', { authority: 1 })
+  ctx.command('鹿管签到/帮鹿 [user]', '帮助用户签到', { authority: 1 })
     .alias('帮🦌')
     .userFields(["id", "name", "permissions"])
     .example('帮鹿 @用户')
