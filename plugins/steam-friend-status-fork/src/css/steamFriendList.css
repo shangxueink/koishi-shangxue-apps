@@ -1,18 +1,15 @@
-* {
+*{
     margin: 0px;
     padding: 0px;
     box-sizing: border-box;
 }
-
-ul {
+ul{
     list-style: none;
 }
-
-.bg {
+.bg{
     width: 227px;
 }
-
-.header {
+.header{
     display: flex;
     border-radius: 7px 7px 0px 0px;
     height: 75px;
@@ -21,137 +18,97 @@ ul {
     padding-bottom: 10px;
     background-color: #1c232c;
 }
-
-.header .headshot {
+.header .headshot{
     display: block;
     width: 50px;
     height: 50px;
 }
-
-.header .bot {
+.header .bot{
     display: flex;
 }
-
-.header .bot .text {
+.header .bot .text{
     display: flex;
     flex-direction: column;
     justify-content: center;
 }
-
-.friendline {
+.friendline{
     height: 30px;
     background-color: #434952;
 }
-
-.friendline .text {
+.friendline .text{
     padding-left: 15px;
     font-size: 12px;
     line-height: 30px;
     color: #b7ccd5;
 }
-
-.friendlist {
+.friendlist{
     background-color: #1f2126;
     padding-bottom: 15px;
     border-radius: 0px 0px 6px 6px
 }
-
-.group {
+.group{
     border-bottom: 1px solid #176383;
 }
-
-.group .title {
+.group .title{
     padding: 6px 0px 0px 13px;
     font-size: 12px;
     color: #c5d6d4;
     line-height: 28px;
 }
-
-.group:last-child {
+.group:last-child{
     border-bottom: none;
 }
-
-.friend {
+.friend{
     height: 46px;
     padding: 7px 0px 7px 13px;
     display: flex;
     overflow: hidden;
 }
-
-.friend .headshot-online {
+.friend .headshot-online{
     display: block;
     width: 32px;
     height: 32px;
 }
-
-.friend .headshot-offline {
+.friend .headshot-offline{
     display: block;
     width: 32px;
     height: 32px;
     filter: grayscale(60%);
 }
-
-.friend .name-and-status {
+.friend .name-and-status{
     padding-left: 8px;
     display: flex;
     flex-direction: column;
     justify-content: center;
-    justify-content: space-between;
-    /* 左右对齐 */
-    white-space: nowrap;
-    /* 不允许换行 */
-    overflow: hidden;
-    /* 隐藏溢出内容 */
-    text-overflow: ellipsis;
-    /* 溢出部分显示为省略号 */
-    max-width: 170px;
-    /* 设置最大宽度，防止过长文本影响布局 */
 }
-
-.friend .name-and-status .name-gaming,
-.friend .name-and-status .name-online,
-.friend .name-and-status .name-offline {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    max-width: 170px;
-    /* 左半部分最大宽度 */
-}
-
-
-.status-offline {
+.status-offline{
     padding-left: 10px;
     font-size: 10px;
     color: #6e6e6e;
 }
-
-.status-online {
+.status-online{
     padding-left: 10px;
     font-size: 10px;
     color: #4c91ac;
 }
-
-.status-gaming {
+.status-gaming{
     padding-left: 10px;
     font-size: 10px;
     color: #91c257;
 }
-
-.name-offline {
+.name-offline{
     padding-left: 10px;
     font-size: 13px;
     line-height: 16px;
     color: #969797;
 }
-
-.name-online {
+.name-online{
     padding-left: 10px;
     font-size: 13px;
     line-height: 16px;
     color: #6dcff6;
 }
-
-.name-gaming {
+.name-gaming{
     padding-left: 10px;
     font-size: 13px;
     line-height: 16px;
