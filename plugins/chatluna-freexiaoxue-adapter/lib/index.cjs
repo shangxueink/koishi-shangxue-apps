@@ -556,24 +556,20 @@ function apply(ctx, config) {
 
     _concatUrl(url) {
       const apiEndPoint = this._config.apiEndpoint;
-      let fullUrl;
-
       if (!apiEndPoint.match(/\/v1\/?$/)) {
         if (apiEndPoint.endsWith("/")) {
-          fullUrl = apiEndPoint + "v1/" + url;
-        } else {
-          fullUrl = apiEndPoint + "/v1/" + url;
+          return apiEndPoint + "v1/" + url;
         }
-      } else {
-        if (apiEndPoint.endsWith("/")) {
-          fullUrl = apiEndPoint + url;
-        } else {
-          fullUrl = apiEndPoint + "/" + url;
-        }
+        return apiEndPoint + "/v1/" + url;
       }
-
-      //logInfo(`Request URL: ${fullUrl}`);
-      return fullUrl;
+      if (apiEndPoint.endsWith("/")) {
+        return apiEndPoint + url;
+      }
+      return apiEndPoint + "/" + url;
+    }
+    async init() {
+    }
+    async dispose() {
     }
   };
 
