@@ -230,7 +230,7 @@ export async function apply(ctx: Context, config) {
           "enable_blue_tip": "还可以帮助未签到的人签到，以获取补签次数哦！\n使用示例： 鹿  @用户",
           "Sign_in_success": " 你已经签到{0}次啦~ 继续加油咪~\n本次签到获得 {1} 点货币。",
           "not_allowHelp": "该用户已禁止他人帮助签到。",
-          "use_key_to_help": "你使用了一个【钥匙】打开了{0}的锁！"
+          "use_key_to_help": "你使用了一个【钥匙】打开了 {0} 的锁！（仅本次）"
         }
       },
       "帮鹿": {
@@ -290,6 +290,8 @@ export async function apply(ctx: Context, config) {
   ctx.command('鹿管签到', '鹿管签到')
     .alias('deerpipe')
   ctx.command('鹿管签到/鹿管购买 [item]', '购买签到道具', { authority: 1 })
+    .example("鹿管购买 锁")
+    .example("鹿管购买 钥匙")
     .userFields(["id", "name", "permissions"])
     .action(async ({ session }, item) => {
       const userId = session.userId;
@@ -297,6 +299,7 @@ export async function apply(ctx: Context, config) {
       const targetItem = storeItems.find(i => i.item === item);
       if (!targetItem) {
         const availableItems = storeItems.map(i => `${i.item}（${i.cost}点）`).join('\n');
+        await session.execute(`鹿管购买 -h`);
         await session.send(`未找到商品：${item}，你可以购买以下商品：\n${availableItems}`);
         return;
       }
@@ -576,6 +579,22 @@ export async function apply(ctx: Context, config) {
           itemInventory: [],
         };
         await ctx.database.create('deerpipe', helperRecord);
+      }
+      if (!targetRecord.allowHelp) {
+        const hasKey = helperRecord.itemInventory.includes("钥匙");
+        if (hasKey) {
+          const keyIndex = helperRecord.itemInventory.indexOf("钥匙");
+          if (keyIndex !== -1) {
+            helperRecord.itemInventory.splice(keyIndex, 1);
+            await ctx.database.set("deerpipe", { userid: session.userId }, {
+              itemInventory: helperRecord.itemInventory
+            });
+            await session.send(session.text(".use_key_to_help", [targetUserId]));
+          }
+        } else {
+          await session.send(session.text(".not_allowHelp"));
+          return;
+        }
       }
       const helpsignintimes = {};
       if (helperRecord.helpsignintimes) {
