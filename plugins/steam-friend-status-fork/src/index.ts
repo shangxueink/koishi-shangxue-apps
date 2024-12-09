@@ -466,7 +466,7 @@ export function apply(ctx: Context, config: Config) {
 
     // 创建 puppeteer 页面
     const page = await ctx.puppeteer.page();
-    await page.setViewport({ width: 227, height: 224 + userData.response.players.length * 46 });
+    await page.setViewport({ width: 227, height: 224 + userData.response.players.length * 46, deviceScaleFactor: 2 });
     await page.goto(url);
 
     // 转换好友头像为 Base64
