@@ -1,0 +1,28 @@
+{
+  "name": "koishi-plugin-adapter-qq-webhook-websocket",
+  "description": "临时的adapter-qq，实现 webhook 转换 websocket ，让你使用 websocket 过渡为 webhook。灵感来自于项目[qbot-webhook-to-websocket](https://github.com/DevOpen-Club/qbot-webhook-to-websocket)",
+  "version": "2.0.3",
+  "main": "lib/index.js",
+  "typings": "lib/index.d.ts",
+  "files": [
+    "lib"
+  ],
+  "license": "MIT",
+  "keywords": [
+    "chatbot",
+    "koishi",
+    "plugin",
+    "adapter"
+  ],
+  "homepage": "https://github.com/shangxueink/koishi-shangxue-apps/tree/main/",
+  "bugs": {
+    "url": "https://github.com/shangxueink/koishi-shangxue-apps/issues"
+  },
+  "devDependencies": {
+    "@satorijs/core": "^4.3.1",
+    "cordis": "^3.18.1"
+  },
+  "peerDependencies": {
+    "@satorijs/core": "^4.3.1"
+  }
+}
