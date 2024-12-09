@@ -81,10 +81,13 @@ export function apply(ctx: Context, config: Config) {
     .usage('绑定steam账号，参数可以是好友码也可以是ID')
     .action(async ({ session }, steamid) => {
       if (steamid == undefined) {
+        await session.execute("绑定steam -h")
         return '缺少参数'
       }
       const result = await bindPlayer(ctx, steamid, session, config.SteamApiKey)
-      return result
+      await session.send(result)
+      await session.execute("更新steam")
+      return
     })
 
   ctx.command('steam-friend-status/解绑steam')
@@ -477,14 +480,30 @@ export function apply(ctx: Context, config: Config) {
       offlineUsers.map(user => convertImageToBase64(path.join(rootpath, `data/steam-friend-status/img/steamuser${user.steamid}.jpg`)))
     );
 
+    const findUserId = (steamId) => {
+      const user = allUserData.find(u => u.steamId === steamId);
+      return user ? user.userName : steamId; // 找不到对应用户时默认展示 SteamID
+    };
+
+    // 处理用户数据
+    const processedGamingUsers = gamingUsers.map(user => ({
+      ...user,
+      displayName: config.showuserIdorsteamId ? user.steamid : findUserId(user.steamid),
+    }));
+
+    const processedOnlineUsers = onlineUsers.map(user => ({
+      ...user,
+      displayName: config.showuserIdorsteamId ? user.steamid : findUserId(user.steamid),
+    }));
+
+    const processedOfflineUsers = offlineUsers.map(user => ({
+      ...user,
+      displayName: config.showuserIdorsteamId ? user.steamid : findUserId(user.steamid),
+    }));
+
     // 渲染页面
     await page.evaluate(
-      (GroupHeadshotBase64, botname, gamingUsers, gamingUsersBase64, onlineUsers, onlineUsersBase64, offlineUsers, offlineUsersBase64, steamstatus, allUserData, showuserIdorsteamId) => {
-        const findUserId = (steamId) => {
-          const user = allUserData.find(u => u.steamId === steamId);
-          return user ? user.userName : steamId; // 找不到对应用户时默认展示 SteamID
-        };
-
+      (GroupHeadshotBase64, botname, gamingUsersBase64, onlineUsersBase64, offlineUsersBase64, steamstatus, processedGamingUsers, processedOnlineUsers, processedOfflineUsers) => {
         var bot = document.getElementsByClassName('bot')[0];
         var botHeadshot = bot.querySelector('img');
         var botName = bot.querySelector('p');
@@ -498,51 +517,52 @@ export function apply(ctx: Context, config: Config) {
         botName.innerHTML = `<b>${botname}</b>`;
 
         // 更新标题
-        titles[0].innerHTML = `游戏中(${gamingUsers.length})`;
-        titles[1].innerHTML = `在线好友(${onlineUsers.length})`;
-        titles[2].innerHTML = `离线好友(${offlineUsers.length})`;
+        titles[0].innerHTML = `游戏中(${processedGamingUsers.length})`;
+        titles[1].innerHTML = `在线好友(${processedOnlineUsers.length})`;
+        titles[2].innerHTML = `离线好友(${processedOfflineUsers.length})`;
 
         // 渲染游戏中的好友列表
-        for (let i = 0; i < gamingUsers.length; i++) {
+        processedGamingUsers.forEach((user, i) => {
           const li = document.createElement('li');
           li.setAttribute('class', 'friend');
           li.innerHTML = `
-                  <img src="${gamingUsersBase64[i]}" class="headshot-online">
-                  <div class="name-and-status">
-                      <p class="name-gaming">${gamingUsers[i].personaname}(${showuserIdorsteamId ? gamingUsers[i].steamid : findUserId(gamingUsers[i].steamid)})</p>
-                      <p class="status-gaming">${gamingUsers[i].gameextrainfo}</p>
-                  </div>`;
+              <img src="${gamingUsersBase64[i]}" class="headshot-online">
+              <div class="name-and-status">
+                  <p class="name-gaming">${user.personaname}(${user.displayName})</p>
+                  <p class="status-gaming">${user.gameextrainfo}</p>
+              </div>`;
           gamingList.appendChild(li);
-        }
+        });
 
         // 渲染在线的好友列表
-        for (let i = 0; i < onlineUsers.length; i++) {
+        processedOnlineUsers.forEach((user, i) => {
           const li = document.createElement('li');
           li.setAttribute('class', 'friend');
           li.innerHTML = `
-                  <img src="${onlineUsersBase64[i]}" class="headshot-online">
-                  <div class="name-and-status">
-                      <p class="name-online">${onlineUsers[i].personaname}(${showuserIdorsteamId ? onlineUsers[i].steamid : findUserId(onlineUsers[i].steamid)})</p>
-                      <p class="status-online">${steamstatus[onlineUsers[i].personastate]}</p>
-                  </div>`;
+              <img src="${onlineUsersBase64[i]}" class="headshot-online">
+              <div class="name-and-status">
+                  <p class="name-online">${user.personaname}(${user.displayName})</p>
+                  <p class="status-online">${steamstatus[user.personastate]}</p>
+              </div>`;
           onlineList.appendChild(li);
-        }
+        });
 
         // 渲染离线的好友列表
-        for (let i = 0; i < offlineUsers.length; i++) {
+        processedOfflineUsers.forEach((user, i) => {
           const li = document.createElement('li');
           li.setAttribute('class', 'friend');
           li.innerHTML = `
-                  <img src="${offlineUsersBase64[i]}" class="headshot-offline">
-                  <div class="name-and-status">
-                      <p class="name-offline">${offlineUsers[i].personaname}(${showuserIdorsteamId ? offlineUsers[i].steamid : findUserId(offlineUsers[i].steamid)})</p>
-                      <p class="status-offline">${steamstatus[offlineUsers[i].personastate]}</p>
-                  </div>`;
+              <img src="${offlineUsersBase64[i]}" class="headshot-offline">
+              <div class="name-and-status">
+                  <p class="name-offline">${user.personaname}(${user.displayName})</p>
+                  <p class="status-offline">${steamstatus[user.personastate]}</p>
+              </div>`;
           offlineList.appendChild(li);
-        }
+        });
       },
-      GroupHeadshotBase64, botname, gamingUsers, gamingUsersBase64, onlineUsers, onlineUsersBase64, offlineUsers, offlineUsersBase64, steamstatus, allUserData, config.showuserIdorsteamId
+      GroupHeadshotBase64, botname, gamingUsersBase64, onlineUsersBase64, offlineUsersBase64, steamstatus, processedGamingUsers, processedOnlineUsers, processedOfflineUsers
     );
+
 
     // 截图并返回
     const image = await page.screenshot({ fullPage: true, type: 'png', encoding: 'binary' });
