@@ -7,6 +7,11 @@ const name = "command-creator-extender";
 
 const usage = `
 <p>本插件用于将一个已有的指令映射到其他指令，并允许用户自定义指令。</p>
+
+本插件效果预览：
+<li><a href="https://i0.hdslb.com/bfs/article/c3a90e76082632cd5321d23582f9bc0d312276085.png" target="_blank" referrerpolicy="no-referrer">一次调用多个指令</a></li>
+<li><a href="https://i0.hdslb.com/bfs/article/b130e445dcfe99a89e841ee7615a4e61312276085.png" target="_blank" referrerpolicy="no-referrer">同一个指令，不同群里调用不同指令</a></li>
+
 <h2>功能</h2>
 <ul>
 <li>指令映射：通过配置表将输入指令映射到多个输出指令。</li>
@@ -37,6 +42,7 @@ const Config = Schema.intersect([
     table2: Schema.array(Schema.object({
       rawCommand: Schema.string().description('【当接收到消息】或【原始指令】'),
       nextCommand: Schema.string().description('自动执行的下一个指令（无需指令前缀）'),
+      effectchannelId: Schema.string().description('生效的频道ID。全部频道请填入 `0`，多群组使用逗号分隔开').default("0"),
     })).role('table').description('指令调用映射表<br>因为不是注册指令 只是匹配接收到的消息 所以如果你希望有前缀触发的话，需要加上前缀<br>当然你也可以写已有的指令名称比如【/help】（需要指令前缀）').default(
       [
         {
@@ -71,12 +77,12 @@ function removeLeadingBrackets(content) {
 }
 
 async function apply(ctx, config) {
-
   ctx.middleware(async (session, next) => {
     if (!config.reverse_order) {
-      await next(); // 先执行后面的next
+      await next(); // 先执行后面的 next
     }
-    // 移除前导尖括号内容，也就是移除at机器人的元素消息
+
+    // 移除前导尖括号内容，也就是移除 at 机器人的元素消息
     if (session.platform === 'qq') {
       session.content = removeLeadingBrackets(session.content);
     }
@@ -90,17 +96,24 @@ async function apply(ctx, config) {
     const mappings = config.table2.filter(item => currentCommand === item.rawCommand);
 
     if (mappings.length > 0) {
-      if (config.loggerinfo) {
-        ctx.logger.info(`用户 ${session.userId} 触发了 ${currentCommand} ${remainingArgs}，即将自动执行 ：\n${mappings.map(m => `${m.nextCommand} ${remainingArgs}`).join('\n')}`);
-      }
       for (const mapping of mappings) {
-        await session.execute(`${mapping.nextCommand} ${remainingArgs}`);
+        // 处理全角和半角逗号
+        const effectChannelIds = mapping.effectchannelId.replace(/，/g, ',').split(',').map(id => id.trim());
+
+        // 检查频道是否匹配
+        if (effectChannelIds.includes("0") || effectChannelIds.includes(session.channelId)) {
+          if (config.loggerinfo) {
+            ctx.logger.info(`用户 ${session.userId} 在频道 ${session.channelId} 触发了 ${currentCommand} ${remainingArgs}，即将自动执行：\n${mapping.nextCommand} ${remainingArgs}`);
+          }
+          await session.execute(`${mapping.nextCommand} ${remainingArgs}`);
+        } else if (config.loggerinfo) {
+          ctx.logger.info(`用户 ${session.userId} 在频道 ${session.channelId} 触发了 ${currentCommand}，但该指令未在当前频道生效（目标频道：${mapping.effectchannelId}）。`);
+        }
       }
     }
+
     return next(); // next
   }, true);
-
-
 }
 
 exports.apply = apply;
