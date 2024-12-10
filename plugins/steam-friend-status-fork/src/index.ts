@@ -567,6 +567,7 @@ export function apply(ctx: Context, config: Config) {
     // 截图并返回
     const image = await page.screenshot({ fullPage: true, type: 'png', encoding: 'binary' });
     await page.close();
+    await ctx.puppeteer.stop(); // 关闭浏览器并取消连接。
     return h.image(image, 'image/png');
   }
 
