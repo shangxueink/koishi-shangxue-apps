@@ -43,6 +43,7 @@ const Config = Schema.intersect([
       rawCommand: Schema.string().description('【当接收到消息】或【原始指令】'),
       nextCommand: Schema.string().description('自动执行的下一个指令（无需指令前缀）'),
       effectchannelId: Schema.string().description('生效的频道ID。全部频道请填入 `0`，多群组使用逗号分隔开').default("0"),
+      uneffectchannelId: Schema.string().description('排除的频道ID。全部频道请填入 `0`，多群组使用逗号分隔开').default(""),
     })).role('table').description('指令调用映射表<br>因为不是注册指令 只是匹配接收到的消息 所以如果你希望有前缀触发的话，需要加上前缀<br>当然你也可以写已有的指令名称比如【/help】（需要指令前缀）').default(
       [
         {
@@ -77,18 +78,19 @@ function removeLeadingBrackets(content) {
 }
 
 async function apply(ctx, config) {
+
   ctx.middleware(async (session, next) => {
     if (!config.reverse_order) {
       await next(); // 先执行后面的 next
     }
-
+    let sessioncontent = session.content; // 重新弄一个变量 防止影响下一个中间件
     // 移除前导尖括号内容，也就是移除 at 机器人的元素消息
     if (session.platform === 'qq') {
-      session.content = removeLeadingBrackets(session.content);
+      sessioncontent = removeLeadingBrackets(sessioncontent);
     }
 
     // 修剪内容并拆分指令和参数
-    const trimmedContent = session.content.trim();
+    const trimmedContent = sessioncontent.trim();
     const [currentCommand, ...args] = trimmedContent.split(/\s+/); // 使用正则表达式确保以空格分割
     const remainingArgs = args.join(" ");
 
@@ -99,17 +101,40 @@ async function apply(ctx, config) {
       for (const mapping of mappings) {
         // 处理全角和半角逗号
         const effectChannelIds = mapping.effectchannelId.replace(/，/g, ',').split(',').map(id => id.trim());
+        const uneffectChannelIds = mapping.uneffectchannelId.replace(/，/g, ',').split(',').map(id => id.trim());
 
-        // 检查频道是否匹配
-        if (effectChannelIds.includes("0") || effectChannelIds.includes(session.channelId)) {
+        // 计算实际生效的群组 ID 数组
+        let effectiveChannels = [];
+
+        // 如果 effectChannelIds 包含 "0"，所有频道都生效，先将所有频道包含进来
+        if (effectChannelIds.includes("0")) {
+          effectiveChannels = ["0"]; // 全部生效
+        } else {
+          effectiveChannels = effectChannelIds;
+        }
+
+        // 排除 uneffectChannelIds 中的频道
+        if (uneffectChannelIds.includes("0")) {
+          // 如果 uneffectChannelIds 包含 "0"，实际生效频道为空（即无效）
+          effectiveChannels = [];
+        } else {
+          // 否则从 effectiveChannels 中移除 uneffectChannelIds 中的 ID
+          effectiveChannels = effectiveChannels.filter(channel => !uneffectChannelIds.includes(channel));
+        }
+
+        // 检查当前频道是否在有效频道中
+        if (effectiveChannels.includes("0") || effectiveChannels.includes(session.channelId)) {
           if (config.loggerinfo) {
             ctx.logger.info(`用户 ${session.userId} 在频道 ${session.channelId} 触发了 ${currentCommand} ${remainingArgs}，即将自动执行：\n${mapping.nextCommand} ${remainingArgs}`);
           }
           await session.execute(`${mapping.nextCommand} ${remainingArgs}`);
-        } else if (config.loggerinfo) {
-          ctx.logger.info(`用户 ${session.userId} 在频道 ${session.channelId} 触发了 ${currentCommand}，但该指令未在当前频道生效（目标频道：${mapping.effectchannelId}）。`);
+        } else {
+          if (config.loggerinfo) {
+            ctx.logger.info(`用户 ${session.userId} 在频道 ${session.channelId} 触发了 ${currentCommand}，但该指令未在当前频道生效（实际生效频道：${effectiveChannels.join(", ")}）。`);
+          }
         }
       }
+
     }
 
     return next(); // next
