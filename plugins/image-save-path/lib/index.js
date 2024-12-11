@@ -261,8 +261,8 @@ function apply(ctx, config) {
 
   const interactionMode = config.Interaction_mode || '1';
   ctx.command('保存图片 [参数...]')
-    .option('ext', '-e <ext:string>', '指定图片后缀名')
-    .option('name', '-n <name:string>', '严格指定文件重命名')
+    .option('ext', '-e <ext:string> 指定图片后缀名')
+    .option('name', '-n <name:string> 严格指定图片重命名')
     .action(async ({ session, options }, ...args) => {
       let 文件名, 路径名称, 图片;
 
