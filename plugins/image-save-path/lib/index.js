@@ -335,7 +335,7 @@ function apply(ctx, config) {
       if (文件名) {
         // 移除尖括号及其内容
         文件名 = 文件名.replace(/<.*?>/g, '').trim(); // adapter-onebot 特性，可能会把回复的内容当做输入参数，跟在输入最后面
-        if (文件名.length <= 1) {
+        if (文件名.length <= 0) {
           // 如果长度小于等于 1，认为路径名称无效
           文件名 = undefined;
         } else {
@@ -345,7 +345,7 @@ function apply(ctx, config) {
       if (路径名称) {
         // 移除尖括号及其内容
         路径名称 = 路径名称.replace(/<.*?>/g, '').trim(); // adapter-onebot 特性，可能会把回复的内容当做输入参数，跟在输入最后面
-        if (路径名称.length <= 1) {
+        if (路径名称.length <= 0) {
           // 如果长度小于等于 1，认为路径名称无效
           路径名称 = undefined;
         } else {
