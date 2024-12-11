@@ -529,15 +529,21 @@ function apply(ctx, config) {
         [emojihub_bili_codecommand]: {
           description: `${emojihub_bili_codecommand}表情包功能`,
           messages: {
-            "notfound_txt": "ERROR！找不到文件或文件为空！指令：",
+            "notfound_txt": "ERROR！找不到文件或文件为空！指令：{0}",
             "List_of_emojis": "表情包列表：",
             //"emojihub_bili_codecommand_usage" : "emojihub父级指令 触发后列出全部的子指令"
           }
         },
         '再来一张': {
-          description: `指定表情包`,
+          description: `再来一张表情包`,
           messages: {
-            "nocommand": "请输入一个表情包名称哦~\n➣例如： 再来一张 白圣女表情包",
+            "nocommand": "没有找到上一个命令，请先执行一个命令！\n➣例如： 再来一张 白圣女表情包",
+          }
+        },
+        '随机表情包': {
+          description: `从全部表情包里随机抽一张`,
+          messages: {
+            "noemoji": "没有任何表情包配置，请检查插件配置项！",
           }
         }
       }
@@ -821,13 +827,9 @@ function apply(ctx, config) {
   config.MoreEmojiHub.forEach(({ command, source_url }) => {
     acmd.push(command)
     ctx.command(config.emojihub_bili_command)
-      .usage('emojihub父级指令 触发后列出全部的子指令!')
       .action(async ({ session }) => {
         const txtCommandList = listAllCommands(config);
-
         logInfomessage(`指令列表txtCommandList：  ` + txtCommandList);
-
-
         if (config.json_button_switch && config.json_setting.json_button_mdid_emojilist) {
           let markdownMessage = {
             msg_id: session.event.message.id,
@@ -870,7 +872,7 @@ function apply(ctx, config) {
 
         if (!imageResult.imageUrl) {
           // 如果没有图片返回，发送错误消息
-          await session.send(h.text(session.text(`commands.${emojihub_bili_codecommand}.messages.notfound_txt`) + command));
+          await session.send(h.text(session.text(`commands.${emojihub_bili_codecommand}.messages.notfound_txt`, [command])));
           return;
         }
         // 更新频道的最后一个命令
@@ -1013,7 +1015,7 @@ function apply(ctx, config) {
         if (lastCommand) {
           await session.execute(`${lastCommand}`);
         } else {
-          await session.send('没有找到上一个命令，请先执行一个命令！');
+          await session.send(session.text(".nocommand"));
         }
       });
 
@@ -1025,7 +1027,7 @@ function apply(ctx, config) {
           logInfo(config, session.channelId, randomEmojiHubCommand, `随机表情包`);
           return;
         } else {
-          await session.send('没有任何表情包配置，请检查插件配置项');
+          await session.send(session.text(".noemoji"));
         }
       });
   });
