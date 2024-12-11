@@ -274,7 +274,7 @@ function apply(ctx, config) {
           const selected = config.savePaths.find(item => item.name === 路径名称);
           if (!selected) {
             // 如果未找到匹配路径，与用户交互选择路径
-            await session.send(session.text("image_save_path_invalid") + '\n' + config.savePaths.map(item => `${item.name}: ${item.path}`).join('\n'));
+            await session.send(session.text(".image_save_path_invalid") + '\n' + config.savePaths.map(item => `${item.name}: ${item.path}`).join('\n'));
             const input = await session.prompt(30000);
             const selected = config.savePaths.find(item => item.name === input);
             if (!selected) return session.text(".image_save_notselected");
@@ -306,7 +306,7 @@ function apply(ctx, config) {
           }
         } else {
           // 路径名称无效，与用户交互选择路径
-          await session.send(session.text("image_save_path_invalid") + '\n' + config.savePaths.map(item => `${item.name}: ${item.path}`).join('\n'));
+          await session.send(session.text(".image_save_path_invalid") + '\n' + config.savePaths.map(item => `${item.name}: ${item.path}`).join('\n'));
           const input = await session.prompt(30000);
           const selected = config.savePaths.find(item => item.name === input);
           if (!selected) return session.text(".image_save_notselected");
