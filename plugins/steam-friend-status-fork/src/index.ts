@@ -426,7 +426,7 @@ export function apply(ctx: Context, config: Config) {
     const onlineUsers = userData.response.players.filter(player => player.personastate != 0 && !player.gameextrainfo); // 筛选出在线但未游戏的好友
     onlineUsers.sort((a, b) => a.personastate - b.personastate); // 根据在线状态排序
     const offlineUsers = userData.response.players.filter(player => player.personastate == 0); // 筛选出离线好友
-    const url = path.join(__dirname, 'html/steamFriendList.html'); // 模板文件路径
+    const url = path.join(__dirname, '../data/html/steamFriendList.html'); // 模板文件路径
 
     // 图片转 Base64 函数
     const convertImageToBase64 = async (filePath) => {
