@@ -1,0 +1,313 @@
+{
+    "msg_type": 2,
+    "msg_id": "${session.messageId}",
+    "markdown": {
+        "content": "## **表情包列表**\n### 😻列表如下：点击按钮触发哦！"
+    },
+    "keyboard": {
+        "content": {
+            "rows": [
+                {
+                    "buttons": [
+                        {
+                            "render_data": {
+                                "label": "随机emojihub表情包",
+                                "style": 1
+                            },
+                            "action": {
+                                "type": 2,
+                                "permission": {
+                                    "type": 2
+                                },
+                                "data": "/随机emojihub表情包",
+                                "enter": true
+                            }
+                        },
+                        {
+                            "render_data": {
+                                "label": "acomu414",
+                                "style": 1
+                            },
+                            "action": {
+                                "type": 2,
+                                "permission": {
+                                    "type": 2
+                                },
+                                "data": "/acomu414",
+                                "enter": true
+                            }
+                        },
+                        {
+                            "render_data": {
+                                "label": "ba表情包",
+                                "style": 1
+                            },
+                            "action": {
+                                "type": 2,
+                                "permission": {
+                                    "type": 2
+                                },
+                                "data": "/ba表情包",
+                                "enter": true
+                            }
+                        },
+                        {
+                            "render_data": {
+                                "label": "downvote",
+                                "style": 1
+                            },
+                            "action": {
+                                "type": 2,
+                                "permission": {
+                                    "type": 2
+                                },
+                                "data": "/downvote",
+                                "enter": true
+                            }
+                        }
+                    ]
+                },
+                {
+                    "buttons": [
+                        {
+                            "render_data": {
+                                "label": "doro",
+                                "style": 1
+                            },
+                            "action": {
+                                "type": 2,
+                                "permission": {
+                                    "type": 2
+                                },
+                                "data": "/doro",
+                                "enter": true
+                            }
+                        },
+                        {
+                            "render_data": {
+                                "label": "eveonecat",
+                                "style": 1
+                            },
+                            "action": {
+                                "type": 2,
+                                "permission": {
+                                    "type": 2
+                                },
+                                "data": "/eveonecat",
+                                "enter": true
+                            }
+                        },
+                        {
+                            "render_data": {
+                                "label": "fufu",
+                                "style": 1
+                            },
+                            "action": {
+                                "type": 2,
+                                "permission": {
+                                    "type": 2
+                                },
+                                "data": "/fufu",
+                                "enter": true
+                            }
+                        },
+                        {
+                            "render_data": {
+                                "label": "mygo",
+                                "style": 1
+                            },
+                            "action": {
+                                "type": 2,
+                                "permission": {
+                                    "type": 2
+                                },
+                                "data": "/mygo",
+                                "enter": true
+                            }
+                        }
+                    ]
+                },
+                {
+                    "buttons": [
+                        {
+                            "render_data": {
+                                "label": "seseren",
+                                "style": 1
+                            },
+                            "action": {
+                                "type": 2,
+                                "permission": {
+                                    "type": 2
+                                },
+                                "data": "/seseren",
+                                "enter": true
+                            }
+                        },
+                        {
+                            "render_data": {
+                                "label": "白圣女",
+                                "style": 1
+                            },
+                            "action": {
+                                "type": 2,
+                                "permission": {
+                                    "type": 2
+                                },
+                                "data": "/白圣女",
+                                "enter": true
+                            }
+                        },
+                        {
+                            "render_data": {
+                                "label": "白圣女漫画",
+                                "style": 1
+                            },
+                            "action": {
+                                "type": 2,
+                                "permission": {
+                                    "type": 2
+                                },
+                                "data": "/白圣女漫画",
+                                "enter": true
+                            }
+                        },
+                        {
+                            "render_data": {
+                                "label": "柴郡",
+                                "style": 1
+                            },
+                            "action": {
+                                "type": 2,
+                                "permission": {
+                                    "type": 2
+                                },
+                                "data": "/柴郡",
+                                "enter": true
+                            }
+                        }
+                    ]
+                },
+                {
+                    "buttons": [
+                        {
+                            "render_data": {
+                                "label": "初音Q版",
+                                "style": 1
+                            },
+                            "action": {
+                                "type": 2,
+                                "permission": {
+                                    "type": 2
+                                },
+                                "data": "/初音Q版",
+                                "enter": true
+                            }
+                        },
+                        {
+                            "render_data": {
+                                "label": "甘城猫猫",
+                                "style": 1
+                            },
+                            "action": {
+                                "type": 2,
+                                "permission": {
+                                    "type": 2
+                                },
+                                "data": "/甘城猫猫",
+                                "enter": true
+                            }
+                        },
+                        {
+                            "render_data": {
+                                "label": "疾旋鼬",
+                                "style": 1
+                            },
+                            "action": {
+                                "type": 2,
+                                "permission": {
+                                    "type": 2
+                                },
+                                "data": "/疾旋鼬",
+                                "enter": true
+                            }
+                        },
+                        {
+                            "render_data": {
+                                "label": "流萤",
+                                "style": 1
+                            },
+                            "action": {
+                                "type": 2,
+                                "permission": {
+                                    "type": 2
+                                },
+                                "data": "/流萤",
+                                "enter": true
+                            }
+                        }
+                    ]
+                },
+                {
+                    "buttons": [
+                        {
+                            "render_data": {
+                                "label": "赛马娘",
+                                "style": 1
+                            },
+                            "action": {
+                                "type": 2,
+                                "permission": {
+                                    "type": 2
+                                },
+                                "data": "/赛马娘",
+                                "enter": true
+                            }
+                        },
+                        {
+                            "render_data": {
+                                "label": "瑟莉亚",
+                                "style": 1
+                            },
+                            "action": {
+                                "type": 2,
+                                "permission": {
+                                    "type": 2
+                                },
+                                "data": "/瑟莉亚",
+                                "enter": true
+                            }
+                        },
+                        {
+                            "render_data": {
+                                "label": "藤田琴音",
+                                "style": 1
+                            },
+                            "action": {
+                                "type": 2,
+                                "permission": {
+                                    "type": 2
+                                },
+                                "data": "/藤田琴音",
+                                "enter": true
+                            }
+                        },
+                        {
+                            "render_data": {
+                                "label": "亚托莉",
+                                "style": 1
+                            },
+                            "action": {
+                                "type": 2,
+                                "permission": {
+                                    "type": 2
+                                },
+                                "data": "/亚托莉",
+                                "enter": true
+                            }
+                        }
+                    ]
+                }
+            ]
+        }
+    }
+}
