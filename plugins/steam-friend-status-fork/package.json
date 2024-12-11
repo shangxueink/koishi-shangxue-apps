@@ -6,7 +6,7 @@
   "typings": "lib/index.d.ts",
   "files": [
     "lib",
-    "dist"
+    "data"
   ],
   "license": "MIT",
   "homepage": "https://github.com/shangxueink/koishi-shangxue-apps/tree/main/",
