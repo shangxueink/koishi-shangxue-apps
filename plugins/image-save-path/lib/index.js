@@ -192,7 +192,7 @@ exports.Config = Schema.intersect([
     defaultImageExtension: Schema.string().description("默认图片后缀名").default("png"),
     showSavePath: Schema.boolean().description("保存成功后，告知具体文件保存路径，关闭后只会回复`图片已成功保存。`").default(false),
     checkDuplicate: Schema.boolean().description("开启后将检查重名文件，避免覆盖，若同名，则在文件名后加`(1)`,`(2)`... ...").default(true),
-    //imageSaveMode: Schema.boolean().description("开启后，默认选择了第一个路径，可以缺省路径参数<br>当然也支持输入路径参数<br>[此配置项效果图](https://i0.hdslb.com/bfs/article/1d34ae45de7e3c875eec0caee5444149312276085.png)").default(false),
+    imageSaveMode: Schema.boolean().description("开启后，默认选择了第一个路径，可以缺省路径参数<br>当然也支持输入路径参数<br>[此配置项效果图](https://i0.hdslb.com/bfs/article/1d34ae45de7e3c875eec0caee5444149312276085.png)").default(false),
     savePaths: Schema.array(Schema.object({
       name: Schema.string().description("备注名称"),
       path: Schema.string().description("文件夹路径"),
@@ -327,10 +327,6 @@ function apply(ctx, config) {
         return;
       }
 
-      // 选择保存路径
-      let selectedPath;
-
-
       // 处理名称
       if (文件名) {
         // 移除尖括号及其内容
@@ -353,7 +349,9 @@ function apply(ctx, config) {
         }
       }
 
-      if (interactionMode === '3' || interactionMode === '5') {
+      // 选择保存路径
+      let selectedPath;
+      if (interactionMode === '3' || interactionMode === '5' || (config.imageSaveMode && !路径名称)) {
         selectedPath = config.savePaths[0]?.path;
         if (!selectedPath) return session.text(".image_save_no_defaultpath");
       } else if (interactionMode === '4') {
