@@ -48,19 +48,23 @@ const Config = Schema.intersect([
       [
         {
           "rawCommand": "/help",
-          "nextCommand": "status"
+          "nextCommand": "status",
+          "effectchannelId": "11514"
         },
         {
           "rawCommand": "/一键打卡",
-          "nextCommand": "今日运势"
+          "nextCommand": "今日运势",
+          "uneffectchannelId": "11514"
         },
         {
           "rawCommand": "/一键打卡",
-          "nextCommand": "签到"
+          "nextCommand": "签到",
+          "uneffectchannelId": "11514"
         },
         {
           "rawCommand": "/一键打卡",
-          "nextCommand": "鹿"
+          "nextCommand": "鹿",
+          "uneffectchannelId": "11514"
         }
       ]
     ),
@@ -78,68 +82,67 @@ function removeLeadingBrackets(content) {
 }
 
 async function apply(ctx, config) {
-
   ctx.middleware(async (session, next) => {
     if (!config.reverse_order) {
       await next(); // 先执行后面的 next
     }
-    let sessioncontent = session.content; // 重新弄一个变量 防止影响下一个中间件
-    // 移除前导尖括号内容，也就是移除 at 机器人的元素消息
+
+    let sessioncontent = session.content;
     if (session.platform === 'qq') {
       sessioncontent = removeLeadingBrackets(sessioncontent);
     }
 
-    // 修剪内容并拆分指令和参数
     const trimmedContent = sessioncontent.trim();
-    const [currentCommand, ...args] = trimmedContent.split(/\s+/); // 使用正则表达式确保以空格分割
+    const [currentCommand, ...args] = trimmedContent.split(/\s+/);
     const remainingArgs = args.join(" ");
 
     // 查找匹配的原始指令
     const mappings = config.table2.filter(item => currentCommand === item.rawCommand);
-
     if (mappings.length > 0) {
       for (const mapping of mappings) {
         // 处理全角和半角逗号
-        const effectChannelIds = mapping.effectchannelId.replace(/，/g, ',').split(',').map(id => id.trim());
-        const uneffectChannelIds = mapping.uneffectchannelId.replace(/，/g, ',').split(',').map(id => id.trim());
+        const effectChannelIds = (mapping.effectchannelId || "").replace(/，/g, ',').split(',').map(id => id.trim());
+        const uneffectChannelIds = (mapping.uneffectchannelId || "").replace(/，/g, ',').split(',').map(id => id.trim());
 
-        // 计算实际生效的群组 ID 数组
-        let effectiveChannels = [];
+        let isEffective = true;
 
-        // 如果 effectChannelIds 包含 "0"，所有频道都生效，先将所有频道包含进来
+        // 检查生效条件
         if (effectChannelIds.includes("0")) {
-          effectiveChannels = ["0"]; // 全部生效
-        } else {
-          effectiveChannels = effectChannelIds;
+          isEffective = true; // 全部生效
+        } else if (effectChannelIds.length > 0) {
+          isEffective = effectChannelIds.includes(session.channelId); // 仅在指定频道生效
         }
 
-        // 排除 uneffectChannelIds 中的频道
+        // 检查失效条件
         if (uneffectChannelIds.includes("0")) {
-          // 如果 uneffectChannelIds 包含 "0"，实际生效频道为空（即无效）
-          effectiveChannels = [];
-        } else {
-          // 否则从 effectiveChannels 中移除 uneffectChannelIds 中的 ID
-          effectiveChannels = effectiveChannels.filter(channel => !uneffectChannelIds.includes(channel));
+          isEffective = false; // 全部失效
+        } else if (uneffectChannelIds.length > 0 && uneffectChannelIds.includes(session.channelId)) {
+          isEffective = false; // 在排除频道中失效
         }
 
-        // 检查当前频道是否在有效频道中
-        if (effectiveChannels.includes("0") || effectiveChannels.includes(session.channelId)) {
+        if (isEffective) {
           if (config.loggerinfo) {
-            ctx.logger.info(`用户 ${session.userId} 在频道 ${session.channelId} 触发了 ${currentCommand} ${remainingArgs}，即将自动执行：\n${mapping.nextCommand} ${remainingArgs}`);
+            ctx.logger.info(
+              `用户 ${session.userId} 在频道 ${session.channelId} 触发了 ${currentCommand} ${remainingArgs}，即将自动执行：\n${mapping.nextCommand} ${remainingArgs}`
+            );
           }
           await session.execute(`${mapping.nextCommand} ${remainingArgs}`);
         } else {
           if (config.loggerinfo) {
-            ctx.logger.info(`用户 ${session.userId} 在频道 ${session.channelId} 触发了 ${currentCommand}，但该指令未在当前频道生效（实际生效频道：${effectiveChannels.join(", ")}）。`);
+            ctx.logger.info(
+              `用户 ${session.userId} 在频道 ${session.channelId} 触发了 ${currentCommand}，但该指令未在当前频道生效（effectChannelId: ${effectChannelIds.join(
+                ", "
+              )}, uneffectChannelId: ${uneffectChannelIds.join(", ")}）。`
+            );
           }
         }
       }
-
     }
-
     return next(); // next
   }, true);
 }
+
+
 
 exports.apply = apply;
 exports.Config = Config;
