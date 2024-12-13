@@ -128,7 +128,6 @@ function apply(ctx, config) {
         return next();
     });
     if (config.demand) {
-        ctx.command('B站点播')
         ctx.command('B站点播/退出登录', '退出B站账号')
             .action(async ({ session }) => {
                 const page = await ctx.puppeteer.page();
@@ -216,7 +215,7 @@ function apply(ctx, config) {
                 return;
             });
 
-        ctx.command('B站点播/点播 [keyword]', '点播B站视频')
+        ctx.command('B站点播 [keyword]', '点播B站视频')
             .option('video', '-v 解析返回视频')
             .option('audio', '-a 解析返回语音')
             .option('link', '-l 解析返回链接')
