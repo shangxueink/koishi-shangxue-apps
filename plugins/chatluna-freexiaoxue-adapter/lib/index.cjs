@@ -56,19 +56,8 @@ var Config = import_koishi.Schema.intersect([
         import_koishi.Schema.string().description("请求的 API 地址")
       ])
     ).description("API Key 和请求地址列表").disabled()
-      .default([["https://api.mhimg.cn/", "是免费小学喵？"]]).hidden(),
+      .default([["", "是免费小学喵？"]]).hidden(),
     freexiaoxue_api: import_koishi.Schema.string().role('link').default('http://127.0.0.1:10721?input=').description('freexiaoxue的API地址。需要安装 [freexiaoxue-api插件](/market?keyword=freexiaoxue-api) 以搭建'),
-    Interface_Selection: import_koishi.Schema.union([
-      import_koishi.Schema.const('gpt_baidu').description('百度文心千帆模型'),
-      //import_koishi.Schema.const('gpt__openai').description('OpenAI-3.5模型'), //接口有问题 //[code：-1, msg：未提交Key！]
-      import_koishi.Schema.const('Gpt_renshe').description('热心网友模型'),
-      import_koishi.Schema.const('gpt_semao').description('涩猫模型'),
-      import_koishi.Schema.const('gpt_aimaoniang').description('猫娘模型'),
-      import_koishi.Schema.const('gpt_lianaiqiluo').description('女友绮罗模型'),
-      import_koishi.Schema.const('gpt_aojiaojj').description('傲娇姐姐模型'),
-      import_koishi.Schema.const('freexiaoxue_api').description('freexiaoxue服务，需要安装 freexiaoxue-api插件 以使用'),
-      //import_koishi.Schema.const('').description('),
-    ]).role('radio').description('使用的API接口(模型)<br>此处仅选择接口，预设请在chatluna主插件最下方选择').default('Gpt_renshe'),
   }).description("请求设置"),
   import_koishi.Schema.object({
     maxTokens: import_koishi.Schema.number().description(
@@ -94,29 +83,14 @@ var Config = import_koishi.Schema.intersect([
 var inject = ["chatluna"];
 var usage = `
 <h2>使用</h2>
-<p>插件会在启动时自动注册到 ChatLuna 服务中，选择本插件注册的 freexiaoxue/gpt66667-mhimg 模型即可。你可以通过 ChatLuna 的聊天命令与 机器人 进行交互。</p>
+<p>插件会在启动时自动注册到 ChatLuna 服务中，选择本插件注册的 freexiaoxue/gpt66667-chatai 模型即可。你可以通过 ChatLuna 的聊天命令与 机器人 进行交互。</p>
 <p>更多使用教程请参考 <a href="https://chatluna.chat/" target="_blank">https://chatluna.chat/</a></p>
 
-<h2>API 来源</h2>
-<p>本插件使用的 API 来源于 <a href="https://api.mhimg.cn/" target="_blank">api.mhimg.cn</a>，该 API 是 <a href="https://api.mhimg.cn/" target="_blank">api.mhimg.cn</a> 免费无偿提供的。</p>
-
 ---
 
-<h2>免责声明</h2>
-<ol>
-  <li>本插件所使用的 API 是由第三方免费无偿提供的，我们对该 API 的稳定性、可靠性和安全性不做任何保证。</li>
-  <li>使用本插件过程中产生的任何问题（包括但不限于数据丢失、服务中断等），我们不承担任何责任。</li>
-  <li>用户在使用本插件时，应自行评估和承担使用该 API 所带来的风险。</li>
-  <li>---最终解释权归本插件作者所有---</li>
-  <li>开启本插件后自动视为同意使用以上协议，如果您不同意，请立即关闭并卸载本插件。</li>
-</ol>
 
----
-
-<h2>开发理念</h2>
-<p>本插件秉持为用户提供便捷、免费服务的理念而开发。若您在使用过程中发现免费服务不能满足您的需求，欢迎选择付费服务。</p>
-<p>我们推荐访问 <a href="https://api.bailili.top/" target="_blank">https://api.bailili.top/</a>，并结合 <code>chatluna-openai-like-adapter</code> 进行使用，以获得更优质的体验。（该站点开发者在chatluna群，出问题可以拷打）</p>
-
+<p>本插件需要一个后端API地址才可以使用</p>
+<p>我们推荐使用 <a href="/market?keyword=freexiaoxue-api">freexiaoxue-api</a> 搭建后端</p>
 
 `;
 /*
@@ -443,39 +417,7 @@ function apply(ctx, config) {
       const maxTokenTopology = config.Maximum_token_topology;
       const prompt = ensureMaxLength(data.messages.map(msg => msg.content).join('\n'), maxTokenTopology);
 
-      let requestUrl;
-      switch (config.Interface_Selection) {
-        case 'gpt_baidu':
-          requestUrl = `https://api.mhimg.cn/api/gpt_baidu/?prompt=${encodeURIComponent(prompt)}`;
-          break;
-        //case 'gpt__openai':
-        //requestUrl = `https://api.mhimg.cn/api/gpt__openai/?prompt=${encodeURIComponent(prompt)}`; //[code：-1, msg：未提交Key！]
-        //break;
-        case 'Gpt_renshe':
-          requestUrl = `https://api.mhimg.cn/api/Gpt_renshe/?coder=%E7%83%AD%E5%BF%83%E7%BD%91%E5%8F%8B&prompt=${encodeURIComponent(prompt)}`;
-          //https://api.mhimg.cn/api/gpt_aimaoniang/?coder=热心网友&prompt=${encodeURIComponent(prompt)}
-          break;
-        case 'gpt_semao':
-          requestUrl = `https://api.mhimg.cn/api/gpt_semao/?prompt=${encodeURIComponent(prompt)}`;
-          break;
-        case 'gpt_aimaoniang':
-          requestUrl = `https://api.mhimg.cn/api/gpt_aimaoniang/?prompt=${encodeURIComponent(prompt)}`;
-          break;
-        case 'gpt_lianaiqiluo':
-          requestUrl = `https://api.mhimg.cn/api/gpt_lianaiqiluo/?prompt=${encodeURIComponent(prompt)}`;
-          break;
-        case 'gpt_aojiaojj':
-          requestUrl = `https://api.mhimg.cn/api/gpt_aojiaojj/?prompt=${encodeURIComponent(prompt)}`;
-          break;
-        case 'freexiaoxue_api':
-          requestUrl = `${config.freexiaoxue_api}${encodeURIComponent(prompt)}`;
-          break;
-        default:
-          requestUrl = `https://api.mhimg.cn/api/gpt_aimaoniang/?prompt=${encodeURIComponent(prompt)}`;
-      }
-      logInfo(`使用模型： ${config.Interface_Selection}`);
-      //logInfo(`prompt: ${prompt}`);
-      //logInfo(`Making GET request to URL: ${requestUrl}`);
+      let requestUrl = `${config.freexiaoxue_api}${encodeURIComponent(prompt)}`;
 
       return this._plugin.fetch(requestUrl, {
         method: "GET",
@@ -528,13 +470,13 @@ function apply(ctx, config) {
         "object": "list",
         "data": [
           {
-            "id": "gpt66667-mhimg",
+            "id": "gpt66667-chatai",
             "object": "model",
             "created": 1715367049,
             "owned_by": "system"
           },
           {
-            "id": "gpt66667-mhimg2",
+            "id": "gpt66667-chatai2",
             "object": "model",
             "created": 1715367050,
             "owned_by": "system"
