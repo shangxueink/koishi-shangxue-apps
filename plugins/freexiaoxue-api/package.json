@@ -2,7 +2,7 @@
   "name": "koishi-plugin-freexiaoxue-api",
   "description": "[<ruby>免费小学后端服务<rp>（</rp><rt>点我查看食用方法</rt><rp>）</rp></ruby>](https://www.npmjs.com/package/koishi-plugin-freexiaoxue-api) 为 chatluna-freexiaoxue-adapter 提供一个后端服务地址",
   "license": "MIT",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "main": "lib/index.js",
   "typings": "lib/index.d.ts",
   "files": [
@@ -18,7 +18,6 @@
     "koishi",
     "plugin",
     "免费小学后端服务",
-    "freexiaoxue",
     "freexiaoxue-api"
   ],
   "peerDependencies": {
