@@ -31,22 +31,20 @@ jobs:
           if [ ! -f ./publish/npmpublish/package.json ]; then
             echo "未在 publish/npmpublish 目录中找到 package.json，工作流将结束。"
             echo "package_json_exists=false" >> $GITHUB_ENV
+            exit 0  # 直接结束工作流
           else
             echo "package_json_exists=true" >> $GITHUB_ENV
           fi
 
-      - name: 安装依赖
-        if: env.package_json_exists == 'true'  # 只有在存在 package.json 时才执行
-        working-directory: ./publish/npmpublish  # 指定工作目录为 publish/npmpublish 文件夹
-        run: npm install
-
       - name: 登录 NPM
+        if: env.package_json_exists == 'true'  # 只有在存在 package.json 时才执行
         run: echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" > ~/.npmrc
-        
+
       - name: 验证 NPM Token
+        if: env.package_json_exists == 'true'  # 只有在存在 package.json 时才执行
         run: npm whoami
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}  # 使用 GitHub Secrets 存储 NPM Token
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: 发布包
         if: env.package_json_exists == 'true'  # 只有在存在 package.json 时才执行
@@ -80,8 +78,6 @@ jobs:
           if [ -d ./publish/npmpublish_temp ]; then
             git add -f ./publish/npmpublish_temp
           fi
-          # 添加其他文件
-          git add -f ./publish/*
           # 提交和推送
           git commit -m "npm 包发布完成，清理 publish 文件夹"
           git push
