@@ -995,18 +995,15 @@ ${pageKeywords.map(keyword => `<div class="keyword">${keyword}</div>`).join('')}
       await session.send(h.unescape((session.text(`.Reply_added`, [Keyword]))));
     });
 
+
+
   const middlewareFunction = async (session, next) => {
-    let { content, channelId, platform } = session;
-    let anothercontent = unescapeHtml(content).trim();
+    let { channelId, platform } = session;
+    let anothercontent = unescapeHtml(session.stripped.content).trim();
 
     // 将输入内容转换为小写
     if (config.Treat_all_as_lowercase) {
       anothercontent = anothercontent.toLowerCase();
-    }
-
-    // 移除前导尖括号内容
-    if (platform === 'qq' || platform === 'qqguild') {
-      anothercontent = removeLeadingBrackets(content);
     }
 
     logInfo(`用户输入内容为\n${anothercontent}`)
@@ -1062,41 +1059,54 @@ ${pageKeywords.map(keyword => `<div class="keyword">${keyword}</div>`).join('')}
         const data = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
         for (const keyword in data) {
           const replies = data[keyword];
-          let isMatch = false;
+          const checkCondition = () => {
+            if (session.stripped.hasAt && !session.stripped.atSelf) {
+              logInfo("at了其他用户，不触发回复");
+              return false;
+            }
+            if (session.stripped.content.includes(keyword)) {
+              return true;
+            }
+            return false;
+          };
 
-          // 获取当前关键词对应的所有可能的带前缀的关键词
-          const prefixedKeywords = getPrefixedKeywords(keyword, config.prefix || ["", "/", "#"]);
+          if (checkCondition()) {
+            let isMatch = false;
 
-          // 遍历所有带前缀的关键词，看是否匹配
-          for (const prefixedKeyword of prefixedKeywords) {
-            const suffixIndex = getSuffixIndex(anothercontent, prefixedKeyword);
+            // 获取当前关键词对应的所有可能的带前缀的关键词
+            const prefixedKeywords = getPrefixedKeywords(keyword, config.prefix || ["", "/", "#"]);
 
-            if (keyword.startsWith('regex:')) {
-              const regexPattern = keyword.substring(6);
-              const regex = new RegExp(regexPattern);
-              isMatch = regex.test(anothercontent);
-            } else {
-              // 新增：根据后缀序号来判断匹配情况
-              if (anothercontent === prefixedKeyword) {
-                isMatch = true; // 直接匹配
-              } else if (suffixIndex !== null && suffixIndex > 0 && suffixIndex <= replies.length) {
-                // 指定序号范围内
-                await sendReplies(session, replies[suffixIndex - 1]);
+            // 遍历所有带前缀的关键词，看是否匹配
+            for (const prefixedKeyword of prefixedKeywords) {
+              const suffixIndex = getSuffixIndex(anothercontent, prefixedKeyword);
+
+              if (keyword.startsWith('regex:')) {
+                const regexPattern = keyword.substring(6);
+                const regex = new RegExp(regexPattern);
+                isMatch = regex.test(anothercontent);
+              } else {
+                // 新增：根据后缀序号来判断匹配情况
+                if (anothercontent === prefixedKeyword) {
+                  isMatch = true; // 直接匹配
+                } else if (suffixIndex !== null && suffixIndex > 0 && suffixIndex <= replies.length) {
+                  // 指定序号范围内
+                  await sendReplies(session, replies[suffixIndex - 1]);
+                  return true;
+                }
+              }
+
+              if (isMatch) {
+                const now = Date.now();
+                const key = config.Type_of_restriction === '2' ? `${keyword}:${channelId}` : keyword;
+                if (lastTriggerTimes[key] && now - lastTriggerTimes[key] < config.Frequency_limitation * 1000) {
+                  logInfo("间隔时间未到，不触发回复");
+                  return true; // 间隔时间未到，不触发回复
+                }
+                lastTriggerTimes[key] = now;
+                const randomReplyGroup = replies[Math.floor(Math.random() * replies.length)];
+                await sendReplies(session, randomReplyGroup);
                 return true;
               }
-            }
-
-            if (isMatch) {
-              const now = Date.now();
-              const key = config.Type_of_restriction === '2' ? `${keyword}:${channelId}` : keyword;
-              if (lastTriggerTimes[key] && now - lastTriggerTimes[key] < config.Frequency_limitation * 1000) {
-                logInfo("间隔时间未到，不触发回复");
-                return true; // 间隔时间未到，不触发回复
-              }
-              lastTriggerTimes[key] = now;
-              const randomReplyGroup = replies[Math.floor(Math.random() * replies.length)];
-              await sendReplies(session, randomReplyGroup);
-              return true;
             }
           }
         }
@@ -1121,11 +1131,6 @@ ${pageKeywords.map(keyword => `<div class="keyword">${keyword}</div>`).join('')}
       };
       return unescapeMap[match];
     });
-  };
-
-  const removeLeadingBrackets = (str) => {
-    const bracketRegex = /^<[^>]*>\s*/;
-    return str.replace(bracketRegex, '').trim();
   };
 
   if (config.Preposition_middleware) {
