@@ -272,7 +272,8 @@ function apply(ctx, config) {
 
   async function parseReplyContent(reply, root, session, isGlobal) {
     const elements = h.parse(reply);
-    logInfo('Parsed elements:  ' + elements)
+    logInfo('Parsed elements:  ')
+    logInfo(elements)
     const replyData = await Promise.all(elements.map(async element => {
       if (element.type === 'img' || element.type === 'image') {
         let localPath;
@@ -312,11 +313,11 @@ function apply(ctx, config) {
           type: 'video',
           text: element.attrs.src
         };
-        /*} else if (element.type === 'mface') {
-          return {
-            type: 'mface',
-            text: element.attrs.url
-          };*/
+      } else if (element.type === 'mface') {
+        return {
+          type: 'mface',
+          text: element.attrs.url || "无法获取该 mface 的图片链接"
+        };
       } else {
         return {
           type: 'unknown',
@@ -606,6 +607,10 @@ function apply(ctx, config) {
           (0, h)('image', { url: reply.text }) :
           `${h.image(reply.text)}\n`;
       }
+    } else if (reply.type === 'mface') {
+      formattedReply = returnElement ?
+        (0, h)('text', { content: reply.text }) :
+        `${h.image(reply.text)}\n`;
     } else if (reply.type === 'text') {
       formattedReply = returnElement ?
         (0, h)('text', { content: reply.text }) :
@@ -624,7 +629,7 @@ function apply(ctx, config) {
         `${reply.text}\n`;
     }
     const returnformatReply = returnElement ? (0, h)('message', {}, formattedReply) : formattedReply;
-    logInfo(returnformatReply)
+    //logInfo(returnformatReply)
     return returnformatReply;
   };
 
@@ -1059,27 +1064,13 @@ ${pageKeywords.map(keyword => `<div class="keyword">${keyword}</div>`).join('')}
         const data = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
         for (const keyword in data) {
           const replies = data[keyword];
-          const checkCondition = () => {
-            if (session.stripped.hasAt && !session.stripped.atSelf) {
-              logInfo("at了其他用户，不触发回复");
-              return false;
-            }
-            if (session.stripped.content.includes(keyword)) {
-              return true;
-            }
-            return false;
-          };
-
-          if (checkCondition()) {
+          if ((session.stripped.hasAt && session.stripped.atSelf) || (!session.stripped.hasAt)) {
             let isMatch = false;
-
             // 获取当前关键词对应的所有可能的带前缀的关键词
             const prefixedKeywords = getPrefixedKeywords(keyword, config.prefix || ["", "/", "#"]);
-
             // 遍历所有带前缀的关键词，看是否匹配
             for (const prefixedKeyword of prefixedKeywords) {
               const suffixIndex = getSuffixIndex(anothercontent, prefixedKeyword);
-
               if (keyword.startsWith('regex:')) {
                 const regexPattern = keyword.substring(6);
                 const regex = new RegExp(regexPattern);
@@ -1094,7 +1085,6 @@ ${pageKeywords.map(keyword => `<div class="keyword">${keyword}</div>`).join('')}
                   return true;
                 }
               }
-
               if (isMatch) {
                 const now = Date.now();
                 const key = config.Type_of_restriction === '2' ? `${keyword}:${channelId}` : keyword;
@@ -1108,6 +1098,9 @@ ${pageKeywords.map(keyword => `<div class="keyword">${keyword}</div>`).join('')}
                 return true;
               }
             }
+          } else {
+            logInfo("at 别人，不予匹配关键词");
+            return true; // 确保函数在打印后立即返回
           }
         }
       }
