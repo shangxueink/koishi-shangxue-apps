@@ -114,7 +114,7 @@ const Config = Schema.intersect([
   }).description('输出内容屏蔽设置'),
 
   Schema.object({
-    removeLeadingBrackets: Schema.boolean().default(true).description('移除接收到的尖括号内容，比如at元素（仅推荐qq平台使用）'),
+    //removeLeadingBrackets: Schema.boolean().default(true).description('移除接收到的尖括号内容，比如at元素（仅推荐qq平台使用）'),
     loggerinfo: Schema.boolean().default(false).description('日志调试模式'),
   }).description('调试设置'),
 ]);
@@ -567,18 +567,11 @@ async function apply(ctx, config) {
       await unblockChannel(session, channelId);
     });
 
-  const removeLeadingBrackets = (str) => {
-    const bracketRegex = /^<[^>]*>\s*/;
-    return str.replace(bracketRegex, '').trim();
-  };
   // 前置中间件，检查是否有屏蔽的关键词或用户
   ctx.middleware(async (session, next) => {
-    // 移除前导尖括号内容
-    let blockercontent = session.content
-    if (config.removeLeadingBrackets) {
-      blockercontent = removeLeadingBrackets(blockercontent);
-    }
-    const userCommand = blockercontent.split(" ")[0]; // 获取指令的第一个词
+    logInfo(session.stripped)
+    let blockercontent = session.stripped.content;
+    const userCommand = blockercontent.split(" ")[0]; // 获取指令的第一个词 作为用户的指令
     const record = await ctx.database.get("blockedKeywords", { platform: session.platform, channelId: session.channelId });
     const globalRecord = await ctx.database.get("blockedKeywords", { platform: session.platform, channelId: 'global' });
     const blockedKeywords = (record[0]?.blockedkeywords || []).concat(globalRecord[0]?.blockedkeywords || []);
