@@ -1,7 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.apply = exports.Config = exports.usage = exports.inject = exports.name = void 0;
-const koishi_1 = require("koishi");
+const { Schema, Logger, h } = require("koishi");
 const fs = require('fs');
 const path = require('path');
 
@@ -31,43 +31,58 @@ exports.usage = `
 
 赶快选择你需要的配置，开始自定义你的菜单吧！
 
-
-
 `;
 
-exports.Config = koishi_1.Schema.object({
-    file_name: koishi_1.Schema.string().default('qq-markdown-button').description('存储文件的文件夹名称'),
-    command_name: koishi_1.Schema.string().default('按钮菜单').description('注册的指令名称'),
-    type_switch: koishi_1.Schema.union([
-        koishi_1.Schema.const('json').description('json按钮'),
-        koishi_1.Schema.const('markdown').description('被动md，模板md'),
-        koishi_1.Schema.const('RAW_markdown').description('原生md'),
-    ]).role('radio').description('选择菜单发送方式'),
-    //------------------------------------json按钮配置项------------------------------------------------------
-    json_setting: koishi_1.Schema.object({
-        json_button_id: koishi_1.Schema.string().description('json模板的ID').pattern(/^\d+_\d+$/), // 102069859_1725953918
-        json_json: koishi_1.Schema.path({
-            filters: ['.json', '.JSON'],
-        }).description('JSON JSON 文件路径').default(path.join(__dirname, 'qq/json.json')),
-    }).collapse().description('json按钮菜单'),
-    //------------------------------------被动md模板配置项------------------------------------------------------
-    markdown_setting: koishi_1.Schema.object({
-        markdown_id: koishi_1.Schema.string().description('MarkDown模板的ID').pattern(/^\d+_\d+$/),
-        markdown_json: koishi_1.Schema.path({
-            filters: ['.json', '.JSON'],
-        }).description('Markdown JSON 文件路径').default(path.join(__dirname, 'qq/markdown.json')),
-    }).collapse().description('被动模板md菜单'),
-    //------------------------------------原生md配置项------------------------------------------------------
-    RAW_MD_setting: koishi_1.Schema.object({
-        RAW_markdown_json: koishi_1.Schema.path({
-            filters: ['.json', '.JSON'],
-        }).description('原生 Markdown JSON 文件路径').default(path.join(__dirname, 'qq/raw_markdown.json')),
-        RAW_markdown_md: koishi_1.Schema.path({
-            filters: ['.md', '.JSON'],
-        }).description('原生 Markdown MD 文件路径').default(path.join(__dirname, 'qq/raw_markdown.md')),
-    }).collapse().description('原生md菜单'),
-    consoleinfo: koishi_1.Schema.boolean().default(false).description("日志调试模式`日常使用无需开启`"),
-}).description('QQ官方bot设置');
+exports.Config = Schema.intersect([
+    Schema.object({
+        consoleinfo: Schema.boolean().default(false).description("日志调试模式`日常使用无需开启`"),
+        file_name: Schema.string().default('qq-markdown-button').description('存储文件的文件夹名称'),
+        command_name: Schema.string().default('按钮菜单').description('注册的指令名称'),
+        type_switch: Schema.union([
+            Schema.const('json').description('json按钮'),
+            Schema.const('markdown').description('被动md，模板md'),
+            Schema.const('RAW_markdown').description('原生md'),
+        ]).role('radio').description('选择菜单发送方式'),
+    }).description('QQ官方bot设置'),
+    //------------------------------------json按钮配置项--------------------------------------------------------
+    Schema.union([
+        Schema.object({
+            type_switch: Schema.const("json").required(),
+            json_setting: Schema.object({
+                json_button_id: Schema.string().description('json模板的ID').pattern(/^\d+_\d+$/), // 102069859_1725953918
+                json_json: Schema.path({
+                    filters: ['.json', '.JSON'],
+                }).description('JSON JSON 文件路径').default(path.join(__dirname, 'qq/json.json')),
+            }).collapse().description('json按钮菜单'),
+        }),
+        //------------------------------------被动md模板配置项---------------------------------------------------
+        Schema.object({
+            type_switch: Schema.const("markdown").required(),
+            markdown_setting: Schema.object({
+                markdown_id: Schema.string().description('MarkDown模板的ID').pattern(/^\d+_\d+$/),
+                json_button_id: Schema.string().description('json模板的ID<br>会和md消息放在一起发送哦').pattern(/^\d+_\d+$/), // 102069859_1725953918
+                markdown_json: Schema.path({
+                    filters: ['.json', '.JSON'],
+                }).description('Markdown JSON 文件路径').default(path.join(__dirname, 'qq/markdown.json')),
+            }).collapse().description('被动模板md菜单'),
+        }),
+        //------------------------------------原生md配置项------------------------------------------------------
+        Schema.object({
+            type_switch: Schema.const("RAW_markdown").required(),
+            RAW_MD_setting: Schema.object({
+                RAW_markdown_json: Schema.path({
+                    filters: ['.json', '.JSON'],
+                }).description('原生 Markdown JSON 文件路径').default(path.join(__dirname, 'qq/raw_markdown.json')),
+                RAW_markdown_md: Schema.path({
+                    filters: ['.md', '.JSON'],
+                }).description('原生 Markdown MD 文件路径').default(path.join(__dirname, 'qq/raw_markdown.md')),
+            }).collapse().description('原生md菜单'),
+
+        }),
+    ])
+])
+
+
 
 function apply(ctx, config) {
     // 允许命名使用的安全名称
@@ -98,7 +113,6 @@ function apply(ctx, config) {
         .action(async ({ session }) => {
             const type = config.type_switch;
             let Menu_message;
-
             try {
                 if (type === 'json') {
                     Menu_message = processMarkdownCommand(path.join(baseDir, 'json.json'), null, session, config);
@@ -110,7 +124,6 @@ function apply(ctx, config) {
 
                 logInfomessage(Menu_message);
                 await sendsomeMessage(Menu_message, session, ctx);
-
             } catch (error) {
                 ctx.logger.error(`处理命令时出错: ${error}`);
             }
@@ -160,10 +173,8 @@ function apply(ctx, config) {
                         return data;
                     };
 
-                    // Replace variables in markdown content
                     markdownContent = replacePlaceholders(markdownContent).replace(/\n/g, '');
 
-                    // Add the replaced markdown content to the variables
                     allVariables.markdown = markdownContent;
 
                     const rawJsonObject = JSON.parse(rawJsonData);
