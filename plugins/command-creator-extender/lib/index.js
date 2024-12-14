@@ -76,24 +76,15 @@ const Config = Schema.intersect([
 
 ]);
 
-// 移除前导尖括号内容的辅助函数
-function removeLeadingBrackets(content) {
-  return content.replace(/^<.*?>\s*/, '');
-}
 
 async function apply(ctx, config) {
   ctx.middleware(async (session, next) => {
     if (!config.reverse_order) {
-      await next(); // 先执行后面的 next
+      await next();
     }
 
-    let sessioncontent = session.content;
-    if (session.platform === 'qq') {
-      sessioncontent = removeLeadingBrackets(sessioncontent);
-    }
-
-    const trimmedContent = sessioncontent.trim();
-    const [currentCommand, ...args] = trimmedContent.split(/\s+/);
+    const { hasAt, content, atSelf } = session.stripped;
+    const [currentCommand, ...args] = content.trim().split(/\s+/);
     const remainingArgs = args.join(" ");
 
     // 查找匹配的原始指令
@@ -108,39 +99,49 @@ async function apply(ctx, config) {
 
         // 检查生效条件
         if (effectChannelIds.includes("0")) {
-          isEffective = true; // 全部生效
+          isEffective = true;
         } else if (effectChannelIds.length > 0) {
-          isEffective = effectChannelIds.includes(session.channelId); // 仅在指定频道生效
+          isEffective = effectChannelIds.includes(session.channelId);
         }
 
         // 检查失效条件
         if (uneffectChannelIds.includes("0")) {
-          isEffective = false; // 全部失效
+          isEffective = false;
         } else if (uneffectChannelIds.length > 0 && uneffectChannelIds.includes(session.channelId)) {
-          isEffective = false; // 在排除频道中失效
+          isEffective = false;
         }
 
-        if (isEffective) {
-          if (config.loggerinfo) {
-            ctx.logger.info(
-              `用户 ${session.userId} 在频道 ${session.channelId} 触发了 ${currentCommand} ${remainingArgs}，即将自动执行：\n${mapping.nextCommand} ${remainingArgs}`
-            );
+        // 检查 at 情况
+        if ((hasAt && atSelf) || !hasAt) {
+          if (isEffective) {
+            if (config.loggerinfo) {
+              ctx.logger.info(
+                `用户 ${session.userId} 在频道 ${session.channelId} 触发了 ${currentCommand} ${remainingArgs}，即将自动执行：\n${mapping.nextCommand} ${remainingArgs}`
+              );
+            }
+            await session.execute(`${mapping.nextCommand} ${remainingArgs}`);
+          } else {
+            if (config.loggerinfo) {
+              ctx.logger.info(
+                `用户 ${session.userId} 在频道 ${session.channelId} 触发了 ${currentCommand}，但该指令未在当前频道生效（effectChannelId: ${effectChannelIds.join(
+                  ", "
+                )}, uneffectChannelId: ${uneffectChannelIds.join(", ")}）。`
+              );
+            }
           }
-          await session.execute(`${mapping.nextCommand} ${remainingArgs}`);
         } else {
           if (config.loggerinfo) {
             ctx.logger.info(
-              `用户 ${session.userId} 在频道 ${session.channelId} 触发了 ${currentCommand}，但该指令未在当前频道生效（effectChannelId: ${effectChannelIds.join(
-                ", "
-              )}, uneffectChannelId: ${uneffectChannelIds.join(", ")}）。`
+              `用户 ${session.userId} 在频道 ${session.channelId} 触发了 ${currentCommand}，但由于 at 了其他用户，该指令未触发。`
             );
           }
         }
       }
     }
-    return next(); // next
+    return next();
   }, true);
 }
+
 
 
 
