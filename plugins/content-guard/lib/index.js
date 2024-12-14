@@ -86,7 +86,7 @@ exports.Config = Schema.intersect([
     Whitelist_input: Schema.array(String).role('table').default(Whitelist_input_default).description('关键词白名单<br>对于一些不合逻辑的关键词的取消屏蔽<br>若同时包含黑名单关键词，则视为违规输入'),
   }).description('违禁词调整设置'),
   Schema.object({
-    removeLeadingBrackets: Schema.boolean().default(true).description('忽略处理尖括号内的元素 （忽略at、忽略图片 等）'),
+    //removeLeadingBrackets: Schema.boolean().default(true).description('忽略处理尖括号内的元素 （忽略at、忽略图片 等）'),
     loggerinfo: Schema.boolean().default(false).description('日志调试模式')
   }).description('调试设置'),
 ]);
@@ -97,11 +97,6 @@ function apply(ctx, config) {
       logger.info(message);
     }
   }
-
-  const removeLeadingBrackets = (str) => {
-    const bracketRegex = /^<[^>]*>\s*/;
-    return str.replace(bracketRegex, '').trim();
-  };
   async function loadVocabulary() {
     if (!config.Audit_Vocabulary_txt) return [];
 
@@ -153,13 +148,13 @@ function apply(ctx, config) {
       return next(); // 如果审核功能未开启，直接通过消息
     }
 
-    let { content } = session;
-    let anothercontent = content.trim().toLowerCase();
-
-    if (config.removeLeadingBrackets) {
-      anothercontent = removeLeadingBrackets(content).toLowerCase();
+    // 如果 at 了其他人，不处理本次消息
+    if (session.stripped.hasAt && !session.stripped.atSelf) {
+      logInfo("用户 at 了其他人，不处理本次输入");
+      return next();
     }
 
+    let anothercontent = session.stripped.content.trim().toLowerCase();
     const commandConfig = config.Audit_Configuration2.find(item => anothercontent.startsWith(item.commandname.toLowerCase()));
 
     if (!commandConfig || commandConfig.Audit_value1 === '关闭审核') {
