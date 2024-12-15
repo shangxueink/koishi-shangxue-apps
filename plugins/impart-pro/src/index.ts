@@ -581,9 +581,9 @@ export function apply(ctx: Context, config: Config) {
       return;
     });
 
-  ctx.command('impartpro/决斗 [user]', '决斗牛牛！')
+  ctx.command('impartpro/牛牛决斗 [user]', '决斗牛牛！')
     .alias('嗦牛牛')
-    .example("决斗 @用户")
+    .example("牛牛决斗 @用户")
     .userFields(["id", "name", "permissions"])
     .action(async ({ session }, user) => {
       let userId = session.userId;
