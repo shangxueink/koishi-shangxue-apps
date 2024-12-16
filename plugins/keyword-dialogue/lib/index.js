@@ -123,7 +123,8 @@ exports.Config = Schema.intersect([
     MultisegmentAdditionRecoveryEffect: Schema.union([
       Schema.const('1').description('按照原版输入，原版输出（多段消息发送）'),
       Schema.const('2').description('合为图文消息/多行消息（一次发出，不是合并转发）'),
-      Schema.const('3').description('合并转发发送 `需要适配器支持哦~`'),
+      Schema.const('3').description('合为一条图文消息，并且合并转发发送 `需要适配器支持哦~`'),
+      Schema.const('4').description('按照原版输入，合并转发发送 `需要适配器支持哦~`'),
     ]).role('radio').default('2').description("多段添加的回复效果"),
   }).description('进阶设置'),
 
@@ -270,7 +271,7 @@ function apply(ctx, config) {
     }
   }
 
-  async function parseReplyContent(reply, root, session, isGlobal) {
+  async function parseReplyContent(reply, root, session, options) {
     const elements = h.parse(reply);
     logInfo('Parsed elements:  ')
     logInfo(elements)
@@ -282,10 +283,10 @@ function apply(ctx, config) {
             localPath = element.attrs.src;
             break;
           case '2':
-            localPath = await downloadImage(element.attrs.src, root, session, isGlobal);
+            localPath = await downloadImage(element.attrs.src, root, session, options.global);
             break;
           case '3':
-            localPath = await downloadImage(element.attrs.src, root, session, isGlobal);
+            localPath = await downloadImage(element.attrs.src, root, session, options.global);
             break;
           case '4':
             localPath = await downloadImageAsBase64(element.attrs.src);
@@ -296,32 +297,38 @@ function apply(ctx, config) {
         return {
           type: 'image',
           text: `${localPath}`,
-          fileSize: element.attrs.fileSize
+          fileSize: element.attrs.fileSize,
+          replyway: options.forward || config.MultisegmentAdditionRecoveryEffect
         };
       } else if (element.type === 'text') {
         return {
           type: 'text',
-          text: element.attrs.content
+          text: element.attrs.content,
+          replyway: options.forward || config.MultisegmentAdditionRecoveryEffect
         };
       } else if (element.type === 'audio') {
         return {
           type: 'audio',
-          text: element.attrs.path || element.attrs.url
+          text: element.attrs.path || element.attrs.url,
+          replyway: options.forward || config.MultisegmentAdditionRecoveryEffect
         };
       } else if (element.type === 'video') {
         return {
           type: 'video',
-          text: element.attrs.src
+          text: element.attrs.src,
+          replyway: options.forward || config.MultisegmentAdditionRecoveryEffect
         };
       } else if (element.type === 'mface') {
         return {
           type: 'mface',
-          text: element.attrs.url || "无法获取该 mface 的图片链接"
+          text: element.attrs.url || "无法获取该 mface 的图片链接",
+          replyway: options.forward || config.MultisegmentAdditionRecoveryEffect
         };
       } else {
         return {
           type: 'unknown',
-          text: reply
+          text: reply,
+          replyway: options.forward || config.MultisegmentAdditionRecoveryEffect
         };
       }
     })).then(results => results.filter(item => item !== null));
@@ -440,7 +447,7 @@ function apply(ctx, config) {
       .replace(/\\\\/g, '\\\\');                 // 双反斜杠只处理一次
   }
 
-  async function addKeywordReply(session, filePath, keyword, config, options, isGlobal) {
+  async function addKeywordReply(session, filePath, keyword, config, options) {
     let data;
     try {
       data = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
@@ -451,9 +458,8 @@ function apply(ctx, config) {
     if (config.Treat_all_as_lowercase) {
       keyword = keyword.toLowerCase();
     }
-
-    const addKeyword = options.unescapeRegExp ? `regex:${keyword}` : `regex:${escapeRegExp(keyword)}`;
-    const key = (options.regex || options.unescapeRegExp) ? addKeyword : keyword;
+    const addKeyword = options.unescape ? `regex:${keyword}` : `regex:${escapeRegExp(keyword)}`;
+    const key = (options.regex || options.unescape) ? addKeyword : keyword;
 
     if (!data[key]) {
       data[key] = [];
@@ -486,7 +492,7 @@ function apply(ctx, config) {
         return;
       }
 
-      const replyData = await parseReplyContent(reply, root, session, isGlobal);
+      const replyData = await parseReplyContent(reply, root, session, options);
       currentReplies.push(...replyData);
 
       // 将回复内容保存到 data 中
@@ -517,7 +523,7 @@ function apply(ctx, config) {
         return;
       }
 
-      const replyData = await parseReplyContent(reply, root, session, isGlobal);
+      const replyData = await parseReplyContent(reply, root, session, options);
       currentReplies.push(...replyData);
     }
 
@@ -525,6 +531,7 @@ function apply(ctx, config) {
     fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf-8');
     await session.send(h.unescape((session.text(`.Reply_added`, [keyword]))));
   }
+
 
   async function downloadImage(url, outputPath, session, isGlobal) {
     try {
@@ -590,46 +597,31 @@ function apply(ctx, config) {
     }
   }
 
-  async function formatReply(reply, returnElement = false) {
+  async function formatReply(reply, forwardreturn = false) {
     let formattedReply;
     if (reply.type === 'img' || reply.type === 'image') {
       if (config.picture_save_to_local_send === '3') {
         const base64fileData = await downloadImageAsBase64(reply.text);
-        formattedReply = returnElement ?
-          (0, h)('image', { url: 'data:image/png;base64,' + base64fileData }) :
-          `${h('image', { url: 'data:image/png;base64,' + base64fileData })}\n`;
+        formattedReply = h.image('data:image/png;base64,' + base64fileData);
       } else if (config.picture_save_to_local_send === '4') {
-        formattedReply = returnElement ?
-          (0, h)('image', { url: 'data:image/png;base64,' + reply.text }) :
-          `${h('image', { url: 'data:image/png;base64,' + reply.text })}\n`;
+        formattedReply = h.image('data:image/png;base64,' + reply.text);
       } else {
-        formattedReply = returnElement ?
-          (0, h)('image', { url: reply.text }) :
-          `${h.image(reply.text)}\n`;
+        formattedReply = h.image(reply.text);
       }
     } else if (reply.type === 'mface') {
-      formattedReply = returnElement ?
-        (0, h)('text', { content: reply.text }) :
-        `${h.image(reply.text)}\n`;
+      formattedReply = h.image(reply.text);
     } else if (reply.type === 'text') {
-      formattedReply = returnElement ?
-        (0, h)('text', { content: reply.text }) :
-        `${h.text(reply.text)}\n`;
+      formattedReply = h.text(reply.text);
     } else if (reply.type === 'audio') {
-      formattedReply = returnElement ?
-        (0, h)('audio', { url: reply.text }) :
-        `${h.audio(reply.text)}\n`;
+      formattedReply = h.audio(reply.text);
     } else if (reply.type === 'video') {
-      formattedReply = returnElement ?
-        (0, h)('video', { url: reply.text }) :
-        `${h.video(reply.text)}\n`;
+      formattedReply = h.video(reply.text);
     } else if (reply.type === 'unknown') {
-      formattedReply = returnElement ?
-        (0, h)('text', { content: reply.text }) :
-        `${reply.text}\n`;
+      formattedReply = reply.text;
     }
-    const returnformatReply = returnElement ? (0, h)('message', {}, formattedReply) : formattedReply;
-    //logInfo(returnformatReply)
+    const returnformatReply = forwardreturn ? h('message', {}, formattedReply) : formattedReply;
+    logInfo("returnformatReply:")
+    logInfo(returnformatReply)
     return returnformatReply;
   };
 
@@ -876,7 +868,10 @@ ${pageKeywords.map(keyword => `<div class="keyword">${keyword}</div>`).join('')}
   ctx.command(`keyword-dialogue/${global_add_command} [Keyword]`)
     .alias('全局添加关键词')
     .option('regex', '-x 添加正则关键词')
-    .option('unescapeRegExp', '-u 取消转义以使用自定义正则')
+    .option('global', '-g 添加全局关键词')
+    .option('unescape', '-u 取消转义以使用自定义正则')
+    .option('forward', '-f <number> 指定回复方式：1.按照原版输入，原版输出 2.合为图文消息 3.合为一条图文消息的合并转发 4.按照原版输入，合并转发发送')
+    .example("全局添加关键词 使用教程 -x  -f 2")
     .action(async ({ session, options }, Keyword) => {
 
       if (!hasPermission(session, '全局添加')) {
@@ -887,12 +882,12 @@ ${pageKeywords.map(keyword => `<div class="keyword">${keyword}</div>`).join('')}
         await session.send(h.text(session.text(`.no_Valid_Keyword`)));
         return;
       }
-      const isGlobal = true;
+      options.global = true;
       const filePath = path.join(root, 'global.json');
       if (!fs.existsSync(filePath)) {
         fs.writeFileSync(filePath, JSON.stringify({}, null, 2), 'utf-8');
       }
-      await addKeywordReply(session, filePath, Keyword.trim(), config, options, isGlobal);
+      await addKeywordReply(session, filePath, Keyword.trim(), config, options);
     });
 
   //添加关键词
@@ -900,7 +895,9 @@ ${pageKeywords.map(keyword => `<div class="keyword">${keyword}</div>`).join('')}
     .alias('添加关键词')
     .option('global', '-g 添加全局关键词')
     .option('regex', '-x 添加正则关键词')
-    .option('unescapeRegExp', '-u 取消转义以使用自定义正则')
+    .option('unescape', '-u 取消转义以使用自定义正则')
+    .option('forward', '-f <number> 指定回复方式：1.按照原版输入，原版输出 2.合为图文消息 3.合为一条图文消息的合并转发 4.按照原版输入，合并转发发送')
+    .example("添加关键词 使用教程 -x  -f 2")
     .action(async ({ session, options }, Keyword) => {
 
       if (!hasPermission(session, '添加')) {
@@ -912,15 +909,12 @@ ${pageKeywords.map(keyword => `<div class="keyword">${keyword}</div>`).join('')}
         return;
       }
 
-      const filePath = options.global
-        ? path.join(root, 'global.json')
-        : path.join(root, `${session.channelId}.json`);
+      const filePath = options.global ? path.join(root, 'global.json') : path.join(root, `${session.channelId}.json`);
 
-      const isGlobal = !!options.global;
       if (!fs.existsSync(filePath)) {
         fs.writeFileSync(filePath, JSON.stringify({}, null, 2), 'utf-8');
       }
-      await addKeywordReply(session, filePath, Keyword.trim(), config, options, isGlobal);
+      await addKeywordReply(session, filePath, Keyword.trim(), config, options);
     });
 
   // 修改问答
@@ -994,7 +988,7 @@ ${pageKeywords.map(keyword => `<div class="keyword">${keyword}</div>`).join('')}
         return;
       }
 
-      const replyData = await parseReplyContent(reply, root, session, options.global);
+      const replyData = await parseReplyContent(reply, root, session, options);
       data[key][index] = replyData; // 修改指定的回复
       fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf-8');
       await session.send(h.unescape((session.text(`.Reply_added`, [Keyword]))));
@@ -1031,15 +1025,17 @@ ${pageKeywords.map(keyword => `<div class="keyword">${keyword}</div>`).join('')}
       return null; // 没有匹配后缀
     };
 
-
     const sendReplies = async (session, replyGroup) => {
-      if (config.MultisegmentAdditionRecoveryEffect === '1') {
+      // 检查每个回复项是否有 replyway 字段
+      const replyway = replyGroup[0]?.replyway || config.MultisegmentAdditionRecoveryEffect;
+
+      if (replyway === '1') {
         for (const reply of replyGroup) {
           logInfo(reply);
           const formattedReply = await formatReply(reply, false);
-          await session.send(formattedReply.trim());  // 逐条发送
+          await session.send(formattedReply);  // 逐条发送
         }
-      } else if (config.MultisegmentAdditionRecoveryEffect === '2') {
+      } else if (replyway === '2') {
         let combinedReply = '';
         for (const reply of replyGroup) {
           combinedReply += await formatReply(reply, false);  // 累加
@@ -1047,8 +1043,16 @@ ${pageKeywords.map(keyword => `<div class="keyword">${keyword}</div>`).join('')}
         combinedReply = combinedReply.trim();
         logInfo(combinedReply);
         await session.send(combinedReply); // 发送累加的图文消息
-      } else if (config.MultisegmentAdditionRecoveryEffect === '3') {
-        const result = (0, h)('figure');
+      } else if (replyway === '3') {
+        const result = h('figure');
+        for (const reply of replyGroup) {
+          const formattedReply = await formatReply(reply, false);
+          result.children.push(formattedReply);
+        }
+        logInfo(result);
+        await session.send(result); // 发送合并转发消息
+      } else if (replyway === '4') {
+        const result = h('figure');
         for (const reply of replyGroup) {
           const formattedReply = await formatReply(reply, true);
           result.children.push(formattedReply);
@@ -1057,7 +1061,6 @@ ${pageKeywords.map(keyword => `<div class="keyword">${keyword}</div>`).join('')}
         await session.send(result); // 发送合并转发消息
       }
     };
-
 
     const checkAndSendRandomReply = async (filePath) => {
       if (fs.existsSync(filePath)) {
