@@ -79,14 +79,29 @@ async function apply(ctx, config) {
       const fileContent = await fs.readFile(filePath, 'utf-8');
       const voiceData = JSON.parse(fileContent);
 
-      const voices = voiceData[config.defaultLanguage];
+      let voices = voiceData[config.defaultLanguage];
+
+      if (!voices || voices.length === 0) {
+        loggerinfo(`No voice clips found in ${config.defaultLanguage}. Trying other languages.`);
+        for (const language of ['日配', '中配', '韩配']) {
+          if (language !== config.defaultLanguage) {
+            voices = voiceData[language];
+            if (voices && voices.length > 0) {
+              loggerinfo(`Found voice clips in ${language}.`);
+              break;
+            }
+          }
+        }
+      }
+
       if (voices && voices.length > 0) {
         const randomVoice = voices[Math.floor(Math.random() * voices.length)];
         const url = randomVoice.url;
         loggerinfo(`Sending voice clip: ${url}`);
         await session.send(h.audio(url));
       } else {
-        loggerinfo(`No voice clips found for character: ${characterName} in language: ${config.defaultLanguage}`);
+        loggerinfo(`No voice clips found for character: ${characterName} in any language.`);
+        await session.send(`老师！${characterName}也很喜欢老师哦！`);
       }
     } catch (error) {
       loggerinfo(`Error reading voice data for character: ${characterName} - ${error.message}`);
