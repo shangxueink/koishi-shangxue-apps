@@ -224,7 +224,8 @@ exports.Config = Schema.intersect([
   }).description('进阶设置'),
 
   Schema.object({
-    consoleinfo: Schema.boolean().default(false).description('日志调试模式')
+    consoleinfo: Schema.boolean().default(false).description('日志调试模式'),
+    command_of_get_link: Schema.boolean().default(false).description('是否开启【获取链接】的调试指令').experimental(),
   }).description('调试设置'),
 ])
 
@@ -254,12 +255,37 @@ function apply(ctx, config) {
           "image_save_location": "图片已保存到：{0}",
           "image_save_rename": "出现同名文件，已保存为 {0}({1}){2}",
         }
+      },
+      "获取链接": {
+        description: "获取图片链接",
+        messages: {
+          "image_save_notfound_image": "请回复带有图片的消息。",
+          "image_save_waitinput": "请发送图片：",
+          "image_save_invalidimage": "输入的图片无效。",
+          "image_save_path_select_prompt": "未开启重名检查时不允许一次性输入多张图片。",
+          "image_save_path_invalid": "路径名称无效，请选择路径的名称（冒号左侧为名称）：",
+          "image_save_notselected": "请选择正确的路径名称。",
+          "image_save_no_defaultpath": "没有设置默认保存路径。",
+          "image_save_success": "图片已成功保存。",
+          "image_save_error": "保存图片时出错：{0}",
+          "image_save_location": "图片已保存到：{0}",
+          "image_save_rename": "出现同名文件，已保存为 {0}({1}){2}",
+        }
       }
     }
   };
   ctx.i18n.define("zh-CN", applyI18nresult);
 
   const interactionMode = config.Interaction_mode || '1';
+  // 提取 URL 的函数
+  const extractUrl = (content) => {
+    let urls = h.select(content, 'img').map(item => item.attrs.src);
+    if (urls.length > 0) {
+      return urls;
+    }
+    urls = h.select(content, 'mface').map(item => item.attrs.url);
+    return urls.length > 0 ? urls : null;
+  };
   ctx.command('保存图片 [参数...]')
     .option('ext', '-e <ext:string> 指定图片后缀名')
     .option('name', '-n <name:string> 严格指定图片重命名')
@@ -288,36 +314,39 @@ function apply(ctx, config) {
 
       const quotemessage = session.quote?.content;
       let urlhselect;
-      loggerinfo('session.content： ' + session.content);
-
+      loggerinfo('session.content： ');
+      loggerinfo(session.content);
       // 处理图片源
       if (quotemessage) {
         // 回复保存图片
-        urlhselect = h.select(quotemessage, 'img').map(item => item.attrs.src);
+        urlhselect = extractUrl(quotemessage);
         if (!urlhselect) {
           await session.send(session.text(".image_save_notfound_image"))
           return;
         }
-        loggerinfo('触发回复的目标消息内容： ' + quotemessage);
+        loggerinfo('触发回复的目标消息内容： ');
+        loggerinfo(quotemessage);
       } else if (图片) {
         // 用户直接输入图片
-        urlhselect = h.select(图片, 'img').map(item => item.attrs.src);
+        urlhselect = extractUrl(图片);
         if (!urlhselect) {
           await session.send(session.text(".image_save_notfound_image"))
           return;
         }
-        loggerinfo('用户直接输入的图片内容为： ' + urlhselect);
+        loggerinfo('用户直接输入的图片内容为： ');
+        loggerinfo(urlhselect);
       } else {
         // 交互保存图片
         await session.send(session.text(".image_save_waitinput"))
         const image = await session.prompt(30000);
-        urlhselect = h.select(image, 'img').map(item => item.attrs.src);
+        urlhselect = extractUrl(image);
         if (!urlhselect) {
           //return '无法提取图片URL。';
           await session.send(session.text(".image_save_invalidimage"))
           return;
         }
-        loggerinfo('用户输入： ' + image);
+        loggerinfo('用户输入： ');
+        loggerinfo(image);
       }
 
       const imageExtension = options.ext || config.defaultImageExtension;
@@ -335,7 +364,8 @@ function apply(ctx, config) {
           // 如果长度小于等于 1，认为路径名称无效
           文件名 = undefined;
         } else {
-          loggerinfo('文件名： ' + 文件名);
+          loggerinfo('文件名： ');
+          loggerinfo(文件名);
         }
       }
       if (路径名称) {
@@ -345,7 +375,8 @@ function apply(ctx, config) {
           // 如果长度小于等于 1，认为路径名称无效
           路径名称 = undefined;
         } else {
-          loggerinfo('路径名称： ' + 路径名称);
+          loggerinfo('路径名称： ');
+          loggerinfo(路径名称);
         }
       }
 
@@ -411,6 +442,56 @@ function apply(ctx, config) {
     });
 
 
+  if (config.command_of_get_link) {
+    ctx.command('获取链接 [图片]')
+      .action(async ({ session }, 图片) => {
+
+        const quotemessage = session.quote?.content;
+        let urlhselect;
+
+        // 处理图片源
+        if (quotemessage) {
+          urlhselect = extractUrl(quotemessage);
+
+          loggerinfo('触发回复的目标消息内容： ');
+          loggerinfo(quotemessage);
+          if (!urlhselect) {
+            await session.send(session.text(".image_save_notfound_image"));
+            return;
+          } else {
+            await session.send(urlhselect);
+            return;
+          }
+        } else if (图片) {
+          urlhselect = extractUrl(图片);
+
+          loggerinfo('用户直接输入的图片内容为： ');
+          loggerinfo(urlhselect);
+          if (!urlhselect) {
+            await session.send(session.text(".image_save_notfound_image"));
+            return;
+          } else {
+            await session.send(urlhselect);
+            return;
+          }
+        } else {
+          await session.send(session.text(".image_save_waitinput"));
+          const image = await session.prompt(30000);
+          urlhselect = extractUrl(image);
+
+          loggerinfo('用户输入： ');
+          loggerinfo(image);
+          if (!urlhselect) {
+            await session.send(session.text(".image_save_invalidimage"));
+            return;
+          } else {
+            await session.send(urlhselect);
+            return;
+          }
+        }
+      });
+
+  }
 
 
   async function saveImages(urls, selectedPath, safeFilename, imageExtension, config, session, ctx) {
@@ -424,8 +505,8 @@ function apply(ctx, config) {
       let targetPath = `${fileRoot}${fileExt}`;
       let index = 0;
 
-      loggerinfo('提取到的图片链接：' + url);
-
+      loggerinfo('提取到的图片链接：');
+      loggerinfo(url);
       if (config.checkDuplicate) {
         while (fs.existsSync(targetPath)) {
           index++;
@@ -545,7 +626,7 @@ function apply(ctx, config) {
       }
 
       const userMessagePic = session.content;
-      const imageLinks = h.select(userMessagePic, 'img').map(item => item.attrs.src);
+      const imageLinks = extractUrl(userMessagePic);
 
       if (imageLinks.length > 0) {
         loggerinfo(`收到图片消息，提取到链接：\n${imageLinks}`);
