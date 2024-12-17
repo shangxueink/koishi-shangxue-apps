@@ -626,7 +626,7 @@ function apply(ctx, config) {
       }
 
       const userMessagePic = session.content;
-      const imageLinks = extractUrl(userMessagePic);
+      const imageLinks = h.select(userMessagePic, 'img').map(item => item.attrs.src);
 
       if (imageLinks.length > 0) {
         loggerinfo(`收到图片消息，提取到链接：\n${imageLinks}`);
