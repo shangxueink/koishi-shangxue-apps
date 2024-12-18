@@ -280,11 +280,11 @@ function apply(ctx, config) {
   // 提取 URL 的函数
   const extractUrl = (content) => {
     let urls = h.select(content, 'img').map(item => item.attrs.src);
-    if (urls.length > 0) {
+    if (urls?.length > 0) {
       return urls;
     }
     urls = h.select(content, 'mface').map(item => item.attrs.url);
-    return urls.length > 0 ? urls : null;
+    return urls?.length > 0 ? urls : null;
   };
   ctx.command('保存图片 [参数...]')
     .option('ext', '-e <ext:string> 指定图片后缀名')
@@ -626,16 +626,13 @@ function apply(ctx, config) {
       }
 
       const userMessagePic = session.content;
-      const imageLinks = h.select(userMessagePic, 'img').map(item => item.attrs.src);
-
-      if (imageLinks.length > 0) {
-        loggerinfo(`收到图片消息，提取到链接：\n${imageLinks}`);
-      }
-
-      if (!imageLinks.length) {
+      const imageLinks = extractUrl(userMessagePic);
+      if (!imageLinks || !imageLinks?.length) {
         return next();
       }
-
+      if (imageLinks?.length > 0) {
+        loggerinfo(`收到图片消息，提取到链接：\n${imageLinks}`);
+      }
       const hashRecords = loadHashRecords(hashRecordPath);
       for (const link of imageLinks) {
         await downloadAndSaveImage(link, groupConfig.defaultsavepath, ctx, hashRecords, groupConfig.count);
