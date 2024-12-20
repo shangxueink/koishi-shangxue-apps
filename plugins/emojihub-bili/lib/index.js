@@ -25,12 +25,12 @@ exports.usage = `
 <p> </p>
 <h2>温馨提示：</h2>
 <p><br>请勿将自定义的txt文件与本插件放置在同一目录下，以免插件更新导致文件丢失。</p>
-<p>目前EmojiHub-bili默认提供<code>41套</code>表情包。若您的配置内容有误差，请点击<code>MoreEmojiHub</code>表格右上角按钮内的<code>恢复默认值</code>。</p>
+<p>目前EmojiHub-bili默认提供<code>43套</code>表情包。若您的配置内容有误差，请点击<code>MoreEmojiHub</code>表格右上角按钮内的<code>恢复默认值</code>。</p>
 <p>若开启插件后，指令不出现，<a href="/market?keyword=commands">请重新开关commands插件</a></p>
 `;
 const logger = new Logger('emojihub-bili');
 const defaultMoreEmojiHub = [
-  // 下面实际有效为 41套
+  // 下面实际有效为 43套
   { command: '本地图库示例', source_url: path.join(__dirname, 'txts') },
   { command: '网络图片示例', source_url: 'https://i0.hdslb.com/bfs/article/afc31d0e398204d94478473a497028e6352074746.gif' },
   { command: '2233娘小剧场表情包', source_url: path.join(__dirname, 'txts/2233娘小剧场.txt') },
@@ -83,103 +83,132 @@ const defaultMoreEmojiHub = [
 exports.Config = Schema.intersect([
 
   Schema.object({
-    deleteMsg: Schema.boolean().description("`开启后`自动撤回表情").default(false),
-    deleteMsgtime: Schema.number().default(30).description('若干`秒`后 撤回表情'),
-
     emojihub_bili_command: Schema.string().default('emojihub-bili').description('`父级指令`的指令名称').pattern(/^\S+$/),
 
     MoreEmojiHub: Schema.array(Schema.object({
       command: Schema.string().description('注册的指令名称'),
       //enable: Schema.boolean().description('隐藏指令'),
       source_url: Schema.string().description('表情包文件地址'),
-    })).role('table').description('表情包指令映射 当前默认`41套`txt文件`点击右方按钮 可以恢复到默认值`<br>`表情包文件地址`可以填入`txt文件绝对路径`或者`文件夹绝对路径`或者`图片直链`或者`图片文件绝对路径`').default(defaultMoreEmojiHub),
+    })).role('table').description('表情包指令映射 当前默认`43套`txt文件`点击右方按钮 可以恢复到默认值`<br>`表情包文件地址`可以填入`txt文件绝对路径`或者`文件夹绝对路径`或者`图片直链`或者`图片文件绝对路径`').default(defaultMoreEmojiHub),
 
     searchSubfolders: Schema.boolean().description("是否递归搜索文件夹。`开启后 对于本地文件夹地址 会搜索其子文件夹内全部的图片`").default(true),
 
+    deleteMsg: Schema.boolean().description("`开启后`自动撤回表情"),
+
   }).description('表情包设置'),
+  Schema.union([
+    Schema.object({
+      deleteMsg: Schema.const(true).required(),
+      deleteMsgtime: Schema.number().default(30).description('若干`秒`后 撤回表情').min(1),
+    }),
+    Schema.object({}),
+  ]),
 
   Schema.object({
-    autoEmoji: Schema.boolean().description("进阶设置总开关。打开后，开启自动表情包功能 `达到一定消息数量 自动触发表情包`").default(false),
-    count: Schema.number().default(30).description('触发自动表情包的消息数量的阈值。`不建议过低`'),
-    triggerprobability: Schema.percent().default(0.6).description('达到消息数量阈值时，发送表情包的概率 `范围为 0 到 1 `'),
-
-    groupListmapping: Schema.array(Schema.object({
-      groupList: Schema.string().description('开启自动表情包的群组ID').pattern(/^\S+$/),
-      defaultemojicommand: Schema.string().description('表情包指令名称 `应与下方指令表格对应`'),
-      enable: Schema.boolean().description('勾选后 屏蔽该群 的自动表情包'),
-    })).role('table').description('表情包指令映射 `注意群组ID不要多空格什么的`')
-      .default([
-        { groupList: '114514', defaultemojicommand: 'koishi-meme，白圣女表情包，男娘武器库', enable: false },
-        { groupList: '1919810', defaultemojicommand: '随机emojihub表情包', enable: true },
-      ]),
-
-    allgroupautoEmoji: Schema.boolean().description("`全部群组` 开启自动表情包").default(false),
-
-    allgroupemojicommand: Schema.string().role('textarea', { rows: [2, 4] }).description('`全部群组的` 表情包指令映射`一行一个指令 或者 逗号分隔`   <br> 可以同时在`groupListmapping`指定群组的表情包内容')
-      .default(`宇佐紀表情包\n白圣女表情包\n白圣女漫画表情包`),
-
+    autoEmoji: Schema.boolean().description("进阶设置总开关。打开后，开启自动表情包功能 `达到一定消息数量 自动触发表情包`"),
   }).description('进阶设置'),
+  Schema.union([
+    Schema.object({
+      autoEmoji: Schema.const(true).required(),
+      count: Schema.number().default(30).description('触发自动表情包的消息数量的阈值。`不建议过低`'),
+      triggerprobability: Schema.percent().default(0.6).description('达到消息数量阈值时，发送表情包的概率 `范围为 0 到 1 `'),
+
+      groupListmapping: Schema.array(Schema.object({
+        groupList: Schema.string().description('开启自动表情包的群组ID').pattern(/^\S+$/),
+        defaultemojicommand: Schema.string().description('表情包指令名称 `应与下方指令表格对应`'),
+        enable: Schema.boolean().description('勾选后 屏蔽该群 的自动表情包'),
+      })).role('table').description('表情包指令映射 `注意群组ID不要多空格什么的`')
+        .default([
+          { groupList: '114514', defaultemojicommand: 'koishi-meme，白圣女表情包，男娘武器库', enable: false },
+          { groupList: '1919810', defaultemojicommand: '随机emojihub表情包', enable: true },
+        ]),
+
+      allgroupautoEmoji: Schema.boolean().description("`全部群组` 开启自动表情包").default(false),
+
+      allgroupemojicommand: Schema.string().role('textarea', { rows: [2, 4] }).description('`全部群组的` 表情包指令映射`一行一个指令 或者 逗号分隔`   <br> 可以同时在`groupListmapping`指定群组的表情包内容')
+        .default(`宇佐紀表情包\n白圣女表情包\n白圣女漫画表情包`),
+
+    }),
+    Schema.object({}),
+  ]),
 
   // Alin---ba-plugin 配置项
   Schema.object({
-    //------------------------------------json按钮---------20个群-------------------------------------------------------------------------------
-    json_button_switch: Schema.boolean().description("`被动json按钮总开关`开启后以生效JSON按钮配置项（json按钮）<br>注意不要与下面的其他模式同时开，优先发送json按钮").default(false),
-    json_setting: Schema.object({
+    qqmodeswitch: Schema.union([
+      Schema.const('json').description('json按钮'),
+      Schema.const('markdown').description('被动md模板'),
+      Schema.const('raw').description('原生markdown'),
+    ]).role('radio').description("请选择QQ官方bot的响应模式："),
+  }).description('QQ官方bot设置'),
+  Schema.union([
+    Schema.object({
+      qqmodeswitch: Schema.const("json").required(),
+      //------------------------------------json按钮---------20个群-------------------------------------------------------------------------------
+      json_button_switch: Schema.boolean().description("`被动json按钮总开关`开启后以生效JSON按钮配置项（json按钮）<br>注意不要与下面的其他模式同时开，优先发送json按钮").default(false),
+      json_setting: Schema.object({
 
-      json_button_mdid_emojilist: Schema.string().description('展示表情包列表的按钮<br>QQ官方bot 的 JSON按钮模板ID<br>20个群即可使用的按钮！使用方法请见[README](https://www.npmjs.com/package/koishi-plugin-emojihub-bili)').pattern(/^\d+_\d+$/), // 102069859_1725953918
-      json_button_mdid_command: Schema.string().description('触发具体表情后发送的按钮<br>QQ官方bot 的 JSON按钮模板ID<br>20个群即可使用的按钮！使用方法请见[README](https://www.npmjs.com/package/koishi-plugin-emojihub-bili)').pattern(/^\d+_\d+$/), // 102069859_1725953918
+        json_button_mdid_emojilist: Schema.string().description('展示表情包列表的按钮<br>QQ官方bot 的 JSON按钮模板ID<br>20个群即可使用的按钮！使用方法请见[README](https://www.npmjs.com/package/koishi-plugin-emojihub-bili)').pattern(/^\d+_\d+$/), // 102069859_1725953918
+        json_button_mdid_command: Schema.string().description('触发具体表情后发送的按钮<br>QQ官方bot 的 JSON按钮模板ID<br>20个群即可使用的按钮！使用方法请见[README](https://www.npmjs.com/package/koishi-plugin-emojihub-bili)').pattern(/^\d+_\d+$/), // 102069859_1725953918
 
-    }).collapse().description('实现QQ官方bot `再来一张`和`返回列表`的按钮效果（JSON 按钮）'),
+      }).collapse().description('实现QQ官方bot `再来一张`和`返回列表`的按钮效果（JSON 按钮）'),
+    }),
+    Schema.object({
+      qqmodeswitch: Schema.const("markdown").required(),
+      //--------------------------------------------被动md模板---2000上行消息人数-----------------------------------------------------------------------------
 
+      MDswitch: Schema.boolean().description("`被动模板md总开关 `开启后以生效被动md配置项（被动markdown，模板md发送的）").default(false),
+      markdown_setting: Schema.object({
 
-    //--------------------------------------------被动md模板---2000上行消息人数-----------------------------------------------------------------------------
+        mdid: Schema.string().description('QQ官方bot 的 MarkDown模板ID').pattern(/^\d+_\d+$/),
+        json_button_mdid_emojilist: Schema.string().description('展示表情包列表的按钮<br>QQ官方bot 的 JSON按钮模板ID<br>搭配md模板，一起发送！使用方法请见[README](https://www.npmjs.com/package/koishi-plugin-emojihub-bili)').pattern(/^\d+_\d+$/), // 102069859_1725953918
+        json_button_mdid_command: Schema.string().description('触发具体表情后发送的按钮<br>QQ官方bot 的 JSON按钮模板ID<br>搭配md模板，一起发送！使用方法请见[README](https://www.npmjs.com/package/koishi-plugin-emojihub-bili)').pattern(/^\d+_\d+$/), // 102069859_1725953918
 
-    MDswitch: Schema.boolean().description("`被动模板md总开关 `开启后以生效被动md配置项（被动markdown，模板md发送的）").default(false),
-    markdown_setting: Schema.object({
+        zllbmdtext_1: Schema.string().default('text1').description('`指令列表MD`.`MD参数`MD文字参数--1'),
+        zllbmdtext_2: Schema.string().default('text2').description('`指令列表MD`.`MD参数`MD文字参数--2'),
+        zllbtext_1: Schema.array(String).default(["表情包列表", "emoji表情列表", "表情列表："]).description('`指令列表MD`MD显示文字内容--1`每次从下列随机选一个发送`').role('table'),
+        zllbtext_2: Schema.array(String).default(["点击按钮即可触发哦~", "😻列表如下：点击按钮触发哦！", "点击即可查看对应表情哦！😽"]).description('`指令列表MD`MD显示文字内容--2`每次从下列随机选一个发送`').role('table'),
 
-      mdid: Schema.string().description('QQ官方bot 的 MarkDown模板ID').pattern(/^\d+_\d+$/),
+        zlmdtext_1: Schema.string().default('text1').description('`指令MD`.`MD参数`MD文字参数--1'),
+        zlmdtext_2: Schema.string().default('text2').description('`指令MD`.`MD参数`MD文字参数--2'),
+        zltext_1: Schema.array(String).default(["emoji~😺", "表情包！", "这是您的表情包~"]).description('`指令MD`MD显示文字内容--1`每次从下列随机选一个发送`').role('table'),
+        zltext_2: Schema.array(String).default(["邦邦咔邦！", "😺😺😺", "😽来了哦！"]).description('`指令MD`MD显示文字内容--2`每次从下列随机选一个发送`').role('table'),
 
-      zllbmdtext_1: Schema.string().default('text1').description('`指令列表MD`.`MD参数`MD文字参数--1'),
-      zllbmdtext_2: Schema.string().default('text2').description('`指令列表MD`.`MD参数`MD文字参数--2'),
-      zllbtext_1: Schema.array(String).default(["表情包列表", "emoji表情列表", "表情列表："]).description('`指令列表MD`MD显示文字内容--1`每次从下列随机选一个发送`').role('table'),
-      zllbtext_2: Schema.array(String).default(["点击按钮即可触发哦~", "😻列表如下：点击按钮触发哦！", "点击即可查看对应表情哦！😽"]).description('`指令列表MD`MD显示文字内容--2`每次从下列随机选一个发送`').role('table'),
+        zlmdp_1: Schema.string().default('img').description('`指令MD`.`MD参数`MD图片参数--1 `不需要设定图片宽高`'),
+        zlmdp_2: Schema.string().default('url').description('`指令MD`.`MD参数`MD图片参数--2'),
 
-      zlmdtext_1: Schema.string().default('text1').description('`指令MD`.`MD参数`MD文字参数--1'),
-      zlmdtext_2: Schema.string().default('text2').description('`指令MD`.`MD参数`MD文字参数--2'),
-      zltext_1: Schema.array(String).default(["emoji~😺", "表情包！", "这是您的表情包~"]).description('`指令MD`MD显示文字内容--1`每次从下列随机选一个发送`').role('table'),
-      zltext_2: Schema.array(String).default(["邦邦咔邦！", "😺😺😺", "😽来了哦！"]).description('`指令MD`MD显示文字内容--2`每次从下列随机选一个发送`').role('table'),
+        ButtonText1: Schema.string().default('再来一张😺').description('`指令MD`按钮上`再来一张功能`显示的文字'),
+        ButtonText2: Schema.string().default('返回列表😽').description('`指令MD`按钮上`返回列表功能`显示的文字'),
 
-      zlmdp_1: Schema.string().default('img').description('`指令MD`.`MD参数`MD图片参数--1 `不需要设定图片宽高`'),
-      zlmdp_2: Schema.string().default('url').description('`指令MD`.`MD参数`MD图片参数--2'),
+        MinimumBoundary: Schema.number().default(200).description('`指令MD`过小图片的界限，宽或者高小于这个值就会自动放大到`Magnifymultiple`'),
+        Magnifymultiple: Schema.number().default(1000).description('`指令MD`对于过小图片（宽/高小于`MinimumBoundary`）的放大目标的标准，默认放大到1000px'),
 
-      ButtonText1: Schema.string().default('再来一张😺').description('`指令MD`按钮上`再来一张功能`显示的文字'),
-      ButtonText2: Schema.string().default('返回列表😽').description('`指令MD`按钮上`返回列表功能`显示的文字'),
-
-      MinimumBoundary: Schema.number().default(200).description('`指令MD`过小图片的界限，宽或者高小于这个值就会自动放大到`Magnifymultiple`'),
-      Magnifymultiple: Schema.number().default(1000).description('`指令MD`对于过小图片（宽/高小于`MinimumBoundary`）的放大目标的标准，默认放大到1000px'),
-
+      }).collapse().description('实现QQ官方bot `再来一张`和`返回列表`的按钮效果，需要`canvas`服务。<br> [适用本插件的QQ官方bot MD示例模版 可点击这里参考](https://www.npmjs.com/package/koishi-plugin-emojihub-bili)'),
       QQPicToChannelUrl: Schema.boolean().description("`开启后` 本地图片通过频道URL作为群聊MD的图片链接`须填写下方的 QQchannelId`").experimental().default(false),
 
       QQchannelId: Schema.string().description('`填入QQ频道的频道ID`，将该ID的频道作为中转频道 <br> 频道ID可以用[inspect插件来查看](/market?keyword=inspect) `频道ID应为纯数字`').experimental().pattern(/^\S+$/),
 
+    }),
+    Schema.object({
+      qqmodeswitch: Schema.const("raw").required(),
+      //----------------------------------------原生md-------10000上行消息人数-------钻石机器人----------------------------------------------------------------------
+      RAW_MD_switch: Schema.boolean().description("`原生md总开关` 开启后以生效原生markdown配置项").default(false),
+      RAW_MD_setting: Schema.object({
 
-    }).collapse().description('实现QQ官方bot `再来一张`和`返回列表`的按钮效果，需要`canvas`服务。<br> [适用本插件的QQ官方bot MD示例模版 可点击这里参考](https://www.npmjs.com/package/koishi-plugin-emojihub-bili)'),
+        RAW_MD_emojilist_markdown: Schema.path({
+          filters: ['.json', '.JSON'],
+        }).description('原生markdown表情包指令列表<br>建议参考原文件，重写该文件').default(path.join(__dirname, 'qq/raw_markdown/RAW_MD_emojilist_markdown.json')),
 
+        RAW_MD_command_markdown: Schema.path({
+          filters: ['.json', '.JSON'],
+        }).description('原生markdown返回的表情包内容<br>建议参考原文件，重写该文件').default(path.join(__dirname, 'qq/raw_markdown/RAW_MD_command_markdown.json')),
+      }).collapse().description('实现QQ官方bot `再来一张`和`返回列表`的按钮效果'),
+      QQPicToChannelUrl: Schema.boolean().description("`开启后` 本地图片通过频道URL作为群聊MD的图片链接`须填写下方的 QQchannelId`").experimental().default(false),
 
-    //----------------------------------------原生md-------10000上行消息人数-------钻石机器人----------------------------------------------------------------------
-    RAW_MD_switch: Schema.boolean().description("`原生md总开关` 开启后以生效原生markdown配置项").default(false),
-    RAW_MD_setting: Schema.object({
+      QQchannelId: Schema.string().description('`填入QQ频道的频道ID`，将该ID的频道作为中转频道 <br> 频道ID可以用[inspect插件来查看](/market?keyword=inspect) `频道ID应为纯数字`').experimental().pattern(/^\S+$/),
 
-      RAW_MD_emojilist_markdown: Schema.path({
-        filters: ['.json', '.JSON'],
-      }).description('原生markdown表情包指令列表<br>建议参考原文件，重写该文件').default(path.join(__dirname, 'qq/raw_markdown/RAW_MD_emojilist_markdown.json')),
-
-      RAW_MD_command_markdown: Schema.path({
-        filters: ['.json', '.JSON'],
-      }).description('原生markdown返回的表情包内容<br>建议参考原文件，重写该文件').default(path.join(__dirname, 'qq/raw_markdown/RAW_MD_command_markdown.json')),
-    }).collapse().description('实现QQ官方bot `再来一张`和`返回列表`的按钮效果'),
-
-  }).description('QQ官方bot设置'),
+    }),
+    Schema.object({}),
+  ]),
 
   Schema.object({
     //LocalSendNetworkPictures: Schema.boolean().description("`开启后` 将网络URL下载至本地，作为本地图片发送").experimental().default(false),
@@ -571,55 +600,22 @@ function apply(ctx, config) {
   /**
  * 发送列表按钮
  * @param session 
- * @param command_list 指令数组，类型为字符串 
  * @returns 
  */
-  function command_list_markdown(session, command_list) {
+  function command_list_markdown(session) {
     if (config.MDswitch && !config.RAW_MD_switch) {
       const mdid = config.markdown_setting.mdid;
       let zllbmdtext_1 = config.markdown_setting.zllbmdtext_1;
       let zllbmdtext_2 = config.markdown_setting.zllbmdtext_2;
+
+      //const json_button_mdid_command = config.markdown_setting.json_button_mdid_command;
+      const json_button_mdid_emojilist = config.markdown_setting.json_button_mdid_emojilist;
 
       const zllbtext_1_options = config.markdown_setting.zllbtext_1;
       const zllbtext_2_options = config.markdown_setting.zllbtext_2;
 
       const zllbtext_1 = zllbtext_1_options[Math.floor(Math.random() * zllbtext_1_options.length)];
       const zllbtext_2 = zllbtext_2_options[Math.floor(Math.random() * zllbtext_2_options.length)];
-
-      const l1 = []
-      const l2 = []
-      const l3 = []
-      const l4 = []
-      const l5 = []
-      const l6 = []
-      const alllist = [l1, l2, l3, l4, l5, l6]
-      // 遍历x中的每个元素，平均分配到arrays中的每个数组
-      let cindex = 0; // 当前数组的索引
-      let itemCount = 0; // 当前数组已接收的元素数量
-      for (let i = 0; i < command_list.length; i++) {
-        alllist[cindex].push(
-          {
-            render_data: { label: command_list[i], style: 1 },
-            action: {
-              type: 2, // 指令按钮
-              permission: { type: 2 }, // 所有人可点击
-              data: `/${command_list[i]}`, // 点击后发送
-              enter: true, // 若 false 则填入输入框
-            },
-          }
-        );
-        itemCount++;
-        if (itemCount === 4) {
-          // 移动到下一个数组
-          cindex++;
-          // 重置元素计数器
-          itemCount = 0;
-          // 如果已经是最后一个数组，则从头开始
-          if (cindex === alllist.length) {
-            cindex = 0;
-          }
-        }
-      }
 
       return {
         msg_type: 2,
@@ -638,25 +634,7 @@ function apply(ctx, config) {
           ]
         },
         keyboard: {
-          content: {
-            rows: [
-              {
-                buttons: l1,
-              },
-              {
-                buttons: l2,
-              },
-              {
-                buttons: l3,
-              },
-              {
-                buttons: l4,
-              },
-              {
-                buttons: l5,
-              },
-            ],
-          },
+          id: json_button_mdid_emojilist
         },
       }
     }
@@ -696,6 +674,9 @@ function apply(ctx, config) {
       const mdkey1 = config.markdown_setting.zlmdp_1;
       const mdkey2 = config.markdown_setting.zlmdp_2;
 
+      const json_button_mdid_command = config.markdown_setting.json_button_mdid_command;
+      //const json_button_mdid_emojilist = config.markdown_setting.json_button_mdid_emojilist;
+
       const zltext_1_options = config.markdown_setting.zltext_1;
       const zltext_2_options = config.markdown_setting.zltext_2;
 
@@ -705,10 +686,10 @@ function apply(ctx, config) {
       let zlmdtext_1 = config.markdown_setting.zlmdtext_1;
       let zlmdtext_2 = config.markdown_setting.zlmdtext_2;
 
-      const ButtonText1 = config.markdown_setting.ButtonText1;
-      const ButtonText2 = config.markdown_setting.ButtonText2;
+      //const ButtonText1 = config.markdown_setting.ButtonText1;
+      //const ButtonText2 = config.markdown_setting.ButtonText2;
 
-      const emojihub_bili_command = config.emojihub_bili_command;
+      //const emojihub_bili_command = config.emojihub_bili_command;
 
       const canvasimage = await ctx.canvas.loadImage(imageUrl);
       let originalWidth = canvasimage.naturalWidth || canvasimage.width;
@@ -749,32 +730,7 @@ function apply(ctx, config) {
           ]
         },
         keyboard: {
-          content: {
-            rows: [
-              {
-                buttons: [
-                  {
-                    render_data: { label: `${ButtonText1}`, style: 2 },// 按钮显示的文字。style是按钮样式，有0、1、2
-                    action: {
-                      type: 2, // 指令按钮
-                      permission: { type: 2 }, // 所有人可点击
-                      data: `/${command}`, // 点击后发送
-                      enter: true, // 若 false 则填入输入框
-                    },
-                  },
-                  {
-                    render_data: { label: `${ButtonText2}`, style: 2 },
-                    action: {
-                      type: 2,
-                      permission: { type: 2 },
-                      data: `/${emojihub_bili_command}`,
-                      enter: true,
-                    },
-                  },
-                ]
-              },
-            ],
-          },
+          id: json_button_mdid_command
         },
       }
       logInfomessage(functionmarkdownreturn)
@@ -851,7 +807,7 @@ function apply(ctx, config) {
           session.platform === 'qq') || config.RAW_MD_switch) {
           // 使用 Markdown 发送命令列表 
 
-          let markdownMessage = command_list_markdown(session, txtCommandList);
+          let markdownMessage = command_list_markdown(session);
           if (session.event.guild?.id) {
             await session.qq.sendMessage(session.channelId, markdownMessage);
           } else {
@@ -902,7 +858,6 @@ function apply(ctx, config) {
               } else if (config.markdown_setting.QQPicToChannelUrl) {
 
                 const uploadedImageURL = await uploadImageToChannel(ctx, config.consoleinfo, url.pathToFileURL(imageResult.imageUrl).href, session.bot.config.id, session.bot.config.secret, config.markdown_setting.QQchannelId);
-
 
                 if (session.event.guild?.id) {
                   message = session.qq.sendMessage(session.channelId, await markdown(session, command, uploadedImageURL.url));
@@ -993,7 +948,7 @@ function apply(ctx, config) {
               }
             }
           }
-          if (config.deleteMsg && config.deleteMsgtime > 0) {
+          if (config.deleteMsg) {
             setTimeout(async () => {
               try {
                 await session.bot.deleteMessage(session.channelId, message);
@@ -1112,7 +1067,7 @@ function apply(ctx, config) {
                   }
                   let sentMessage = await session.send(message);
                   // 如果需要撤回消息
-                  if (config.deleteMsg && config.deleteMsgtime > 0) {
+                  if (config.deleteMsg) {
                     setTimeout(async () => {
                       try {
                         await session.bot.deleteMessage(session.channelId, sentMessage);
