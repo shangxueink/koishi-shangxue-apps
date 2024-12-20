@@ -143,42 +143,7 @@ url         (https://koishi.chat/logo.png)
             }
         ],
         "keyboard": {
-            "content": {
-                "rows": [
-                    {
-                        "buttons": [
-                            {
-                                "render_data": {
-                                    "label": "第一个按钮",
-                                    "style": 2
-                                },
-                                "action": {
-                                    "type": 2,
-                                    "permission": {
-                                        "type": 2
-                                    },
-                                    "data": "/指令1",
-                                    "enter": true
-                                }
-                            },
-                            {
-                                "render_data": {
-                                    "label": "第二个按钮",
-                                    "style": 2
-                                },
-                                "action": {
-                                    "type": 2,
-                                    "permission": {
-                                        "type": 2
-                                    },
-                                    "data": "/指令2",
-                                    "enter": true
-                                }
-                            }
-                        ]
-                    }
-                ]
-            }
+            "id": "${config.markdown_setting.json_button_id}"
         }
     }
 }
