@@ -132,7 +132,7 @@ exports.usage = `
 <h3>4️⃣ 配合中间件监听群聊/频道</h3>
 <p>实时保存符合条件的图片消息到指定路径。</p>
 
-<hr>
+
 
 
 </details>
@@ -161,7 +161,7 @@ exports.Config = Schema.intersect([
       Schema.const('3').description('3.【保存图片 [图片重命名] [图片]】（仅存到第一个文件夹路径里）'),
       Schema.const('4').description('4.【保存图片 [文件夹备注] [图片]】（自动为图片重命名）'),
       Schema.const('5').description('5.【保存图片 [图片]】（自动为图片重命名，并且保存到第一个文件夹路径）'),
-    ]).role('radio').description("交互模式选择：指令输入的参数规则<br>每个选项的效果图 请见`Preview`配置项展示的内容"),
+    ]).role('radio').description("交互模式选择：指令输入的参数规则<br>每个选项的效果图 请见`Preview`配置项展示的内容").required(),
   }).description('交互模式设置'),
 
   Schema.union([
@@ -185,6 +185,7 @@ exports.Config = Schema.intersect([
       Interaction_mode: Schema.const("5").required(),
       Preview: Schema.array(Schema).role('checkbox').description(`<h3><a href="https://i0.hdslb.com/bfs/article/4342e979dd9fac9a77fa519baa2a7c49312276085.png" target="_blank" referrerpolicy="no-referrer">选项5 - 效果预览图（点我 以查看效果预览图）</a></h3>`),
     }),
+    Schema.object({}),
   ]),
 
 
@@ -200,28 +201,34 @@ exports.Config = Schema.intersect([
   }).description('基础设置'),
 
   Schema.object({
-    autosavePics: Schema.boolean().description("自动保存 的总开关 `如需查看详情日志，请开启consoleinfo配置项`").default(false),
-    groupListmapping: Schema.array(Schema.object({
-      enable: Schema.boolean().description('勾选后启用自动保存'),
-      groupList: Schema.string().description('需要监听的群组ID').pattern(/^\S+$/),
-      count: Schema.number().default(2).description('触发自动保存的重复次数'),
-      defaultsavepath: Schema.string().description('保存到的文件夹路径'),
-    }))
-      .role('table')
-      .description('各群组自动保存的路径映射 `注意不要多空格什么的（私信频道有private前缀）`')
-      .default([
-        {
-          "enable": true,
-          "groupList": "114514",
-          "defaultsavepath": "C:\\Program Files"
-        },
-        {
-          "groupList": "private:1919810",
-          "enable": true,
-          "defaultsavepath": "C:\\Program Files"
-        }
-      ]),
+    autosavePics: Schema.boolean().description("自动保存 的总开关<br>`如需查看详情日志，请开启consoleinfo配置项`"),
   }).description('进阶设置'),
+  Schema.union([
+    Schema.object({
+      autosavePics: Schema.const(true).required(),
+      groupListmapping: Schema.array(Schema.object({
+        enable: Schema.boolean().description('勾选后启用自动保存'),
+        groupList: Schema.string().description('需要监听的群组ID').pattern(/^\S+$/),
+        count: Schema.number().default(2).description('触发自动保存的重复次数'),
+        defaultsavepath: Schema.string().description('保存到的文件夹路径'),
+      }))
+        .role('table')
+        .description('各群组自动保存的路径映射 `注意不要多空格什么的（私信频道有private前缀）`')
+        .default([
+          {
+            "enable": true,
+            "groupList": "114514",
+            "defaultsavepath": "C:\\Program Files"
+          },
+          {
+            "groupList": "private:1919810",
+            "enable": true,
+            "defaultsavepath": "C:\\Program Files"
+          }
+        ]),
+    }),
+    Schema.object({}),
+  ]),
 
   Schema.object({
     consoleinfo: Schema.boolean().default(false).description('日志调试模式'),
@@ -616,7 +623,7 @@ function apply(ctx, config) {
     return Buffer.from(response);
   }
 
-  if (config.autosavePics && config.groupListmapping.length) {
+  if (config.autosavePics) {
     ctx.middleware(async (session, next) => {
       const channelId = session.channelId;
       const groupConfig = config.groupListmapping.find(group => group.groupList === channelId && group.enable);
