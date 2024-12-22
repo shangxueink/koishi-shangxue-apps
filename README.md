@@ -18,11 +18,11 @@
    ```shell
    yarn create koishi
    ```
-   然后一路回车。
+   然后一路回车，直到弹出koishi的webUI。
 
 2. **进入项目模板根目录**  📂
 
-   先按 `Ctrl + C` 退出项目模板，然后 `cd` 进入目录：
+   先在koishi终端 按下 `Ctrl + C` 退出项目模板，然后 `cd` 进入目录：
    ```shell
    cd koishi-app
    ```
@@ -49,8 +49,6 @@
    ```shell
    yarn dev
    ```
-
-
 
 ### 插件语言说明 
 <img src="https://raw.githubusercontent.com/MikeCodesDotNET/ColoredBadges/master/svg/dev/languages/js.svg" alt="js" style="max-width: 50%;">
@@ -87,14 +85,19 @@ publish/
 
 具体实现效果 [请参见.github文件](.github/workflows/publish.yml)
 
+当然，如果遇到部分资源文件过大等不方便上传发布的包
+
+也可以在本地使用 ↓ 来发布
+```
+npm publish --registry=https://registry.npmjs.org/ --access=public
+```
+
 
 ## 项目更新状态 ⚠️
 
 如果你发现本项目的提交（commit）长时间未更新，这意味着作者暂停了本项目的更新，并且不再维护。
 
 请自行判断项目的使用情况。
-
-
 
 
 ## 贡献指南
