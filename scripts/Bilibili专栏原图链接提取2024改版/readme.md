@@ -43,4 +43,11 @@
 
 如果你喜欢这个项目，请考虑支持原作者。
 
+## 联系方式
+
+由于本项目的初衷是为了给 koishi-plugin-emojihub-bili 提供一个方便用户的浏览器脚本
+
+所以如果你希望反馈此项目的问题，请前往 -> https://github.com/shangxueink/koishi-shangxue-apps/tree/main/scripts/Bilibili%E4%B8%93%E6%A0%8F%E5%8E%9F%E5%9B%BE%E9%93%BE%E6%8E%A5%E6%8F%90%E5%8F%962024%E6%94%B9%E7%89%88
+
+
 ---
