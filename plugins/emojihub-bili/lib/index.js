@@ -135,81 +135,64 @@ exports.Config = Schema.intersect([
 
   // Alin---ba-plugin 配置项
   Schema.object({
-    qqmodeswitch: Schema.union([
-      Schema.const('json').description('json按钮'),
-      Schema.const('markdown').description('被动md模板'),
-      Schema.const('raw').description('原生markdown'),
-    ]).role('radio').description("请选择QQ官方bot的响应模式："),
+    //------------------------------------json按钮---------20个群-------------------------------------------------------------------------------
+    json_button_switch: Schema.boolean().description("`被动json按钮总开关`开启后以生效JSON按钮配置项（json按钮）<br>注意不要与下面的其他模式同时开，优先发送json按钮").default(false),
+    json_setting: Schema.object({
+
+      json_button_mdid_emojilist: Schema.string().description('展示表情包列表的按钮<br>QQ官方bot 的 JSON按钮模板ID<br>20个群即可使用的按钮！使用方法请见[README](https://www.npmjs.com/package/koishi-plugin-emojihub-bili)').pattern(/^\d+_\d+$/), // 102069859_1725953918
+      json_button_mdid_command: Schema.string().description('触发具体表情后发送的按钮<br>QQ官方bot 的 JSON按钮模板ID<br>20个群即可使用的按钮！使用方法请见[README](https://www.npmjs.com/package/koishi-plugin-emojihub-bili)').pattern(/^\d+_\d+$/), // 102069859_1725953918
+
+    }).collapse().description('实现QQ官方bot `再来一张`和`返回列表`的按钮效果（JSON 按钮）'),
+
+
+    //--------------------------------------------被动md模板---2000上行消息人数-----------------------------------------------------------------------------
+
+    MDswitch: Schema.boolean().description("`被动模板md总开关 `开启后以生效被动md配置项（被动markdown，模板md发送的）").default(false),
+    markdown_setting: Schema.object({
+
+      mdid: Schema.string().description('QQ官方bot 的 MarkDown模板ID').pattern(/^\d+_\d+$/),
+
+      zllbmdtext_1: Schema.string().default('text1').description('`指令列表MD`.`MD参数`MD文字参数--1'),
+      zllbmdtext_2: Schema.string().default('text2').description('`指令列表MD`.`MD参数`MD文字参数--2'),
+      zllbtext_1: Schema.array(String).default(["表情包列表", "emoji表情列表", "表情列表："]).description('`指令列表MD`MD显示文字内容--1`每次从下列随机选一个发送`').role('table'),
+      zllbtext_2: Schema.array(String).default(["点击按钮即可触发哦~", "😻列表如下：点击按钮触发哦！", "点击即可查看对应表情哦！😽"]).description('`指令列表MD`MD显示文字内容--2`每次从下列随机选一个发送`').role('table'),
+
+      zlmdtext_1: Schema.string().default('text1').description('`指令MD`.`MD参数`MD文字参数--1'),
+      zlmdtext_2: Schema.string().default('text2').description('`指令MD`.`MD参数`MD文字参数--2'),
+      zltext_1: Schema.array(String).default(["emoji~😺", "表情包！", "这是您的表情包~"]).description('`指令MD`MD显示文字内容--1`每次从下列随机选一个发送`').role('table'),
+      zltext_2: Schema.array(String).default(["邦邦咔邦！", "😺😺😺", "😽来了哦！"]).description('`指令MD`MD显示文字内容--2`每次从下列随机选一个发送`').role('table'),
+
+      zlmdp_1: Schema.string().default('img').description('`指令MD`.`MD参数`MD图片参数--1 `不需要设定图片宽高`'),
+      zlmdp_2: Schema.string().default('url').description('`指令MD`.`MD参数`MD图片参数--2'),
+
+      ButtonText1: Schema.string().default('再来一张😺').description('`指令MD`按钮上`再来一张功能`显示的文字'),
+      ButtonText2: Schema.string().default('返回列表😽').description('`指令MD`按钮上`返回列表功能`显示的文字'),
+
+      MinimumBoundary: Schema.number().default(200).description('`指令MD`过小图片的界限，宽或者高小于这个值就会自动放大到`Magnifymultiple`'),
+      Magnifymultiple: Schema.number().default(1000).description('`指令MD`对于过小图片（宽/高小于`MinimumBoundary`）的放大目标的标准，默认放大到1000px'),
+
+      QQPicToChannelUrl: Schema.boolean().description("`开启后` 本地图片通过频道URL作为群聊MD的图片链接`须填写下方的 QQchannelId`").experimental().default(false),
+
+      QQchannelId: Schema.string().description('`填入QQ频道的频道ID`，将该ID的频道作为中转频道 <br> 频道ID可以用[inspect插件来查看](/market?keyword=inspect) `频道ID应为纯数字`').experimental().pattern(/^\S+$/),
+
+
+    }).collapse().description('实现QQ官方bot `再来一张`和`返回列表`的按钮效果，需要`canvas`服务。<br> [适用本插件的QQ官方bot MD示例模版 可点击这里参考](https://www.npmjs.com/package/koishi-plugin-emojihub-bili)'),
+
+
+    //----------------------------------------原生md-------10000上行消息人数-------钻石机器人----------------------------------------------------------------------
+    RAW_MD_switch: Schema.boolean().description("`原生md总开关` 开启后以生效原生markdown配置项").default(false),
+    RAW_MD_setting: Schema.object({
+
+      RAW_MD_emojilist_markdown: Schema.path({
+        filters: ['.json', '.JSON'],
+      }).description('原生markdown表情包指令列表<br>建议参考原文件，重写该文件').default(path.join(__dirname, 'qq/raw_markdown/RAW_MD_emojilist_markdown.json')),
+
+      RAW_MD_command_markdown: Schema.path({
+        filters: ['.json', '.JSON'],
+      }).description('原生markdown返回的表情包内容<br>建议参考原文件，重写该文件').default(path.join(__dirname, 'qq/raw_markdown/RAW_MD_command_markdown.json')),
+    }).collapse().description('实现QQ官方bot `再来一张`和`返回列表`的按钮效果'),
+
   }).description('QQ官方bot设置'),
-  Schema.union([
-    Schema.object({
-      qqmodeswitch: Schema.const("json").required(),
-      //------------------------------------json按钮---------20个群-------------------------------------------------------------------------------
-      json_button_switch: Schema.boolean().description("`被动json按钮总开关`开启后以生效JSON按钮配置项（json按钮）<br>注意不要与下面的其他模式同时开，优先发送json按钮").default(false),
-      json_setting: Schema.object({
-
-        json_button_mdid_emojilist: Schema.string().description('展示表情包列表的按钮<br>QQ官方bot 的 JSON按钮模板ID<br>20个群即可使用的按钮！使用方法请见[README](https://www.npmjs.com/package/koishi-plugin-emojihub-bili)').pattern(/^\d+_\d+$/), // 102069859_1725953918
-        json_button_mdid_command: Schema.string().description('触发具体表情后发送的按钮<br>QQ官方bot 的 JSON按钮模板ID<br>20个群即可使用的按钮！使用方法请见[README](https://www.npmjs.com/package/koishi-plugin-emojihub-bili)').pattern(/^\d+_\d+$/), // 102069859_1725953918
-
-      }).collapse().description('实现QQ官方bot `再来一张`和`返回列表`的按钮效果（JSON 按钮）'),
-    }),
-    Schema.object({
-      qqmodeswitch: Schema.const("markdown").required(),
-      //--------------------------------------------被动md模板---2000上行消息人数-----------------------------------------------------------------------------
-
-      MDswitch: Schema.boolean().description("`被动模板md总开关 `开启后以生效被动md配置项（被动markdown，模板md发送的）").default(false),
-      markdown_setting: Schema.object({
-
-        mdid: Schema.string().description('QQ官方bot 的 MarkDown模板ID').pattern(/^\d+_\d+$/),
-        json_button_mdid_emojilist: Schema.string().description('展示表情包列表的按钮<br>QQ官方bot 的 JSON按钮模板ID<br>搭配md模板，一起发送！使用方法请见[README](https://www.npmjs.com/package/koishi-plugin-emojihub-bili)').pattern(/^\d+_\d+$/), // 102069859_1725953918
-        json_button_mdid_command: Schema.string().description('触发具体表情后发送的按钮<br>QQ官方bot 的 JSON按钮模板ID<br>搭配md模板，一起发送！使用方法请见[README](https://www.npmjs.com/package/koishi-plugin-emojihub-bili)').pattern(/^\d+_\d+$/), // 102069859_1725953918
-
-        zllbmdtext_1: Schema.string().default('text1').description('`指令列表MD`.`MD参数`MD文字参数--1'),
-        zllbmdtext_2: Schema.string().default('text2').description('`指令列表MD`.`MD参数`MD文字参数--2'),
-        zllbtext_1: Schema.array(String).default(["表情包列表", "emoji表情列表", "表情列表："]).description('`指令列表MD`MD显示文字内容--1`每次从下列随机选一个发送`').role('table'),
-        zllbtext_2: Schema.array(String).default(["点击按钮即可触发哦~", "😻列表如下：点击按钮触发哦！", "点击即可查看对应表情哦！😽"]).description('`指令列表MD`MD显示文字内容--2`每次从下列随机选一个发送`').role('table'),
-
-        zlmdtext_1: Schema.string().default('text1').description('`指令MD`.`MD参数`MD文字参数--1'),
-        zlmdtext_2: Schema.string().default('text2').description('`指令MD`.`MD参数`MD文字参数--2'),
-        zltext_1: Schema.array(String).default(["emoji~😺", "表情包！", "这是您的表情包~"]).description('`指令MD`MD显示文字内容--1`每次从下列随机选一个发送`').role('table'),
-        zltext_2: Schema.array(String).default(["邦邦咔邦！", "😺😺😺", "😽来了哦！"]).description('`指令MD`MD显示文字内容--2`每次从下列随机选一个发送`').role('table'),
-
-        zlmdp_1: Schema.string().default('img').description('`指令MD`.`MD参数`MD图片参数--1 `不需要设定图片宽高`'),
-        zlmdp_2: Schema.string().default('url').description('`指令MD`.`MD参数`MD图片参数--2'),
-
-        ButtonText1: Schema.string().default('再来一张😺').description('`指令MD`按钮上`再来一张功能`显示的文字'),
-        ButtonText2: Schema.string().default('返回列表😽').description('`指令MD`按钮上`返回列表功能`显示的文字'),
-
-        MinimumBoundary: Schema.number().default(200).description('`指令MD`过小图片的界限，宽或者高小于这个值就会自动放大到`Magnifymultiple`'),
-        Magnifymultiple: Schema.number().default(1000).description('`指令MD`对于过小图片（宽/高小于`MinimumBoundary`）的放大目标的标准，默认放大到1000px'),
-
-      }).collapse().description('实现QQ官方bot `再来一张`和`返回列表`的按钮效果，需要`canvas`服务。<br> [适用本插件的QQ官方bot MD示例模版 可点击这里参考](https://www.npmjs.com/package/koishi-plugin-emojihub-bili)'),
-      QQPicToChannelUrl: Schema.boolean().description("`开启后` 本地图片通过频道URL作为群聊MD的图片链接`须填写下方的 QQchannelId`").experimental().default(false),
-
-      QQchannelId: Schema.string().description('`填入QQ频道的频道ID`，将该ID的频道作为中转频道 <br> 频道ID可以用[inspect插件来查看](/market?keyword=inspect) `频道ID应为纯数字`').experimental().pattern(/^\S+$/),
-
-    }),
-    Schema.object({
-      qqmodeswitch: Schema.const("raw").required(),
-      //----------------------------------------原生md-------10000上行消息人数-------钻石机器人----------------------------------------------------------------------
-      RAW_MD_switch: Schema.boolean().description("`原生md总开关` 开启后以生效原生markdown配置项").default(false),
-      RAW_MD_setting: Schema.object({
-
-        RAW_MD_emojilist_markdown: Schema.path({
-          filters: ['.json', '.JSON'],
-        }).description('原生markdown表情包指令列表<br>建议参考原文件，重写该文件').default(path.join(__dirname, 'qq/raw_markdown/RAW_MD_emojilist_markdown.json')),
-
-        RAW_MD_command_markdown: Schema.path({
-          filters: ['.json', '.JSON'],
-        }).description('原生markdown返回的表情包内容<br>建议参考原文件，重写该文件').default(path.join(__dirname, 'qq/raw_markdown/RAW_MD_command_markdown.json')),
-      }).collapse().description('实现QQ官方bot `再来一张`和`返回列表`的按钮效果'),
-      QQPicToChannelUrl: Schema.boolean().description("`开启后` 本地图片通过频道URL作为群聊MD的图片链接`须填写下方的 QQchannelId`").experimental().default(false),
-
-      QQchannelId: Schema.string().description('`填入QQ频道的频道ID`，将该ID的频道作为中转频道 <br> 频道ID可以用[inspect插件来查看](/market?keyword=inspect) `频道ID应为纯数字`').experimental().pattern(/^\S+$/),
-
-    }),
-    Schema.object({}),
-  ]),
 
   Schema.object({
     //LocalSendNetworkPictures: Schema.boolean().description("`开启后` 将网络URL下载至本地，作为本地图片发送").experimental().default(false),
@@ -229,6 +212,7 @@ exports.Config = Schema.intersect([
   ]),
 
 ])
+
 
 
 
