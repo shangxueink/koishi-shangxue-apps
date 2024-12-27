@@ -130,13 +130,20 @@ function apply(ctx, config) {
 
             async function sendsomeMessage(message, session, ctx) {
                 try {
-                    if (session.event.guild?.id) {
-                        await session.qq.sendMessage(session.channelId, message);
-                    } else {
-                        await session.qq.sendPrivateMessage(session.event.user?.id, message);
+                    const { guild, user } = session.event;
+                    const { qq, qqguild } = session;
+            
+                    if (guild?.id) {
+                        if (qq) {
+                            await qq.sendMessage(session.channelId, message);
+                        } else if (qqguild) {
+                            await qqguild.sendMessage(session.channelId, message);
+                        }
+                    } else if (user?.id && qq) {
+                        await qq.sendPrivateMessage(user.id, message);
                     }
                 } catch (error) {
-                    ctx.logger.error(`发送消息时出错: ${error}`);
+                    ctx.logger.error(`发送消息时出错: ${error.message || error}`);
                 }
             }
 
