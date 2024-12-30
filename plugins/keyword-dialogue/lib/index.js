@@ -162,6 +162,7 @@ exports.Config = Schema.intersect([
 
   Schema.object({
     Preposition_middleware: Schema.boolean().default(false).description('开启后 使用前置中间件`匹配到关键词后，不会触发 同实例下 同名称的指令`<br>可以实现回复“指令正在维护中”的效果'),
+    Unified_at_field: Schema.boolean().default(false).description('统一at消息的内容，统一为:`<at id="11514"/>`<br>因为有时候at内容是`<at id="11514" name="臭"/>`<br>这样可以防止更换了实现端导致的at字段不一致'),
     consoleInfo: Schema.boolean().default(false).description('日志调试模式')
   }).description('调试设置'),
 ]);
@@ -1005,6 +1006,10 @@ ${pageKeywords.map(keyword => `<div class="keyword">${keyword}</div>`).join('')}
     // 将输入内容转换为小写
     if (config.Treat_all_as_lowercase) {
       anothercontent = anothercontent.toLowerCase();
+    }
+    // 统一at消息的格式
+    if (config.Unified_at_field) {
+      anothercontent = anothercontent.replace(/<at id="(\d+)" name="[^"]*"\s*\/>/g, '<at id="$1"/>');
     }
 
     logInfo(`用户输入内容为\n${anothercontent}`)
