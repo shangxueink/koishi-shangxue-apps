@@ -79,7 +79,7 @@ jobs:
             git add -f ./publish/npmpublish_temp
           fi
           # 提交和推送
-          git commit -m "npm 包发布完成，清理 publish 文件夹"
+          git commit -m "✔️"
           git push
 
   heartbeat:
@@ -97,5 +97,5 @@ jobs:
           git stash
           git reset --hard
           git pull --rebase
-          git commit --allow-empty -m "小学还在维护此仓库哦~（状态心跳）"
+          git commit --allow-empty -m "🟢"
           git push
