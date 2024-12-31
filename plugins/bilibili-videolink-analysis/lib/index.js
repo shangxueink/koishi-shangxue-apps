@@ -104,6 +104,7 @@ exports.Config = Schema.intersect([
 
     Schema.object({
         userAgent: Schema.string().description("所有 API 请求所用的 User-Agent").default("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"),
+        middleware: Schema.boolean().default(false).description("前置中间件模式"),
         loggerinfo: Schema.boolean().default(false).description("日志调试输出 `日常使用无需开启`"),
     }).description("调试设置"),
 ]);
@@ -111,22 +112,24 @@ exports.Config = Schema.intersect([
 function apply(ctx, config) {
 
     ctx.middleware(async (session, next) => {
+
+        const sessioncontent = session.content;
         // 如果允许解析 BV 号，则进行解析
         if (config.BVnumberParsing) {
-            const bvUrls = convertBVToUrl(session.content);
+            const bvUrls = convertBVToUrl(sessioncontent);
             if (bvUrls.length > 0) {
-                session.content += '\n' + bvUrls.join('\n');
+                sessioncontent += '\n' + bvUrls.join('\n');
             }
         }
-        const links = await isProcessLinks(session, config, ctx, lastProcessedUrls, logger); // 判断是否需要解析
+        const links = await isProcessLinks(sessioncontent); // 判断是否需要解析
         if (links) {
-            const ret = await extractLinks(session, config, ctx, lastProcessedUrls, logger); // 提取链接
+            const ret = await extractLinks(session, config, ctx, links); // 提取链接
             if (ret && !isLinkProcessedRecently(ret, lastProcessedUrls, config, logger)) {
                 await processVideoFromLink(session, config, ctx, lastProcessedUrls, logger, ret); // 解析视频并返回
             }
         }
         return next();
-    });
+    }, config.middleware);
     if (config.demand) {
         ctx.command('B站点播/退出登录', '退出B站账号')
             .action(async ({ session }) => {
@@ -460,9 +463,9 @@ display: none !important;
             });
     }
     //判断是否需要解析
-    async function isProcessLinks(session, config, ctx, lastProcessedUrls, logger) {
+    async function isProcessLinks(sessioncontent) {
         // 解析内容中的链接
-        const links = link_type_parser(session.content);
+        const links = link_type_parser(sessioncontent);
         if (links.length === 0) {
             return false; // 如果没有找到链接，返回 false
         }
@@ -471,8 +474,7 @@ display: none !important;
     }
 
     //提取链接 
-    async function extractLinks(session, config, ctx, lastProcessedUrls, logger) {
-        const links = link_type_parser(session.content);
+    async function extractLinks(session, config, ctx, links) {
         let ret = "";
         ret += [(0, h)("quote", { id: session.messageId })];
         let countLink = 0;
@@ -770,49 +772,23 @@ display: none !important;
     * @returns type: "链接类型", id :"内容ID"
     */
     function link_type_parser(content) {
+        // 先替换转义斜杠
+        content = content.replace(/\\\//g, '/');
         var linkRegex = [
             {
                 pattern: /bilibili\.com\/video\/([ab]v[0-9a-zA-Z]+)/gim,
                 type: "Video",
             },
             {
-                pattern: /live\.bilibili\.com(?:\/h5)?\/(\d+)/gim,
-                type: "Live",
-            },
-            {
-                pattern: /bilibili\.com\/bangumi\/play\/((ep|ss)(\d+))/gim,
-                type: "Bangumi",
-            },
-            {
-                pattern: /bilibili\.com\/bangumi\/media\/(md(\d+))/gim,
-                type: "Bangumi",
-            },
-            {
-                pattern: /bilibili\.com\/read\/cv(\d+)/gim,
-                type: "Article",
-            },
-            {
-                pattern: /bilibili\.com\/read\/mobile(?:\?id=|\/)(\d+)/gim,
-                type: "Article",
-            },
-            {
-                pattern: /bilibili\.com\/audio\/au(\d+)/gim,
-                type: "Audio",
-            },
-            {
-                pattern: /bilibili\.com\/opus\/(\d+)/gim,
-                type: "Opus",
-            },
-            // {
-            //   pattern: /space\.bilibili\.com\/(\d+)/gim,
-            //   type: "Space",
-            // },
-            {
                 pattern: /b23\.tv(?:\\)?\/([0-9a-zA-Z]+)/gim,
                 type: "Short",
             },
             {
                 pattern: /bili(?:22|23|33)\.cn\/([0-9a-zA-Z]+)/gim,
+                type: "Short",
+            },
+            {
+                pattern: /bili2233\.cn\/([0-9a-zA-Z]+)/gim,
                 type: "Short",
             },
         ];
