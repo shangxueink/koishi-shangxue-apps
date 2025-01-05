@@ -447,6 +447,7 @@ export async function apply(ctx: Context, config) {
             channelId: await updateChannelId(sessionUserId, session.channelId), // 更新 channelId 数组
             recordtime,
             checkindate: [],
+            helpsignintimes: "",
             totaltimes: 0,
           });
           await session.execute("鹿");
