@@ -1,0 +1,25 @@
+{
+  "name": "meme_downloader",
+  "version": "1.0.0",
+  "bin": "index.js",
+  "scripts": {
+    "start": "set NODE_ENV=development&&node index.js",
+    "build": "pkg . --targets node18-win-x64 --output meme_downloader.exe --public --icon=resources/icon/256x256.ico"
+  },
+  "dependencies": {
+    "axios": "1.6.2",
+    "express": "^4.18.2",
+    "open": "8.4.2"
+  },
+  "devDependencies": {
+    "pkg": "^5.8.1"
+  },
+  "pkg": {
+    "scripts": [
+      "index.js"
+    ],
+    "assets": [
+      "node_modules/axios/**/*"
+    ]
+  }
+}
