@@ -94,12 +94,14 @@ exports.Config = Schema.intersect([
             Schema.const("bv").description("BV 号"),
             Schema.const("av").description("AV 号"),
         ]).default("bv").description("ID 偏好").hidden(),
-        bVideoImage: Schema.boolean().default(true).description("显示封面"),
-        bVideoOwner: Schema.boolean().default(true).description("显示 UP 主"),
-        bVideoDesc: Schema.boolean().default(false).description("显示简介`有的简介真的很长`"),
-        bVideoStat: Schema.boolean().default(true).description("显示状态（*三连数据*）"),
-        bVideoExtraStat: Schema.boolean().default(true).description("显示额外状态（*弹幕&观看*）"),
-        bVideoShowLink: Schema.boolean().default(false).description("显示视频链接`开启可能会导致其他bot循环解析`"),
+        //bVideoImage: Schema.boolean().default(true).description("显示封面"),
+        //bVideoOwner: Schema.boolean().default(true).description("显示 UP 主"),
+        //bVideoDesc: Schema.boolean().default(false).description("显示简介`有的简介真的很长`"),
+        //bVideoStat: Schema.boolean().default(true).description("显示状态（*三连数据*）"),
+        //bVideoExtraStat: Schema.boolean().default(true).description("显示额外状态（*弹幕&观看*）"),        
+        bVideo_area: Schema.string().role('textarea', { rows: [8, 16] }).description("图文解析的返回格式<br>注意变量格式，以及变量名称<br>比如 `${标题}` 不可以变成`${标题123}`，你可以直接删掉但是不能修改变量名称哦<br>当然变量也不能无中生有，下面的默认值内容 就是所有变量了，你仅可以删去变量 或者修改变量之外的格式。")
+        .default("${标题} --- ${UP主}\n---\n${封面}\n---\n${简介}\n---\n${点赞} --- ${投币}\n${收藏} --- ${转发}\n${观看} --- ${弹幕}"),
+        bVideoShowLink: Schema.boolean().default(false).description("在末尾显示视频的链接地址 `开启可能会导致其他bot循环解析`"),
     }).description("链接的图文解析设置"),
 
     Schema.object({
@@ -113,7 +115,7 @@ function apply(ctx, config) {
 
     ctx.middleware(async (session, next) => {
 
-        const sessioncontent = session.content;
+        let sessioncontent = session.content;
         // 如果允许解析 BV 号，则进行解析
         if (config.BVnumberParsing) {
             const bvUrls = convertBVToUrl(sessioncontent);
@@ -727,43 +729,51 @@ display: none !important;
             return ret;
         }
         /**
-        * 生成视频信息
-        * @param id 视频 ID
-        * @returns 文字视频信息
-        */
+         * 生成视频信息
+         * @param id 视频 ID
+         * @returns 文字视频信息
+         */
         async gen_context(id) {
             const info = await this.fetch_video_info(id);
             if (!info || !info["data"])
                 return null;
-            var ret = `${info["data"]["title"]}\n`;
-            this.config.bVideoImage
-                ? (ret += `<img src=\"${info["data"]["pic"]}\"/>\n`)
-                : null;
-            this.config.bVideoOwner
-                ? (ret += `UP主： ${info["data"]["owner"]["name"]}\n`)
-                : null;
-            this.config.bVideoDesc ? (ret += `${info["data"]["desc"]}\n`) : null;
-            this.config.bVideoStat
-                ? (ret += `点赞：${(0, numeral)(info["data"]["stat"]["like"], this.config)}\t\t投币：${(0, numeral)(info["data"]["stat"]["coin"], this.config)}\n`)
-                : null;
-            this.config.bVideoStat
-                ? (ret += `收藏：${(0, numeral)(info["data"]["stat"]["favorite"], this.config)}\t\t转发：${(0, numeral)(info["data"]["stat"]["share"], this.config)}\n`)
-                : null;
-            this.config.bVideoExtraStat
-                ? (ret += `观看：${(0, numeral)(info["data"]["stat"]["view"], this.config)}\t\t弹幕：${(0, numeral)(info["data"]["stat"]["danmaku"], this.config)}\n`)
-                : null;
+
+            // 定义占位符对应的数据
+            const placeholders = {
+                '${标题}': info["data"]["title"],
+                '${UP主}': info["data"]["owner"]["name"],
+                '${封面}': `<img src="${info["data"]["pic"]}"/>`,
+                '${简介}': info["data"]["desc"],
+                '${点赞}': `点赞：${(0, numeral)(info["data"]["stat"]["like"], this.config)}`,
+                '${投币}': `投币：${(0, numeral)(info["data"]["stat"]["coin"], this.config)}`,
+                '${收藏}': `收藏：${(0, numeral)(info["data"]["stat"]["favorite"], this.config)}`,
+                '${转发}': `转发：${(0, numeral)(info["data"]["stat"]["share"], this.config)}`,
+                '${观看}': `观看：${(0, numeral)(info["data"]["stat"]["view"], this.config)}`,
+                '${弹幕}': `弹幕：${(0, numeral)(info["data"]["stat"]["danmaku"], this.config)}`,
+            };
+
+            // 根据配置项中的格式替换占位符
+            let ret = this.config.bVideo_area;
+            for (const [placeholder, value] of Object.entries(placeholders)) {
+                ret = ret.replace(new RegExp(placeholder.replace(/\$/g, '\\$'), 'g'), value);
+            }
+
+            // 根据 ID 偏好添加视频链接
             switch (this.config.bVideoIDPreference) {
                 case "bv":
-                    ret += `https://www.bilibili.com/video/${info["data"]["bvid"]}\n`;
+                    ret += `\nhttps://www.bilibili.com/video/${info["data"]["bvid"]}`;
                     break;
                 case "av":
-                    ret += `https://www.bilibili.com/video/av${info["data"]["aid"]}\n`;
+                    ret += `\nhttps://www.bilibili.com/video/av${info["data"]["aid"]}`;
                     break;
                 default:
                     break;
             }
+
             return ret;
         }
+
+
     }
 
     /**
