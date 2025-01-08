@@ -306,6 +306,12 @@ function apply(ctx, config) {
           text: element.attrs.content,
           replyway: options.forward || config.MultisegmentAdditionRecoveryEffect
         };
+      } else if (element.type === 'at') {
+        return {
+          type: 'at',
+          text: element.attrs.id,
+          replyway: options.forward || config.MultisegmentAdditionRecoveryEffect
+        };
       } else if (element.type === 'audio') {
         return {
           type: 'audio',
@@ -616,6 +622,8 @@ function apply(ctx, config) {
       formattedReply = h.audio(reply.text);
     } else if (reply.type === 'video') {
       formattedReply = h.video(reply.text);
+    } else if (reply.type === 'at') {
+      formattedReply = h.at(reply.text);
     } else if (reply.type === 'unknown') {
       formattedReply = reply.text;
     }
