@@ -295,6 +295,62 @@ const command3_return_wyydata_Field_default = [
     }
 ];
 
+const command4_return_data_Field_default = [
+    {
+        "data": "songname",
+        "describe": "歌曲名称",
+        "type": "text"
+    },
+    {
+        "data": "name",
+        "describe": "歌手",
+        "type": "text"
+    },
+    {
+        "data": "album",
+        "describe": "专辑",
+        "type": "text"
+    },
+    {
+        "data": "quality",
+        "describe": "音质",
+        "type": "text"
+    },
+    {
+        "data": "interval",
+        "describe": "时长",
+        "type": "text",
+        "enable": false
+    },
+    {
+        "data": "size",
+        "describe": "大小",
+        "type": "text",
+        "enable": null
+    },
+    {
+        "data": "kbps",
+        "describe": "分辨率",
+        "type": "text",
+        "enable": false
+    },
+    {
+        "data": "cover",
+        "describe": "封面",
+        "type": "image"
+    },
+    {
+        "data": "src",
+        "describe": "下载链接",
+        "type": "text"
+    },
+    {
+        "data": "songurl",
+        "describe": "跳转链接",
+        "type": "text",
+        "enable": false
+    }
+];
 
 const Config = Schema.intersect([
     Schema.object({
@@ -342,6 +398,8 @@ const Config = Schema.intersect([
     defaultQualitycommand2Download: Schema.number().default(11).description('默认下载音质【母带：14】【无损：11】【HQ：8】【标准：4】'),
     }).description('桑帛云API返回设置'),
     */
+
+    /*
     Schema.object({
         command3: Schema.string().default('搜索歌曲').description('龙珠API的指令名称'),
         command3_wyyQuality: Schema.number().default(1).description('网易云音乐默认下载音质。`找不到对应音质，会自动使用标准音质`<br>1(标准音质)/2(极高音质)/3(无损音质)/4(Hi-Res音质)/5(高清环绕声)/6(沉浸环绕声)/7(超清母带)'),
@@ -359,10 +417,21 @@ const Config = Schema.intersect([
             type: Schema.union(['text', 'image', 'audio', 'video']).description('发送类型'),
             enable: Schema.boolean().default(true).description('是否启用')
         })).role('table').default(command3_return_wyydata_Field_default).description('歌曲返回信息的字段选择<br>[➣ 点我查看该API返回内容示例](https://www.hhlqilongzhu.cn/api/dg_wyymusic.php?gm=蔚蓝档案&type=json&num=10&n=1)'),
-
-
-
     }).description('龙珠API返回设置'),
+    */
+
+    Schema.object({
+        command4: Schema.string().default('酷狗音乐').description('酷狗-星之阁API的指令名称'),
+        command4_kugouQuality: Schema.number().default(1).description('音乐默认下载音质。音质，默认为1'),
+        command4_return_data_Field: Schema.array(Schema.object({
+            data: Schema.string().description('返回的字段').disabled(),
+            describe: Schema.string().description('对该字段的中文描述'),
+            type: Schema.union(['text', 'image', 'audio', 'video']).description('发送类型'),
+            enable: Schema.boolean().default(true).description('是否启用')
+        })).role('table').default(command4_return_data_Field_default).description('歌曲返回信息的字段选择<br>[➣ 点我查看该API返回内容示例](https://api.xingzhige.com/API/Kugou_GN_new/?name=蔚蓝档案&pagesize=20&br=2)'),
+    }).description('酷狗-星之阁API返回设置'),
+
+
     Schema.object({
         loggerinfo: Schema.boolean().default(false).description('日志调试开关'),
     }).description('调试模式'),
@@ -639,6 +708,7 @@ function apply(ctx, config) {
     
     */
 
+    /*
     ctx.command(name + '/' + config.command3 + ' [...keywords]', '搜索龙珠歌曲')
         .option('quality', '-q <value:number> 品质因数', { fallback: config.command3_wyyQuality })
         .option('number', '-n <number:number> 歌曲序号')
@@ -743,8 +813,117 @@ function apply(ctx, config) {
             }
             return songDetails3;
         });
+*/
 
+    ctx.command(config.command4 + ' [...keywords]', '搜索酷狗音乐')
+        .option('quality', '-q <value:number> 音质因数')
+        .option('number', '-n <number:number> 歌曲序号')
+        .action(async ({ session, options }, keyword) => {
+            if (!keyword) return '请输入歌曲相关信息。';
 
+            let kugou;
+            try {
+                kugou = await searchKugou(ctx.http, keyword, options.quality || config.command4_kugouQuality);
+            } catch (e) {
+                logger.warn('获取酷狗音乐数据时发生错误', e);
+                return '获取酷狗音乐数据时发生错误，请稍后再试。';
+            }
+
+            const kugouData = kugou?.data;
+            if (!kugouData?.length) return '无法获取歌曲列表，请稍后再试。';
+
+            const totalKugouSongs = kugouData.length;
+
+            // 检查是不是可用序号
+            let serialNumber = options.number;
+            if (serialNumber) {
+                serialNumber = Number(serialNumber);
+                if (Number.isNaN(serialNumber) || serialNumber < 1 || serialNumber > totalKugouSongs) {
+                    return `序号输入错误，已退出歌曲选择。`;
+                }
+            } else {
+                // 给用户选择序号
+                const kugouListText = formatSongList(kugouData, '酷狗音乐', 0);
+                const exitCommands = config.exitCommand.split(/[,，]/).map(cmd => cmd.trim());
+                const exitCommandTip = config.menuExitCommandTip ? `退出选择请发[${exitCommands}]中的任意内容<br /><br />` : '';
+                let quoteId = session.messageId;
+
+                if (config.imageMode) {
+                    const imageBuffer = await generateSongListImage(ctx.puppeteer, kugouListText);
+                    const payload = [
+                        h.image(imageBuffer, 'image/png'),
+                        h.text(`${exitCommandTip.replaceAll('<br />', '\n')}请在 `),
+                        (0, h)('i18n:time', { value: config.waitTimeout }),
+                        h.text('内，\n'),
+                        h.text('输入歌曲对应的序号')
+                    ];
+                    const msg = await session.send(payload);
+                    quoteId = msg.at(-1);
+                } else {
+                    const msg = await session.send(`${kugouListText}<br /><br />${exitCommandTip}请在 <i18n:time value="${config.waitTimeout}"/>内，<br />输入歌曲对应的序号`);
+                    quoteId = msg.at(-1);
+                }
+
+                const input = await session.prompt(config.waitTimeout);
+                if (!input) {
+                    return `${quoteId ? h.quote(quoteId) : ''}输入超时，已取消点歌。`;
+                }
+                if (exitCommands.includes(input)) {
+                    return `已退出歌曲选择。`;
+                }
+                serialNumber = +input;
+                if (Number.isNaN(serialNumber) || serialNumber < 1 || serialNumber > totalKugouSongs) {
+                    return `序号输入错误，已退出歌曲选择。`;
+                }
+            }
+
+            //const selected = kugouData[serialNumber - 1];
+            //const songid = serialNumber;
+            //logInfo(songid);
+            const br = options.quality || config.command4_kugouQuality;
+
+            const song = await searchKugouSong(ctx.http, keyword, br);
+
+            if (song.code === 0) {
+                const data = song.data;
+                try {
+                    logInfo(song);
+                    logInfo(data);
+                    const songDetails = generateResponse(data, config.command4_return_data_Field);
+                    logInfo(songDetails);
+                    return songDetails;
+                } catch (e) {
+                    logger.error(e);
+                    return '解析歌曲详情时发生错误';
+                }
+            } else {
+                logger.warn(`获取歌曲失败：${JSON.stringify(song)}`);
+                return '获取歌曲失败：' + song.msg;
+            }
+        });
+
+    async function searchKugou(http, query, br) {
+        const apiBase = 'https://api.xingzhige.com/API/Kugou_GN_new/';
+        const params = {
+            name: query,
+            pagesize: 20,
+            br: br
+        };
+        return await http.get(apiBase, { params });
+    }
+
+    async function searchKugouSong(http, query, br) {
+        const apiBase = 'https://api.xingzhige.com/API/Kugou_GN_new/';
+        const params = {
+            name: query,
+            n: 1,
+            pagesize: 20,
+            br: br
+        };
+        return await http.get(apiBase, { params });
+    }
+
+    ///////////////////////////////////////////////////////////////////////////////////////////////////
     function generateResponse(data, platformconfig) {
         // 准备存储各类内容的数组
         const textElements = [];
