@@ -367,8 +367,8 @@ const Config = Schema.intersect([
     }).description('图片歌单设置'),
     Schema.object({
         enablemiddleware: Schema.boolean().description("是否自动解析JSON音乐卡片").default(false),
-        used_command: Schema.union(['command1', 'command3']).description("自动解析使用的指令<br>解析内容与下面对应的指令返回设置一致").default("command1"), // , 'command2'
-        used_id: Schema.number().default(1).min(0).max(10).description("在歌单里默认选择的序号<br>范围`0-10`，无需考虑11-20，会自动根据JSON卡片的平台选择"),
+        used_command: Schema.union(['command1', 'command4']).description("自动解析使用的指令<br>解析内容与下面对应的指令返回设置一致").default("command1"), // , 'command2'
+        used_id: Schema.number().default(1).min(0).max(10).description("在歌单里默认选择的序号<br>范围`0-10`，无需考虑11-20，会自动根据JSON卡片的平台选择。若音乐平台不匹配 则在搜索项前十个进行选择。"),
     }).description('JSON卡片解析设置'),
     Schema.object({
         command1: Schema.string().default('下载音乐').description('星之阁API的指令名称'),
