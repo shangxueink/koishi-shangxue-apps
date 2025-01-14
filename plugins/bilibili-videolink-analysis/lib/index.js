@@ -100,7 +100,7 @@ exports.Config = Schema.intersect([
         //bVideoStat: Schema.boolean().default(true).description("显示状态（*三连数据*）"),
         //bVideoExtraStat: Schema.boolean().default(true).description("显示额外状态（*弹幕&观看*）"),        
         bVideo_area: Schema.string().role('textarea', { rows: [8, 16] }).description("图文解析的返回格式<br>注意变量格式，以及变量名称<br>比如 `${标题}` 不可以变成`${标题123}`，你可以直接删掉但是不能修改变量名称哦<br>当然变量也不能无中生有，下面的默认值内容 就是所有变量了，你仅可以删去变量 或者修改变量之外的格式。")
-        .default("${标题} --- ${UP主}\n---\n${封面}\n---\n${简介}\n---\n${点赞} --- ${投币}\n${收藏} --- ${转发}\n${观看} --- ${弹幕}"),
+            .default("${标题} --- ${UP主}\n---\n${封面}\n---\n${简介}\n---\n${点赞} --- ${投币}\n${收藏} --- ${转发}\n${观看} --- ${弹幕}"),
         bVideoShowLink: Schema.boolean().default(false).description("在末尾显示视频的链接地址 `开启可能会导致其他bot循环解析`"),
     }).description("链接的图文解析设置"),
 
@@ -349,8 +349,8 @@ display: none !important;
                 }
 
                 if (config.enable) { // 开启自动解析了
-                    session.content = `https://www.bilibili.com/video/${chosenVideo.id}`
-                    const ret = await extractLinks(session, config, ctx, lastProcessedUrls, logger); // 提取链接
+                    
+                    const ret = await extractLinks(session, config, ctx, [{ type: 'Video', id: chosenVideo.id }], logger); // 提取链接
                     if (ret && !isLinkProcessedRecently(ret, lastProcessedUrls, config, logger)) {
                         await processVideoFromLink(session, config, ctx, lastProcessedUrls, logger, ret, options); // 解析视频并返回
                     }
@@ -456,8 +456,8 @@ display: none !important;
 
                 if (config.enable) {
                     // 开启自动解析了
-                    session.content = `https://www.bilibili.com/video/${chosenVideo.id}`;
-                    const ret = await extractLinks(session, config, ctx, lastProcessedUrls, logger);
+                    
+                    const ret = await extractLinks(session, config, ctx, [{ type: 'Video', id: chosenVideo.id }], logger);
                     if (ret && !isLinkProcessedRecently(ret, lastProcessedUrls, config, logger)) {
                         await processVideoFromLink(session, config, ctx, lastProcessedUrls, logger, ret, options);
                     }
