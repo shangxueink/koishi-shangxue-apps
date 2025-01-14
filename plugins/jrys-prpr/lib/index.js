@@ -48,11 +48,15 @@ const defaultFortuneProbability =
 exports.Config =
   Schema.intersect([
     Schema.object({
-      command: Schema.string().default('jrysprpr').description("指令自定义"),
-      command2: Schema.string().default('查看运势背景图').description("指令自定义"),
+      command: Schema.string().default('jrysprpr').description("`签到`指令自定义"),
+      command2: Schema.string().default('查看运势背景图').description("`原图`指令自定义"),
       //authority: Schema.number().default(1).description("指令权限设置"),
       GetOriginalImageCommand: Schema.boolean().description("开启后启用`原图`指令，可以获取运势背景原图").default(true),
       autocleanjson: Schema.boolean().description("自动获取原图后，删除对应的json记录信息").default(true),
+      Checkin_HintText: Schema.union([
+        Schema.const().description('unset').description("不返回提示语"),
+        Schema.string().description('string').description("请在右侧修改提示语").default("正在分析你的运势哦~请稍等~~"),
+      ]).description("`签到渲染中`提示语"),
       GetOriginalImage_Command_HintText: Schema.union([
         Schema.const('1').description('不返回文字提示'),
         Schema.const('2').description('返回文字提示，且为图文消息'),
@@ -235,8 +239,12 @@ function apply(ctx, config) {
     .option('split', '-s 以图文输出今日运势')
     .action(async ({ session, options }) => {
       let hasSignedInToday = await alreadySignedInToday(ctx, session.userId, session.channelId)
+      let Checkin_HintText_messageid
       if (options.split) {
         // 如果开启了分离模式，那就只返回图文消息内容。即文字运势内容与背景图片
+        if (config.Checkin_HintText) {
+          Checkin_HintText_messageid = await session.send(config.Checkin_HintText)
+        }
         const dJson = await getJrys(session);
         let textjrys = `
 ${dJson.fortuneSummary}
@@ -265,7 +273,13 @@ ${dJson.unsignText}\n
         }
         await recordSignIn(ctx, session.userId, session.channelId)
         await session.send(message);
+        if (Checkin_HintText_messageid) {
+          await session.bot.deleteMessage(session.channelId, Checkin_HintText_messageid)
+        }
         return;
+      }
+      if (config.Checkin_HintText) {
+        Checkin_HintText_messageid = await session.send(config.Checkin_HintText)
       }
       let page;
       try {
@@ -591,6 +605,9 @@ ${dJson.unsignText}
         await recordSignIn(ctx, session.userId, session.channelId)
         // 调用函数发送消息
         await sendImageMessage(imageBuffer);
+        if (Checkin_HintText_messageid) {
+          await session.bot.deleteMessage(session.channelId, Checkin_HintText_messageid)
+        }
       } catch (e) {
         const errorTime = new Date().toISOString(); // 获取错误发生时间的ISO格式
         exports.logger.error(`状态渲染失败 [${errorTime}]: `, e); // 记录错误信息并包含时间戳
