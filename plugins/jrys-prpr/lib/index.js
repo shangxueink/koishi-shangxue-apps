@@ -267,8 +267,9 @@ ${dJson.unsignText}\n
         }
         let backgroundImage = getRandomBackground(config);
         let BackgroundURL = backgroundImage.replace(/\\/g, '/');
+        let BackgroundURL_base64 = convertToBase64IfLocal(BackgroundURL);
         let message = [
-          h.image(BackgroundURL),
+          h.image(BackgroundURL_base64),
           h.text(textjrys),
           enablecurrencymessage
         ];
@@ -291,6 +292,7 @@ ${dJson.unsignText}\n
         await page.setViewport({ width: 1080, height: 1920 });
         let backgroundImage = getRandomBackground(config);
         let BackgroundURL = backgroundImage.replace(/\\/g, '/');
+        let BackgroundURL_base64 = convertToBase64IfLocal(BackgroundURL);
         // 读取 Base64 字体字符串
         logInfo(config.HTML_setting.fontPath)
         // 如果字体 Base64 未缓存，则读取并缓存
@@ -347,7 +349,7 @@ overflow: hidden;
 font-family: "千图马克手写体"; 
 }
 .background {
-background-image: url('${BackgroundURL}');
+background-image: url('${BackgroundURL_base64}');
 background-size: cover;
 background-position: center;
 position: relative;
@@ -741,6 +743,40 @@ ${dJson.unsignText}
     }
   }
 
+  function convertToBase64IfLocal(url) {
+    if (url.startsWith('file:///')) {
+      try {
+        const localPath = fileURLToPath(url);
+        const imageBuffer = fs.readFileSync(localPath);
+        const base64Image = imageBuffer.toString('base64');
+        const mimeType = getMimeType(localPath); // 获取图片的 MIME 类型
+        return `data:${mimeType};base64,${base64Image}`; // 返回 Base64 Data URL
+      } catch (error) {
+        throw new Error(`转换本地图片为 Base64 失败: ${url}, 错误: ${error.message}`);
+      }
+    }
+    return url; // 如果是网络 URL，直接返回
+  }
+
+  // 辅助函数：根据文件扩展名获取 MIME 类型
+  function getMimeType(filePath) {
+    const ext = path.extname(filePath).toLowerCase();
+    switch (ext) {
+      case '.jpg':
+      case '.jpeg':
+        return 'image/jpeg';
+      case '.png':
+        return 'image/png';
+      case '.gif':
+        return 'image/gif';
+      case '.bmp':
+        return 'image/bmp';
+      case '.webp':
+        return 'image/webp';
+      default:
+        throw new Error(`不支持的文件类型: ${ext}`);
+    }
+  }
 
   function getRandomBackground(config) {
     // 随机选择一个背景路径
@@ -761,11 +797,7 @@ ${dJson.unsignText}
 
         // 如果是图片文件
         if (/\.(jpg|png|gif|bmp|webp)$/i.test(localPath)) {
-          // 将图片文件转换为 Base64
-          const imageBuffer = fs.readFileSync(localPath);
-          const base64Image = imageBuffer.toString('base64');
-          const mimeType = getMimeType(localPath); // 获取图片的 MIME 类型
-          return `data:${mimeType};base64,${base64Image}`; // 返回 Base64 Data URL
+          return backgroundPath; // 直接返回 file:/// URL
         }
 
         // 如果是文件夹路径
@@ -777,11 +809,7 @@ ${dJson.unsignText}
           }
           let randomFile = files[Math.floor(Math.random() * files.length)];
           let fullPath = path.join(localPath, randomFile).replace(/\\/g, '/');
-          // 将图片文件转换为 Base64
-          const imageBuffer = fs.readFileSync(fullPath);
-          const base64Image = imageBuffer.toString('base64');
-          const mimeType = getMimeType(fullPath); // 获取图片的 MIME 类型
-          return `data:${mimeType};base64,${base64Image}`; // 返回 Base64 Data URL
+          return pathToFileURL(fullPath).href; // 转换为 file:/// URL
         }
 
         // 如果既不是 txt 文件，也不是图片文件或文件夹
@@ -817,11 +845,7 @@ ${dJson.unsignText}
         }
         let randomFile = files[Math.floor(Math.random() * files.length)];
         let fullPath = path.join(backgroundPath, randomFile).replace(/\\/g, '/');
-        // 将图片文件转换为 Base64
-        const imageBuffer = fs.readFileSync(fullPath);
-        const base64Image = imageBuffer.toString('base64');
-        const mimeType = getMimeType(fullPath); // 获取图片的 MIME 类型
-        return `data:${mimeType};base64,${base64Image}`; // 返回 Base64 Data URL
+        return pathToFileURL(fullPath).href; // 转换为 file:/// URL
       } catch (error) {
         throw new Error(`读取文件夹失败: ${backgroundPath}, 错误: ${error.message}`);
       }
@@ -831,11 +855,7 @@ ${dJson.unsignText}
     if (fs.existsSync(backgroundPath) && fs.lstatSync(backgroundPath).isFile()) {
       try {
         if (/\.(jpg|png|gif|bmp|webp)$/i.test(backgroundPath)) {
-          // 将图片文件转换为 Base64
-          const imageBuffer = fs.readFileSync(backgroundPath);
-          const base64Image = imageBuffer.toString('base64');
-          const mimeType = getMimeType(backgroundPath); // 获取图片的 MIME 类型
-          return `data:${mimeType};base64,${base64Image}`; // 返回 Base64 Data URL
+          return pathToFileURL(backgroundPath).href; // 转换为 file:/// URL
         } else {
           throw new Error("文件不是有效的图片格式");
         }
@@ -846,26 +866,6 @@ ${dJson.unsignText}
 
     // 如果以上条件都不满足，抛出错误
     throw new Error(`无效的背景路径: ${backgroundPath}`);
-  }
-
-  // 辅助函数：根据文件扩展名获取 MIME 类型
-  function getMimeType(filePath) {
-    const ext = path.extname(filePath).toLowerCase();
-    switch (ext) {
-      case '.jpg':
-      case '.jpeg':
-        return 'image/jpeg';
-      case '.png':
-        return 'image/png';
-      case '.gif':
-        return 'image/gif';
-      case '.bmp':
-        return 'image/bmp';
-      case '.webp':
-        return 'image/webp';
-      default:
-        throw new Error(`不支持的文件类型: ${ext}`);
-    }
   }
   // 定义获取原图URL的函数
   async function getOriginalImageURL(messageIdOrTime) {
