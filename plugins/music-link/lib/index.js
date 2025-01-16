@@ -354,6 +354,9 @@ const command4_return_data_Field_default = [
 
 const Config = Schema.intersect([
     Schema.object({
+        xingzhigeAPIkey: Schema.string().role('secret').description('星之阁的音乐API的请求key<br>（默认值是作者自己的哦，如果失效了请你自己获取一个）<br>请前往 QQ群 905188643 <br>添加QQ好友 3556898686 <br>私聊发送 `/getapikey` 获得你的APIkey以填入此处 ').default("up8bpg7bItrfvuCaEdG6vrU-Kr5u68LSKpbGUMHSmsM="),
+    }).description('请求设置'),
+    Schema.object({
         waitTimeout: Schema.natural().role('ms').description('允许用户返回选择序号的等待时间').default(45000),
     }).description('基础设置'),
     Schema.object({
@@ -382,14 +385,14 @@ const Config = Schema.intersect([
             describe: Schema.string().description('对该字段的中文描述'),
             type: Schema.union(['text', 'image', 'audio', 'video']).description('发送类型'),
             enable: Schema.boolean().default(true).description('是否启用')
-        })).role('table').default(command1_return_qqdata_Field_default).description('歌曲返回信息的字段选择<br>[➣ 点我查看该API返回内容示例](https://api.xingzhige.com/API/QQmusicVIP/?songid=499449053&br=2&uin=2&skey=2)'),
+        })).role('table').default(command1_return_qqdata_Field_default).description('歌曲返回信息的字段选择<br>[➣ 点我查看该API返回内容示例](https://api.xingzhige.com/API/QQmusicVIP/?songid=499449053&br=2&uin=2&skey=2&key=)'),
 
         command1_return_wyydata_Field: Schema.array(Schema.object({
             data: Schema.string().description('返回的字段').disabled(),
             describe: Schema.string().description('对该字段的中文描述'),
             type: Schema.union(['text', 'image', 'audio', 'video']).description('发送类型'),
             enable: Schema.boolean().default(true).description('是否启用')
-        })).role('table').default(command1_return_wyydata_Field_default).description('歌曲返回信息的字段选择<br>[➣ 点我查看该API返回内容示例](https://api.xingzhige.com/API/NetEase_CloudMusic_new/?name=%E8%94%9A%E8%93%9D%E6%A1%A3%E6%A1%88&n=1)'),
+        })).role('table').default(command1_return_wyydata_Field_default).description('歌曲返回信息的字段选择<br>[➣ 点我查看该API返回内容示例](https://api.xingzhige.com/API/NetEase_CloudMusic_new/?name=%E8%94%9A%E8%93%9D%E6%A1%A3%E6%A1%88&n=1&key=)'),
 
     }).description('星之阁API返回设置'),
     /*
@@ -428,7 +431,7 @@ const Config = Schema.intersect([
             describe: Schema.string().description('对该字段的中文描述'),
             type: Schema.union(['text', 'image', 'audio', 'video']).description('发送类型'),
             enable: Schema.boolean().default(true).description('是否启用')
-        })).role('table').default(command4_return_data_Field_default).description('歌曲返回信息的字段选择<br>[➣ 点我查看该API返回内容示例](https://api.xingzhige.com/API/Kugou_GN_new/?name=蔚蓝档案&pagesize=20&br=2)'),
+        })).role('table').default(command4_return_data_Field_default).description('歌曲返回信息的字段选择<br>[➣ 点我查看该API返回内容示例](https://api.xingzhige.com/API/Kugou_GN_new/?name=蔚蓝档案&pagesize=20&br=2&key=)'),
     }).description('酷狗-星之阁API返回设置'),
 
 
@@ -517,7 +520,7 @@ function apply(ctx, config) {
                 netease = await searchXZG(ctx.http, 'NetEase Music',
                     {
                         name: keyword,
-                        key: "up8bpg7bItrfvuCaEdG6vrU-Kr5u68LSKpbGUMHSmsM=" /*综合评价获得次数: 40580            综合评价仅首次生效 */
+                        key: config.xingzhigeAPIkey
 
                     });
             } catch (e) {
@@ -605,7 +608,7 @@ function apply(ctx, config) {
                 br,
                 uin,
                 skey,
-                key: "up8bpg7bItrfvuCaEdG6vrU-Kr5u68LSKpbGUMHSmsM=" /*综合评价获得次数: 40580            综合评价仅首次生效 */
+                key: config.xingzhigeAPIkey
             });
 
             if (song.code === 0) {
@@ -914,7 +917,7 @@ function apply(ctx, config) {
             name: query,
             pagesize: 20,
             br: br,
-            key: "up8bpg7bItrfvuCaEdG6vrU-Kr5u68LSKpbGUMHSmsM=" /*综合评价获得次数: 40580            综合评价仅首次生效 */
+            key: config.xingzhigeAPIkey
         };
         return await http.get(apiBase, { params });
     }
@@ -926,7 +929,7 @@ function apply(ctx, config) {
             n: serialNumber,
             pagesize: 20,
             br: br,
-            key: "up8bpg7bItrfvuCaEdG6vrU-Kr5u68LSKpbGUMHSmsM=" /*综合评价获得次数: 40580            综合评价仅首次生效 */
+            key: config.xingzhigeAPIkey
         };
         return await http.get(apiBase, { params });
     }
