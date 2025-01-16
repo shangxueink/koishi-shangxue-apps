@@ -514,7 +514,12 @@ function apply(ctx, config) {
             }
 
             try {
-                netease = await searchXZG(ctx.http, 'NetEase Music', { name: keyword });
+                netease = await searchXZG(ctx.http, 'NetEase Music',
+                    {
+                        name: keyword,
+                        key: "up8bpg7bItrfvuCaEdG6vrU-Kr5u68LSKpbGUMHSmsM=" /*综合评价获得次数: 40580            综合评价仅首次生效 */
+
+                    });
             } catch (e) {
                 logger.warn('获取网易云音乐数据时发生错误', e);
             }
@@ -600,6 +605,7 @@ function apply(ctx, config) {
                 br,
                 uin,
                 skey,
+                key: "up8bpg7bItrfvuCaEdG6vrU-Kr5u68LSKpbGUMHSmsM=" /*综合评价获得次数: 40580            综合评价仅首次生效 */
             });
 
             if (song.code === 0) {
@@ -882,7 +888,7 @@ function apply(ctx, config) {
             //logInfo(songid);
             const br = options.quality || config.command4_kugouQuality;
 
-            const song = await searchKugouSong(ctx.http, keyword, br);
+            const song = await searchKugouSong(ctx.http, keyword, br, serialNumber);
 
             if (song.code === 0) {
                 const data = song.data;
@@ -907,18 +913,20 @@ function apply(ctx, config) {
         const params = {
             name: query,
             pagesize: 20,
-            br: br
+            br: br,
+            key: "up8bpg7bItrfvuCaEdG6vrU-Kr5u68LSKpbGUMHSmsM=" /*综合评价获得次数: 40580            综合评价仅首次生效 */
         };
         return await http.get(apiBase, { params });
     }
 
-    async function searchKugouSong(http, query, br) {
+    async function searchKugouSong(http, query, br, serialNumber) {
         const apiBase = 'https://api.xingzhige.com/API/Kugou_GN_new/';
         const params = {
             name: query,
-            n: 1,
+            n: serialNumber,
             pagesize: 20,
-            br: br
+            br: br,
+            key: "up8bpg7bItrfvuCaEdG6vrU-Kr5u68LSKpbGUMHSmsM=" /*综合评价获得次数: 40580            综合评价仅首次生效 */
         };
         return await http.get(apiBase, { params });
     }
