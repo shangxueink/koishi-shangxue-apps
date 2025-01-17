@@ -19,11 +19,11 @@ const usage = `
 <hr>
 
 <h3>使用星之阁API搜索QQ、网易云音乐</h3>
-<pre><code>下载音乐 [...keywords]</code></pre>
+<pre><code>下载音乐 [keywords]</code></pre>
 <hr>
 
 <h3>使用龙珠API搜索QQ、网易云音乐</h3>
-<pre><code>搜索歌曲 [...keywords]</code></pre>
+<pre><code>搜索歌曲 [keywords]</code></pre>
 <hr>
 
 <h3>如果需要让歌曲链接返回为语音消息/视频消息</h3>
@@ -36,7 +36,7 @@ const usage = `
 <h3>使用 <code>-n 1</code> 直接返回内容</h3>
 <p>在使用命令时，可以通过添加 <code>-n 1</code> 选项直接返回指定序号的歌曲内容。这对于快速获取特定歌曲非常有用。</p>
 <p>例如，使用以下命令可以直接获取第一首歌曲的详细信息：</p>
-<pre><code>搜索歌曲 -n 1 [...keywords]</code></pre>
+<pre><code>搜索歌曲 -n 1 [keywords]</code></pre>
 
 `;
 
@@ -490,7 +490,7 @@ function apply(ctx, config) {
     }
 
     ctx.command(name, "下载歌曲")
-    ctx.command(name + '/' + config.command1 + '  [...keywords]', '搜索歌曲')
+    ctx.command(name + '/' + config.command1 + '  <keyword:text>', '搜索歌曲')
         .option('quality', '-q <value:number> 品质因数')
         .option('number', '-n <number:number> 歌曲序号')
         .action(async ({ session, options }, keyword) => {
@@ -635,7 +635,7 @@ function apply(ctx, config) {
 
     /*
     // QQ音乐下载命令
-    ctx.command(name + '/' + config.command2 + ' [...keywords]', '搜索QQ歌曲')
+    ctx.command(name + '/' + config.command2 + ' <keyword:text>', '搜索QQ歌曲')
     .option('quality', '-q <value:number>', { fallback: config.defaultQualitycommand2Download })
     .action(async ({ session, options, args }) => {
     const keyword = args.join(' ');
@@ -718,7 +718,7 @@ function apply(ctx, config) {
     */
 
     /*
-    ctx.command(name + '/' + config.command3 + ' [...keywords]', '搜索龙珠歌曲')
+    ctx.command(name + '/' + config.command3 + ' <keyword:text>', '搜索龙珠歌曲')
         .option('quality', '-q <value:number> 品质因数', { fallback: config.command3_wyyQuality })
         .option('number', '-n <number:number> 歌曲序号')
         .action(async ({ session, options, args }) => {
@@ -824,7 +824,7 @@ function apply(ctx, config) {
         });
 */
 
-    ctx.command(config.command4 + ' [...keywords]', '搜索酷狗音乐')
+    ctx.command(config.command4 + ' <keyword:text>', '搜索酷狗音乐')
         .option('quality', '-q <value:number> 音质因数')
         .option('number', '-n <number:number> 歌曲序号')
         .action(async ({ session, options }, keyword) => {
