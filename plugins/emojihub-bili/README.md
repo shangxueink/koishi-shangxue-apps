@@ -1,9 +1,13 @@
+
 # koishi-plugin-emojihub-bili
 
-[![npm](https://img.shields.io/npm/v/koishi-plugin-emojihub-bili?style=flat-square)](https://www.npmjs.com/package/koishi-plugin-emojihub-bili)
-[![npm downloads](https://img.shields.io/npm/dm/koishi-plugin-emojihub-bili)](https://www.npmjs.com/package/koishi-plugin-emojihub-bili)
+[![npm](https://img.shields.io/npm/v/koishi-plugin-emojihub-bili?style=flat-square)](https://www.npmjs.com/package/koishi-plugin-emojihub-bili)   [![npm downloads](https://img.shields.io/npm/dm/koishi-plugin-emojihub-bili)](https://www.npmjs.com/package/koishi-plugin-emojihub-bili)  
 
-🐱🌟欢迎使用 **EmojiHub-bili**，这是**EmojiHub**插件的复刻版本！拥有丰富多彩的表情包指令！😍 您还可以自定义添加或删除表情包！几乎每个指令都包含上千张精选表情包！
+🐱🌟欢迎使用 **EmojiHub-bili**，这是**EmojiHub**插件的复刻版本！
+
+拥有丰富多彩的表情包指令！😍 您还可以自定义添加或删除表情包！
+
+几乎每个指令都包含上千张精选表情包！
 
 ## 功能亮点 ✨
 
@@ -11,6 +15,7 @@
 - **自定义添加/删除**：根据您的需求，轻松添加或移除特定表情包。
 - **简单易用**：通过简单的指令，即可使用丰富的表情包资源。
 - **多种地址支持**： 支持`本地文件夹绝对路径`、`本地图片文件绝对路径`、`图片直链`、`本地.txt文件绝对路径`
+- **QQ官方机器人支持**：支持QQ官方机器人的Markdown、JSON按钮、原生Markdown等多种消息格式。
 
 ## 安装指南 🛠️
 
@@ -24,6 +29,7 @@ Koishi插件市场搜索并安装`emojihub-bili`
 
 - `2233娘小剧场`：发送与 "2233娘小剧场" 相关的表情包。
 - `阿尼亚表情包`：发送与 "阿尼亚表情包" 相关的表情包。
+
 <details>
 <summary>点击此处————查看更多指令</summary>
     
@@ -71,525 +77,62 @@ Koishi插件市场搜索并安装`emojihub-bili`
     
 </details>
 
-
 ---
 
+## QQ官方机器人设置指南
 
-| 功能/设置                            | 详细说明                                                                                                               |
-| ------------------------------------ | ---------------------------------------------------------------------------------------------------------------------- |
-| **表情包设置**                       |                                                                                                                        |
-| `deleteMsg`                          | 开启后自动撤回表情包                                                                                                   |
-| `deleteMsgtime`                      | 自动撤回的秒数                                                                                                         |
-| `emojihub_bili_command`              | 自定义表情包指令的父级指令                                                                                             |
-| `MoreEmojiHub`                       | 配置您自定义的表情包指令和对应的表情包文件地址。<br />支持多个指令和地址。<br />也可以自定义文件夹路径，从文件夹发图。 |
-| `searchSubfolders`                   | 是否递归搜索文件夹。开启后 对于本地文件夹地址 会搜索其子文件夹内全部的图片                                             |
-| **进阶设置**                         |                                                                                                                        |
-| `autoEmoji`                          | 开启自动表情包功能。<br />当消息数量达到一定阈值时，将自动触发表情包发送。                                             |
-| `count`                              | 触发自动表情包的消息数量阈值。                                                                                         |
-| `triggerprobability`                 | 触发自动发送表情包的概率，范围是 0 到 1。                                                                              |
-| `groupListmapping`                   | 配置哪些群组ID将开启自动表情包功能，可以为每个群组指定默认的表情包。                                                   |
-| `allgroupautoEmoji`                  | 配置全部的群组开启自动表情包功能                                                                                       |
-| `allgroupemojicommand`               | 自定义全部群组的默认表情包内容                                                                                         |
-| **QQ官方bot设置**                    |                                                                                                                        |
-| `mdid`                               | 用于定义QQ bot 的MD模板id                                                                                              |
-| `zlmdtext_1`, `zlmdtext_2`           | Markdown中`文本`参数。                                                                                                 |
-| `zltext_1`, `zltext_2`               | 包含多个文本选项，每次从这些预设文本中随机选择一个发送。                                                               |
-| `zlmdp_1`, `zlmdp_2`                 | 定义在Markdown消息中使用的`图片`参数。<br />无需设置图片的具体尺寸。                                                   |
-| `ButtonText1`, `ButtonText2`         | 设置消息框中按钮的文本，例如“再来一张”和“返回列表”，方便用户操作。                                                     |
-| `MinimumBoundary`, `Magnifymultiple` | 定义图片处理的边界条件，自动调整小于设定界限的图片尺寸，保证图片的清晰度和可视效果。                                   |
-| `QQPicToChannelUrl`                  | 本地图片通过频道URL作为群聊MD的图片链接                                                                                |
-| `QQbots`                             | 配置转换URL使用的机器人信息和频道                                                                                      |
-| **调试设置**                         |                                                                                                                        |
-| `consoleinfo`                        | 启用日志调试模式，便于排查问题。                                                                                       |
-| `allfileinfo`                        | 输出详细的`MoreEmojiHub 列表内容`                                                                                      |
+### 1. JSON按钮
 
----
+需要有20个群才能使用。
 
-其中有关`MoreEmojiHub`指令对应的地址，如果配置的是一个本地文件夹绝对地址
-那就可以使用对应指令搜索该地址下的图片（按文件名）
-每次只模糊匹配最接近的一个
-
-比如配置的是
-
-| 指令名称   | 地址             |
-| ---------- | ---------------- |
-| 本地文件夹 | D:\pics\emojihub |
-
-那你就可以使用 `本地文件夹 关键词` 来搜索是否存在 `关键词`这张图片
-
-- 当开启`searchSubfolders`配置项时，使用文件夹地址搜索图片，将进行递归搜索。
-
-
----
-
-
-### 默认JSON按钮模板示例
-
-此外，以下是一个默认的JSON按钮的指令按钮模板示例，可供参考：
-<details>
-<summary>点击此处————查看源码</summary>
-
-```
-{
-  "rows": [
-    {
-      "buttons": [
-        {
-          "render_data": {
-            "label": "再来一张😽",
-            "style": 2
-          },
-          "action": {
-            "type": 2,
-            "permission": {
-              "type": 2
-            },
-            "data": "/再来一张 ",
-            "enter": false
-          }
-        },
-        {
-          "render_data": {
-            "label": "随机一张😼",
-            "style": 2
-          },
-          "action": {
-            "type": 2,
-            "permission": {
-              "type": 2
-            },
-            "data": "/随机表情包",
-            "enter": true
-          }
-        }
-      ]
-    },
-    {
-      "buttons": [
-        {
-          "render_data": {
-            "label": "返回列表😸",
-            "style": 2
-          },
-          "action": {
-            "type": 2,
-            "permission": {
-              "type": 2
-            },
-            "data": "/表情包列表",
-            "enter": true
-          }
-        }
-      ]
-    }
-  ]
-}
-```
-
-
-此外，以下是一个默认的JSON按钮的指令列表按钮模板示例，可供参考：
-
-```
-
-{
-  "rows": [
-    {
-      "buttons": [
-        {
-          "render_data": {
-            "label": "acomu414",
-            "style": 2
-          },
-          "action": {
-            "type": 2,
-            "permission": {
-              "type": 2
-            },
-            "data": "/acomu414",
-            "enter": true
-          }
-        },
-        {
-          "render_data": {
-            "label": "ba表情包",
-            "style": 2
-          },
-          "action": {
-            "type": 2,
-            "permission": {
-              "type": 2
-            },
-            "data": "/ba表情包",
-            "enter": true
-          }
-        },
-        {
-          "render_data": {
-            "label": "downvote",
-            "style": 2
-          },
-          "action": {
-            "type": 2,
-            "permission": {
-              "type": 2
-            },
-            "data": "/downvote",
-            "enter": true
-          }
-        },
-        {
-          "render_data": {
-            "label": "doro",
-            "style": 2
-          },
-          "action": {
-            "type": 2,
-            "permission": {
-              "type": 2
-            },
-            "data": "/doro",
-            "enter": true
-          }
-        },
-        {
-          "render_data": {
-            "label": "fufu",
-            "style": 2
-          },
-          "action": {
-            "type": 2,
-            "permission": {
-              "type": 2
-            },
-            "data": "/fufu",
-            "enter": true
-          }
-        }
-      ]
-    },
-    {
-      "buttons": [
-        {
-          "render_data": {
-            "label": "mygo",
-            "style": 2
-          },
-          "action": {
-            "type": 2,
-            "permission": {
-              "type": 2
-            },
-            "data": "/mygo",
-            "enter": true
-          }
-        },
-        {
-          "render_data": {
-            "label": "seseren",
-            "style": 2
-          },
-          "action": {
-            "type": 2,
-            "permission": {
-              "type": 2
-            },
-            "data": "/seseren",
-            "enter": true
-          }
-        },
-        {
-          "render_data": {
-            "label": "白圣女",
-            "style": 2
-          },
-          "action": {
-            "type": 2,
-            "permission": {
-              "type": 2
-            },
-            "data": "/白圣女",
-            "enter": true
-          }
-        },
-        {
-          "render_data": {
-            "label": "白圣女漫画",
-            "style": 2
-          },
-          "action": {
-            "type": 2,
-            "permission": {
-              "type": 2
-            },
-            "data": "/白圣女漫画",
-            "enter": true
-          }
-        },
-        {
-          "render_data": {
-            "label": "柴郡",
-            "style": 2
-          },
-          "action": {
-            "type": 2,
-            "permission": {
-              "type": 2
-            },
-            "data": "/柴郡",
-            "enter": true
-          }
-        }
-      ]
-    },
-    {
-      "buttons": [
-        {
-          "render_data": {
-            "label": "初音Q版",
-            "style": 2
-          },
-          "action": {
-            "type": 2,
-            "permission": {
-              "type": 2
-            },
-            "data": "/初音Q版",
-            "enter": true
-          }
-        },
-        {
-          "render_data": {
-            "label": "孤独摇滚",
-            "style": 2
-          },
-          "action": {
-            "type": 2,
-            "permission": {
-              "type": 2
-            },
-            "data": "/孤独摇滚",
-            "enter": true
-          }
-        },
-        {
-          "render_data": {
-            "label": "疾旋鼬",
-            "style": 2
-          },
-          "action": {
-            "type": 2,
-            "permission": {
-              "type": 2
-            },
-            "data": "/疾旋鼬",
-            "enter": true
-          }
-        },
-        {
-          "render_data": {
-            "label": "流萤",
-            "style": 2
-          },
-          "action": {
-            "type": 2,
-            "permission": {
-              "type": 2
-            },
-            "data": "/流萤",
-            "enter": true
-          }
-        },
-        {
-          "render_data": {
-            "label": "赛马娘",
-            "style": 2
-          },
-          "action": {
-            "type": 2,
-            "permission": {
-              "type": 2
-            },
-            "data": "/赛马娘",
-            "enter": true
-          }
-        }
-      ]
-    },
-    {
-      "buttons": [
-        {
-          "render_data": {
-            "label": "藤田琴音",
-            "style": 2
-          },
-          "action": {
-            "type": 2,
-            "permission": {
-              "type": 2
-            },
-            "data": "/藤田琴音",
-            "enter": true
-          }
-        },
-        {
-          "render_data": {
-            "label": "宇佐紀",
-            "style": 2
-          },
-          "action": {
-            "type": 2,
-            "permission": {
-              "type": 2
-            },
-            "data": "/宇佐紀",
-            "enter": true
-          }
-        },
-        {
-          "render_data": {
-            "label": "永雏小菲",
-            "style": 2
-          },
-          "action": {
-            "type": 2,
-            "permission": {
-              "type": 2
-            },
-            "data": "/永雏小菲",
-            "enter": true
-          }
-        },
-        {
-          "render_data": {
-            "label": "塞西莉亚",
-            "style": 2
-          },
-          "action": {
-            "type": 2,
-            "permission": {
-              "type": 2
-            },
-            "data": "/塞西莉亚",
-            "enter": true
-          }
-        },
-        {
-          "render_data": {
-            "label": "图图",
-            "style": 2
-          },
-          "action": {
-            "type": 2,
-            "permission": {
-              "type": 2
-            },
-            "data": "/图图",
-            "enter": true
-          }
-        }
-      ]
-    }
-  ]
-}
-```
-</details>
-
----
-
-### 默认Markdown模板示例
-此外，以下是一个默认的Markdown模板示例，可供参考：
+配置项直接填写对应的JSON模板的ID即可。
 
 <details>
-<summary>点击此处————查看源码</summary>
+<summary>点击此处————查看完整说明</summary>
 
-
-```
-{{.text1}}
-{{.text2}}
-{{.img}}{{.url}}
-```
-#### 配置模板参数示例
-当然，上方的md模版，还有`配置模版参数`的示例参数值
-
-参数        示例值
-```
-text1       这是第一段文字
-text2       这是第二段文字
-img         ![img]
-url         (https://koishi.chat/logo.png)
-```
-    
-</details>
-
-
----
-
-### 默认原生markdown的json文件写法示例
-此外，以下是一个默认的原生markdown的json文件模板示例，可供参考：
-
-<details>
-<summary>点击此处————查看源码</summary>
-
-#### RAW_MD_command_markdown
-```
+#### 示例审核模板-按钮内容（表情包）
+```json
 {
-    "msg_type": 2,
-    "msg_id": "${session.messageId}",
-    "markdown": {
-        "content": "## **emoji~😺**\n### 😽来了哦！\n![img#${originalWidth}px #${originalHeight}px](${imageurl})"
-    },
-    "keyboard": {
-        "content": {
-            "rows": [
-                {
-                    "buttons": [
-                        {
-                            "render_data": {
-                                "label": "再来一张😺",
-                                "style": 2
-                            },
-                            "action": {
-                                "type": 2,
-                                "permission": {
-                                    "type": 2
-                                },
-                                "data": "${command}",
-                                "enter": true
-                            }
-                        },
-                        {
-                            "render_data": {
-                                "label": "返回列表😽",
-                                "style": 2
-                            },
-                            "action": {
-                                "type": 2,
-                                "permission": {
-                                    "type": 2
-                                },
-                                "data": "${config.emojihub_bili_command}",
-                                "enter": true
-                            }
-                        }
-                    ]
-                }
-            ]
-        }
-    }
-}
-```
-#### RAW_MD_emojilist_markdown
-
+    "rows": [
+      {
+        "buttons": [
+          {
+            "render_data": {
+              "label": "再来一张😺",
+              "style": 2
+            },
+            "action": {
+              "type": 2,
+              "permission": {
+                "type": 2
+              },
+              "data": "/${command}",
+              "enter": true
+            }
+          },
+          {
+            "render_data": {
+              "label": "返回列表😽",
+              "style": 2
+            },
+            "action": {
+              "type": 2,
+              "permission": {
+                "type": 2
+              },
+              "data": "/${config.emojihub_bili_command}",
+              "enter": true
+            }
+          }
+        ]
+      }
+    ]
+  }
 
 ```
+#### 示例审核模板-按钮内容（表情包列表）
+```json
 {
-    "msg_type": 2,
-    "msg_id": "${session.messageId}",
-    "markdown": {
-        "content": "## **表情包列表**\n### 😻列表如下：点击按钮触发哦！"
-    },
-    "keyboard": {
-        "content": {
             "rows": [
                 {
                     "buttons": [
@@ -603,7 +146,7 @@ url         (https://koishi.chat/logo.png)
                                 "permission": {
                                     "type": 2
                                 },
-                                "data": "/随机emojihub表情包",
+                                "data": "${session.userId}",
                                 "enter": true
                             }
                         },
@@ -768,66 +311,515 @@ url         (https://koishi.chat/logo.png)
                                 "data": "/柴郡",
                                 "enter": true
                             }
+                        }
+                    ]
+                },
+                {
+                    "buttons": [
+                        {
+                            "render_data": {
+                                "label": "初音Q版",
+                                "style": 1
+                            },
+                            "action": {
+                                "type": 2,
+                                "permission": {
+                                    "type": 2
+                                },
+                                "data": "/初音Q版",
+                                "enter": true
+                            }
                         },
                         {
-                            "buttons": [
-                                {
-                                    "render_data": {
-                                        "label": "初音Q版",
-                                        "style": 1
-                                    },
-                                    "action": {
-                                        "type": 2,
-                                        "permission": {
-                                            "type": 2
-                                        },
-                                        "data": "/初音Q版",
-                                        "enter": true
-                                    }
+                            "render_data": {
+                                "label": "甘城猫猫",
+                                "style": 1
+                            },
+                            "action": {
+                                "type": 2,
+                                "permission": {
+                                    "type": 2
                                 },
-                                {
-                                    "render_data": {
-                                        "label": "甘城猫猫",
-                                        "style": 1
-                                    },
-                                    "action": {
-                                        "type": 2,
-                                        "permission": {
-                                            "type": 2
-                                        },
-                                        "data": "/甘城猫猫",
-                                        "enter": true
-                                    }
+                                "data": "/甘城猫猫",
+                                "enter": true
+                            }
+                        },
+                        {
+                            "render_data": {
+                                "label": "疾旋鼬",
+                                "style": 1
+                            },
+                            "action": {
+                                "type": 2,
+                                "permission": {
+                                    "type": 2
                                 },
-                                {
-                                    "render_data": {
-                                        "label": "疾旋鼬",
-                                        "style": 1
-                                    },
-                                    "action": {
-                                        "type": 2,
-                                        "permission": {
-                                            "type": 2
-                                        },
-                                        "data": "/疾旋鼬",
-                                        "enter": true
-                                    }
+                                "data": "/疾旋鼬",
+                                "enter": true
+                            }
+                        },
+                        {
+                            "render_data": {
+                                "label": "流萤",
+                                "style": 1
+                            },
+                            "action": {
+                                "type": 2,
+                                "permission": {
+                                    "type": 2
                                 },
-                                {
-                                    "render_data": {
-                                        "label": "流萤",
-                                        "style": 1
-                                    },
-                                    "action": {
-                                        "type": 2,
-                                        "permission": {
-                                            "type": 2
-                                        },
-                                        "data": "/流萤",
-                                        "enter": true
-                                    }
-                                }
-                            ]
+                                "data": "/流萤",
+                                "enter": true
+                            }
+                        }
+                    ]
+                },
+                {
+                    "buttons": [
+                        {
+                            "render_data": {
+                                "label": "赛马娘",
+                                "style": 1
+                            },
+                            "action": {
+                                "type": 2,
+                                "permission": {
+                                    "type": 2
+                                },
+                                "data": "/赛马娘",
+                                "enter": true
+                            }
+                        },
+                        {
+                            "render_data": {
+                                "label": "瑟莉亚",
+                                "style": 1
+                            },
+                            "action": {
+                                "type": 2,
+                                "permission": {
+                                    "type": 2
+                                },
+                                "data": "/瑟莉亚",
+                                "enter": true
+                            }
+                        },
+                        {
+                            "render_data": {
+                                "label": "藤田琴音",
+                                "style": 1
+                            },
+                            "action": {
+                                "type": 2,
+                                "permission": {
+                                    "type": 2
+                                },
+                                "data": "/藤田琴音",
+                                "enter": true
+                            }
+                        },
+                        {
+                            "render_data": {
+                                "label": "亚托莉",
+                                "style": 1
+                            },
+                            "action": {
+                                "type": 2,
+                                "permission": {
+                                    "type": 2
+                                },
+                                "data": "/亚托莉",
+                                "enter": true
+                            }
+                        }
+                    ]
+                }
+            ]
+        }
+
+
+```
+</details>
+
+### 2. 被动Markdown模板
+
+需要有2000的日活跃用户（每日上行消息人数），并且申请Markdown能力和markdown模板。
+
+<details>
+<summary>点击此处————查看完整说明</summary>
+#### 本插件模板举例---1
+```
+**{{.text1}}**
+{{.text2}}
+![{{.img}}]({{.url}})
+```
+
+#### 配置模板参数示例---1
+```
+[
+  {
+    "raw_parameters": "your_markdown_text_1",
+    "replace_parameters": "表情包来啦！"
+  },
+  {
+    "raw_parameters": "your_markdown_text_2",
+    "replace_parameters": "这是你的表情包哦😽"
+  },
+  {
+    "raw_parameters": "your_markdown_img",
+    "replace_parameters": "${img_pxpx}"
+  },
+  {
+    "raw_parameters": "your_markdown_url",
+    "replace_parameters": "${img_url}"
+  }
+]
+```
+#### 本插件模板举例---2
+```
+{{.text1}}
+{{.text2}}
+{{.img}}{{.url}}
+```
+
+#### 配置模板参数示例---2
+```
+[
+  {
+    "raw_parameters": "your_markdown_text_1",
+    "replace_parameters": "表情包来啦！"
+  },
+  {
+    "raw_parameters": "your_markdown_text_2",
+    "replace_parameters": "这是你的表情包哦😽"
+  },
+  {
+    "raw_parameters": "your_markdown_img",
+    "replace_parameters": "![${img_pxpx}]"
+  },
+  {
+    "raw_parameters": "your_markdown_url",
+    "replace_parameters": "(${img_url})"
+  }
+]
+```
+
+</details>
+
+markdown的按钮参数，需要填入按钮模板ID，
+
+请参考上方`1. JSON按钮` 的 `示例审核模板-按钮内容`。
+
+
+### 3. 被动Markdown模板（原生按钮）
+
+需要至少（曾经）达到过原生（钻石机器人）的日活（每日消息上行人数）
+
+被动Markdown模板 与上文 `2. 被动Markdown模板` 一致逻辑
+
+原生按钮配置示例 见下方 `原生Markdown` 的 `示例按钮内容`
+
+
+### 4. 原生Markdown
+
+原生Markdown支持自定义Markdown内容和按钮内容。
+
+需要有10000日活（每日消息上行人数），并且评选为钻石机器人（每月中审核）。
+
+<details>
+<summary>点击此处————查看完整说明</summary>
+
+#### 示例Markdown内容
+```
+## **表情包~😺**
+### 😽来了哦！
+![${img_pxpx}](${img_url})
+```
+
+#### 示例配置项-按钮内容（表情包）
+```json
+{
+  "content": {
+    "rows": [
+      {
+        "buttons": [
+          {
+            "render_data": {
+              "label": "再来一张😺",
+              "style": 2
+            },
+            "action": {
+              "type": 2,
+              "permission": {
+                "type": 2
+              },
+              "data": "/${command}",
+              "enter": true
+            }
+          },
+          {
+            "render_data": {
+              "label": "返回列表😽",
+              "style": 2
+            },
+            "action": {
+              "type": 2,
+              "permission": {
+                "type": 2
+              },
+              "data": "/${config.emojihub_bili_command}",
+              "enter": true
+            }
+          }
+        ]
+      }
+    ]
+  }
+}
+
+```
+#### 示例配置项-按钮内容（表情包列表）
+```json
+{
+        "content": {
+            "rows": [
+                {
+                    "buttons": [
+                        {
+                            "render_data": {
+                                "label": "随机emojihub表情包",
+                                "style": 1
+                            },
+                            "action": {
+                                "type": 2,
+                                "permission": {
+                                    "type": 2
+                                },
+                                "data": "${session.userId}",
+                                "enter": true
+                            }
+                        },
+                        {
+                            "render_data": {
+                                "label": "acomu414",
+                                "style": 1
+                            },
+                            "action": {
+                                "type": 2,
+                                "permission": {
+                                    "type": 2
+                                },
+                                "data": "/acomu414",
+                                "enter": true
+                            }
+                        },
+                        {
+                            "render_data": {
+                                "label": "ba表情包",
+                                "style": 1
+                            },
+                            "action": {
+                                "type": 2,
+                                "permission": {
+                                    "type": 2
+                                },
+                                "data": "/ba表情包",
+                                "enter": true
+                            }
+                        },
+                        {
+                            "render_data": {
+                                "label": "downvote",
+                                "style": 1
+                            },
+                            "action": {
+                                "type": 2,
+                                "permission": {
+                                    "type": 2
+                                },
+                                "data": "/downvote",
+                                "enter": true
+                            }
+                        }
+                    ]
+                },
+                {
+                    "buttons": [
+                        {
+                            "render_data": {
+                                "label": "doro",
+                                "style": 1
+                            },
+                            "action": {
+                                "type": 2,
+                                "permission": {
+                                    "type": 2
+                                },
+                                "data": "/doro",
+                                "enter": true
+                            }
+                        },
+                        {
+                            "render_data": {
+                                "label": "eveonecat",
+                                "style": 1
+                            },
+                            "action": {
+                                "type": 2,
+                                "permission": {
+                                    "type": 2
+                                },
+                                "data": "/eveonecat",
+                                "enter": true
+                            }
+                        },
+                        {
+                            "render_data": {
+                                "label": "fufu",
+                                "style": 1
+                            },
+                            "action": {
+                                "type": 2,
+                                "permission": {
+                                    "type": 2
+                                },
+                                "data": "/fufu",
+                                "enter": true
+                            }
+                        },
+                        {
+                            "render_data": {
+                                "label": "mygo",
+                                "style": 1
+                            },
+                            "action": {
+                                "type": 2,
+                                "permission": {
+                                    "type": 2
+                                },
+                                "data": "/mygo",
+                                "enter": true
+                            }
+                        }
+                    ]
+                },
+                {
+                    "buttons": [
+                        {
+                            "render_data": {
+                                "label": "seseren",
+                                "style": 1
+                            },
+                            "action": {
+                                "type": 2,
+                                "permission": {
+                                    "type": 2
+                                },
+                                "data": "/seseren",
+                                "enter": true
+                            }
+                        },
+                        {
+                            "render_data": {
+                                "label": "白圣女",
+                                "style": 1
+                            },
+                            "action": {
+                                "type": 2,
+                                "permission": {
+                                    "type": 2
+                                },
+                                "data": "/白圣女",
+                                "enter": true
+                            }
+                        },
+                        {
+                            "render_data": {
+                                "label": "白圣女漫画",
+                                "style": 1
+                            },
+                            "action": {
+                                "type": 2,
+                                "permission": {
+                                    "type": 2
+                                },
+                                "data": "/白圣女漫画",
+                                "enter": true
+                            }
+                        },
+                        {
+                            "render_data": {
+                                "label": "柴郡",
+                                "style": 1
+                            },
+                            "action": {
+                                "type": 2,
+                                "permission": {
+                                    "type": 2
+                                },
+                                "data": "/柴郡",
+                                "enter": true
+                            }
+                        }
+                    ]
+                },
+                {
+                    "buttons": [
+                        {
+                            "render_data": {
+                                "label": "初音Q版",
+                                "style": 1
+                            },
+                            "action": {
+                                "type": 2,
+                                "permission": {
+                                    "type": 2
+                                },
+                                "data": "/初音Q版",
+                                "enter": true
+                            }
+                        },
+                        {
+                            "render_data": {
+                                "label": "甘城猫猫",
+                                "style": 1
+                            },
+                            "action": {
+                                "type": 2,
+                                "permission": {
+                                    "type": 2
+                                },
+                                "data": "/甘城猫猫",
+                                "enter": true
+                            }
+                        },
+                        {
+                            "render_data": {
+                                "label": "疾旋鼬",
+                                "style": 1
+                            },
+                            "action": {
+                                "type": 2,
+                                "permission": {
+                                    "type": 2
+                                },
+                                "data": "/疾旋鼬",
+                                "enter": true
+                            }
+                        },
+                        {
+                            "render_data": {
+                                "label": "流萤",
+                                "style": 1
+                            },
+                            "action": {
+                                "type": 2,
+                                "permission": {
+                                    "type": 2
+                                },
+                                "data": "/流萤",
+                                "enter": true
+                            }
                         }
                     ]
                 },
@@ -894,11 +886,31 @@ url         (https://koishi.chat/logo.png)
             ]
         }
     }
-}
+
 ```
-    
+
 </details>
 
+### 5. 替换功能说明
+
+本插件会替换模板变量，请在左侧填入模板变量，右侧填入真实变量值。
+
+#### 支持的参数
+- `command`：当前指令名称（仅交互表情包的时候有效，查看表情包列表的时候无法使用此变量）。
+- `img_pxpx`：图片尺寸，替换后格式为`img#123px #456px`。
+- `img_url`：图片链接，替换后格式为`https://i0.hdslb.com/bfs/article/e1cb94c573b6bf4e23b38caa4e97de6fe804011a.jpg`。
+
+- `config`：插件配置项。例： `config.emojihub_bili_command`：当前插件父级指令，替换后格式为`emojihub`。
+- `session`：会话信息。例： `session.userId`：当前交互的用户ID，替换后格式为`1246A99CFED107A7938ADF07F9B5A398`。
+- ... ... 关于`config`、`session`的更多用法请查看koishi文档 -> https://koishi.chat/
+
+#### 示例
+- `${command}` 会被替换为当前指令名称，如 `宇佐紀表情包`。
+- `${img_pxpx}` 会被替换为 `img#123px #456px`。
+- `${img_url}` 会被替换为 `https://i0.hdslb.com/bfs/article/e1cb94c573b6bf4e23b38caa4e97de6fe804011a.jpg`。
+- `config.emojihub_bili_command`：当前插件父级指令，替换后格式为`emojihub`。
+- `session.userId`：当前交互的用户ID，替换后格式为`1246A99CFED107A7938ADF07F9B5A398`。
+---
 
 ## 如何额外添加自己喜欢的表情包
 
@@ -976,6 +988,17 @@ url         (https://koishi.chat/logo.png)
 
 <details>
 <summary>点击此处————查看更新日志</summary>
+
+- **1.2.0**
+   - 重大更新唔，更新前务必重新查看readme
+   - 优化QQ官方机器人的按钮发送逻辑
+     - 1. 重新适配被动markdown模板，支持各种各样的模板内容
+     - 2. 优化原生markdown和被动md的发送
+     - 3. 懒得写了
+   - 修复此前被动markdown发送的逻辑错误
+  
+- **1.1.x**
+   - 忘了更新了什么了，反正像日记一样忘了写了
 
 - **1.0.7**
    -  更新`再来一张`的逻辑，修改为自动再次触发本频道的最后一个表情包指令，不需要参数输入

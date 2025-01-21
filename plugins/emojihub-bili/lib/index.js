@@ -85,16 +85,14 @@ exports.Config = Schema.intersect([
 
   Schema.object({
     emojihub_bili_command: Schema.string().default('emojihub-bili').description('`父级指令`的指令名称').pattern(/^\S+$/),
-
     MoreEmojiHub: Schema.array(Schema.object({
       command: Schema.string().description('注册的指令名称'),
       //enable: Schema.boolean().description('隐藏指令'),
       source_url: Schema.string().description('表情包文件地址'),
-    })).role('table').description('表情包指令映射 当前默认`43套`txt文件`点击右方按钮 可以恢复到默认值`<br>`表情包文件地址`可以填入`txt文件绝对路径`或者`文件夹绝对路径`或者`图片直链`或者`图片文件绝对路径`').default(defaultMoreEmojiHub),
-
+    })).role('table').default(defaultMoreEmojiHub)
+      .description('表情包指令映射 当前默认`43套`txt文件`点击右方按钮 可以恢复到默认值`<br>`表情包文件地址`可以填入`txt文件绝对路径`或者`文件夹绝对路径`或者`图片直链`或者`图片文件绝对路径`'),
     searchSubfolders: Schema.boolean().description("是否递归搜索文件夹。`开启后 对于本地文件夹地址 会搜索其子文件夹内全部的图片`").default(true),
-
-    deleteMsg: Schema.boolean().description("`开启后`自动撤回表情"),
+    deleteMsg: Schema.boolean().description("`开启后`自动撤回表情").default(false),
 
   }).description('表情包设置'),
   Schema.union([
@@ -106,7 +104,7 @@ exports.Config = Schema.intersect([
   ]),
 
   Schema.object({
-    autoEmoji: Schema.boolean().description("进阶设置总开关。打开后，开启自动表情包功能 `达到一定消息数量 自动触发表情包`"),
+    autoEmoji: Schema.boolean().description("进阶设置总开关。打开后，开启自动表情包功能 `达到一定消息数量 自动触发表情包`").default(false),
   }).description('进阶设置'),
   Schema.union([
     Schema.object({
@@ -126,81 +124,156 @@ exports.Config = Schema.intersect([
 
       allgroupautoEmoji: Schema.boolean().description("`全部群组` 开启自动表情包").default(false),
 
-      allgroupemojicommand: Schema.string().role('textarea', { rows: [2, 4] }).description('`全部群组的` 表情包指令映射`一行一个指令 或者 逗号分隔`   <br> 可以同时在`groupListmapping`指定群组的表情包内容')
-        .default(`宇佐紀表情包\n白圣女表情包\n白圣女漫画表情包`),
-
+      allgroupemojicommand: Schema.string().role('textarea', { rows: [2, 4] })
+        .description('`全部群组的` 表情包指令映射`一行一个指令 或者 逗号分隔`   <br> 可以同时在`groupListmapping`指定群组的表情包内容').default(`宇佐紀表情包\n白圣女表情包\n白圣女漫画表情包`),
     }),
     Schema.object({}),
   ]),
 
-  // Alin---ba-plugin 配置项
-  Schema.object({
-    //------------------------------------json按钮---------20个群-------------------------------------------------------------------------------
-    json_button_switch: Schema.boolean().description("`被动json按钮总开关`开启后以生效JSON按钮配置项（json按钮）<br>注意不要与下面的其他模式同时开，优先发送json按钮").default(false),
-    json_setting: Schema.object({
-
-      json_button_mdid_emojilist: Schema.string().description('展示表情包列表的按钮<br>QQ官方bot 的 JSON按钮模板ID<br>20个群即可使用的按钮！使用方法请见[README](https://www.npmjs.com/package/koishi-plugin-emojihub-bili)').pattern(/^\d+_\d+$/), // 102069859_1725953918
-      json_button_mdid_command: Schema.string().description('触发具体表情后发送的按钮<br>QQ官方bot 的 JSON按钮模板ID<br>20个群即可使用的按钮！使用方法请见[README](https://www.npmjs.com/package/koishi-plugin-emojihub-bili)').pattern(/^\d+_\d+$/), // 102069859_1725953918
-
-    }).collapse().description('实现QQ官方bot `再来一张`和`返回列表`的按钮效果（JSON 按钮）'),
-
-
-    //--------------------------------------------被动md模板---2000上行消息人数-----------------------------------------------------------------------------
-
-    MDswitch: Schema.boolean().description("`被动模板md总开关 `开启后以生效被动md配置项（被动markdown，模板md发送的）").default(false),
-    markdown_setting: Schema.object({
-
-      mdid: Schema.string().description('QQ官方bot 的 MarkDown模板ID').pattern(/^\d+_\d+$/),
-
-      zllbmdtext_1: Schema.string().default('text1').description('`指令列表MD`.`MD参数`MD文字参数--1'),
-      zllbmdtext_2: Schema.string().default('text2').description('`指令列表MD`.`MD参数`MD文字参数--2'),
-      zllbtext_1: Schema.array(String).default(["表情包列表", "emoji表情列表", "表情列表："]).description('`指令列表MD`MD显示文字内容--1`每次从下列随机选一个发送`').role('table'),
-      zllbtext_2: Schema.array(String).default(["点击按钮即可触发哦~", "😻列表如下：点击按钮触发哦！", "点击即可查看对应表情哦！😽"]).description('`指令列表MD`MD显示文字内容--2`每次从下列随机选一个发送`').role('table'),
-
-      zlmdtext_1: Schema.string().default('text1').description('`指令MD`.`MD参数`MD文字参数--1'),
-      zlmdtext_2: Schema.string().default('text2').description('`指令MD`.`MD参数`MD文字参数--2'),
-      zltext_1: Schema.array(String).default(["emoji~😺", "表情包！", "这是您的表情包~"]).description('`指令MD`MD显示文字内容--1`每次从下列随机选一个发送`').role('table'),
-      zltext_2: Schema.array(String).default(["邦邦咔邦！", "😺😺😺", "😽来了哦！"]).description('`指令MD`MD显示文字内容--2`每次从下列随机选一个发送`').role('table'),
-
-      zlmdp_1: Schema.string().default('img').description('`指令MD`.`MD参数`MD图片参数--1 `不需要设定图片宽高`'),
-      zlmdp_2: Schema.string().default('url').description('`指令MD`.`MD参数`MD图片参数--2'),
-
-      ButtonText1: Schema.string().default('再来一张😺').description('`指令MD`按钮上`再来一张功能`显示的文字'),
-      ButtonText2: Schema.string().default('返回列表😽').description('`指令MD`按钮上`返回列表功能`显示的文字'),
-
-      MinimumBoundary: Schema.number().default(200).description('`指令MD`过小图片的界限，宽或者高小于这个值就会自动放大到`Magnifymultiple`'),
-      Magnifymultiple: Schema.number().default(1000).description('`指令MD`对于过小图片（宽/高小于`MinimumBoundary`）的放大目标的标准，默认放大到1000px'),
-
-      QQPicToChannelUrl: Schema.boolean().description("`开启后` 本地图片通过频道URL作为群聊MD的图片链接`须填写下方的 QQchannelId`").experimental().default(false),
-
-      QQchannelId: Schema.string().description('`填入QQ频道的频道ID`，将该ID的频道作为中转频道 <br> 频道ID可以用[inspect插件来查看](/market?keyword=inspect) `频道ID应为纯数字`').experimental().pattern(/^\S+$/),
-
-
-    }).collapse().description('实现QQ官方bot `再来一张`和`返回列表`的按钮效果，需要`canvas`服务。<br> [适用本插件的QQ官方bot MD示例模版 可点击这里参考](https://www.npmjs.com/package/koishi-plugin-emojihub-bili)'),
-
-
-    //----------------------------------------原生md-------10000上行消息人数-------钻石机器人----------------------------------------------------------------------
-    RAW_MD_switch: Schema.boolean().description("`原生md总开关` 开启后以生效原生markdown配置项").default(false),
-    RAW_MD_setting: Schema.object({
-
-      RAW_MD_emojilist_markdown: Schema.path({
-        filters: ['.json', '.JSON'],
-      }).description('原生markdown表情包指令列表<br>建议参考原文件，重写该文件').default(path.join(__dirname, 'qq/raw_markdown/RAW_MD_emojilist_markdown.json')),
-
-      RAW_MD_command_markdown: Schema.path({
-        filters: ['.json', '.JSON'],
-      }).description('原生markdown返回的表情包内容<br>建议参考原文件，重写该文件').default(path.join(__dirname, 'qq/raw_markdown/RAW_MD_command_markdown.json')),
-    }).collapse().description('实现QQ官方bot `再来一张`和`返回列表`的按钮效果'),
-
-  }).description('QQ官方bot设置'),
 
   Schema.object({
-    //LocalSendNetworkPictures: Schema.boolean().description("`开启后` 将网络URL下载至本地，作为本地图片发送").experimental().default(false),
+    markdown_button_mode: Schema.union([
+      Schema.const('unset').description('取消应用此配置项'),
+      Schema.const('json').description('json按钮-----------20 群'),
+      Schema.const('markdown').description('被动md模板--------2000 DAU'),
+      Schema.const('markdown_raw_json').description('被动md模板--------原生按钮'),
+      Schema.const('raw').description('原生md------------10000 DAU'),
+    ]).role('radio').description('markdown/按钮模式选择').default("unset"),
+  }).description('改版*QQ官方bot设置'),
+  Schema.union([
+    Schema.object({
+      markdown_button_mode: Schema.const("json").required(),
+      nested: Schema.object({
+        json_button_template_id: Schema.string().description("模板ID<br>形如 `123456789_1234567890` 的ID编号<br>更多说明 详见项目README").pattern(/^\d+_\d+$/),
+      }).collapse().description('➢表情包--按钮设置<hr style="border: 2px solid red;"><hr style="border: 2px solid red;">'),
+      nestedlist: Schema.object({
+        json_button_template_id: Schema.string().description("模板ID<br>形如 `123456789_1234567890` 的ID编号<br>更多说明 详见项目README").pattern(/^\d+_\d+$/),
+      }).collapse().description('➣表情包列表--按钮设置<hr style="border: 2px solid red;"><hr style="border: 2px solid red;">'),
+    }),
+    Schema.object({
+      markdown_button_mode: Schema.const("markdown").required(),
+      nested: Schema.object({
+        markdown_button_template_id: Schema.string().description("md模板ID<br>形如 `123456789_1234567890` 的ID编号，发送markdown").pattern(/^\d+_\d+$/),
+        markdown_button_keyboard_id: Schema.string().description("按钮模板ID<br>形如 `123456789_1234567890` 的ID编号，发送按钮").pattern(/^\d+_\d+$/),
+        markdown_button_content_table: Schema.array(Schema.object({
+          raw_parameters: Schema.string().description("原始参数名称"),
+          replace_parameters: Schema.string().description("替换参数名称"),
+        })).role('table').default([
+          {
+            "raw_parameters": "your_markdown_text_1",
+            "replace_parameters": "表情包来啦！"
+          },
+          {
+            "raw_parameters": "your_markdown_text_2",
+            "replace_parameters": "这是你的表情包哦😽"
+          },
+          {
+            "raw_parameters": "your_markdown_img",
+            "replace_parameters": "${img_pxpx}"
+          },
+          {
+            "raw_parameters": "your_markdown_url",
+            "replace_parameters": "${img_url}"
+          }
+        ]).description("替换参数映射表<br>本插件会替换模板变量，请在左侧填入模板变量，右侧填入真实变量值。<br>本插件提供的参数有`command`、`img_pxpx`、`img_url`、`ctx`、`session`、`config`<br>`img_pxpx`会被替换为`img#...px #...px`<br>`img_url`会被替换为`一个链接`，其中img_pxpx参数需要使用`canvas`服务<br>▶比如你可以使用`{{.session.userId}}`，这会被本插件替换为`真实的userId值`，若无匹配变量，则视为文本<br>更多说明 详见项目README"),
+
+      }).collapse().description('➢表情包--按钮设置<hr style="border: 2px solid red;"><hr style="border: 2px solid red;">'),
+      nestedlist: Schema.object({
+        markdown_button_template_id: Schema.string().description("md模板ID<br>形如 `123456789_1234567890` 的ID编号，发送markdown").pattern(/^\d+_\d+$/),
+        markdown_button_keyboard_id: Schema.string().description("按钮模板ID<br>形如 `123456789_1234567890` 的ID编号，发送按钮").pattern(/^\d+_\d+$/),
+        markdown_button_content_table: Schema.array(Schema.object({
+          raw_parameters: Schema.string().description("原始参数名称"),
+          replace_parameters: Schema.string().description("替换参数名称"),
+        })).role('table').default([
+          {
+            "raw_parameters": "your_markdown_text_1",
+            "replace_parameters": "表情包列表~"
+          },
+          {
+            "raw_parameters": "your_markdown_text_2",
+            "replace_parameters": "点击下面的按钮触发哦！"
+          }
+        ]).description("替换参数映射表<br>本插件会替换模板变量，请在左侧填入模板变量，右侧填入真实变量值。<br>本插件提供的参数有`command`、`img_pxpx`、`img_url`、`ctx`、`session`、`config`<br>`img_pxpx`会被替换为`img#...px #...px`<br>`img_url`会被替换为`一个链接`，其中img_pxpx参数需要使用`canvas`服务<br>▶比如你可以使用`{{.session.userId}}`，这会被本插件替换为`真实的userId值`，若无匹配变量，则视为文本<br>更多说明 详见项目README"),
+
+      }).collapse().description('➣表情包列表--按钮设置<hr style="border: 2px solid red;"><hr style="border: 2px solid red;">'),
+    }),
+
+    Schema.object({
+      markdown_button_mode: Schema.const("markdown_raw_json").required(),
+      nested: Schema.object({
+        markdown_raw_json_button_template_id: Schema.string().description("md模板ID<br>形如 `123456789_1234567890` 的ID编号，发送markdown").pattern(/^\d+_\d+$/),
+        markdown_raw_json_button_content_table: Schema.array(Schema.object({
+          raw_parameters: Schema.string().description("原始参数名称"),
+          replace_parameters: Schema.string().description("替换参数名称"),
+        })).role('table').default([
+          {
+            "raw_parameters": "your_markdown_text_1",
+            "replace_parameters": "表情包来啦！"
+          },
+          {
+            "raw_parameters": "your_markdown_text_2",
+            "replace_parameters": "这是你的表情包哦😽"
+          },
+          {
+            "raw_parameters": "your_markdown_img",
+            "replace_parameters": "${img_pxpx}"
+          },
+          {
+            "raw_parameters": "your_markdown_url",
+            "replace_parameters": "${img_url}"
+          }
+        ]).description("替换参数映射表<br>本插件会替换模板变量，请在左侧填入模板变量，右侧填入真实变量值。<br>本插件提供的参数有`command`、`img_pxpx`、`img_url`、`ctx`、`session`、`config`<br>`img_pxpx`会被替换为`img#...px #...px`<br>`img_url`会被替换为`一个链接`，其中img_pxpx参数需要使用`canvas`服务<br>▶比如你可以使用`{{.session.userId}}`，这会被本插件替换为`真实的userId值`，若无匹配变量，则视为文本<br>更多说明 详见项目README"),
+        markdown_raw_json_button_keyboard: Schema.string().role('textarea', { rows: [12, 12] }).collapse()
+          .default("{\n  \"content\": {\n    \"rows\": [\n      {\n        \"buttons\": [\n          {\n            \"render_data\": {\n              \"label\": \"再来一张😺\",\n              \"style\": 2\n            },\n            \"action\": {\n              \"type\": 2,\n              \"permission\": {\n                \"type\": 2\n              },\n              \"data\": \"/${command}\",\n              \"enter\": true\n            }\n          },\n          {\n            \"render_data\": {\n              \"label\": \"返回列表😽\",\n              \"style\": 2\n            },\n            \"action\": {\n              \"type\": 2,\n              \"permission\": {\n                \"type\": 2\n              },\n              \"data\": \"/${config.emojihub_bili_command}\",\n              \"enter\": true\n            }\n          }\n        ]\n      }\n    ]\n  }\n}")
+          .description('实现QQ官方bot的按钮效果<br>在这里填入你的按钮内容。'),
+      }).collapse().description('➢表情包--按钮设置<hr style="border: 2px solid red;"><hr style="border: 2px solid red;">'),
+      nestedlist: Schema.object({
+        markdown_raw_json_button_template_id: Schema.string().description("md模板ID<br>形如 `123456789_1234567890` 的ID编号，发送markdown").pattern(/^\d+_\d+$/),
+        markdown_raw_json_button_content_table: Schema.array(Schema.object({
+          raw_parameters: Schema.string().description("原始参数名称"),
+          replace_parameters: Schema.string().description("替换参数名称"),
+        })).role('table').default([
+          {
+            "raw_parameters": "your_markdown_text_1",
+            "replace_parameters": "表情包列表~"
+          },
+          {
+            "raw_parameters": "your_markdown_text_2",
+            "replace_parameters": "点击下面的按钮触发哦！"
+          }
+        ]).description("替换参数映射表<br>本插件会替换模板变量，请在左侧填入模板变量，右侧填入真实变量值。<br>本插件提供的参数有`command`、`img_pxpx`、`img_url`、`ctx`、`session`、`config`<br>`img_pxpx`会被替换为`img#...px #...px`<br>`img_url`会被替换为`一个链接`，其中img_pxpx参数需要使用`canvas`服务<br>▶比如你可以使用`{{.session.userId}}`，这会被本插件替换为`真实的userId值`，若无匹配变量，则视为文本<br>更多说明 详见项目README"),
+        markdown_raw_json_button_keyboard: Schema.string().role('textarea', { rows: [12, 12] }).collapse()
+          .default("{\n        \"content\": {\n            \"rows\": [\n                {\n                    \"buttons\": [\n                        {\n                            \"render_data\": {\n                                \"label\": \"随机emojihub表情包\",\n                                \"style\": 1\n                            },\n                            \"action\": {\n                                \"type\": 2,\n                                \"permission\": {\n                                    \"type\": 2\n                                },\n                                \"data\": \"/随机emojihub表情包\",\n                                \"enter\": true\n                            }\n                        },\n                        {\n                            \"render_data\": {\n                                \"label\": \"acomu414\",\n                                \"style\": 1\n                            },\n                            \"action\": {\n                                \"type\": 2,\n                                \"permission\": {\n                                    \"type\": 2\n                                },\n                                \"data\": \"/acomu414\",\n                                \"enter\": true\n                            }\n                        },\n                        {\n                            \"render_data\": {\n                                \"label\": \"ba表情包\",\n                                \"style\": 1\n                            },\n                            \"action\": {\n                                \"type\": 2,\n                                \"permission\": {\n                                    \"type\": 2\n                                },\n                                \"data\": \"/ba表情包\",\n                                \"enter\": true\n                            }\n                        },\n                        {\n                            \"render_data\": {\n                                \"label\": \"downvote\",\n                                \"style\": 1\n                            },\n                            \"action\": {\n                                \"type\": 2,\n                                \"permission\": {\n                                    \"type\": 2\n                                },\n                                \"data\": \"/downvote\",\n                                \"enter\": true\n                            }\n                        }\n                    ]\n                },\n                {\n                    \"buttons\": [\n                        {\n                            \"render_data\": {\n                                \"label\": \"doro\",\n                                \"style\": 1\n                            },\n                            \"action\": {\n                                \"type\": 2,\n                                \"permission\": {\n                                    \"type\": 2\n                                },\n                                \"data\": \"/doro\",\n                                \"enter\": true\n                            }\n                        },\n                        {\n                            \"render_data\": {\n                                \"label\": \"eveonecat\",\n                                \"style\": 1\n                            },\n                            \"action\": {\n                                \"type\": 2,\n                                \"permission\": {\n                                    \"type\": 2\n                                },\n                                \"data\": \"/eveonecat\",\n                                \"enter\": true\n                            }\n                        },\n                        {\n                            \"render_data\": {\n                                \"label\": \"fufu\",\n                                \"style\": 1\n                            },\n                            \"action\": {\n                                \"type\": 2,\n                                \"permission\": {\n                                    \"type\": 2\n                                },\n                                \"data\": \"/fufu\",\n                                \"enter\": true\n                            }\n                        },\n                        {\n                            \"render_data\": {\n                                \"label\": \"mygo\",\n                                \"style\": 1\n                            },\n                            \"action\": {\n                                \"type\": 2,\n                                \"permission\": {\n                                    \"type\": 2\n                                },\n                                \"data\": \"/mygo\",\n                                \"enter\": true\n                            }\n                        }\n                    ]\n                },\n                {\n                    \"buttons\": [\n                        {\n                            \"render_data\": {\n                                \"label\": \"seseren\",\n                                \"style\": 1\n                            },\n                            \"action\": {\n                                \"type\": 2,\n                                \"permission\": {\n                                    \"type\": 2\n                                },\n                                \"data\": \"/seseren\",\n                                \"enter\": true\n                            }\n                        },\n                        {\n                            \"render_data\": {\n                                \"label\": \"白圣女\",\n                                \"style\": 1\n                            },\n                            \"action\": {\n                                \"type\": 2,\n                                \"permission\": {\n                                    \"type\": 2\n                                },\n                                \"data\": \"/白圣女\",\n                                \"enter\": true\n                            }\n                        },\n                        {\n                            \"render_data\": {\n                                \"label\": \"白圣女漫画\",\n                                \"style\": 1\n                            },\n                            \"action\": {\n                                \"type\": 2,\n                                \"permission\": {\n                                    \"type\": 2\n                                },\n                                \"data\": \"/白圣女漫画\",\n                                \"enter\": true\n                            }\n                        },\n                        {\n                            \"render_data\": {\n                                \"label\": \"柴郡\",\n                                \"style\": 1\n                            },\n                            \"action\": {\n                                \"type\": 2,\n                                \"permission\": {\n                                    \"type\": 2\n                                },\n                                \"data\": \"/柴郡\",\n                                \"enter\": true\n                            }\n                        }\n                    ]\n                },\n                {\n                    \"buttons\": [\n                        {\n                            \"render_data\": {\n                                \"label\": \"初音Q版\",\n                                \"style\": 1\n                            },\n                            \"action\": {\n                                \"type\": 2,\n                                \"permission\": {\n                                    \"type\": 2\n                                },\n                                \"data\": \"/初音Q版\",\n                                \"enter\": true\n                            }\n                        },\n                        {\n                            \"render_data\": {\n                                \"label\": \"甘城猫猫\",\n                                \"style\": 1\n                            },\n                            \"action\": {\n                                \"type\": 2,\n                                \"permission\": {\n                                    \"type\": 2\n                                },\n                                \"data\": \"/甘城猫猫\",\n                                \"enter\": true\n                            }\n                        },\n                        {\n                            \"render_data\": {\n                                \"label\": \"疾旋鼬\",\n                                \"style\": 1\n                            },\n                            \"action\": {\n                                \"type\": 2,\n                                \"permission\": {\n                                    \"type\": 2\n                                },\n                                \"data\": \"/疾旋鼬\",\n                                \"enter\": true\n                            }\n                        },\n                        {\n                            \"render_data\": {\n                                \"label\": \"流萤\",\n                                \"style\": 1\n                            },\n                            \"action\": {\n                                \"type\": 2,\n                                \"permission\": {\n                                    \"type\": 2\n                                },\n                                \"data\": \"/流萤\",\n                                \"enter\": true\n                            }\n                        }\n                    ]\n                },\n                {\n                    \"buttons\": [\n                        {\n                            \"render_data\": {\n                                \"label\": \"赛马娘\",\n                                \"style\": 1\n                            },\n                            \"action\": {\n                                \"type\": 2,\n                                \"permission\": {\n                                    \"type\": 2\n                                },\n                                \"data\": \"/赛马娘\",\n                                \"enter\": true\n                            }\n                        },\n                        {\n                            \"render_data\": {\n                                \"label\": \"瑟莉亚\",\n                                \"style\": 1\n                            },\n                            \"action\": {\n                                \"type\": 2,\n                                \"permission\": {\n                                    \"type\": 2\n                                },\n                                \"data\": \"/瑟莉亚\",\n                                \"enter\": true\n                            }\n                        },\n                        {\n                            \"render_data\": {\n                                \"label\": \"藤田琴音\",\n                                \"style\": 1\n                            },\n                            \"action\": {\n                                \"type\": 2,\n                                \"permission\": {\n                                    \"type\": 2\n                                },\n                                \"data\": \"/藤田琴音\",\n                                \"enter\": true\n                            }\n                        },\n                        {\n                            \"render_data\": {\n                                \"label\": \"亚托莉\",\n                                \"style\": 1\n                            },\n                            \"action\": {\n                                \"type\": 2,\n                                \"permission\": {\n                                    \"type\": 2\n                                },\n                                \"data\": \"/亚托莉\",\n                                \"enter\": true\n                            }\n                        }\n                    ]\n                }\n            ]\n        }\n    }")
+          .description('实现QQ官方bot的按钮效果<br>在这里填入你的按钮内容。'),
+      }).collapse().description('➣表情包列表--按钮设置<hr style="border: 2px solid red;"><hr style="border: 2px solid red;">'),
+    }),
+
+    Schema.object({
+      markdown_button_mode: Schema.const("raw").required(),
+      nested: Schema.object({
+        raw_markdown_button_content: Schema.string().role('textarea', { rows: [6, 6] }).collapse().default("## **表情包~😺**\n### 😽来了哦！\n![${img_pxpx}](${img_url})")
+          .description('实现QQ官方bot的按钮效果，需要`canvas`服务。<br>在这里填入你的markdown内容。本插件会替换形如`{{.xxx}}`或`${xxx}`的参数为`xxx`。<br>本插件提供的参数有`command`、`img_pxpx`、`img_url`、`ctx`、`session`、`config`<br>`img_pxpx`会被替换为`img#...px #...px`<br>`img_url`会被替换为`一个链接`更多说明 详见项目README'),
+        raw_markdown_button_keyboard: Schema.string().role('textarea', { rows: [12, 12] }).collapse()
+          .default("{\n  \"content\": {\n    \"rows\": [\n      {\n        \"buttons\": [\n          {\n            \"render_data\": {\n              \"label\": \"再来一张😺\",\n              \"style\": 2\n            },\n            \"action\": {\n              \"type\": 2,\n              \"permission\": {\n                \"type\": 2\n              },\n              \"data\": \"/${command}\",\n              \"enter\": true\n            }\n          },\n          {\n            \"render_data\": {\n              \"label\": \"返回列表😽\",\n              \"style\": 2\n            },\n            \"action\": {\n              \"type\": 2,\n              \"permission\": {\n                \"type\": 2\n              },\n              \"data\": \"/${config.emojihub_bili_command}\",\n              \"enter\": true\n            }\n          }\n        ]\n      }\n    ]\n  }\n}")
+          .description('实现QQ官方bot的按钮效果<br>在这里填入你的按钮内容。'),
+      }).collapse().description('➢表情包--按钮设置<hr style="border: 2px solid red;"><hr style="border: 2px solid red;">'),
+      nestedlist: Schema.object({
+        raw_markdown_button_content: Schema.string().role('textarea', { rows: [6, 6] }).collapse().default("## **表情包列表**\n### 😻列表如下：点击按钮触发哦！")
+          .description('实现QQ官方bot的按钮效果，需要`canvas`服务。<br>在这里填入你的markdown内容。本插件会替换形如`{{.xxx}}`或`${xxx}`的参数为`xxx`。<br>本插件提供的参数有`command`、`img_pxpx`、`img_url`、`ctx`、`session`、`config`<br>`img_pxpx`会被替换为`img#...px #...px`<br>`img_url`会被替换为`一个链接`更多说明 详见项目README'),
+        raw_markdown_button_keyboard: Schema.string().role('textarea', { rows: [12, 12] }).collapse()
+          .default("{\n        \"content\": {\n            \"rows\": [\n                {\n                    \"buttons\": [\n                        {\n                            \"render_data\": {\n                                \"label\": \"随机emojihub表情包\",\n                                \"style\": 1\n                            },\n                            \"action\": {\n                                \"type\": 2,\n                                \"permission\": {\n                                    \"type\": 2\n                                },\n                                \"data\": \"/随机emojihub表情包\",\n                                \"enter\": true\n                            }\n                        },\n                        {\n                            \"render_data\": {\n                                \"label\": \"acomu414\",\n                                \"style\": 1\n                            },\n                            \"action\": {\n                                \"type\": 2,\n                                \"permission\": {\n                                    \"type\": 2\n                                },\n                                \"data\": \"/acomu414\",\n                                \"enter\": true\n                            }\n                        },\n                        {\n                            \"render_data\": {\n                                \"label\": \"ba表情包\",\n                                \"style\": 1\n                            },\n                            \"action\": {\n                                \"type\": 2,\n                                \"permission\": {\n                                    \"type\": 2\n                                },\n                                \"data\": \"/ba表情包\",\n                                \"enter\": true\n                            }\n                        },\n                        {\n                            \"render_data\": {\n                                \"label\": \"downvote\",\n                                \"style\": 1\n                            },\n                            \"action\": {\n                                \"type\": 2,\n                                \"permission\": {\n                                    \"type\": 2\n                                },\n                                \"data\": \"/downvote\",\n                                \"enter\": true\n                            }\n                        }\n                    ]\n                },\n                {\n                    \"buttons\": [\n                        {\n                            \"render_data\": {\n                                \"label\": \"doro\",\n                                \"style\": 1\n                            },\n                            \"action\": {\n                                \"type\": 2,\n                                \"permission\": {\n                                    \"type\": 2\n                                },\n                                \"data\": \"/doro\",\n                                \"enter\": true\n                            }\n                        },\n                        {\n                            \"render_data\": {\n                                \"label\": \"eveonecat\",\n                                \"style\": 1\n                            },\n                            \"action\": {\n                                \"type\": 2,\n                                \"permission\": {\n                                    \"type\": 2\n                                },\n                                \"data\": \"/eveonecat\",\n                                \"enter\": true\n                            }\n                        },\n                        {\n                            \"render_data\": {\n                                \"label\": \"fufu\",\n                                \"style\": 1\n                            },\n                            \"action\": {\n                                \"type\": 2,\n                                \"permission\": {\n                                    \"type\": 2\n                                },\n                                \"data\": \"/fufu\",\n                                \"enter\": true\n                            }\n                        },\n                        {\n                            \"render_data\": {\n                                \"label\": \"mygo\",\n                                \"style\": 1\n                            },\n                            \"action\": {\n                                \"type\": 2,\n                                \"permission\": {\n                                    \"type\": 2\n                                },\n                                \"data\": \"/mygo\",\n                                \"enter\": true\n                            }\n                        }\n                    ]\n                },\n                {\n                    \"buttons\": [\n                        {\n                            \"render_data\": {\n                                \"label\": \"seseren\",\n                                \"style\": 1\n                            },\n                            \"action\": {\n                                \"type\": 2,\n                                \"permission\": {\n                                    \"type\": 2\n                                },\n                                \"data\": \"/seseren\",\n                                \"enter\": true\n                            }\n                        },\n                        {\n                            \"render_data\": {\n                                \"label\": \"白圣女\",\n                                \"style\": 1\n                            },\n                            \"action\": {\n                                \"type\": 2,\n                                \"permission\": {\n                                    \"type\": 2\n                                },\n                                \"data\": \"/白圣女\",\n                                \"enter\": true\n                            }\n                        },\n                        {\n                            \"render_data\": {\n                                \"label\": \"白圣女漫画\",\n                                \"style\": 1\n                            },\n                            \"action\": {\n                                \"type\": 2,\n                                \"permission\": {\n                                    \"type\": 2\n                                },\n                                \"data\": \"/白圣女漫画\",\n                                \"enter\": true\n                            }\n                        },\n                        {\n                            \"render_data\": {\n                                \"label\": \"柴郡\",\n                                \"style\": 1\n                            },\n                            \"action\": {\n                                \"type\": 2,\n                                \"permission\": {\n                                    \"type\": 2\n                                },\n                                \"data\": \"/柴郡\",\n                                \"enter\": true\n                            }\n                        }\n                    ]\n                },\n                {\n                    \"buttons\": [\n                        {\n                            \"render_data\": {\n                                \"label\": \"初音Q版\",\n                                \"style\": 1\n                            },\n                            \"action\": {\n                                \"type\": 2,\n                                \"permission\": {\n                                    \"type\": 2\n                                },\n                                \"data\": \"/初音Q版\",\n                                \"enter\": true\n                            }\n                        },\n                        {\n                            \"render_data\": {\n                                \"label\": \"甘城猫猫\",\n                                \"style\": 1\n                            },\n                            \"action\": {\n                                \"type\": 2,\n                                \"permission\": {\n                                    \"type\": 2\n                                },\n                                \"data\": \"/甘城猫猫\",\n                                \"enter\": true\n                            }\n                        },\n                        {\n                            \"render_data\": {\n                                \"label\": \"疾旋鼬\",\n                                \"style\": 1\n                            },\n                            \"action\": {\n                                \"type\": 2,\n                                \"permission\": {\n                                    \"type\": 2\n                                },\n                                \"data\": \"/疾旋鼬\",\n                                \"enter\": true\n                            }\n                        },\n                        {\n                            \"render_data\": {\n                                \"label\": \"流萤\",\n                                \"style\": 1\n                            },\n                            \"action\": {\n                                \"type\": 2,\n                                \"permission\": {\n                                    \"type\": 2\n                                },\n                                \"data\": \"/流萤\",\n                                \"enter\": true\n                            }\n                        }\n                    ]\n                },\n                {\n                    \"buttons\": [\n                        {\n                            \"render_data\": {\n                                \"label\": \"赛马娘\",\n                                \"style\": 1\n                            },\n                            \"action\": {\n                                \"type\": 2,\n                                \"permission\": {\n                                    \"type\": 2\n                                },\n                                \"data\": \"/赛马娘\",\n                                \"enter\": true\n                            }\n                        },\n                        {\n                            \"render_data\": {\n                                \"label\": \"瑟莉亚\",\n                                \"style\": 1\n                            },\n                            \"action\": {\n                                \"type\": 2,\n                                \"permission\": {\n                                    \"type\": 2\n                                },\n                                \"data\": \"/瑟莉亚\",\n                                \"enter\": true\n                            }\n                        },\n                        {\n                            \"render_data\": {\n                                \"label\": \"藤田琴音\",\n                                \"style\": 1\n                            },\n                            \"action\": {\n                                \"type\": 2,\n                                \"permission\": {\n                                    \"type\": 2\n                                },\n                                \"data\": \"/藤田琴音\",\n                                \"enter\": true\n                            }\n                        },\n                        {\n                            \"render_data\": {\n                                \"label\": \"亚托莉\",\n                                \"style\": 1\n                            },\n                            \"action\": {\n                                \"type\": 2,\n                                \"permission\": {\n                                    \"type\": 2\n                                },\n                                \"data\": \"/亚托莉\",\n                                \"enter\": true\n                            }\n                        }\n                    ]\n                }\n            ]\n        }\n    }")
+          .description('实现QQ官方bot的按钮效果<br>在这里填入你的按钮内容。'),
+      }).collapse().description('➣表情包列表--按钮设置<hr style="border: 2px solid red;"><hr style="border: 2px solid red;">'),
+    }),
+    Schema.object({}),
+  ]),
+
+  Schema.object({
     LocalSendNetworkPicturesList: Schema.string().role('textarea', { rows: [2, 4] }).description('将`下列指令`对应的内容下载至本地，作为本地图片发送').default().experimental(),
     deletePictime: Schema.number().default(10).description('若干`秒`后 删除下载的本地临时文件').experimental(),
-
     localPicToBase64: Schema.boolean().description("`开启后`本地图片以base64发出 `日常使用无需开启，且不建议官方bot使用`").experimental().default(false),
-
+    QQPicToChannelUrl: Schema.boolean().description("`开启后`， `img_url`会先上传QQ频道，拿到频道URL，用于发送markdown").experimental().default(false),
+    QQchannelId: Schema.string().description('`填入QQ频道的频道ID`，将该ID的频道作为中转频道 <br> 频道ID可以用[inspect插件来查看](/market?keyword=inspect) `频道ID应为纯数字`').experimental().pattern(/^\S+$/),
     consoleinfo: Schema.boolean().default(false).description("日志调试模式`日常使用无需开启`"),
   }).description('调试选项'),
   Schema.union([
@@ -210,7 +283,6 @@ exports.Config = Schema.intersect([
     }),
     Schema.object({})
   ]),
-
 ])
 
 
@@ -287,7 +359,7 @@ async function getImageAsBase64(imagePath) {
 async function determineImagePath(txtPath, config, channelId, command, ctx, local_picture_name = null) {
   // 判断是否是直接的图片链接
   if (txtPath.startsWith('http://') || txtPath.startsWith('https://')) {
-    logInfo(config, channelId, command, `直接的图片链接: ${txtPath}`);
+    logInfoformat(config, channelId, command, `直接的图片链接: ${txtPath}`);
     return { imageUrl: txtPath, isLocal: false };
   }
 
@@ -297,7 +369,7 @@ async function determineImagePath(txtPath, config, channelId, command, ctx, loca
       logError(`错误:路径不存在： ${txtPath}`);
       return { imageUrl: null, isLocal: false };
     }
-    logInfo(config, channelId, command, `本地图片的绝对路径: ${txtPath}`);
+    logInfoformat(config, channelId, command, `本地图片的绝对路径: ${txtPath}`);
     return { imageUrl: txtPath, isLocal: true };
   }
 
@@ -325,14 +397,14 @@ async function determineImagePath(txtPath, config, channelId, command, ctx, loca
 
   // 重新判断随机选择的路径类型
   if (txtPath.startsWith('http://') || txtPath.startsWith('https://')) {
-    logInfo(config, channelId, command, `随机选择的网络图片链接: ${txtPath}`);
+    logInfoformat(config, channelId, command, `随机选择的网络图片链接: ${txtPath}`);
     return { imageUrl: txtPath, isLocal: false };
   } else if (isLocalDirectory(txtPath)) {
     return await getRandomImageFromFolder(txtPath, config, channelId, command, ctx, local_picture_name);
   } else if (isLocalTextFile(txtPath)) {
     return await getRandomImageUrlFromFile(txtPath, config, channelId, command, ctx);
   } else if (isLocalImagePath(txtPath)) {
-    logInfo(config, channelId, command, `随机选择的本地图片路径: ${txtPath}`);
+    logInfoformat(config, channelId, command, `随机选择的本地图片路径: ${txtPath}`);
     return { imageUrl: txtPath, isLocal: true };
   }
 }
@@ -415,7 +487,7 @@ async function getRandomImageFromFolder(folderPath, config, channelId, command, 
   }
 
   const imageUrl = files[Math.floor(Math.random() * files.length)];
-  logInfo(config, channelId, command, `使用文件夹 ${folderPath} 发送本地图片为 ${imageUrl}`);
+  logInfoformat(config, channelId, command, `使用文件夹 ${folderPath} 发送本地图片为 ${imageUrl}`);
   return { imageUrl: imageUrl, isLocal: true };
 }
 
@@ -476,9 +548,9 @@ async function getRandomImageUrlFromFile(txtPath, config, channelId, command, ct
         imageUrl = await downloadImage(txtUrl, outputPath, ctx);
         setTimeout(() => {
           fs.unlinkSync(imageUrl);
-          logInfo(config, null, null, `临时文件已删除：${imageUrl}`);
+          logInfoformat(config, null, null, `临时文件已删除：${imageUrl}`);
         }, config.deletePictime * 1000);
-        logInfo(config, channelId, command, `下载并发送本地图片: ${imageUrl}`);
+        logInfoformat(config, channelId, command, `下载并发送本地图片: ${imageUrl}`);
         return { imageUrl: imageUrl, isLocal: true };
       } catch (downloadError) {
         logError(`图片下载失败：${downloadError.message}`);
@@ -487,7 +559,7 @@ async function getRandomImageUrlFromFile(txtPath, config, channelId, command, ct
     }
   }
 
-  logInfo(config, channelId, command, `使用文件 ${txtPath} 发送URL为 ${imageUrl}`);
+  logInfoformat(config, channelId, command, `使用文件 ${txtPath} 发送URL为 ${imageUrl}`);
   return { imageUrl: imageUrl, isLocal: false };
 }
 
@@ -503,7 +575,7 @@ async function downloadImage(url, outputPath, ctx) {
   }
 }
 
-function logInfo(config, channelId, command, message) {
+function logInfoformat(config, channelId, command, message) {
   if (config.consoleinfo) {
     if (channelId) {
       logger.info(`\n${channelId} 触发表情包\n使用指令： ${command}\n${message}`);
@@ -528,7 +600,7 @@ function listAllCommands(config) {
 
   // 检查结果是否为空
   if (allCommands.length === 0) {
-    logger.error("未找到任何表情包指令。");
+    logError("未找到任何表情包指令。");
   }
 
   // 返回命令列表
@@ -537,15 +609,15 @@ function listAllCommands(config) {
 
 function apply(ctx, config) {
   const emojihub_bili_codecommand = config.emojihub_bili_command;
+
   function applyI18n(emojihub_bili_codecommand) {
-    const applyI18nresult = {
+    return {
       commands: {
         [emojihub_bili_codecommand]: {
           description: `${emojihub_bili_codecommand}表情包功能`,
           messages: {
             "notfound_txt": "ERROR！找不到文件或文件为空！指令：{0}",
             "List_of_emojis": "表情包列表：",
-            //"emojihub_bili_codecommand_usage" : "emojihub父级指令 触发后列出全部的子指令"
           }
         },
         '再来一张': {
@@ -562,396 +634,366 @@ function apply(ctx, config) {
         }
       }
     };
-    //logger.error(applyI18nresult)
-    return applyI18nresult;
   }
-  var zh_CN_default = applyI18n(emojihub_bili_codecommand)
+
+  const zh_CN_default = applyI18n(emojihub_bili_codecommand);
   ctx.i18n.define("zh-CN", zh_CN_default);
 
   const lastCommandByChannel = {};
 
   function updateLastCommand(channelId, command) {
     lastCommandByChannel[channelId] = command;
-    logInfomessage('记录到command为： ' + command + ' 在频道： ' + channelId);
+    logInfo('记录到command为： ' + command + ' 在频道： ' + channelId);
   }
 
-  function logInfomessage(message) {
+  function logInfo(message) {
     if (config.consoleinfo) {
       logger.info(message);
     }
   }
+  function replacePlaceholders(content, context, isRawMode = false) {
+    // 如果 content 是字符串，直接替换占位符
+    if (typeof content === 'string') {
+      if (!/\{\{\.([^}]+)\}\}|\$\{([^}]+)\}/.test(content)) {
+        return isRawMode ? content : [content];
+      }
+
+      const value = content.replace(/\{\{\.([^}]+)\}\}|\$\{([^}]+)\}/g, (match, p1, p2) => {
+        const key = p1 || p2;
+        // 从 context 中查找占位符对应的值
+        const replacement = key.split('.').reduce((obj, k) => obj?.[k], context) || match;
+        return replacement;
+      });
+
+      return isRawMode ? value : [value];
+    }
+
+    // 如果 content 是对象或数组，递归处理
+    if (typeof content === 'object' && content !== null) {
+      if (Array.isArray(content)) {
+        return content.map(item => replacePlaceholders(item, context, isRawMode));
+      } else {
+        const result = {};
+        for (const key in content) {
+          result[key] = replacePlaceholders(content[key], context, isRawMode);
+        }
+        return result;
+      }
+    }
+
+    // 其他情况直接返回
+    return content;
+  }
+
 
 
   /**
- * 发送列表按钮
- * @param session 
- * @returns 
- */
+   * 发送列表按钮
+   * @param session 
+   * @returns 
+   */
   function command_list_markdown(session) {
-    if (config.MDswitch && !config.RAW_MD_switch) {
-      const mdid = config.markdown_setting.mdid;
-      let zllbmdtext_1 = config.markdown_setting.zllbmdtext_1;
-      let zllbmdtext_2 = config.markdown_setting.zllbmdtext_2;
+    if (config.markdown_button_mode === "markdown") {
+      const templateId = config.nestedlist.markdown_button_template_id;
+      const keyboardId = config.nestedlist.markdown_button_keyboard_id;
+      const contentTable = config.nestedlist.markdown_button_content_table;
 
-      //const json_button_mdid_command = config.markdown_setting.json_button_mdid_command;
-      const json_button_mdid_emojilist = config.markdown_setting.json_button_mdid_emojilist;
+      const params = contentTable.map(item => ({
+        key: item.raw_parameters,
+        values: replacePlaceholders(item.replace_parameters, { session, config }),
+      }));
 
-      const zllbtext_1_options = config.markdown_setting.zllbtext_1;
-      const zllbtext_2_options = config.markdown_setting.zllbtext_2;
 
-      const zllbtext_1 = zllbtext_1_options[Math.floor(Math.random() * zllbtext_1_options.length)];
-      const zllbtext_2 = zllbtext_2_options[Math.floor(Math.random() * zllbtext_2_options.length)];
-
-      return {
+      const markdown = {
         msg_type: 2,
         msg_id: session.messageId,
         markdown: {
-          custom_template_id: mdid,//mdid
-          params: [
-            {
-              key: zllbmdtext_1,
-              values: [zllbtext_1],//这是第一段文字
-            },
-            {
-              key: zllbmdtext_2,
-              values: [zllbtext_2],//这是第二段文字
-            },
-          ]
+          custom_template_id: templateId,
+          params: params,
         },
         keyboard: {
-          id: json_button_mdid_emojilist
+          id: keyboardId,
         },
-      }
-    }
-    if (config.RAW_MD_switch && !config.MDswitch) { // 原生 markdown  //RAW_MD_emojilist_markdown
+      };
+      logInfo(`Markdown 模板参数: ${JSON.stringify(markdown, null, 2)}`);
+      return markdown;
+    } else if (config.markdown_button_mode === "markdown_raw_json") {
+      const templateId = config.nestedlist.markdown_raw_json_button_template_id;
+      const contentTable = config.nestedlist.markdown_raw_json_button_content_table;
+      let keyboard = JSON.parse(config.nestedlist.markdown_raw_json_button_keyboard);
 
+
+      keyboard = replacePlaceholders(keyboard, { session, config }, true);
+
+      const params = contentTable.map(item => ({
+        key: item.raw_parameters,
+        values: replacePlaceholders(item.replace_parameters, { session, config }),
+      }));
+
+      const markdownMessage = {
+        msg_type: 2,
+        msg_id: session.messageId,
+        markdown: {
+          custom_template_id: templateId,
+          params: params,
+        },
+        keyboard: keyboard,
+      };
+      logInfo(`Markdown 模板参数: ${JSON.stringify(markdownMessage, null, 2)}`);
+      return markdownMessage;
+    } else if (config.markdown_button_mode === "raw") {
       try {
-        // 读取 JSON 文件内容
-        const rawMarkdownFilePath = config.RAW_MD_setting.RAW_MD_emojilist_markdown;
-        const rawMarkdownData = fs.readFileSync(rawMarkdownFilePath, 'utf-8');
-        // 使用正则表达式替换占位符
-        const replacedMarkdownData = rawMarkdownData
-          .replace(/\$\{session\.messageId\}/g, session.messageId);
+        const rawMarkdownContent = config.nestedlist.raw_markdown_button_content;
+        const rawMarkdownKeyboard = config.nestedlist.raw_markdown_button_keyboard;
+        // 替换 Markdown 内容中的占位符
+        const replacedMarkdownContent = replacePlaceholders(rawMarkdownContent, { session, config }, true);
 
-        // 将替换后的字符串转换回对象
-        const rawMarkdownCommand = JSON.parse(replacedMarkdownData);
+        // 替换键盘内容中的占位符
+        const replacedMarkdownKeyboard = replacePlaceholders(rawMarkdownKeyboard, { session, config }, true)
+          .replace(/^[\s\S]*?"keyboard":\s*/, '')
+          .replace(/\\n/g, '')
+          .replace(/\\"/g, '"')
+          .trim();
 
-        logInfomessage(rawMarkdownCommand);
-        // 返回最终的结果
-        return rawMarkdownCommand
+        logInfo(`原生 Markdown 内容: ${replacedMarkdownContent}`);
+        logInfo(`原生 Markdown 键盘: ${replacedMarkdownKeyboard}`);
+
+        // 解析键盘内容为 JSON 对象
+        const keyboard = JSON.parse(replacedMarkdownKeyboard);
+
+        const rawMarkdownCommand = {
+          msg_type: 2,
+          msg_id: session.messageId,
+          markdown: {
+            content: replacedMarkdownContent,
+          },
+          keyboard: keyboard,
+        };
+
+        logInfo(`原生 Markdown 命令: ${JSON.stringify(rawMarkdownCommand, null, 2)}`);
+        return rawMarkdownCommand;
       } catch (error) {
-        logInfomessage(`解析 RAW_MD_emojilist_markdown 出错: ${error}`);
+        logError(`解析原生 Markdown 出错: ${error}`);
         return null;
       }
     }
-  }
 
+  }
   /**
-   * 发送md
+   * 发送 Markdown
    * @param session 
    * @param command 用户输入的指令
-   * @param imageUrl 图片的链接，带上https://
+   * @param imageUrl 图片的链接，带上 https://
    * @returns 
    */
   async function markdown(session, command, imageUrl) {
-    if (config.MDswitch && !config.RAW_MD_switch) {  // 被动markdown发送
-      const mdid = config.markdown_setting.mdid;
-      const mdkey1 = config.markdown_setting.zlmdp_1;
-      const mdkey2 = config.markdown_setting.zlmdp_2;
-
-      const json_button_mdid_command = config.markdown_setting.json_button_mdid_command;
-      //const json_button_mdid_emojilist = config.markdown_setting.json_button_mdid_emojilist;
-
-      const zltext_1_options = config.markdown_setting.zltext_1;
-      const zltext_2_options = config.markdown_setting.zltext_2;
-
-      const zltext_1 = zltext_1_options[Math.floor(Math.random() * zltext_1_options.length)];
-      const zltext_2 = zltext_2_options[Math.floor(Math.random() * zltext_2_options.length)];
-
-      let zlmdtext_1 = config.markdown_setting.zlmdtext_1;
-      let zlmdtext_2 = config.markdown_setting.zlmdtext_2;
-
-      //const ButtonText1 = config.markdown_setting.ButtonText1;
-      //const ButtonText2 = config.markdown_setting.ButtonText2;
-
-      //const emojihub_bili_command = config.emojihub_bili_command;
+    if (config.markdown_button_mode === "markdown") {
+      const templateId = config.nested.markdown_button_template_id;
+      const keyboardId = config.nested.markdown_button_keyboard_id;
+      const contentTable = config.nested.markdown_button_content_table;
 
       const canvasimage = await ctx.canvas.loadImage(imageUrl);
       let originalWidth = canvasimage.naturalWidth || canvasimage.width;
       let originalHeight = canvasimage.naturalHeight || canvasimage.height;
 
-      const MinimumTarget = config.markdown_setting.MinimumBoundary;
-      const magnifyTarget = config.markdown_setting.Magnifymultiple;
-      // 等比放大图片
-      if (originalWidth < MinimumTarget || originalHeight < MinimumTarget) {
-        const scale = magnifyTarget / Math.min(originalWidth, originalHeight);
-        originalWidth = Math.round(originalWidth * scale);
-        originalHeight = Math.round(originalHeight * scale);
-        logInfomessage(`宽度放大到了 ${originalWidth} 高度放大到了 ${originalHeight}`);
-      }
+      const params = contentTable.map(item => ({
+        key: item.raw_parameters,
+        values: replacePlaceholders(item.replace_parameters, { session, config, img_pxpx: `img#${originalWidth}px #${originalHeight}px`, img_url: imageUrl, command }),
+      }));
 
-      const functionmarkdownreturn = {
+
+      const markdown = {
         msg_type: 2,
         msg_id: session.messageId,
         markdown: {
-          custom_template_id: mdid, //md的模版id
-          params: [
-            {
-              key: zlmdtext_1,
-              values: [zltext_1],//这是第一段文字
-            },
-            {
-              key: zlmdtext_2,
-              values: [zltext_2],//这是第二段文字
-            },
-            {
-              key: mdkey1,  //md参数1
-              values: [`![img#${originalWidth}px #${originalHeight}px]`],
-            },
-            {
-              key: mdkey2,  //md参数2
-              values: [`(${imageUrl})`],
-            },
-          ]
+          custom_template_id: templateId,
+          params: params,
         },
         keyboard: {
-          id: json_button_mdid_command
+          id: keyboardId,
         },
-      }
-      logInfomessage(functionmarkdownreturn)
-      return functionmarkdownreturn
+      };
+      logInfo(`Markdown 模板参数: ${JSON.stringify(markdown, null, 2)}`);
+      return markdown;
+    } else if (config.markdown_button_mode === "markdown_raw_json") {
+      const templateId = config.nested.markdown_raw_json_button_template_id;
+      const contentTable = config.nested.markdown_raw_json_button_content_table;
+      let keyboard = JSON.parse(config.nested.markdown_raw_json_button_keyboard);
 
-    }
-    if (config.RAW_MD_switch && !config.MDswitch) { // 原生 markdown
       const canvasimage = await ctx.canvas.loadImage(imageUrl);
       let originalWidth = canvasimage.naturalWidth || canvasimage.width;
       let originalHeight = canvasimage.naturalHeight || canvasimage.height;
-      const MinimumTarget = config.markdown_setting.MinimumBoundary;
-      const magnifyTarget = config.markdown_setting.Magnifymultiple;
 
-      // 等比放大图片
-      if (originalWidth < MinimumTarget || originalHeight < MinimumTarget) {
-        const scale = magnifyTarget / Math.min(originalWidth, originalHeight);
-        originalWidth = Math.round(originalWidth * scale);
-        originalHeight = Math.round(originalHeight * scale);
-        logInfomessage(`宽度放大到了 ${originalWidth} 高度放大到了 ${originalHeight}`);
-      }
+      keyboard = replacePlaceholders(keyboard, { session, config, img_pxpx: `img#${originalWidth}px #${originalHeight}px`, img_url: imageUrl, command }, true);
 
+      const params = contentTable.map(item => ({
+        key: item.raw_parameters,
+        values: replacePlaceholders(item.replace_parameters, { session, config, img_pxpx: `img#${originalWidth}px #${originalHeight}px`, img_url: imageUrl, command }),
+      }));
+
+      const markdownMessage = {
+        msg_type: 2,
+        msg_id: session.messageId,
+        markdown: {
+          custom_template_id: templateId,
+          params: params,
+        },
+        keyboard: keyboard,
+      };
+      logInfo(`Markdown 模板参数: ${JSON.stringify(markdownMessage, null, 2)}`);
+      return markdownMessage;
+    } else if (config.markdown_button_mode === "raw") {
       try {
-        // 读取 JSON 文件内容
-        const rawMarkdownFilePath = config.RAW_MD_setting.RAW_MD_command_markdown;
-        const rawMarkdownData = fs.readFileSync(rawMarkdownFilePath, 'utf-8');
-        // 使用正则表达式替换占位符
-        const replacedMarkdownData = rawMarkdownData
-          .replace(/\$\{session\.messageId\}/g, session.messageId)
-          .replace(/\$\{imageurl\}/g, imageUrl)
-          .replace(/\$\{originalWidth\}/g, originalWidth)
-          .replace(/\$\{originalHeight\}/g, originalHeight)
-          .replace(/\$\{command\}/g, command)
-          .replace(/\$\{config\.emojihub_bili_command\}/g, config.emojihub_bili_command);
+        const rawMarkdownContent = config.nested.raw_markdown_button_content;
+        const rawMarkdownKeyboard = config.nested.raw_markdown_button_keyboard;
+        const canvasimage = await ctx.canvas.loadImage(imageUrl);
+        let originalWidth = canvasimage.naturalWidth || canvasimage.width;
+        let originalHeight = canvasimage.naturalHeight || canvasimage.height;
 
-        // 将替换后的字符串转换回对象
-        const rawMarkdownCommand = JSON.parse(replacedMarkdownData);
+        // 替换 Markdown 内容中的占位符
+        const replacedMarkdownContent = replacePlaceholders(rawMarkdownContent, { session, config, img_pxpx: `img#${originalWidth}px #${originalHeight}px`, img_url: imageUrl, command }, true);
 
-        logInfomessage(rawMarkdownCommand);
-        // 返回最终的结果
-        return rawMarkdownCommand
+        // 替换键盘内容中的占位符
+        const replacedMarkdownKeyboard = replacePlaceholders(rawMarkdownKeyboard, { session, config, command }, true)
+          .replace(/^[\s\S]*?"keyboard":\s*/, '')
+          .replace(/\\n/g, '')
+          .replace(/\\"/g, '"')
+          .trim();
+
+        logInfo(`原生 Markdown 内容: ${replacedMarkdownContent}`);
+        logInfo(`原生 Markdown 键盘: ${replacedMarkdownKeyboard}`);
+
+        // 解析键盘内容为 JSON 对象
+        const keyboard = JSON.parse(replacedMarkdownKeyboard);
+
+        const rawMarkdownCommand = {
+          msg_type: 2,
+          msg_id: session.messageId,
+          markdown: {
+            content: replacedMarkdownContent,
+          },
+          keyboard: keyboard,
+        };
+
+        logInfo(`原生 Markdown 命令: ${JSON.stringify(rawMarkdownCommand, null, 2)}`);
+        return rawMarkdownCommand;
       } catch (error) {
-        logInfomessage(`解析 RAW_MD_command_markdown 出错: ${error}`);
+        logError(`解析原生 Markdown 出错: ${error}`);
         return null;
       }
+    }
+
+  }
+
+  // 提取消息发送逻辑为函数
+  async function sendmarkdownMessage(session, message) {
+    if (session.isDirect) {
+      await session.qq.sendPrivateMessage(session.channelId, message);
+    } else {
+      await session.qq.sendMessage(session.channelId, message);
     }
   }
 
 
-  let acmd = []
+  let acmd = [];
   config.MoreEmojiHub.forEach(({ command, source_url }) => {
-    acmd.push(command)
+    acmd.push(command);
+
     ctx.command(config.emojihub_bili_command)
       .action(async ({ session }) => {
         const txtCommandList = listAllCommands(config);
-        logInfomessage(`指令列表txtCommandList：  ` + txtCommandList);
-        if (config.json_button_switch && config.json_setting.json_button_mdid_emojilist) {
-          let markdownMessage = {
-            msg_id: session.event.message.id,
-            msg_type: 2,
-            content: "", // content可传入不进去哦~  只能发按钮
-            keyboard: {
-              id: config.json_setting.json_button_mdid_emojilist
-            },
-          }
+        logInfo(`指令列表txtCommandList：  ` + txtCommandList);
 
-          if (session.event.guild?.id) {
-            await session.qq.sendMessage(session.channelId, markdownMessage);
-          } else {
-            await session.qq.sendPrivateMessage(session.event.user?.id, markdownMessage);
-          }
-
-        } else if ((config.MDswitch && config.markdown_setting.mdid &&
-          config.markdown_setting.zlmdp_1 && config.markdown_setting.zlmdp_2 &&
-          session.platform === 'qq') || config.RAW_MD_switch) {
-          // 使用 Markdown 发送命令列表 
-
+        if (config.markdown_button_mode === "markdown" || config.markdown_button_mode === "raw" || config.markdown_button_mode === "json" || config.markdown_button_mode === "markdown_raw_json") {
           let markdownMessage = command_list_markdown(session);
-          if (session.event.guild?.id) {
-            await session.qq.sendMessage(session.channelId, markdownMessage);
-          } else {
-            await session.qq.sendPrivateMessage(session.event.user?.id, markdownMessage);
-          }
+          await sendmarkdownMessage(session, markdownMessage);
         } else {
-          // 否则，发送文本列表
           const commandText = txtCommandList.join('\n');
           await session.send(h.text(session.text(`commands.${emojihub_bili_codecommand}.messages.List_of_emojis`) + `\n` + commandText));
         }
-      }
-      );
+      });
 
     ctx.command(`${config.emojihub_bili_command}/${command} <local_picture_name:text>`)
       .action(async ({ session }, local_picture_name) => {
-        //const imageResult = {  isLocal: true };   // [如果没有图片返回，发送错误消息]的测试
         const imageResult = await determineImagePath(source_url, config, session.channelId, command, ctx, local_picture_name);
 
         if (!imageResult.imageUrl) {
-          // 如果没有图片返回，发送错误消息
           await session.send(h.text(session.text(`commands.${emojihub_bili_codecommand}.messages.notfound_txt`, [command])));
           return;
         }
-        // 更新频道的最后一个命令
+
         updateLastCommand(session.channelId, command);
+
         try {
           let message;
-          if ((config.MDswitch && config.markdown_setting.mdid &&
-            config.markdown_setting.zlmdp_1 && config.markdown_setting.zlmdp_2 &&
-            session.platform === 'qq') || config.RAW_MD_switch) {
-            // MD发送图片的逻辑
-            //logger.info(`MD发送图片`);
+          if (config.markdown_button_mode === "markdown" || config.markdown_button_mode === "raw" || config.markdown_button_mode === "markdown_raw_json") {
             if (imageResult.isLocal) {
-              // 如果是本地图片，使用本地图片的逻辑
               if (config.localPicToBase64) {
-                //本地base64发图
                 let imagebase64 = await getImageAsBase64(imageResult.imageUrl);
-                //logger.info(imagebase64)
-
                 let MDimagebase64 = 'data:image/png;base64,' + imagebase64;
-
-                if (session.event.guild?.id) {
-                  message = session.qq.sendMessage(session.channelId, await markdown(session, command, MDimagebase64));
-                } else {
-                  message = session.qq.sendPrivateMessage(session.event.user?.id, await markdown(session, command, MDimagebase64));
-                }
-
-              } else if (config.markdown_setting.QQPicToChannelUrl) {
-
-                const uploadedImageURL = await uploadImageToChannel(ctx, config.consoleinfo, url.pathToFileURL(imageResult.imageUrl).href, session.bot.config.id, session.bot.config.secret, config.markdown_setting.QQchannelId);
-
-                if (session.event.guild?.id) {
-                  message = session.qq.sendMessage(session.channelId, await markdown(session, command, uploadedImageURL.url));
-                } else {
-                  message = session.qq.sendPrivateMessage(session.event.user?.id, await markdown(session, command, uploadedImageURL.url));
-                }
-
+                message = await markdown(session, command, MDimagebase64);
+                await sendmarkdownMessage(session, message);
+              } else if (config.QQPicToChannelUrl) {
+                const uploadedImageURL = await uploadImageToChannel(ctx, config.consoleinfo, url.pathToFileURL(imageResult.imageUrl).href, session.bot.config.id, session.bot.config.secret, config.QQchannelId);
+                message = await markdown(session, command, uploadedImageURL.url);
+                await sendmarkdownMessage(session, message);
               } else {
-                //正常本地文件发图
                 const imageUrl = url.pathToFileURL(imageResult.imageUrl).href;
-                if (session.event.guild?.id) {
-                  message = session.qq.sendMessage(session.channelId, await markdown(session, command, imageUrl));
-                } else {
-                  message = session.qq.sendPrivateMessage(session.event.user?.id, await markdown(session, command, imageUrl));
-                }
+                message = await markdown(session, command, imageUrl);
+                await sendmarkdownMessage(session, message);
               }
             } else {
-              // 网络URL
-              if (session.event.guild?.id) {
-                message = session.qq.sendMessage(session.channelId, await markdown(session, command, imageResult.imageUrl));
-              } else {
-                message = session.qq.sendPrivateMessage(session.event.user?.id, await markdown(session, command, imageResult.imageUrl));
-              }
+              message = await markdown(session, command, imageResult.imageUrl);
+              await sendmarkdownMessage(session, message);
             }
           } else {
-            //logger.info(`正常情况`);
-            // 根据图片是否为本地图片选择发送方式
             if (imageResult.isLocal) {
-              // 如果是本地图片，使用本地图片的逻辑
               if (config.localPicToBase64) {
-                //本地base64发图
                 let imagebase64 = await getImageAsBase64(imageResult.imageUrl);
-                //logger.info(imagebase64)
                 message = await session.send(h('image', { url: 'data:image/png;base64,' + imagebase64 }));
-
-                if (config.json_button_switch && config.json_setting.json_button_mdid_command && session.platform === 'qq') { // 发送图片后，发送json按钮
-                  let markdownMessage = {
-                    msg_id: session.event.message.id,
-                    msg_type: 2,
-                    content: "", // content可传入不进去哦~  只能发按钮
-                    keyboard: {
-                      id: config.json_setting.json_button_mdid_command
-                    },
-                  }
-                  if (session.event.guild?.id) {
-                    await session.qq.sendMessage(session.channelId, markdownMessage);
-                  } else {
-                    await session.qq.sendPrivateMessage(session.event.user?.id, markdownMessage);
-                  }
-                }
               } else {
-                //正常本地文件发图
                 const imageUrl = url.pathToFileURL(imageResult.imageUrl).href;
                 message = await session.send(h.image(imageUrl));
-                if (config.json_button_switch && config.json_setting.json_button_mdid_command && session.platform === 'qq') { // 发送图片后，发送json按钮
-                  let markdownMessage = {
-                    msg_id: session.event.message.id,
-                    msg_type: 2,
-                    content: "", // content可传入不进去哦~  只能发按钮
-                    keyboard: {
-                      id: config.json_setting.json_button_mdid_command
-                    },
-                  }
-                  if (session.event.guild?.id) {
-                    await session.qq.sendMessage(session.channelId, markdownMessage);
-                  } else {
-                    await session.qq.sendPrivateMessage(session.event.user?.id, markdownMessage);
-                  }
-                }
               }
             } else {
-              // 网络URL
               message = await session.send(h.image(imageResult.imageUrl));
-              if (config.json_button_switch && config.json_setting.json_button_mdid_command && session.platform === 'qq') { // 发送图片后，发送json按钮
-                let markdownMessage = {
-                  msg_id: session.event.message.id,
-                  msg_type: 2,
-                  content: "", // content可传入不进去哦~  只能发按钮
-                  keyboard: {
-                    id: config.json_setting.json_button_mdid_command
-                  },
-                }
-                if (session.event.guild?.id) {
-                  await session.qq.sendMessage(session.channelId, markdownMessage);
-                } else {
-                  await session.qq.sendPrivateMessage(session.event.user?.id, markdownMessage);
-                }
-              }
+            }
+
+            if (config.markdown_button_mode === "json") {
+              const keyboardId = config.nested.json_button_template_id;
+              let markdownMessage = {
+                msg_id: session.event.message.id,
+                msg_type: 2,
+                content: "",
+                keyboard: {
+                  id: keyboardId,
+                },
+              };
+              logInfo(markdownMessage);
+              await sendmarkdownMessage(session, markdownMessage);
             }
           }
+
           if (config.deleteMsg) {
             setTimeout(async () => {
               try {
                 await session.bot.deleteMessage(session.channelId, message);
               } catch (error) {
-                logger.error(`撤回消息失败: ${error}`);
+                logError(`撤回消息失败: ${error}`);
               }
             }, config.deleteMsgtime * 1000);
           }
         } catch (error) {
-          logger.error(`Error sending image:  ${error}`);
+          logError(`Error sending image:  ${error}`);
         }
       });
+
 
 
     ctx.command(`${config.emojihub_bili_command}/再来一张`)
       .action(async ({ session }) => {
         const lastCommand = lastCommandByChannel[session.channelId];
-        logInfomessage('尝试在频道 ' + session.channelId + ' 中执行最后一个命令： ' + lastCommand);
+        logInfo('尝试在频道 ' + session.channelId + ' 中执行最后一个命令： ' + lastCommand);
         if (lastCommand) {
           await session.execute(`${lastCommand}`);
         } else {
@@ -964,7 +1006,7 @@ function apply(ctx, config) {
         const randomEmojiHubCommand = getRandomEmojiHubCommand(config);
         if (randomEmojiHubCommand) {
           await session.execute(randomEmojiHubCommand);
-          logInfo(config, session.channelId, randomEmojiHubCommand, `随机表情包`);
+          logInfoformat(config, session.channelId, randomEmojiHubCommand, `随机表情包`);
           return;
         } else {
           await session.send(session.text(".noemoji"));
@@ -976,7 +1018,6 @@ function apply(ctx, config) {
 
   if (config.autoEmoji && (config.groupListmapping.length || config.allgroupautoEmoji)) {
     const groups = {};
-
     // 初始化特定群组的配置
     config.groupListmapping.forEach(({ groupList, defaultemojicommand, enable }) => {
       // 只有当enable为false或未定义时，才将群组添加到启用列表中
@@ -1057,12 +1098,12 @@ function apply(ctx, config) {
                       try {
                         await session.bot.deleteMessage(session.channelId, sentMessage);
                       } catch (error) {
-                        logger.error(`撤回消息失败: ${error}`);
+                        logError(`撤回消息失败: ${error}`);
                       }
                     }, config.deleteMsgtime * 1000);
                   }
                 } catch (error) {
-                  logger.error(`发送图片错误: ${error}`);
+                  logError(`发送图片错误: ${error}`);
                 }
               } else {
                 groupConfig.count = 0; // 图片不存在，重置计数
