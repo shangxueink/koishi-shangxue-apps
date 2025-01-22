@@ -190,8 +190,8 @@ exports.Config = Schema.intersect([
   }).description('基础设置'),
 
   Schema.object({
-    renameRules: Schema.string().role('textarea', { rows: [2, 4] }).default("${YYYY}-${MM}-${DD}-${AA}-${BB}-${CC}-${DDD}").experimental()
-      .description("图片自动重命名的名称格式<br>变量请使用`${}`代替。<br>可用变量有：`session` `config` <br>日期：`YYYY` `MM` `DD`<br>随机数字：`AA` `BB` `CC` `DDD`<br>▶详细说明 [请参考README](https://www.npmjs.com/package/koishi-plugin-image-save-path)"),
+    renameRules: Schema.string().role('textarea', { rows: [2, 4] }).default("${YYYY}-${MM}-${DD}-${BB}-${BB}-${BB}-${CCC}").experimental()
+      .description("图片自动重命名的名称格式<br>变量请使用`${}`代替。<br>可用变量有：`session` `config` <br>日期：`YYYY` `MM` `DD`<br>随机数字：`A` `BB` `CCC`<br>▶详细说明 [请参考README](https://www.npmjs.com/package/koishi-plugin-image-save-path)"),
     defaultImageExtension: Schema.string().description("保存图片的默认后缀名").default("png"),
 
     autosavePics: Schema.boolean().description("自动保存 的总开关：用于对重复一定次数的图进行保存<br>`如需查看详情日志，请开启consoleinfo配置项`"),
@@ -287,16 +287,16 @@ function apply(ctx, config) {
     return urls?.length > 0 ? urls : null;
   };
 
+
   const generateFilename = (session, config) => {
     const date = new Date();
     const variables = {
-      'YYYY': date.getFullYear(),
-      'MM': String(date.getMonth() + 1).padStart(2, '0'),
-      'DD': String(date.getDate()).padStart(2, '0'),
-      'AA': String(Math.floor(Math.random() * 100)).padStart(2, '0'),
-      'BB': String(Math.floor(Math.random() * 100)).padStart(2, '0'),
-      'CC': String(Math.floor(Math.random() * 100)).padStart(2, '0'),
-      'DDD': String(Math.floor(Math.random() * 1000)).padStart(3, '0'),
+      'YYYY': date.getFullYear(), // 年份，例如 2023
+      'MM': String(date.getMonth() + 1).padStart(2, '0'), // 月份，例如 01 到 12
+      'DD': String(date.getDate()).padStart(2, '0'), // 日期，例如 01 到 31
+      'A': String(Math.floor(Math.random() * 10)), // 一位随机数字，范围 0 到 9
+      'BB': String(Math.floor(Math.random() * 100)).padStart(2, '0'), // 两位随机数字，范围 00 到 99
+      'CCC': String(Math.floor(Math.random() * 1000)).padStart(3, '0'), // 三位随机数字，范围 000 到 999
     };
 
     // 动态替换 session 和 config 中的字段
@@ -323,9 +323,9 @@ function apply(ctx, config) {
     let filename = replacePlaceholders(config.renameRules, { session, config });
 
     // 替换非法字符
-    filename = filename.replace(/[\u0000-\u001f\u007f-\u009f\/\\:*?"<>|]/g, '_')
+    filename = filename.replace(/[\u0000-\u001f\u007f-\u009f\/\\:*?"<>|]/g, '_');
 
-    loggerinfo(filename)
+    loggerinfo(filename);
     return filename;
   };
 

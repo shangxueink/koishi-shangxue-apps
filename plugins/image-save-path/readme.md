@@ -216,53 +216,47 @@
   renameRules: "${YYYY}-${MM}-${DD}-${AA}-${BB}-${CC}-${DDD}-${session.userId}"
   ```
 
+
+
 ### 可用占位符
 | 占位符       | 描述                                                                 |
 | ------------ | -------------------------------------------------------------------- |
 | `${YYYY}`    | 当前年份，例如 `2023`                                                |
 | `${MM}`      | 当前月份，补零到两位，例如 `01` 到 `12`                              |
 | `${DD}`      | 当前日期，补零到两位，例如 `01` 到 `31`                              |
-| `${AA}`      | 两位随机数字，范围 `00` 到 `99`                                      |
+| `${A}`       | 一位随机数字，范围 `0` 到 `9`                                        |
 | `${BB}`      | 两位随机数字，范围 `00` 到 `99`                                      |
-| `${CC}`      | 两位随机数字，范围 `00` 到 `99`                                      |
-| `${DDD}`     | 三位随机数字，范围 `000` 到 `999`                                    |
+| `${CCC}`     | 三位随机数字，范围 `000` 到 `999`                                    |
 | `${session}` | 动态提取 `session` 对象的字段，例如 `${session.userId}`              |
 | `${config}`  | 动态提取 `config` 对象的字段，例如 `${config.defaultImageExtension}` |
 
 ### 示例
-#### 示例 1：默认格式
-- **配置**：
+- **默认格式**：
   ```javascript
-  renameRules: "${YYYY}-${MM}-${DD}-${AA}-${BB}-${CC}-${DDD}"
+  renameRules: "${YYYY}-${MM}-${DD}-${BB}-${BB}-${BB}-${CCC}"
   ```
-- **生成文件名**：
-  ```
-  2023-10-05-12-34-56-789.png
-  ```
+  - 生成文件名：`2023-10-05-12-34-56-789.png`。
 
-#### 示例 2：包含用户 ID
-- **配置**：
+- **包含用户 ID**：
   ```javascript
-  renameRules: "${YYYY}-${MM}-${DD}-${AA}-${BB}-${CC}-${DDD}-${session.userId}"
+  renameRules: "${YYYY}-${MM}-${DD}-${BB}-${BB}-${BB}-${CCC}-${session.userId}"
   ```
-- **生成文件名**（假设 `session.userId` 为 `12345`）：
-  ```
-  2023-10-05-12-34-56-789-12345.png
-  ```
+  - 生成文件名（假设 `session.userId` 为 `12345`）：`2023-10-05-12-34-56-789-12345.png`。
 
-#### 示例 3：包含配置项
-- **配置**：
+- **包含配置项**：
   ```javascript
-  renameRules: "${YYYY}-${MM}-${DD}-${AA}-${BB}-${CC}-${DDD}-${config.defaultImageExtension}"
+  renameRules: "${YYYY}-${MM}-${DD}-${BB}-${BB}-${BB}-${CCC}-${config.defaultImageExtension}"
   ```
-- **生成文件名**（假设 `config.defaultImageExtension` 为 `png`）：
-  ```
-  2023-10-05-12-34-56-789-png.png
-  ```
+  - 生成文件名（假设 `config.defaultImageExtension` 为 `png`）：`2023-10-05-12-34-56-789-png.png`。
+
+
+
 
 ### 参考链接
 - [Koishi 官方文档](https://koishi.js.org/)
     
+---
+
 </details>
 
 <h2>📜 注意事项</h2>
