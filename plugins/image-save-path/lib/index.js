@@ -191,19 +191,14 @@ exports.Config = Schema.intersect([
 
 
   Schema.object({
-    // defaultImageExtension: Schema.string().role('textarea', { rows: [2, 4] }).description("保存图片的默认后缀名<br>与上一个配置项一样支持变量替换").default(".png"),
     ImageExtension: Schema.array(Schema.object({
       prefix: Schema.string().description('前缀'),
       suffix: Schema.string().description('后缀'),
       extension: Schema.union(['.jpg', '.png', '.gif', '.jpeg', '.webp', '.bmp']).description('扩展名'),
-    })).role('table').default([
-      {
-        "qux": ".jpg",
-        "extension": ".png"
-      }
-    ]).description('图片`保存`时的`命名格式`、默认`扩展名`：`仅第一行视为有效配置`<br>前缀后缀对所有保存图片的名称生效，扩展名可以通过指令选项自定义<br><hr style="border: 2px solid red;">配置方法：变量请使用`${}`代替。<br>可用变量有：`session` `config` <br>日期：`YYYY` `MM` `DD`<br>随机数字：`A` `BB` `CCC`<br>▶详细说明 [请参考README](https://www.npmjs.com/package/koishi-plugin-image-save-path)'),
+    })).role('table').default([{ "extension": ".png" }
+    ]).description('图片`保存`时的`命名格式`、默认`扩展名`<br>▶仅第一行视为有效配置<br>前缀后缀对所有保存图片的名称生效，扩展名可以通过指令选项自定义<br><hr style="border: 2px solid red;">配置方法：变量请使用`${}`代替。<br>可用变量有：`session`、 `config`<br>日期：`YYYY`、 `MM`、 `DD`<br>随机数字：`A`、 `BB`、 `CCC`<br>▶详细说明 [请参考README](https://www.npmjs.com/package/koishi-plugin-image-save-path)'),
     autoRenameRules: Schema.string().role('textarea', { rows: [2, 4] }).default("${YYYY}-${MM}-${DD}-${BB}-${BB}-${BB}-${CCC}").experimental()
-      .description("图片`自动重命名`时使用的名称格式<br>与上个配置项一样支持使用变量替换"),
+      .description("图片`自动重命名`时使用的名称格式<br>与上个配置项语法一致 支持使用变量替换"),
   }).description('文件保存设置'),
 
   Schema.object({
