@@ -23,16 +23,6 @@ exports.usage = `
 
 ---
 
-多种指令交互模式预览：
-
-<li><a href="https://i0.hdslb.com/bfs/article/a3d7513782fcd223fc02cc1b107aba2b312276085.png" target="_blank" referrerpolicy="no-referrer">1.【保存图片 [图片重命名] [文件夹备注] [图片]】</a></li>
-<li><a href="https://i0.hdslb.com/bfs/article/7caf059b2874c2e3201669d51e614d35312276085.png" target="_blank" referrerpolicy="no-referrer">2.【保存图片 [文件夹备注] [图片重命名] [图片]】</a></li>
-<li><a href="https://i0.hdslb.com/bfs/article/fa61465af2ed31f85c537ddf598d6b3a312276085.png" target="_blank" referrerpolicy="no-referrer">3.【保存图片 [图片重命名] [图片]】（仅存到第一个文件夹路径里）</a></li>
-<li><a href="https://i0.hdslb.com/bfs/article/1309846507b81c4d0fa755553feebce6312276085.png" target="_blank" referrerpolicy="no-referrer">4.【保存图片 [文件夹备注] [图片]】（自动为图片重命名）</a></li>
-<li><a href="https://i0.hdslb.com/bfs/article/4342e979dd9fac9a77fa519baa2a7c49312276085.png" target="_blank" referrerpolicy="no-referrer">5.【保存图片 [图片]】（自动为图片重命名，并且保存到第一个文件夹路径）</a></li>
-
-
----
 
 
 <h2>💡 使用示例</h2>
@@ -190,7 +180,6 @@ exports.Config = Schema.intersect([
 
 
   Schema.object({
-    defaultImageExtension: Schema.string().description("默认图片后缀名").default("png"),
     showSavePath: Schema.boolean().description("保存成功后，告知具体文件保存路径，关闭后只会回复`图片已成功保存。`").default(false),
     checkDuplicate: Schema.boolean().description("开启后将检查重名文件，避免覆盖，若同名，则在文件名后加`(1)`,`(2)`... ...").default(true),
     imageSaveMode: Schema.boolean().description("开启后，默认选择了第一个路径，可以缺省路径参数<br>当然也支持输入路径参数<br>[此配置项效果图](https://i0.hdslb.com/bfs/article/1d34ae45de7e3c875eec0caee5444149312276085.png)").default(false),
@@ -201,7 +190,11 @@ exports.Config = Schema.intersect([
   }).description('基础设置'),
 
   Schema.object({
-    autosavePics: Schema.boolean().description("自动保存 的总开关<br>`如需查看详情日志，请开启consoleinfo配置项`"),
+    renameRules: Schema.string().role('textarea', { rows: [2, 4] }).default("${YYYY}-${MM}-${DD}-${AA}-${BB}-${CC}-${DDD}").experimental()
+      .description("图片自动重命名的名称格式<br>变量请使用`${}`代替。<br>可用变量有：`session` `config` <br>日期：`YYYY` `MM` `DD`<br>随机数字：`AA` `BB` `CC` `DDD`<br>▶详细说明 [请参考README](https://www.npmjs.com/package/koishi-plugin-image-save-path)"),
+    defaultImageExtension: Schema.string().description("保存图片的默认后缀名").default("png"),
+
+    autosavePics: Schema.boolean().description("自动保存 的总开关：用于对重复一定次数的图进行保存<br>`如需查看详情日志，请开启consoleinfo配置项`"),
   }).description('进阶设置'),
   Schema.union([
     Schema.object({
@@ -213,7 +206,7 @@ exports.Config = Schema.intersect([
         defaultsavepath: Schema.string().description('保存到的文件夹路径'),
       }))
         .role('table')
-        .description('各群组自动保存的路径映射 `注意不要多空格什么的（私信频道有private前缀）`')
+        .description('各群组自动保存的路径映射 `注意不要多空格什么的（私信有private:的前缀）`')
         .default([
           {
             "enable": true,
@@ -232,7 +225,7 @@ exports.Config = Schema.intersect([
 
   Schema.object({
     consoleinfo: Schema.boolean().default(false).description('日志调试模式'),
-    command_of_get_link: Schema.boolean().default(false).description('是否开启【获取链接】的调试指令').experimental(),
+    command_of_get_link: Schema.boolean().default(false).description('是否开启`获取链接`的调试指令').experimental(),
   }).description('调试设置'),
 ])
 
@@ -293,6 +286,47 @@ function apply(ctx, config) {
     urls = h.select(content, 'mface').map(item => item.attrs.url);
     return urls?.length > 0 ? urls : null;
   };
+
+  const generateFilename = (session, config) => {
+    const date = new Date();
+    const variables = {
+      'YYYY': date.getFullYear(),
+      'MM': String(date.getMonth() + 1).padStart(2, '0'),
+      'DD': String(date.getDate()).padStart(2, '0'),
+      'AA': String(Math.floor(Math.random() * 100)).padStart(2, '0'),
+      'BB': String(Math.floor(Math.random() * 100)).padStart(2, '0'),
+      'CC': String(Math.floor(Math.random() * 100)).padStart(2, '0'),
+      'DDD': String(Math.floor(Math.random() * 1000)).padStart(3, '0'),
+    };
+
+    // 动态替换 session 和 config 中的字段
+    const replacePlaceholders = (template, context) => {
+      return template.replace(/\$\{([^}]+)\}/g, (match, key) => {
+        // 如果 key 是预定义的变量（如 YYYY, MM 等），直接替换
+        if (variables[key]) {
+          return variables[key];
+        }
+
+        // 如果 key 是 session 或 config 的字段，动态提取
+        const parts = key.split('.');
+        if (parts[0] === 'session' || parts[0] === 'config') {
+          const obj = parts[0] === 'session' ? session : config;
+          return parts.slice(1).reduce((acc, part) => acc?.[part], obj) || match;
+        }
+
+        // 如果 key 不是预定义的变量，返回原占位符
+        return match;
+      });
+    };
+
+    // 替换占位符
+    let filename = replacePlaceholders(config.renameRules, { session, config });
+
+    // 替换非法字符
+    return filename.replace(/[\u0000-\u001f\u007f-\u009f\/\\:*?"<>|]/g, '_');
+  };
+
+
   ctx.command('保存图片 [参数...]')
     .option('ext', '-e <ext:string> 指定图片后缀名')
     .option('name', '-n <name:string> 严格指定图片重命名')
@@ -358,7 +392,6 @@ function apply(ctx, config) {
 
       const imageExtension = options.ext || config.defaultImageExtension;
       if (urlhselect.length > 1 && !config.checkDuplicate) {
-        // return '未开启重名检查时不允许一次性输入多张图片。';
         await session.send(session.text(".image_save_path_select_prompt"))
         return;
       }
@@ -366,7 +399,8 @@ function apply(ctx, config) {
       // 处理名称
       if (文件名) {
         // 移除尖括号及其内容
-        文件名 = 文件名.replace(/<.*?>/g, '').trim(); // adapter-onebot 特性，可能会把回复的内容当做输入参数，跟在输入最后面
+        文件名 = 文件名.replace(/<.*?>/g, '').trim();
+        // adapter-onebot 特性，可能会把回复的内容当做输入参数，跟在输入最后面
         if (文件名.length <= 0) {
           // 如果长度小于等于 1，认为路径名称无效
           文件名 = undefined;
@@ -377,7 +411,8 @@ function apply(ctx, config) {
       }
       if (路径名称) {
         // 移除尖括号及其内容
-        路径名称 = 路径名称.replace(/<.*?>/g, '').trim(); // adapter-onebot 特性，可能会把回复的内容当做输入参数，跟在输入最后面
+        路径名称 = 路径名称.replace(/<.*?>/g, '').trim();
+        // adapter-onebot 特性，可能会把回复的内容当做输入参数，跟在输入最后面
         if (路径名称.length <= 0) {
           // 如果长度小于等于 1，认为路径名称无效
           路径名称 = undefined;
@@ -429,9 +464,7 @@ function apply(ctx, config) {
       if (options.name) {
         safeFilename = options.name;
       } else if (!文件名) {
-        // 如果文件名未指定，生成默认文件名
-        const date = new Date();
-        safeFilename = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}-${String(date.getHours()).padStart(2, '0')}-${String(date.getMinutes()).padStart(2, '0')}`;
+        safeFilename = generateFilename(session, config);
       } else {
         safeFilename = 文件名;
       }
@@ -442,7 +475,6 @@ function apply(ctx, config) {
         await saveImages(urlhselect, selectedPath, safeFilename, imageExtension, config, session, ctx);
       } catch (error) {
         ctx.logger.error('保存图片时出错： ' + error.message);
-        //return `保存图片时出错：${error.message}`;
         await session.send(session.text(`.image_save_error`, [error.message]));
         return;
       }
@@ -588,7 +620,7 @@ function apply(ctx, config) {
   }
   const hashRecordPath = path.join(ctx.baseDir, 'data', 'image-save-path', 'image-hash-records.json');
 
-  async function downloadAndSaveImage(url, outputPath, ctx, hashRecords, count) {
+  async function downloadAndSaveImage(url, outputPath, ctx, hashRecords, count, session, config) {
     try {
       const buffer = await downloadImageBuffer(url, ctx);
       const tempPath = `${outputPath}.tmp`;
@@ -601,9 +633,9 @@ function apply(ctx, config) {
       hashRecords[hash].count++;
 
       if (hashRecords[hash].count >= count && !hashRecords[hash].saved) {
-        const date = new Date();
-        const preciseFilename = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}-${String(date.getHours()).padStart(2, '0')}-${String(date.getMinutes()).padStart(2, '0')}-${String(date.getSeconds()).padStart(2, '0')}-${String(date.getMilliseconds()).padStart(3, '0')}.png`;
-        const finalPath = path.join(outputPath, preciseFilename);
+        // 使用 generateFilename 函数生成文件名
+        const filename = generateFilename(session, config);
+        const finalPath = path.join(outputPath, `${filename}.png`);
         fs.renameSync(tempPath, finalPath);
         loggerinfo(`图片已保存到：${finalPath}`);
         hashRecords[hash].path = finalPath;
@@ -642,12 +674,13 @@ function apply(ctx, config) {
       }
       const hashRecords = loadHashRecords(hashRecordPath);
       for (const link of imageLinks) {
-        await downloadAndSaveImage(link, groupConfig.defaultsavepath, ctx, hashRecords, groupConfig.count);
+        await downloadAndSaveImage(link, groupConfig.defaultsavepath, ctx, hashRecords, groupConfig.count, session, config);
       }
 
       return next();
     });
   }
+
 
 }
 

@@ -56,6 +56,10 @@
 <hr>
 
 <h2>🚀 使用方法</h2>
+
+<details>
+<summary>点击此处————查看完整使用方法说明</summary>
+
 <h3>1️⃣ 交互保存（默认路径，无需指定路径）</h3>
 <p>将 <code>Interaction_mode</code> 配置项选择到 <code>3</code>。</p>
 <pre><code>保存图片 图片名称</code></pre>
@@ -187,6 +191,79 @@
 <p><strong>默认值：</strong> <code>false</code></p>
 
 <hr>
+
+</details>
+
+## 图片自动重命名规则 (`renameRules`)
+
+### 功能描述
+
+`renameRules` 是一个用于定义图片自动重命名规则的配置项。
+
+通过设置占位符，用户可以自定义生成的文件名格式。
+
+支持动态替换日期、随机数字以及 `session` 和 `config` 中的字段。
+
+<details>
+<summary>点击此处————查看完整使用方法说明</summary>
+
+### 配置项格式
+- **类型**：字符串
+- **默认值**：`${YYYY}-${MM}-${DD}-${AA}-${BB}-${CC}-${DDD}`
+- **示例**：
+
+  ```javascript
+  renameRules: "${YYYY}-${MM}-${DD}-${AA}-${BB}-${CC}-${DDD}-${session.userId}"
+  ```
+
+### 可用占位符
+| 占位符       | 描述                                                                 |
+| ------------ | -------------------------------------------------------------------- |
+| `${YYYY}`    | 当前年份，例如 `2023`                                                |
+| `${MM}`      | 当前月份，补零到两位，例如 `01` 到 `12`                              |
+| `${DD}`      | 当前日期，补零到两位，例如 `01` 到 `31`                              |
+| `${AA}`      | 两位随机数字，范围 `00` 到 `99`                                      |
+| `${BB}`      | 两位随机数字，范围 `00` 到 `99`                                      |
+| `${CC}`      | 两位随机数字，范围 `00` 到 `99`                                      |
+| `${DDD}`     | 三位随机数字，范围 `000` 到 `999`                                    |
+| `${session}` | 动态提取 `session` 对象的字段，例如 `${session.userId}`              |
+| `${config}`  | 动态提取 `config` 对象的字段，例如 `${config.defaultImageExtension}` |
+
+### 示例
+#### 示例 1：默认格式
+- **配置**：
+  ```javascript
+  renameRules: "${YYYY}-${MM}-${DD}-${AA}-${BB}-${CC}-${DDD}"
+  ```
+- **生成文件名**：
+  ```
+  2023-10-05-12-34-56-789.png
+  ```
+
+#### 示例 2：包含用户 ID
+- **配置**：
+  ```javascript
+  renameRules: "${YYYY}-${MM}-${DD}-${AA}-${BB}-${CC}-${DDD}-${session.userId}"
+  ```
+- **生成文件名**（假设 `session.userId` 为 `12345`）：
+  ```
+  2023-10-05-12-34-56-789-12345.png
+  ```
+
+#### 示例 3：包含配置项
+- **配置**：
+  ```javascript
+  renameRules: "${YYYY}-${MM}-${DD}-${AA}-${BB}-${CC}-${DDD}-${config.defaultImageExtension}"
+  ```
+- **生成文件名**（假设 `config.defaultImageExtension` 为 `png`）：
+  ```
+  2023-10-05-12-34-56-789-png.png
+  ```
+
+### 参考链接
+- [Koishi 官方文档](https://koishi.js.org/)
+    
+</details>
 
 <h2>📜 注意事项</h2>
 <ul>
