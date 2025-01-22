@@ -194,31 +194,43 @@
 
 </details>
 
-## 图片自动重命名规则 (`renameRules`)
+## 图片保存配置项
 
-### 功能描述
 
-`renameRules` 是一个用于定义图片自动重命名规则的配置项。
+### 1. 图片扩展名配置 (`ImageExtension`)
 
-通过设置占位符，用户可以自定义生成的文件名格式。
+#### 功能描述
 
-支持动态替换日期、随机数字以及 `session` 和 `config` 中的字段。
+`ImageExtension` 是一个用于定义图片保存时文件名前缀、后缀和默认扩展名的配置项。支持动态替换日期、随机数字以及 `session` 和 `config` 中的字段。
 
 <details>
 <summary>点击此处————查看完整使用方法说明</summary>
 
-### 配置项格式
-- **类型**：字符串
-- **默认值**：`${YYYY}-${MM}-${DD}-${AA}-${BB}-${CC}-${DDD}`
+#### 配置项格式
+- **类型**：数组（仅第一行视为有效配置）
+- **默认值**：
+  ```javascript
+  [
+    {
+      prefix: "",
+      suffix: "",
+      extension: ".png"
+    }
+  ]
+  ```
 - **示例**：
 
   ```javascript
-  renameRules: "${YYYY}-${MM}-${DD}-${AA}-${BB}-${CC}-${DDD}-${session.userId}"
+  ImageExtension: [
+    {
+      prefix: "prefix_${YYYY}_",
+      suffix: "_${session.userId}",
+      extension: ".jpg"
+    }
+  ]
   ```
 
-
-
-### 可用占位符
+#### 可用占位符
 | 占位符       | 描述                                                                 |
 | ------------ | -------------------------------------------------------------------- |
 | `${YYYY}`    | 当前年份，例如 `2023`                                                |
@@ -230,34 +242,98 @@
 | `${session}` | 动态提取 `session` 对象的字段，例如 `${session.userId}`              |
 | `${config}`  | 动态提取 `config` 对象的字段，例如 `${config.defaultImageExtension}` |
 
-### 示例
+#### 示例
 - **默认格式**：
   ```javascript
-  renameRules: "${YYYY}-${MM}-${DD}-${BB}-${BB}-${BB}-${CCC}"
+  ImageExtension: [
+    {
+      prefix: "",
+      suffix: "",
+      extension: ".png"
+    }
+  ]
+  ```
+  - 生成文件名：`2023-10-05-12-34-56-789.png`。
+
+- **包含前缀和后缀**：
+  ```javascript
+  ImageExtension: [
+    {
+      prefix: "prefix_${YYYY}_",
+      suffix: "_${session.userId}",
+      extension: ".jpg"
+    }
+  ]
+  ```
+  - 生成文件名（假设 `session.userId` 为 `12345`）：`prefix_2023_2023-10-05-12-34-56-789_12345.jpg`。
+
+- **包含配置项**：
+  ```javascript
+  ImageExtension: [
+    {
+      prefix: "prefix_${config.ImageExtension[0]?.extension}_",
+      suffix: "_${CCC}",
+      extension: ".png"
+    }
+  ]
+  ```
+  - 生成文件名（假设 `config.defaultImageExtension` 为 `png`）：`prefix_png_2023-10-05-12-34-56-789_123.png`。
+
+</details>
+
+
+### 2. 图片自动重命名规则 (`autoRenameRules`)
+
+#### 功能描述
+
+`autoRenameRules` 是一个用于定义图片自动重命名规则的配置项。通过设置占位符，用户可以自定义生成的文件名格式。支持动态替换日期、随机数字以及 `session` 和 `config` 中的字段。
+
+<details>
+<summary>点击此处————查看完整使用方法说明</summary>
+
+#### 配置项格式
+- **类型**：字符串
+- **默认值**：`${YYYY}-${MM}-${DD}-${BB}-${BB}-${BB}-${CCC}`
+- **示例**：
+
+  ```javascript
+  autoRenameRules: "${YYYY}-${MM}-${DD}-${BB}-${BB}-${BB}-${CCC}-${session.userId}"
+  ```
+
+#### 可用占位符
+| 占位符       | 描述                                                                 |
+| ------------ | -------------------------------------------------------------------- |
+| `${YYYY}`    | 当前年份，例如 `2023`                                                |
+| `${MM}`      | 当前月份，补零到两位，例如 `01` 到 `12`                              |
+| `${DD}`      | 当前日期，补零到两位，例如 `01` 到 `31`                              |
+| `${A}`       | 一位随机数字，范围 `0` 到 `9`                                        |
+| `${BB}`      | 两位随机数字，范围 `00` 到 `99`                                      |
+| `${CCC}`     | 三位随机数字，范围 `000` 到 `999`                                    |
+| `${session}` | 动态提取 `session` 对象的字段，例如 `${session.userId}`              |
+| `${config}`  | 动态提取 `config` 对象的字段，例如 `${config.defaultImageExtension}` |
+
+#### 示例
+- **默认格式**：
+  ```javascript
+  autoRenameRules: "${YYYY}-${MM}-${DD}-${BB}-${BB}-${BB}-${CCC}"
   ```
   - 生成文件名：`2023-10-05-12-34-56-789.png`。
 
 - **包含用户 ID**：
   ```javascript
-  renameRules: "${YYYY}-${MM}-${DD}-${BB}-${BB}-${BB}-${CCC}-${session.userId}"
+  autoRenameRules: "${YYYY}-${MM}-${DD}-${BB}-${BB}-${BB}-${CCC}-${session.userId}"
   ```
   - 生成文件名（假设 `session.userId` 为 `12345`）：`2023-10-05-12-34-56-789-12345.png`。
 
 - **包含配置项**：
   ```javascript
-  renameRules: "${YYYY}-${MM}-${DD}-${BB}-${BB}-${BB}-${CCC}-${config.defaultImageExtension}"
+  autoRenameRules: "${YYYY}-${MM}-${DD}-${BB}-${BB}-${BB}-${CCC}-${config.defaultImageExtension}"
   ```
   - 生成文件名（假设 `config.defaultImageExtension` 为 `png`）：`2023-10-05-12-34-56-789-png.png`。
 
-
-
-
-### 参考链接
-- [Koishi 官方文档](https://koishi.js.org/)
-    
----
-
 </details>
+
+---
 
 <h2>📜 注意事项</h2>
 <ul>

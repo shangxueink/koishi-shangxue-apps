@@ -152,7 +152,7 @@ exports.Config = Schema.intersect([
       Schema.const('4').description('4.【保存图片 [文件夹备注] [图片]】（自动为图片重命名）'),
       Schema.const('5').description('5.【保存图片 [图片]】（自动为图片重命名，并且保存到第一个文件夹路径）'),
     ]).role('radio').description("交互模式选择：指令输入的参数规则<br>每个选项的效果图 请见`Preview`配置项展示的内容").required(),
-  }).description('交互模式设置'),
+  }).description('交互模式'),
 
   Schema.union([
     Schema.object({
@@ -189,11 +189,24 @@ exports.Config = Schema.intersect([
     })).role('table').description('用于设置图片保存路径的名称和地址映射').default([{ name: "第一个", path: "C:\\Program Files" }, { name: "第二个", path: "E:\\Music\\nums" }]),
   }).description('基础设置'),
 
-  Schema.object({
-    renameRules: Schema.string().role('textarea', { rows: [2, 4] }).default("${YYYY}-${MM}-${DD}-${BB}-${BB}-${BB}-${CCC}").experimental()
-      .description("图片自动重命名的名称格式<br>变量请使用`${}`代替。<br>可用变量有：`session` `config` <br>日期：`YYYY` `MM` `DD`<br>随机数字：`A` `BB` `CCC`<br>▶详细说明 [请参考README](https://www.npmjs.com/package/koishi-plugin-image-save-path)"),
-    defaultImageExtension: Schema.string().description("保存图片的默认后缀名").default("png"),
 
+  Schema.object({
+    // defaultImageExtension: Schema.string().role('textarea', { rows: [2, 4] }).description("保存图片的默认后缀名<br>与上一个配置项一样支持变量替换").default(".png"),
+    ImageExtension: Schema.array(Schema.object({
+      prefix: Schema.string().description('前缀'),
+      suffix: Schema.string().description('后缀'),
+      extension: Schema.union(['.jpg', '.png', '.gif', '.jpeg', '.webp', '.bmp']).description('扩展名'),
+    })).role('table').default([
+      {
+        "qux": ".jpg",
+        "extension": ".png"
+      }
+    ]).description('图片`保存`时的`命名格式`、默认`扩展名`：`仅第一行视为有效配置`<br>前缀后缀对所有保存图片的名称生效，扩展名可以通过指令选项自定义<br><hr style="border: 2px solid red;">配置方法：变量请使用`${}`代替。<br>可用变量有：`session` `config` <br>日期：`YYYY` `MM` `DD`<br>随机数字：`A` `BB` `CCC`<br>▶详细说明 [请参考README](https://www.npmjs.com/package/koishi-plugin-image-save-path)'),
+    autoRenameRules: Schema.string().role('textarea', { rows: [2, 4] }).default("${YYYY}-${MM}-${DD}-${BB}-${BB}-${BB}-${CCC}").experimental()
+      .description("图片`自动重命名`时使用的名称格式<br>与上个配置项一样支持使用变量替换"),
+  }).description('文件保存设置'),
+
+  Schema.object({
     autosavePics: Schema.boolean().description("自动保存 的总开关：用于对重复一定次数的图进行保存<br>`如需查看详情日志，请开启consoleinfo配置项`"),
   }).description('进阶设置'),
   Schema.union([
@@ -287,8 +300,7 @@ function apply(ctx, config) {
     return urls?.length > 0 ? urls : null;
   };
 
-
-  const generateFilename = (session, config) => {
+  const replacePlaceholders = (template, session, config) => {
     const date = new Date();
     const variables = {
       'YYYY': date.getFullYear(), // 年份，例如 2023
@@ -299,35 +311,52 @@ function apply(ctx, config) {
       'CCC': String(Math.floor(Math.random() * 1000)).padStart(3, '0'), // 三位随机数字，范围 000 到 999
     };
 
-    // 动态替换 session 和 config 中的字段
-    const replacePlaceholders = (template, context) => {
-      return template.replace(/\$\{([^}]+)\}/g, (match, key) => {
-        // 如果 key 是预定义的变量（如 YYYY, MM 等），直接替换
-        if (variables[key]) {
-          return variables[key];
-        }
+    return template.replace(/\$\{([^}]+)\}/g, (match, key) => {
+      // 如果 key 是预定义的变量（如 YYYY, MM 等），直接替换
+      if (variables[key]) {
+        return variables[key];
+      }
 
-        // 如果 key 是 session 或 config 的字段，动态提取
-        const parts = key.split('.');
-        if (parts[0] === 'session' || parts[0] === 'config') {
-          const obj = parts[0] === 'session' ? session : config;
-          return parts.slice(1).reduce((acc, part) => acc?.[part], obj) || match;
-        }
+      // 如果 key 是 session 或 config 的字段，动态提取
+      const parts = key.split('.');
+      if (parts[0] === 'session' || parts[0] === 'config') {
+        const obj = parts[0] === 'session' ? session : config;
+        return parts.slice(1).reduce((acc, part) => acc?.[part], obj) || match;
+      }
 
-        // 如果 key 不是预定义的变量，返回原占位符
-        return match;
-      });
-    };
+      // 如果 key 不是预定义的变量，返回原占位符
+      return match;
+    });
+  };
 
+  const generateFilename = (session, config) => {
     // 替换占位符
-    let filename = replacePlaceholders(config.renameRules, { session, config });
-
+    let filename = replacePlaceholders(config.autoRenameRules, session, config);
     // 替换非法字符
     filename = filename.replace(/[\u0000-\u001f\u007f-\u009f\/\\:*?"<>|]/g, '_');
 
     loggerinfo(filename);
     return filename;
   };
+
+
+  const applyImageExtension = (filename, extension, config, session, withoutimageExtension) => {
+    const imageExtension = config.ImageExtension[0]; // 仅第一行视为有效配置
+
+    // 替换前缀和后缀中的变量
+    const prefix = replacePlaceholders(imageExtension?.prefix || '', session, config);
+    const suffix = replacePlaceholders(imageExtension?.suffix || '', session, config);
+    const defaultExtension = imageExtension?.extension || '.png';
+    // 应用前缀和后缀
+    let finalFilename = `${prefix}${filename}${suffix}`;
+    // 如果 withoutimageExtension 为 true，则不添加扩展名
+    const finalExtension = withoutimageExtension ? '' : (extension || defaultExtension);
+
+    loggerinfo(`applyImageExtension输出文件名：${finalFilename}${finalExtension}`);
+    return `${finalFilename}${finalExtension}`;
+  };
+
+
 
 
   ctx.command('保存图片 [参数...]')
@@ -393,7 +422,11 @@ function apply(ctx, config) {
         loggerinfo(image);
       }
 
-      const imageExtension = options.ext || config.defaultImageExtension;
+      let imageExtension = options.ext || config.ImageExtension[0]?.extension || '.png';
+      // 如果用户指定的扩展名没有以 . 开头，则自动添加
+      if (imageExtension && !imageExtension.startsWith('.')) {
+        imageExtension = `.${imageExtension}`;
+      }
       if (urlhselect.length > 1 && !config.checkDuplicate) {
         await session.send(session.text(".image_save_path_select_prompt"))
         return;
@@ -471,7 +504,8 @@ function apply(ctx, config) {
       } else {
         safeFilename = 文件名;
       }
-      safeFilename = safeFilename.replace(/[\u0000-\u001f\u007f-\u009f\/\\:*?"<>|]/g, '_');
+      // 应用 ImageExtension 的前缀、后缀和扩展名
+      safeFilename = applyImageExtension(safeFilename, imageExtension, config, session, true);
 
       // 保存图片
       try {
@@ -543,7 +577,7 @@ function apply(ctx, config) {
     for (let i = 0; i < urls.length; i++) {
       let url = urls[i];
       let fileRoot = path.join(selectedPath, safeFilename);
-      let fileExt = `.${imageExtension}`;
+      let fileExt = `${imageExtension}`;
       let targetPath = `${fileRoot}${fileExt}`;
       let index = 0;
 
@@ -583,6 +617,8 @@ function apply(ctx, config) {
       await session.send(duplicateMessages.join('\n'));
     }
   }
+
+
 
 
 
@@ -638,7 +674,11 @@ function apply(ctx, config) {
       if (hashRecords[hash].count >= count && !hashRecords[hash].saved) {
         // 使用 generateFilename 函数生成文件名
         const filename = generateFilename(session, config);
-        const finalPath = path.join(outputPath, `${filename}.png`);
+
+        // 应用 ImageExtension 的前缀、后缀和扩展名
+        const finalFilename = applyImageExtension(filename, null, config, session); // 使用默认扩展名
+        const finalPath = path.join(outputPath, finalFilename);
+
         fs.renameSync(tempPath, finalPath);
         loggerinfo(`图片已保存到：${finalPath}`);
         hashRecords[hash].path = finalPath;
@@ -652,6 +692,8 @@ function apply(ctx, config) {
       ctx.logger.error(`处理图片失败：${error}`);
     }
   }
+
+
 
   async function downloadImageBuffer(url, ctx) {
     const response = await ctx.http.get(url, { responseType: 'arraybuffer' });
