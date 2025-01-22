@@ -182,9 +182,9 @@ exports.Config = Schema.intersect([
   Schema.object({
     showSavePath: Schema.boolean().description("保存成功后，告知具体文件保存路径，关闭后只会回复`图片已成功保存。`").default(false),
     checkDuplicate: Schema.boolean().description("开启后将检查重名文件，避免覆盖，若同名，则在文件名后加`(1)`,`(2)`... ...").default(true),
-    imageSaveMode: Schema.boolean().description("开启后，默认选择了第一个路径，可以缺省路径参数<br>当然也支持输入路径参数<br>[此配置项效果图](https://i0.hdslb.com/bfs/article/1d34ae45de7e3c875eec0caee5444149312276085.png)").default(false),
+    imageSaveMode: Schema.boolean().description("开启后，默认选择了第一行的文件夹，可以缺省路径参数<br>当然也支持输入路径参数<br>[此配置项效果图](https://i0.hdslb.com/bfs/article/1d34ae45de7e3c875eec0caee5444149312276085.png)").default(false),
     savePaths: Schema.array(Schema.object({
-      name: Schema.string().description("备注名称"),
+      name: Schema.string().description("文件夹备注"),
       path: Schema.string().description("文件夹路径"),
     })).role('table').description('用于设置图片保存路径的名称和地址映射').default([{ name: "第一个", path: "C:\\Program Files" }, { name: "第二个", path: "E:\\Music\\nums" }]),
   }).description('基础设置'),
@@ -323,7 +323,10 @@ function apply(ctx, config) {
     let filename = replacePlaceholders(config.renameRules, { session, config });
 
     // 替换非法字符
-    return filename.replace(/[\u0000-\u001f\u007f-\u009f\/\\:*?"<>|]/g, '_');
+    filename = filename.replace(/[\u0000-\u001f\u007f-\u009f\/\\:*?"<>|]/g, '_')
+
+    loggerinfo(filename)
+    return filename;
   };
 
 
