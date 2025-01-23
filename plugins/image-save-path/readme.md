@@ -209,7 +209,7 @@
 #### 配置项格式
 - **类型**：数组（仅第一行视为有效配置）
 - **默认值**：
-  ```javascript
+  ```
   [
     {
       prefix: "",
@@ -220,7 +220,7 @@
   ```
 - **示例**：
 
-  ```javascript
+  ```
   ImageExtension: [
     {
       prefix: "prefix_${YYYY}_",
@@ -244,7 +244,7 @@
 
 #### 示例
 - **默认格式**：
-  ```javascript
+  ```
   ImageExtension: [
     {
       prefix: "",
@@ -256,7 +256,7 @@
   - 生成文件名：`2023-10-05-12-34-56-789.png`。
 
 - **包含前缀和后缀**：
-  ```javascript
+  ```
   ImageExtension: [
     {
       prefix: "prefix_${YYYY}_",
@@ -268,7 +268,7 @@
   - 生成文件名（假设 `session.userId` 为 `12345`）：`prefix_2023_2023-10-05-12-34-56-789_12345.jpg`。
 
 - **包含配置项**：
-  ```javascript
+  ```
   ImageExtension: [
     {
       prefix: "prefix_${config.ImageExtension[0]?.extension}_",
@@ -296,7 +296,7 @@
 - **默认值**：`${YYYY}-${MM}-${DD}-${BB}-${BB}-${BB}-${CCC}`
 - **示例**：
 
-  ```javascript
+  ```
   autoRenameRules: "${YYYY}-${MM}-${DD}-${BB}-${BB}-${BB}-${CCC}-${session.userId}"
   ```
 
@@ -314,19 +314,19 @@
 
 #### 示例
 - **默认格式**：
-  ```javascript
+  ```
   autoRenameRules: "${YYYY}-${MM}-${DD}-${BB}-${BB}-${BB}-${CCC}"
   ```
   - 生成文件名：`2023-10-05-12-34-56-789.png`。
 
 - **包含用户 ID**：
-  ```javascript
+  ```
   autoRenameRules: "${YYYY}-${MM}-${DD}-${BB}-${BB}-${BB}-${CCC}-${session.userId}"
   ```
   - 生成文件名（假设 `session.userId` 为 `12345`）：`2023-10-05-12-34-56-789-12345.png`。
 
 - **包含配置项**：
-  ```javascript
+  ```
   autoRenameRules: "${YYYY}-${MM}-${DD}-${BB}-${BB}-${BB}-${CCC}-${config.defaultImageExtension}"
   ```
   - 生成文件名（假设 `config.defaultImageExtension` 为 `png`）：`2023-10-05-12-34-56-789-png.png`。
