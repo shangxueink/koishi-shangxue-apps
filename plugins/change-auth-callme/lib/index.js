@@ -7,12 +7,8 @@ exports.name = "change-auth-callme";
 exports.inject = ["database"];
 exports.Config = Schema.intersect([
   Schema.object({
-    Command_Name: Schema.union([
-      Schema.const().description('不注册指令'),
-      Schema.string().description('自定义指令名称').default('changeauth'),
-    ]).description("注册的指令名称").default('自定义指令名称'),
-
-    // Command_Name: Schema.string().description("注册的指令名称").default('changeauth'),
+    Command: Schema.boolean().description("是否注册指令").default(true),
+    Command_Name: Schema.string().description("注册的指令名称").default('changeauth'),
     MAX_authority_Limit: Schema.number().default(5).description("允许修改为的最大权限值"),
     enableAutoAuth: Schema.boolean().description("中间件自动授权。`开启后`，根据用户`role`自动授权。")
   }).description('指令设置'),
@@ -87,7 +83,7 @@ exports.usage = `
 `;
 
 function apply(ctx, config) {
-  if (config.Command_Name) {
+  if (config.Command) {
     const zh_CN_default = {
       commands: {
         [config.Command_Name]: {
