@@ -7,9 +7,14 @@ exports.name = "change-auth-callme";
 exports.inject = ["database"];
 exports.Config = Schema.intersect([
   Schema.object({
-    Command_Name: Schema.string().description("注册的指令名称").default('changeauth'),
+    Command_Name: Schema.union([
+      Schema.const().description('不注册指令'),
+      Schema.string().description('自定义指令名称').default('changeauth'),
+    ]).description("注册的指令名称").default('自定义指令名称'),
+
+    // Command_Name: Schema.string().description("注册的指令名称").default('changeauth'),
     MAX_authority_Limit: Schema.number().default(5).description("允许修改为的最大权限值"),
-    enableAutoAuth: Schema.boolean().description("中间件监听开关。`开启后`，根据用户`role`自动授权。")
+    enableAutoAuth: Schema.boolean().description("中间件自动授权。`开启后`，根据用户`role`自动授权。")
   }).description('指令设置'),
 
   Schema.union([
@@ -82,26 +87,80 @@ exports.usage = `
 `;
 
 function apply(ctx, config) {
-  const zh_CN_default = {
-    commands: {
-      [config.Command_Name]: {
-        description: "定义自己的权限",
-        messages: {
-          current: "authority{0}！",
-          unnamed: "暂无authority",
-          unchanged: "authority未发生变化。",
-          empty: "authority不能为空。",
-          invalid: "权限值必须为纯数字。",
-          toolarge: "您输入的权限值过高，最大值为：{0}。",
-          toosmall: "您输入的权限值过低，最小值为：1。",
-          updated: "您的权限已改为：{0}",
-          failed: "修改authority失败。"
+  if (config.Command_Name) {
+    const zh_CN_default = {
+      commands: {
+        [config.Command_Name]: {
+          description: "定义自己的权限",
+          messages: {
+            current: "authority{0}！",
+            unnamed: "暂无authority",
+            unchanged: "authority未发生变化。",
+            empty: "authority不能为空。",
+            invalid: "权限值必须为纯数字。",
+            toolarge: "您输入的权限值过高，最大值为：{0}。",
+            toosmall: "您输入的权限值过低，最小值为：1。",
+            updated: "您的权限已改为：{0}",
+            failed: "修改authority失败。"
+          }
         }
       }
-    }
-  };
+    };
+    ctx.i18n.define("zh-CN", zh_CN_default);
+    ctx.command(`${config.Command_Name} [authority:text]`, `自定义权限等级`)
+      .userFields(["id", "authority"])
+      .shortcut("提权", { prefix: true, fuzzy: true })
+      .action(async ({ session }, authority) => {
+        const { user } = session;
+        if (!authority) {
+          logInfo(`用户 ${user.id} 未提供权限值，返回空值错误。`);
+          return session.text(".empty");
+        }
+        authority = h.transform(authority, {
+          text: true,
+          default: false
+        }).trim();
 
-  ctx.i18n.define("zh-CN", zh_CN_default);
+        // 验证是否为纯数字
+        if (!/^\d+$/.test(authority)) {
+          logInfo(`用户 ${user.id} 提供的权限值 ${authority} 不是纯数字，返回无效错误。`);
+          return session.text(".invalid");
+        }
+
+        // 转换为整数并验证范围
+        const authorityValue = parseInt(authority);
+        if (authorityValue < 1) {
+          logInfo(`用户 ${user.id} 提供的权限值 ${authorityValue} 小于 1，返回过小错误。`);
+          return session.text(".toosmall");
+        }
+        if (authorityValue > config.MAX_authority_Limit) {
+          logInfo(`用户 ${user.id} 提供的权限值 ${authorityValue} 超过最大值 ${config.MAX_authority_Limit}，返回过大错误。`);
+          return session.text(".toolarge", [config.MAX_authority_Limit]);
+        }
+
+        if (authorityValue === user.authority) {
+          logInfo(`用户 ${user.id} 的权限值未发生变化，仍为 ${authorityValue}。`);
+          return session.text(".unchanged");
+        }
+
+        const result = ctx.bail("common/changeauth", authorityValue, session);
+        if (result) {
+          logInfo(`用户 ${user.id} 的权限修改被拦截，返回结果: ${result}`);
+          return result;
+        }
+
+        try {
+          logInfo(`用户 ${user.id} 的权限值从 ${user.authority} 更新为 ${authorityValue}。`);
+          user.authority = authorityValue;
+          await user.$update();
+          return session.text(".updated", [authorityValue]);
+        } catch (error) {
+          logInfo(`用户 ${user.id} 的权限更新失败，错误信息: ${error.message}`);
+          ctx.logger("common").warn(error);
+          return session.text(".failed");
+        }
+      });
+  }
 
   // 调试日志函数
   function logInfo(message) {
@@ -157,59 +216,7 @@ function apply(ctx, config) {
     }, config.middleware_true);
   }
 
-  ctx.command(`${config.Command_Name} [authority:text]`, `自定义权限等级`)
-    .userFields(["id", "authority"])
-    .shortcut("提权", { prefix: true, fuzzy: true })
-    .action(async ({ session }, authority) => {
-      const { user } = session;
-      if (!authority) {
-        logInfo(`用户 ${user.id} 未提供权限值，返回空值错误。`);
-        return session.text(".empty");
-      }
-      authority = h.transform(authority, {
-        text: true,
-        default: false
-      }).trim();
 
-      // 验证是否为纯数字
-      if (!/^\d+$/.test(authority)) {
-        logInfo(`用户 ${user.id} 提供的权限值 ${authority} 不是纯数字，返回无效错误。`);
-        return session.text(".invalid");
-      }
-
-      // 转换为整数并验证范围
-      const authorityValue = parseInt(authority);
-      if (authorityValue < 1) {
-        logInfo(`用户 ${user.id} 提供的权限值 ${authorityValue} 小于 1，返回过小错误。`);
-        return session.text(".toosmall");
-      }
-      if (authorityValue > config.MAX_authority_Limit) {
-        logInfo(`用户 ${user.id} 提供的权限值 ${authorityValue} 超过最大值 ${config.MAX_authority_Limit}，返回过大错误。`);
-        return session.text(".toolarge", [config.MAX_authority_Limit]);
-      }
-
-      if (authorityValue === user.authority) {
-        logInfo(`用户 ${user.id} 的权限值未发生变化，仍为 ${authorityValue}。`);
-        return session.text(".unchanged");
-      }
-
-      const result = ctx.bail("common/changeauth", authorityValue, session);
-      if (result) {
-        logInfo(`用户 ${user.id} 的权限修改被拦截，返回结果: ${result}`);
-        return result;
-      }
-
-      try {
-        logInfo(`用户 ${user.id} 的权限值从 ${user.authority} 更新为 ${authorityValue}。`);
-        user.authority = authorityValue;
-        await user.$update();
-        return session.text(".updated", [authorityValue]);
-      } catch (error) {
-        logInfo(`用户 ${user.id} 的权限更新失败，错误信息: ${error.message}`);
-        ctx.logger("common").warn(error);
-        return session.text(".failed");
-      }
-    });
 }
 
 exports.apply = apply;
