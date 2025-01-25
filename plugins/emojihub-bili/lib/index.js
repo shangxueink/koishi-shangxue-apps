@@ -138,11 +138,14 @@ exports.Config = Schema.intersect([
   Schema.object({
     markdown_button_mode: Schema.union([
       Schema.const('unset').description('取消应用此配置项'),
-      Schema.const('json').description('json按钮-----------20 群'),
+      Schema.const('json').description('json按钮-----------20 群（频道不可用）'),
       Schema.const('markdown').description('被动md模板--------2000 DAU'),
-      Schema.const('markdown_raw_json').description('被动md模板--------原生按钮'),
+      Schema.const('markdown_raw_json').description('被动md模板--------2000 DAU - 原生按钮'),
       Schema.const('raw').description('原生md------------10000 DAU'),
     ]).role('radio').description('markdown/按钮模式选择').default("unset"),
+    markdown_button_mode_initiative: Schema.boolean().description("开启后，使用 主动消息 发送markdown。<br>即开启后不带`messageId`发送<br>适用于私域机器人频道使用。私域机器人需要使用`被动md模板、json模板`并且使用主动markdown").default(false),
+    markdown_button_mode_keyboard: Schema.boolean().description("开启后，markdown加上按钮。关闭后，不加按钮内容哦<br>不影响markdown发送，多用于调试功能使用").default(true).experimental(),
+    markdown_button_mode_without_emojilist_keyboard: Schema.boolean().description("开启后，表情包列表使用下方`nestedlist`配置的表情包列表按钮。关闭后，仅发送普通的文字列表").default(true).experimental(),
   }).description('QQ官方按钮设置'),
   Schema.union([
     Schema.object({
@@ -276,7 +279,7 @@ exports.Config = Schema.intersect([
     LocalSendNetworkPicturesList: Schema.string().role('textarea', { rows: [2, 4] }).description('将`下列指令`对应的内容下载至本地，作为本地图片发送').default().experimental(),
     deletePictime: Schema.number().default(10).description('若干`秒`后 删除下载的本地临时文件').experimental(),
     localPicToBase64: Schema.boolean().description("`开启后`本地图片以base64发出 `日常使用无需开启，且不建议官方bot使用`").experimental().default(false),
-    QQPicToChannelUrl: Schema.boolean().description("`开启后`， `img_url`会先上传QQ频道，拿到频道URL，用于发送markdown").experimental().default(false),
+    QQPicToChannelUrl: Schema.boolean().description("`开启后`， `img_url`会先上传QQ频道，拿到频道URL，用于发送markdown<br>被动md需要URL白名单，用这个也没效果。<br>仅对原生发本地文件夹的图有意义。").experimental().default(false),
     QQchannelId: Schema.string().description('`填入QQ频道的频道ID`，将该ID的频道作为中转频道 <br> 频道ID可以用[inspect插件来查看](/market?keyword=inspect) `频道ID应为纯数字`').experimental().pattern(/^\S+$/),
     consoleinfo: Schema.boolean().default(false).description("日志调试模式`日常使用无需开启`"),
   }).description('调试选项'),
@@ -692,12 +695,19 @@ function apply(ctx, config) {
   }
 
 
-  /**
-   * 发送列表按钮
-   * @param session 
-   * @returns 
-   */
+
+
   function command_list_markdown(session) {
+    const markdownMessage = {
+      msg_type: 2,
+      markdown: {},
+      keyboard: {},
+    };
+
+    if (!config.markdown_button_mode_initiative) {
+      markdownMessage.msg_id = session.messageId;
+    }
+
     if (config.markdown_button_mode === "markdown") {
       const templateId = config.nestedlist.markdown_button_template_id;
       const keyboardId = config.nestedlist.markdown_button_keyboard_id;
@@ -708,25 +718,20 @@ function apply(ctx, config) {
         values: replacePlaceholders(item.replace_parameters, { session, config }),
       }));
 
-
-      const markdown = {
-        msg_type: 2,
-        msg_id: session.messageId,
-        markdown: {
-          custom_template_id: templateId,
-          params: params,
-        },
-        keyboard: {
-          id: keyboardId,
-        },
+      markdownMessage.markdown = {
+        custom_template_id: templateId,
+        params: params,
       };
-      logInfo(`Markdown 模板参数: ${JSON.stringify(markdown, null, 2)}`);
-      return markdown;
+      if (config.markdown_button_mode_keyboard) {
+        markdownMessage.keyboard = {
+          id: keyboardId,
+        };
+      }
+
     } else if (config.markdown_button_mode === "markdown_raw_json") {
       const templateId = config.nestedlist.markdown_raw_json_button_template_id;
       const contentTable = config.nestedlist.markdown_raw_json_button_content_table;
       let keyboard = JSON.parse(config.nestedlist.markdown_raw_json_button_keyboard);
-
 
       keyboard = replacePlaceholders(keyboard, { session, config }, true);
 
@@ -735,103 +740,86 @@ function apply(ctx, config) {
         values: replacePlaceholders(item.replace_parameters, { session, config }),
       }));
 
-      const markdownMessage = {
-        msg_type: 2,
-        msg_id: session.messageId,
-        markdown: {
-          custom_template_id: templateId,
-          params: params,
-        },
-        keyboard: {
-          "content": keyboard
-        },
+      markdownMessage.markdown = {
+        custom_template_id: templateId,
+        params: params,
       };
-      logInfo(`Markdown 模板参数: ${JSON.stringify(markdownMessage, null, 2)}`);
-      return markdownMessage;
+      if (config.markdown_button_mode_keyboard) {
+        markdownMessage.keyboard = {
+          content: keyboard,
+        };
+      }
     } else if (config.markdown_button_mode === "raw") {
       try {
         const rawMarkdownContent = config.nestedlist.raw_markdown_button_content;
         const rawMarkdownKeyboard = config.nestedlist.raw_markdown_button_keyboard;
-        // 替换 Markdown 内容中的占位符
-        const replacedMarkdownContent = replacePlaceholders(rawMarkdownContent, { session, config }, true);
 
-        // 替换键盘内容中的占位符
+        const replacedMarkdownContent = replacePlaceholders(rawMarkdownContent, { session, config }, true);
         const replacedMarkdownKeyboard = replacePlaceholders(rawMarkdownKeyboard, { session, config }, true)
           .replace(/^[\s\S]*?"keyboard":\s*/, '')
           .replace(/\\n/g, '')
           .replace(/\\"/g, '"')
           .trim();
 
-        //logInfo(`原生 Markdown 内容: ${replacedMarkdownContent}`);
-        //logInfo(`原生 Markdown 键盘: ${replacedMarkdownKeyboard}`);
-
-        // 解析键盘内容为 JSON 对象
         const keyboard = JSON.parse(replacedMarkdownKeyboard);
 
-        const rawMarkdownCommand = {
-          msg_type: 2,
-          msg_id: session.messageId,
-          markdown: {
-            content: replacedMarkdownContent,
-          },
-          keyboard: {
-            "content": keyboard
-          },
+        markdownMessage.markdown = {
+          content: replacedMarkdownContent,
         };
-
-        logInfo(`原生 Markdown 命令: ${JSON.stringify(rawMarkdownCommand, null, 2)}`);
-        return rawMarkdownCommand;
+        if (config.markdown_button_mode_keyboard) {
+          markdownMessage.keyboard = {
+            content: keyboard,
+          };
+        }
       } catch (error) {
         logError(`解析原生 Markdown 出错: ${error}`);
         return null;
       }
     }
 
+    logInfo(`Markdown 模板参数: ${JSON.stringify(markdownMessage, null, 2)}`);
+    return markdownMessage;
   }
-  /**
-   * 发送 Markdown
-   * @param session 
-   * @param command 用户输入的指令
-   * @param imageUrl 图片的链接，带上 https://
-   * @returns 
-   */
+
+
   async function markdown(session, command, imageUrl) {
+    const markdownMessage = {
+      msg_type: 2,
+      markdown: {},
+      keyboard: {},
+    };
+
+    if (!config.markdown_button_mode_initiative) {
+      markdownMessage.msg_id = session.messageId;
+    }
+
+    const canvasimage = await ctx.canvas.loadImage(imageUrl);
+    let originalWidth = canvasimage.naturalWidth || canvasimage.width;
+    let originalHeight = canvasimage.naturalHeight || canvasimage.height;
+
     if (config.markdown_button_mode === "markdown") {
       const templateId = config.nested.markdown_button_template_id;
       const keyboardId = config.nested.markdown_button_keyboard_id;
       const contentTable = config.nested.markdown_button_content_table;
-
-      const canvasimage = await ctx.canvas.loadImage(imageUrl);
-      let originalWidth = canvasimage.naturalWidth || canvasimage.width;
-      let originalHeight = canvasimage.naturalHeight || canvasimage.height;
 
       const params = contentTable.map(item => ({
         key: item.raw_parameters,
         values: replacePlaceholders(item.replace_parameters, { session, config, img_pxpx: `img#${originalWidth}px #${originalHeight}px`, img_url: imageUrl, command }),
       }));
 
-
-      const markdown = {
-        msg_type: 2,
-        msg_id: session.messageId,
-        markdown: {
-          custom_template_id: templateId,
-          params: params,
-        },
-        keyboard: {
-          id: keyboardId,
-        },
+      markdownMessage.markdown = {
+        custom_template_id: templateId,
+        params: params,
       };
-      logInfo(`Markdown 模板参数: ${JSON.stringify(markdown, null, 2)}`);
-      return markdown;
+      if (config.markdown_button_mode_keyboard) {
+        markdownMessage.keyboard = {
+          id: keyboardId,
+        };
+      }
     } else if (config.markdown_button_mode === "markdown_raw_json") {
       const templateId = config.nested.markdown_raw_json_button_template_id;
       const contentTable = config.nested.markdown_raw_json_button_content_table;
       let keyboard = JSON.parse(config.nested.markdown_raw_json_button_keyboard);
-
-      const canvasimage = await ctx.canvas.loadImage(imageUrl);
-      let originalWidth = canvasimage.naturalWidth || canvasimage.width;
-      let originalHeight = canvasimage.naturalHeight || canvasimage.height;
 
       keyboard = replacePlaceholders(keyboard, { session, config, img_pxpx: `img#${originalWidth}px #${originalHeight}px`, img_url: imageUrl, command }, true);
 
@@ -840,70 +828,60 @@ function apply(ctx, config) {
         values: replacePlaceholders(item.replace_parameters, { session, config, img_pxpx: `img#${originalWidth}px #${originalHeight}px`, img_url: imageUrl, command }),
       }));
 
-      const markdownMessage = {
-        msg_type: 2,
-        msg_id: session.messageId,
-        markdown: {
-          custom_template_id: templateId,
-          params: params,
-        },
-        keyboard: {
-          "content": keyboard
-        },
+      markdownMessage.markdown = {
+        custom_template_id: templateId,
+        params: params,
       };
-      logInfo(`Markdown 模板参数: ${JSON.stringify(markdownMessage, null, 2)}`);
-      return markdownMessage;
+      if (config.markdown_button_mode_keyboard) {
+        markdownMessage.keyboard = {
+          content: keyboard,
+        };
+      }
     } else if (config.markdown_button_mode === "raw") {
       try {
         const rawMarkdownContent = config.nested.raw_markdown_button_content;
         const rawMarkdownKeyboard = config.nested.raw_markdown_button_keyboard;
-        const canvasimage = await ctx.canvas.loadImage(imageUrl);
-        let originalWidth = canvasimage.naturalWidth || canvasimage.width;
-        let originalHeight = canvasimage.naturalHeight || canvasimage.height;
 
-        // 替换 Markdown 内容中的占位符
         const replacedMarkdownContent = replacePlaceholders(rawMarkdownContent, { session, config, img_pxpx: `img#${originalWidth}px #${originalHeight}px`, img_url: imageUrl, command }, true);
-
-        // 替换键盘内容中的占位符
         const replacedMarkdownKeyboard = replacePlaceholders(rawMarkdownKeyboard, { session, config, command }, true)
           .replace(/^[\s\S]*?"keyboard":\s*/, '')
           .replace(/\\n/g, '')
           .replace(/\\"/g, '"')
           .trim();
 
-        //logInfo(`原生 Markdown 内容: ${replacedMarkdownContent}`);
-        //logInfo(`原生 Markdown 键盘: ${replacedMarkdownKeyboard}`);
-
-        // 解析键盘内容为 JSON 对象
         const keyboard = JSON.parse(replacedMarkdownKeyboard);
 
-        const rawMarkdownCommand = {
-          msg_type: 2,
-          msg_id: session.messageId,
-          markdown: {
-            content: replacedMarkdownContent,
-          },
-          keyboard: {
-            "content": keyboard
-          },
+        markdownMessage.markdown = {
+          content: replacedMarkdownContent,
         };
-
-        logInfo(`原生 Markdown 命令: ${JSON.stringify(rawMarkdownCommand, null, 2)}`);
-        return rawMarkdownCommand;
+        if (config.markdown_button_mode_keyboard) {
+          markdownMessage.keyboard = {
+            content: keyboard,
+          };
+        }
       } catch (error) {
         logError(`解析原生 Markdown 出错: ${error}`);
         return null;
       }
     }
 
+    logInfo(`Markdown 模板参数: ${JSON.stringify(markdownMessage, null, 2)}`);
+    return markdownMessage;
   }
-
   // 提取消息发送逻辑为函数
   async function sendmarkdownMessage(session, message) {
-    if (session.isDirect) {
-      await session.qq.sendPrivateMessage(session.channelId, message);
-    } else {
-      await session.qq.sendMessage(session.channelId, message);
+    if (session.qqguild) {
+      if (session.isDirect) {
+        await session.qqguild.sendPrivateMessage(session.channelId, message);
+      } else {
+        await session.qqguild.sendMessage(session.channelId, message);
+      }
+    } else if (session.qq) {
+      if (session.isDirect) {
+        await session.qq.sendPrivateMessage(session.channelId, message);
+      } else {
+        await session.qq.sendMessage(session.channelId, message);
+      }
     }
   }
 
@@ -914,7 +892,7 @@ function apply(ctx, config) {
       const txtCommandList = listAllCommands(config);
       logInfo(`指令列表txtCommandList：  ` + txtCommandList);
 
-      if (config.markdown_button_mode === "markdown" || config.markdown_button_mode === "raw" || config.markdown_button_mode === "json" || config.markdown_button_mode === "markdown_raw_json") {
+      if (config.markdown_button_mode_without_emojilist_keyboard && (config.markdown_button_mode === "markdown" || config.markdown_button_mode === "raw" || config.markdown_button_mode === "json" || config.markdown_button_mode === "markdown_raw_json")) {
         let markdownMessage = command_list_markdown(session);
         await sendmarkdownMessage(session, markdownMessage);
       } else {

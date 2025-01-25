@@ -445,6 +445,31 @@ Koishi插件市场搜索并安装`emojihub-bili`
 
 <details>
 <summary>点击此处————查看完整说明</summary>
+
+使用本插件来发送markdown，你需要：
+
+1. 配置URL白名单
+2. 配置对应的markdown模板
+
+其中URL白名单部分，需要进行校验和加白。
+
+我们推荐你在对应的校验地址上做一个图片跳转服务，比如
+
+```
+https://tx.qqbot.cnm/url
+使用方法：↓↓↓
+/url/?url=跳转地址        // 携带http(s)
+/url/qq.php?qq=QQ号       // 显示头像
+/url/img.php?img=图片链接  // 加载图片
+```
+
+然后你可以每次调用markdown图片的时候使用 `https://tx.qqbot.cnm/url/img.php?img=图片链接 `这个方法
+
+例如:
+```
+https://tx.qqbot.cnm/url/img.php?img=https://i1.hdslb.com/bfs/archive/72fcfba441164439595b599d2d03554bb44a9067.jpg
+```
+
 #### 本插件模板举例---1
 ```
 **{{.text1}}**
@@ -469,7 +494,7 @@ Koishi插件市场搜索并安装`emojihub-bili`
   },
   {
     "raw_parameters": "your_markdown_url",
-    "replace_parameters": "${img_url}"
+    "replace_parameters": "https://tx.qqbot.cnm/url/img.php?img=${img_url}"
   }
 ]
 ```
@@ -497,7 +522,7 @@ Koishi插件市场搜索并安装`emojihub-bili`
   },
   {
     "raw_parameters": "your_markdown_url",
-    "replace_parameters": "(${img_url})"
+    "replace_parameters": "https://tx.qqbot.cnm/url/img.php?img=(${img_url})"
   }
 ]
 ```
@@ -688,6 +713,12 @@ markdown的按钮参数，需要填入按钮模板ID，
 
 <details>
 <summary>点击此处————查看更新日志</summary>
+
+- **1.2.6**
+   - 适配私域markdown功能，通过主动md发送，与被动md基本一样
+   - 优化markdown函数
+   - 优化readme说明
+   - 新增markdown_button_mode_keyboard、markdown_button_mode_without_emojilist_keyboard，方便调试。也适配多种需求
 
 - **1.2.1**
    - 优化按钮json，与q.qq.com按钮模板内容格式一致
