@@ -1083,7 +1083,6 @@ function apply(ctx, config) {
       }
     });
 
-
   if (config.autoEmoji === "定量消息发送" && (config.groupListmapping.length || config.allgroupautoEmoji)) {
     const groups = {};
     // 初始化特定群组的配置
@@ -1093,8 +1092,7 @@ function apply(ctx, config) {
         // 如果enable为true，则将该群组标记为黑名单
         groups[groupList] = { blacklisted: true };
       } else {
-        groups[groupList] = { emojicommand: defaultemojicommand, cronTime };
-
+        groups[groupList] = { emojicommand: defaultemojicommand, threshold: count };
       }
     });
 
@@ -1118,7 +1116,7 @@ function apply(ctx, config) {
 
       // 如果存在配置，处理表情包逻辑
       if (groupConfig) {
-        groupConfig.count++; // 增加消息计数
+        groupConfig.count = (groupConfig.count || 0) + 1; // 增加消息计数
 
         // 达到触发条件
         if (groupConfig.count >= groupConfig.threshold) {
@@ -1186,7 +1184,6 @@ function apply(ctx, config) {
         groups[groupList] = { blacklisted: true };
       } else {
         groups[groupList] = { emojicommand: defaultemojicommand, cronTime };
-
       }
     });
 
