@@ -6,7 +6,6 @@ const url = require("node:url");
 const path = require("node:path");
 const crypto = require("node:crypto");
 const { Schema, Logger, h } = require("koishi");
-const { log } = require('node:console');
 exports.inject = {
   optional: ['canvas', "cron"]
 };
