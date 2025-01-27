@@ -124,8 +124,16 @@ exports.Config = Schema.intersect([
         enable: Schema.boolean().description('勾选后 屏蔽该群 的自动表情包').default(false),
       })).role('table').description('表情包指令映射 `注意群组ID不要多空格什么的`<br>私聊频道有`private:`前缀<br>表情包名称请通过逗号分隔')
         .default([
-          { groupList: '114514', defaultemojicommand: 'koishi-meme，白圣女表情包，男娘武器库', enable: false },
-          { groupList: '1919810', defaultemojicommand: '随机emojihub表情包', enable: true },
+          {
+            "groupList": "114514",
+            "defaultemojicommand": "koishi-meme，白圣女表情包，男娘武器库",
+            "enable": false
+          },
+          {
+            "groupList": "private:1919810",
+            "defaultemojicommand": "随机emojihub表情包",
+            "enable": true
+          }
         ]),
       allgroupautoEmoji: Schema.boolean().description("`全部群组` 开启自动表情包").default(false),
       allgroupemojicommand: Schema.string().role('textarea', { rows: [2, 4] })
@@ -1172,96 +1180,98 @@ function apply(ctx, config) {
     }, config.middleware);
   }
 
+  ctx.on('ready', () => {
+    if (config.autoEmoji === "定时发送" && config.groupListmapping.length && ctx.cron) {
+      const groups = {};
+      // 初始化特定群组的配置
+      config.groupListmapping.forEach(({ groupList, defaultemojicommand, cronTime, enable }) => {
+        // 只有当enable为false或未定义时，才将群组添加到启用列表中
+        if (enable === true) {
+          // 如果enable为true，则将该群组标记为黑名单
+          groups[groupList] = { blacklisted: true };
+        } else {
+          groups[groupList] = { emojicommand: defaultemojicommand, cronTime };
+        }
+      });
 
-  if (config.autoEmoji === "定时发送" && config.groupListmapping.length) {
-    const groups = {};
-    // 初始化特定群组的配置
-    config.groupListmapping.forEach(({ groupList, defaultemojicommand, cronTime, enable }) => {
-      // 只有当enable为false或未定义时，才将群组添加到启用列表中
-      if (enable === true) {
-        // 如果enable为true，则将该群组标记为黑名单
-        groups[groupList] = { blacklisted: true };
-      } else {
-        groups[groupList] = { emojicommand: defaultemojicommand, cronTime };
-      }
-    });
+      // 定时触发表情包
+      for (const channelId in groups) {
+        const groupConfig = groups[channelId];
 
-    // 定时触发表情包
-    for (const channelId in groups) {
-      const groupConfig = groups[channelId];
+        // 如果当前群组标记为黑名单，则跳过处理
+        if (groupConfig && groupConfig.blacklisted) {
+          continue;
+        }
 
-      // 如果当前群组标记为黑名单，则跳过处理
-      if (groupConfig && groupConfig.blacklisted) {
-        continue;
-      }
+        // 如果当前群组没有特定配置，则跳过
+        if (!groupConfig) {
+          continue;
+        }
 
-      // 如果当前群组没有特定配置，则跳过
-      if (!groupConfig) {
-        continue;
-      }
-
-      // 如果存在配置，设置定时任务
-      if (groupConfig) {
-        ctx.cron(groupConfig.cronTime, async () => {
-          const bot = ctx.bots[config.bot];
-          if (bot == null) return;
-          const randomNumber = Math.random();
-          // 触发概率判断
-          if (randomNumber <= config.triggerprobability) {
-            logInfo(`尝试向 ${channelId} 定时发送表情包中...`)
-            let emojicommands = groupConfig.emojicommand.split(/\n|,|，/).map(cmd => cmd.trim());
-            const randomCommand = emojicommands[Math.floor(Math.random() * emojicommands.length)];
-            const emojiConfig = config.MoreEmojiHubList.find(({ command }) => command === randomCommand);
-            if (emojiConfig) {
-              const imageResult = await determineImagePath(emojiConfig.source_url, config, channelId, emojiConfig.command, ctx);
-              if (imageResult.imageUrl) {
-                try {
-                  let message;
-                  if (imageResult.isLocal) { //本地图片
-                    if (config.localPicToBase64) {
-                      //本地base64发图
-                      let imagebase64 = await getImageAsBase64(imageResult.imageUrl);
-                      message = h('image', { url: 'data:image/png;base64,' + imagebase64 });
-                    } else {
-                      //正常本地文件发图
-                      const imageUrl = url.pathToFileURL(imageResult.imageUrl).href;
-                      message = h.image(imageUrl);
-                    }
-                  } else {
-                    message = h.image(imageResult.imageUrl);
-                  }
-
-                  // 判断是群聊还是私聊
-                  if (!channelId.includes("private")) {
-                    await bot.sendMessage(channelId, message);
-                  } else {
-                    const userId = channelId.replace("private:", "");
-                    await bot.sendPrivateMessage(userId, message);
-                  }
-
-                  // 如果需要撤回消息
-                  if (config.deleteMsg) {
-                    setTimeout(async () => {
-                      try {
-                        await bot.deleteMessage(channelId, message);
-                      } catch (error) {
-                        logError(`撤回消息失败: ${error}`);
+        // 如果存在配置，设置定时任务
+        if (groupConfig) {
+          ctx.cron(groupConfig.cronTime, async () => {
+            const bot = ctx.bots[config.bot];
+            if (bot == null) return;
+            const randomNumber = Math.random();
+            // 触发概率判断
+            if (randomNumber <= config.triggerprobability) {
+              logInfo(`尝试向 ${channelId} 定时发送表情包中...`)
+              let emojicommands = groupConfig.emojicommand.split(/\n|,|，/).map(cmd => cmd.trim());
+              const randomCommand = emojicommands[Math.floor(Math.random() * emojicommands.length)];
+              const emojiConfig = config.MoreEmojiHubList.find(({ command }) => command === randomCommand);
+              if (emojiConfig) {
+                const imageResult = await determineImagePath(emojiConfig.source_url, config, channelId, emojiConfig.command, ctx);
+                if (imageResult.imageUrl) {
+                  try {
+                    let message;
+                    if (imageResult.isLocal) { //本地图片
+                      if (config.localPicToBase64) {
+                        //本地base64发图
+                        let imagebase64 = await getImageAsBase64(imageResult.imageUrl);
+                        message = h('image', { url: 'data:image/png;base64,' + imagebase64 });
+                      } else {
+                        //正常本地文件发图
+                        const imageUrl = url.pathToFileURL(imageResult.imageUrl).href;
+                        message = h.image(imageUrl);
                       }
-                    }, config.deleteMsgtime * 1000);
+                    } else {
+                      message = h.image(imageResult.imageUrl);
+                    }
+
+                    // 判断是群聊还是私聊
+                    if (!channelId.includes("private")) {
+                      await bot.sendMessage(channelId, message);
+                    } else {
+                      const userId = channelId.replace("private:", "");
+                      await bot.sendPrivateMessage(userId, message);
+                    }
+
+                    // 如果需要撤回消息
+                    if (config.deleteMsg) {
+                      setTimeout(async () => {
+                        try {
+                          await bot.deleteMessage(channelId, message);
+                        } catch (error) {
+                          logError(`撤回消息失败: ${error}`);
+                        }
+                      }, config.deleteMsgtime * 1000);
+                    }
+                  } catch (error) {
+                    logError(`发送图片错误: ${error}`);
                   }
-                } catch (error) {
-                  logError(`发送图片错误: ${error}`);
                 }
               }
+            } else {
+              logInfo(`定时发送：概率判断结果：${randomNumber}<= ${config.triggerprobability}\n此次不发送表情包，并且重置计数。`)
             }
-          } else {
-            logInfo(`定时发送：概率判断结果：${randomNumber}<= ${config.triggerprobability}\n此次不发送表情包，并且重置计数。`)
-          }
-        });
+          });
+        }
       }
+    } else if (config.autoEmoji === "定时发送" && config.groupListmapping.length && !ctx.cron) {
+      ctx.logger.error("cron 服务加载失败！")
     }
-  }
-
+  })
 }
 
 exports.apply = apply;

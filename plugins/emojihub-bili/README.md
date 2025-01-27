@@ -784,10 +784,11 @@ markdown的按钮参数，需要填入按钮模板ID，
 <details>
 <summary>点击此处————查看更新日志</summary>
 
-- **1.3.6**
+- **1.3.7**
     - 优化readme更新日志
     - 同步package.json服务声明
     - 移除多余的`log`引入
+    - 加入`ctx.on('ready'`以修复在定时发送模式下，cron加载慢于emojihub导致的ctx.cron未定义的问题。
 
 
 - **1.3.5**
