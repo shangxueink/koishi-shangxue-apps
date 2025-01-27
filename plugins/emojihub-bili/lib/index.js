@@ -25,11 +25,11 @@ exports.usage = `
 <p> </p>
 <h2>温馨提示：</h2>
 <p><br>请勿将自定义的txt文件与本插件放置在同一目录下，以免插件更新导致文件丢失。</p>
-<p>目前EmojiHub-bili默认提供 <code>43套</code> 表情包。若您的配置内容有误差，请点击 <code>MoreEmojiHub</code> 表格右上角按钮内的 <code>恢复默认值</code>。</p>
+<p>目前EmojiHub-bili默认提供 <code>43套</code> 表情包。若您的配置内容有误差，请点击 <code>MoreEmojiHubList</code> 表格右上角按钮内的 <code>恢复默认值</code>。</p>
 <p>若开启插件后，指令不出现，<a href="/market?keyword=commands">请重新开关commands插件</a></p>
 `;
 const logger = new Logger('emojihub-bili');
-const defaultMoreEmojiHub = [
+const defaultMoreEmojiHubList = [
   // 下面实际有效为 43套
   { command: '本地图库示例', source_url: path.join(__dirname, 'txts') },
   { command: '网络图片示例', source_url: 'https://i0.hdslb.com/bfs/article/afc31d0e398204d94478473a497028e6352074746.gif' },
@@ -86,10 +86,16 @@ exports.Config = Schema.intersect([
     emojihub_bili_command: Schema.string().default('emojihub-bili').description('`父级指令`的指令名称').pattern(/^\S+$/),
     MoreEmojiHub: Schema.array(Schema.object({
       command: Schema.string().description('注册的指令名称'),
-      //enable: Schema.boolean().description('隐藏指令'),
       source_url: Schema.string().description('表情包文件地址'),
-    })).role('table').default(defaultMoreEmojiHub)
+    })).role('table').default(defaultMoreEmojiHubList)
+      .description('表情包指令映射表<br>▶ 这里是你的旧版本配置，我们即将更换默认TXT的路径，请确保即使备份、迁移<br>▶ 目前下方的`MoreEmojiHubList`配置项为有效配置'),
+
+    MoreEmojiHubList: Schema.array(Schema.object({
+      command: Schema.string().description('注册的指令名称'),
+      source_url: Schema.string().description('表情包文件地址'),
+    })).role('table').default(defaultMoreEmojiHubList)
       .description('表情包指令映射表<br>▶ 若出现配置问题 请点击右方按钮 可以恢复到默认值<br>右列`文件地址`可以填入`txt绝对路径`、`文件夹绝对路径`、`图片直链`、`图片文件绝对路径`。支持格式 详见[➩项目README](https://github.com/shangxueink/koishi-shangxue-apps/tree/main/plugins/emojihub-bili)'),
+
     searchSubfolders: Schema.boolean().description("是否递归搜索文件夹。`开启后 对于本地文件夹地址 会搜索其子文件夹内全部的图片`").default(true),
     deleteMsg: Schema.boolean().description("`开启后`自动撤回表情").default(false),
   }).description('表情包设置'),
@@ -285,7 +291,7 @@ exports.Config = Schema.intersect([
   Schema.union([
     Schema.object({
       consoleinfo: Schema.const(true).required(),
-      allfileinfo: Schema.boolean().description("输出allfile调试内容`MoreEmojiHub 列表详细内容`"),
+      allfileinfo: Schema.boolean().description("输出allfile调试内容`MoreEmojiHubList 列表详细内容`"),
     }),
     Schema.object({})
   ]),
@@ -439,7 +445,7 @@ async function determineImagePath(txtPath, config, channelId, command, ctx, loca
 }
 
 function getRandomEmojiHubCommand(config) {
-  const commands = config.MoreEmojiHub.map(emoji => emoji.command);
+  const commands = config.MoreEmojiHubList.map(emoji => emoji.command);
   if (commands.length > 0) {
     return commands[Math.floor(Math.random() * commands.length)];
   } else {
@@ -476,7 +482,7 @@ function isLocalTextFile(txtPath) {
 }
 
 function getAllValidPaths(config) {
-  return config.MoreEmojiHub.filter(emoji => {
+  return config.MoreEmojiHubList.filter(emoji => {
     const sourceUrl = emoji.source_url;
     return path.isAbsolute(sourceUrl) || sourceUrl.startsWith('http://') || sourceUrl.startsWith('https://') || sourceUrl.startsWith('file:///');
   }).map(emoji => emoji.source_url);
@@ -635,12 +641,12 @@ function logError(message) {
 
 /**
 * 列出所有表情包指令名称。
-* @param config 配置对象，包含 MoreEmojiHub 数组
+* @param config 配置对象，包含 MoreEmojiHubList 数组
 * @returns {string[]} 所有表情包指令的列表
 */
 function listAllCommands(config) {
   // 使用 map 方法来提取每个表情包的指令名称
-  const allCommands = config.MoreEmojiHub.map(emoji => emoji.command);
+  const allCommands = config.MoreEmojiHubList.map(emoji => emoji.command);
 
   // 检查结果是否为空
   if (allCommands.length === 0) {
@@ -939,7 +945,7 @@ function apply(ctx, config) {
     });
 
 
-  config.MoreEmojiHub.forEach(({ command, source_url }) => {
+  config.MoreEmojiHubList.forEach(({ command, source_url }) => {
     ctx.command(`${config.emojihub_bili_command}/${command} <local_picture_name:text>`)
       .action(async ({ session }, local_picture_name) => {
         const imageResult = await determineImagePath(source_url, config, session.channelId, command, ctx, local_picture_name);
@@ -1098,7 +1104,7 @@ function apply(ctx, config) {
           if (randomNumber <= config.triggerprobability) {
             let emojicommands = groupConfig.emojicommand.split(/\n|,|，/).map(cmd => cmd.trim());
             const randomCommand = emojicommands[Math.floor(Math.random() * emojicommands.length)];
-            const emojiConfig = config.MoreEmojiHub.find(({ command }) => command === randomCommand);
+            const emojiConfig = config.MoreEmojiHubList.find(({ command }) => command === randomCommand);
             if (emojiConfig) {
               const imageResult = await determineImagePath(emojiConfig.source_url, config, channelId, emojiConfig.command, ctx);
               if (imageResult.imageUrl) {
