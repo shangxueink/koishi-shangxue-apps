@@ -985,83 +985,84 @@ function apply(ctx, config) {
       }
     });
 
+  ctx.on('ready', () => {
+    config.MoreEmojiHubList.forEach(({ command, source_url }) => {
+      ctx.command(`${config.emojihub_bili_command}/${command} <local_picture_name:text>`)
+        .action(async ({ session }, local_picture_name) => {
+          const imageResult = await determineImagePath(source_url, config, session.channelId, command, ctx, local_picture_name);
 
-  config.MoreEmojiHubList.forEach(({ command, source_url }) => {
-    ctx.command(`${config.emojihub_bili_command}/${command} <local_picture_name:text>`)
-      .action(async ({ session }, local_picture_name) => {
-        const imageResult = await determineImagePath(source_url, config, session.channelId, command, ctx, local_picture_name);
+          if (!imageResult.imageUrl) {
+            await session.send(h.text(session.text(`commands.${emojihub_bili_codecommand}.messages.notfound_txt`, [command])));
+            return;
+          }
+          // 根据 config.repeatCommandDifferentiation 的值选择合适的 ID
+          const identifier = config.repeatCommandDifferentiation === 'userId' ? session.userId : session.channelId;
+          updateLastCommand(identifier, command);
 
-        if (!imageResult.imageUrl) {
-          await session.send(h.text(session.text(`commands.${emojihub_bili_codecommand}.messages.notfound_txt`, [command])));
-          return;
-        }
-        // 根据 config.repeatCommandDifferentiation 的值选择合适的 ID
-        const identifier = config.repeatCommandDifferentiation === 'userId' ? session.userId : session.channelId;
-        updateLastCommand(identifier, command);
-
-        try {
-          let message;
-          if (config.markdown_button_mode === "markdown" || config.markdown_button_mode === "raw" || config.markdown_button_mode === "markdown_raw_json") {
-            if (imageResult.isLocal) {
-              if (config.localPicToBase64) {
-                let imagebase64 = await getImageAsBase64(imageResult.imageUrl);
-                let MDimagebase64 = 'data:image/png;base64,' + imagebase64;
-                message = await markdown(session, command, MDimagebase64);
-                await sendmarkdownMessage(session, message);
-              } else if (config.QQPicToChannelUrl) {
-                const uploadedImageURL = await uploadImageToChannel(ctx, config.consoleinfo, url.pathToFileURL(imageResult.imageUrl).href, session.bot.config.id, session.bot.config.secret, config.QQchannelId);
-                message = await markdown(session, command, uploadedImageURL.url);
-                await sendmarkdownMessage(session, message);
+          try {
+            let message;
+            if (config.markdown_button_mode === "markdown" || config.markdown_button_mode === "raw" || config.markdown_button_mode === "markdown_raw_json") {
+              if (imageResult.isLocal) {
+                if (config.localPicToBase64) {
+                  let imagebase64 = await getImageAsBase64(imageResult.imageUrl);
+                  let MDimagebase64 = 'data:image/png;base64,' + imagebase64;
+                  message = await markdown(session, command, MDimagebase64);
+                  await sendmarkdownMessage(session, message);
+                } else if (config.QQPicToChannelUrl) {
+                  const uploadedImageURL = await uploadImageToChannel(ctx, config.consoleinfo, url.pathToFileURL(imageResult.imageUrl).href, session.bot.config.id, session.bot.config.secret, config.QQchannelId);
+                  message = await markdown(session, command, uploadedImageURL.url);
+                  await sendmarkdownMessage(session, message);
+                } else {
+                  const imageUrl = url.pathToFileURL(imageResult.imageUrl).href;
+                  message = await markdown(session, command, imageUrl);
+                  await sendmarkdownMessage(session, message);
+                }
               } else {
-                const imageUrl = url.pathToFileURL(imageResult.imageUrl).href;
-                message = await markdown(session, command, imageUrl);
+                message = await markdown(session, command, imageResult.imageUrl);
                 await sendmarkdownMessage(session, message);
               }
             } else {
-              message = await markdown(session, command, imageResult.imageUrl);
-              await sendmarkdownMessage(session, message);
-            }
-          } else {
-            if (imageResult.isLocal) {
-              if (config.localPicToBase64) {
-                let imagebase64 = await getImageAsBase64(imageResult.imageUrl);
-                message = await session.send(h('image', { url: 'data:image/png;base64,' + imagebase64 }));
+              if (imageResult.isLocal) {
+                if (config.localPicToBase64) {
+                  let imagebase64 = await getImageAsBase64(imageResult.imageUrl);
+                  message = await session.send(h('image', { url: 'data:image/png;base64,' + imagebase64 }));
+                } else {
+                  const imageUrl = url.pathToFileURL(imageResult.imageUrl).href;
+                  message = await session.send(h.image(imageUrl));
+                }
               } else {
-                const imageUrl = url.pathToFileURL(imageResult.imageUrl).href;
-                message = await session.send(h.image(imageUrl));
+                message = await session.send(h.image(imageResult.imageUrl));
               }
-            } else {
-              message = await session.send(h.image(imageResult.imageUrl));
+
+              if (config.markdown_button_mode === "json") {
+                const keyboardId = config.nested.json_button_template_id;
+                let markdownMessage = {
+                  msg_id: session.event.message.id,
+                  msg_type: 2,
+                  content: "",
+                  keyboard: {
+                    id: keyboardId,
+                  },
+                };
+                logInfo(markdownMessage);
+                await sendmarkdownMessage(session, markdownMessage);
+              }
             }
 
-            if (config.markdown_button_mode === "json") {
-              const keyboardId = config.nested.json_button_template_id;
-              let markdownMessage = {
-                msg_id: session.event.message.id,
-                msg_type: 2,
-                content: "",
-                keyboard: {
-                  id: keyboardId,
-                },
-              };
-              logInfo(markdownMessage);
-              await sendmarkdownMessage(session, markdownMessage);
+            if (config.deleteMsg) {
+              setTimeout(async () => {
+                try {
+                  await session.bot.deleteMessage(session.channelId, message);
+                } catch (error) {
+                  logError(`撤回消息失败: ${error}`);
+                }
+              }, config.deleteMsgtime * 1000);
             }
+          } catch (error) {
+            logError(`Error sending image:  ${error}`);
           }
-
-          if (config.deleteMsg) {
-            setTimeout(async () => {
-              try {
-                await session.bot.deleteMessage(session.channelId, message);
-              } catch (error) {
-                logError(`撤回消息失败: ${error}`);
-              }
-            }, config.deleteMsgtime * 1000);
-          }
-        } catch (error) {
-          logError(`Error sending image:  ${error}`);
-        }
-      });
+        });
+    })
   });
 
 
