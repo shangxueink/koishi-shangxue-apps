@@ -6,8 +6,9 @@ const url = require("node:url");
 const path = require("node:path");
 const crypto = require("node:crypto");
 const { Schema, Logger, h } = require("koishi");
+const { log } = require('node:console');
 exports.inject = {
-  optional: ['canvas']
+  optional: ['canvas', "cron"]
 };
 exports.name = 'emojihub-bili';
 exports.reusable = true; // 声明此插件可重用
@@ -110,18 +111,19 @@ exports.Config = Schema.intersect([
   }).description('进阶设置'),
 
   Schema.object({
-    autoEmoji: Schema.boolean().description("打开后，开启自动表情包功能 `达到一定消息数量 自动触发表情包`").default(false),
-  }).description('自动发送设置'),
+    autoEmoji: Schema.union(["取消应用", '定量消息发送', '定时发送']).description("打开后，开启自动表情包功能 <br>▶ 定量消息发送: `达到一定消息数量 自动触发表情包`<br>▶ 定时发送: `使用cron表达式定时触发表情包`此项需要`cron`服务").default("取消应用"),
+  }).description('自动表情包设置'),
   Schema.union([
     Schema.object({
-      autoEmoji: Schema.const(true).required(),
-      count: Schema.number().default(30).description('触发自动表情包的消息数量的阈值。`不建议过低`'),
+      autoEmoji: Schema.const("定量消息发送").required(),
+      middleware: Schema.boolean().description('开启后使用前置中间件').default(true),
       triggerprobability: Schema.percent().default(0.6).description('达到消息数量阈值时，发送表情包的概率 `范围为 0 到 1 `'),
       groupListmapping: Schema.array(Schema.object({
-        groupList: Schema.string().description('开启自动表情包的群组ID').pattern(/^\S+$/),
-        defaultemojicommand: Schema.string().description('表情包指令名称 `应与下方指令表格对应`'),
-        enable: Schema.boolean().description('勾选后 屏蔽该群 的自动表情包'),
-      })).role('table').description('表情包指令映射 `注意群组ID不要多空格什么的`')
+        groupList: Schema.string().description('开启自动表情包的群组ID'),
+        defaultemojicommand: Schema.string().description('表情包指令名称 `应与上方指令表格对应`'),
+        count: Schema.number().description('触发自动表情包的消息数量的阈值').default(30),
+        enable: Schema.boolean().description('勾选后 屏蔽该群 的自动表情包').default(false),
+      })).role('table').description('表情包指令映射 `注意群组ID不要多空格什么的`<br>私聊频道有`private:`前缀<br>表情包名称请通过逗号分隔')
         .default([
           { groupList: '114514', defaultemojicommand: 'koishi-meme，白圣女表情包，男娘武器库', enable: false },
           { groupList: '1919810', defaultemojicommand: '随机emojihub表情包', enable: true },
@@ -130,8 +132,34 @@ exports.Config = Schema.intersect([
       allgroupemojicommand: Schema.string().role('textarea', { rows: [2, 4] })
         .description('`全部群组的` 表情包指令映射`一行一个指令 或者 逗号分隔`   <br> 可以同时在`groupListmapping`指定群组的表情包内容').default(`宇佐紀表情包\n白圣女表情包\n白圣女漫画表情包`),
     }),
+    Schema.object({
+      autoEmoji: Schema.const("定时发送").required(),
+      bot: Schema.number().description('定时消息由第几个bot发出？`第一个是0，第二个是1，...`<br>▶ 如果你只接了一个机器人，那么`0`即可').default(0).min(0),
+      triggerprobability: Schema.percent().default(0.6).description('达到消息数量阈值时，发送表情包的概率 `范围为 0 到 1 `'),
+      groupListmapping: Schema.array(Schema.object({
+        groupList: Schema.string().description('开启自动表情包的群组ID'),
+        defaultemojicommand: Schema.string().description('表情包指令名称 `应与上方指令表格对应`'),
+        cronTime: Schema.string().description('定时设置:cron语法'),
+        enable: Schema.boolean().description('勾选后 屏蔽该群 的自动表情包').default(false),
+      })).role('table').description('表情包指令映射 `注意群组ID不要多空格什么的`<br>私聊频道有`private:`前缀<br>表情包名称请通过逗号分隔<br>▶ cron 定时语法 见 https://cron.koishi.chat/')
+        .default([
+          {
+            "groupList": "114514",
+            "defaultemojicommand": "白圣女表情包，白圣女漫画表情包",
+            "enable": false,
+            "cronTime": "15,45 * * * *"
+          },
+          {
+            "groupList": "private:1919810",
+            "defaultemojicommand": "白圣女表情包",
+            "enable": true,
+            "cronTime": "15,45 * * * *"
+          }
+        ]),
+    }),
     Schema.object({}),
   ]),
+
 
   Schema.object({
     markdown_button_mode: Schema.union([
@@ -141,13 +169,14 @@ exports.Config = Schema.intersect([
       Schema.const('markdown_raw_json').description('被动md模板--------2000 DAU - 原生按钮'),
       Schema.const('raw').description('原生md------------10000 DAU'),
     ]).role('radio').description('markdown/按钮模式选择').default("unset"),
-    markdown_button_mode_initiative: Schema.boolean().description("开启后，使用 主动消息 发送markdown。<br>即开启后不带`messageId`发送<br>适用于私域机器人频道使用。私域机器人需要使用`被动md模板、json模板`并且开启此配置项").default(false),
-    markdown_button_mode_keyboard: Schema.boolean().description("开启后，markdown加上按钮。关闭后，不加按钮内容哦<br>不影响markdown发送，多用于调试功能使用").default(true).experimental(),
-    markdown_button_mode_without_emojilist_keyboard: Schema.boolean().description("开启后，表情包列表使用下方`nestedlist`配置的表情包列表按钮。关闭后，仅发送普通的文字列表").default(true).experimental(),
   }).description('QQ官方按钮设置'),
   Schema.union([
     Schema.object({
       markdown_button_mode: Schema.const("json").required(),
+      markdown_button_mode_initiative: Schema.boolean().description("开启后，使用 主动消息 发送markdown。<br>即开启后不带`messageId`发送<br>适用于私域机器人频道使用。私域机器人需要使用`被动md模板、json模板`并且开启此配置项").default(false),
+      markdown_button_mode_keyboard: Schema.boolean().description("开启后，markdown加上按钮。关闭后，不加按钮内容哦<br>不影响markdown发送，多用于调试功能使用").default(true).experimental(),
+      markdown_button_mode_without_emojilist_keyboard: Schema.boolean().description("开启后，表情包列表使用下方`nestedlist`配置的表情包列表按钮。关闭后，仅发送普通的文字列表").default(true).experimental(),
+
       nested: Schema.object({
         json_button_template_id: Schema.string().description("模板ID<br>形如 `123456789_1234567890` 的ID编号<br>更多说明，详见[➩项目README](https://github.com/shangxueink/koishi-shangxue-apps/tree/main/plugins/emojihub-bili)").pattern(/^\d+_\d+$/),
       }).collapse().description('➢表情包--按钮设置<br>更多说明，详见[➩项目README](https://github.com/shangxueink/koishi-shangxue-apps/tree/main/plugins/emojihub-bili)<hr style="border: 2px solid red;"><hr style="border: 2px solid red;">'),
@@ -157,6 +186,10 @@ exports.Config = Schema.intersect([
     }),
     Schema.object({
       markdown_button_mode: Schema.const("markdown").required(),
+      markdown_button_mode_initiative: Schema.boolean().description("开启后，使用 主动消息 发送markdown。<br>即开启后不带`messageId`发送<br>适用于私域机器人频道使用。私域机器人需要使用`被动md模板、json模板`并且开启此配置项").default(false),
+      markdown_button_mode_keyboard: Schema.boolean().description("开启后，markdown加上按钮。关闭后，不加按钮内容哦<br>不影响markdown发送，多用于调试功能使用").default(true).experimental(),
+      markdown_button_mode_without_emojilist_keyboard: Schema.boolean().description("开启后，表情包列表使用下方`nestedlist`配置的表情包列表按钮。关闭后，仅发送普通的文字列表").default(true).experimental(),
+
       nested: Schema.object({
         markdown_button_template_id: Schema.string().description("md模板ID<br>形如 `123456789_1234567890` 的ID编号，发送markdown").pattern(/^\d+_\d+$/),
         markdown_button_keyboard_id: Schema.string().description("按钮模板ID<br>形如 `123456789_1234567890` 的ID编号，发送按钮").pattern(/^\d+_\d+$/),
@@ -205,6 +238,10 @@ exports.Config = Schema.intersect([
 
     Schema.object({
       markdown_button_mode: Schema.const("markdown_raw_json").required(),
+      markdown_button_mode_initiative: Schema.boolean().description("开启后，使用 主动消息 发送markdown。<br>即开启后不带`messageId`发送<br>适用于私域机器人频道使用。私域机器人需要使用`被动md模板、json模板`并且开启此配置项").default(false),
+      markdown_button_mode_keyboard: Schema.boolean().description("开启后，markdown加上按钮。关闭后，不加按钮内容哦<br>不影响markdown发送，多用于调试功能使用").default(true).experimental(),
+      markdown_button_mode_without_emojilist_keyboard: Schema.boolean().description("开启后，表情包列表使用下方`nestedlist`配置的表情包列表按钮。关闭后，仅发送普通的文字列表").default(true).experimental(),
+
       nested: Schema.object({
         markdown_raw_json_button_template_id: Schema.string().description("md模板ID<br>形如 `123456789_1234567890` 的ID编号，发送markdown").pattern(/^\d+_\d+$/),
         markdown_raw_json_button_content_table: Schema.array(Schema.object({
@@ -255,6 +292,10 @@ exports.Config = Schema.intersect([
 
     Schema.object({
       markdown_button_mode: Schema.const("raw").required(),
+      markdown_button_mode_initiative: Schema.boolean().description("开启后，使用 主动消息 发送markdown。<br>即开启后不带`messageId`发送<br>适用于私域机器人频道使用。私域机器人需要使用`被动md模板、json模板`并且开启此配置项").default(false),
+      markdown_button_mode_keyboard: Schema.boolean().description("开启后，markdown加上按钮。关闭后，不加按钮内容哦<br>不影响markdown发送，多用于调试功能使用").default(true).experimental(),
+      markdown_button_mode_without_emojilist_keyboard: Schema.boolean().description("开启后，表情包列表使用下方`nestedlist`配置的表情包列表按钮。关闭后，仅发送普通的文字列表").default(true).experimental(),
+
       nested: Schema.object({
         raw_markdown_button_content: Schema.string().role('textarea', { rows: [6, 6] }).collapse().default("## **表情包~😺**\n### 😽来了哦！\n![${img_pxpx}](${img_url})")
           .description('实现QQ官方bot的按钮效果，需要`canvas`服务。<br>在这里填入你的markdown内容。本插件会替换形如`{{.xxx}}`或`${xxx}`的参数为`xxx`。<br>本插件提供的参数有`command`、`img_pxpx`、`img_url`、`ctx`、`session`、`config`<br>`img_pxpx`会被替换为`img#...px #...px`<br>`img_url`会被替换为`一个链接`更多说明，详见[➩项目README](https://github.com/shangxueink/koishi-shangxue-apps/tree/main/plugins/emojihub-bili)'),
@@ -1043,18 +1084,17 @@ function apply(ctx, config) {
     });
 
 
-
-
-  if (config.autoEmoji && (config.groupListmapping.length || config.allgroupautoEmoji)) {
+  if (config.autoEmoji === "定量消息发送" && (config.groupListmapping.length || config.allgroupautoEmoji)) {
     const groups = {};
     // 初始化特定群组的配置
-    config.groupListmapping.forEach(({ groupList, defaultemojicommand, enable }) => {
+    config.groupListmapping.forEach(({ groupList, defaultemojicommand, count, enable }) => {
       // 只有当enable为false或未定义时，才将群组添加到启用列表中
-      if (enable === false) {
-        groups[groupList] = { count: 0, emojicommand: defaultemojicommand };
-      } else {
+      if (enable === true) {
         // 如果enable为true，则将该群组标记为黑名单
         groups[groupList] = { blacklisted: true };
+      } else {
+        groups[groupList] = { emojicommand: defaultemojicommand, cronTime };
+
       }
     });
 
@@ -1072,17 +1112,7 @@ function apply(ctx, config) {
       // 如果当前群组没有特定配置，并且开启了全部群组自动表情包
       if (!groupConfig && config.allgroupautoEmoji) {
         // 初始化为全部群组的配置
-        groupConfig = { count: 0, emojicommand: config.allgroupemojicommand };
-        // 如果此群组被黑名单，则不记录配置
-        if (!groups[channelId] || !groups[channelId].blacklisted) {
-          groups[channelId] = groupConfig;
-        }
-      }
-
-      // 如果当前群组没有特定配置，并且开启了全部群组自动表情包
-      if (!groupConfig && config.allgroupautoEmoji) {
-        // 初始化为全部群组的配置
-        groupConfig = { count: 0, emojicommand: config.allgroupemojicommand };
+        groupConfig = { count: 0, emojicommand: config.allgroupemojicommand, threshold: config.count };
         groups[channelId] = groupConfig; // 记录配置以供后续使用
       }
 
@@ -1091,7 +1121,7 @@ function apply(ctx, config) {
         groupConfig.count++; // 增加消息计数
 
         // 达到触发条件
-        if (groupConfig.count >= config.count) {
+        if (groupConfig.count >= groupConfig.threshold) {
           const randomNumber = Math.random();
           // 触发概率判断
           if (randomNumber <= config.triggerprobability) {
@@ -1105,12 +1135,9 @@ function apply(ctx, config) {
                   groupConfig.count = 0; // 重置消息计数
                   let message;
                   if (imageResult.isLocal) { //本地图片
-                    //const imageUrl = url.pathToFileURL(imageResult.imageUrl).href;
-                    //message = h.image(imageUrl);
                     if (config.localPicToBase64) {
                       //本地base64发图
                       let imagebase64 = await getImageAsBase64(imageResult.imageUrl);
-                      //logger.info(imagebase64)
                       message = h('image', { url: 'data:image/png;base64,' + imagebase64 });
                     } else {
                       //正常本地文件发图
@@ -1140,11 +1167,103 @@ function apply(ctx, config) {
             }
           } else {
             groupConfig.count = 0; // 没有触发表情包，重置计数
+            logInfo("定量消息发送：概率判断：此次不发送表情包，并且重置计数。")
           }
         }
       }
       return next();
-    }, true);
+    }, config.middleware);
+  }
+
+
+  if (config.autoEmoji === "定时发送" && config.groupListmapping.length) {
+    const groups = {};
+    // 初始化特定群组的配置
+    config.groupListmapping.forEach(({ groupList, defaultemojicommand, cronTime, enable }) => {
+      // 只有当enable为false或未定义时，才将群组添加到启用列表中
+      if (enable === true) {
+        // 如果enable为true，则将该群组标记为黑名单
+        groups[groupList] = { blacklisted: true };
+      } else {
+        groups[groupList] = { emojicommand: defaultemojicommand, cronTime };
+
+      }
+    });
+
+    // 定时触发表情包
+    for (const channelId in groups) {
+      const groupConfig = groups[channelId];
+
+      // 如果当前群组标记为黑名单，则跳过处理
+      if (groupConfig && groupConfig.blacklisted) {
+        continue;
+      }
+
+      // 如果当前群组没有特定配置，则跳过
+      if (!groupConfig) {
+        continue;
+      }
+
+      // 如果存在配置，设置定时任务
+      if (groupConfig) {
+        ctx.cron(groupConfig.cronTime, async () => {
+          const bot = ctx.bots[config.bot];
+          if (bot == null) return;
+          const randomNumber = Math.random();
+          // 触发概率判断
+          if (randomNumber <= config.triggerprobability) {
+            logInfo(`尝试向 ${channelId} 定时发送表情包中...`)
+            let emojicommands = groupConfig.emojicommand.split(/\n|,|，/).map(cmd => cmd.trim());
+            const randomCommand = emojicommands[Math.floor(Math.random() * emojicommands.length)];
+            const emojiConfig = config.MoreEmojiHubList.find(({ command }) => command === randomCommand);
+            if (emojiConfig) {
+              const imageResult = await determineImagePath(emojiConfig.source_url, config, channelId, emojiConfig.command, ctx);
+              if (imageResult.imageUrl) {
+                try {
+                  let message;
+                  if (imageResult.isLocal) { //本地图片
+                    if (config.localPicToBase64) {
+                      //本地base64发图
+                      let imagebase64 = await getImageAsBase64(imageResult.imageUrl);
+                      message = h('image', { url: 'data:image/png;base64,' + imagebase64 });
+                    } else {
+                      //正常本地文件发图
+                      const imageUrl = url.pathToFileURL(imageResult.imageUrl).href;
+                      message = h.image(imageUrl);
+                    }
+                  } else {
+                    message = h.image(imageResult.imageUrl);
+                  }
+
+                  // 判断是群聊还是私聊
+                  if (!channelId.includes("private")) {
+                    await bot.sendMessage(channelId, message);
+                  } else {
+                    const userId = channelId.replace("private:", "");
+                    await bot.sendPrivateMessage(userId, message);
+                  }
+
+                  // 如果需要撤回消息
+                  if (config.deleteMsg) {
+                    setTimeout(async () => {
+                      try {
+                        await bot.deleteMessage(channelId, message);
+                      } catch (error) {
+                        logError(`撤回消息失败: ${error}`);
+                      }
+                    }, config.deleteMsgtime * 1000);
+                  }
+                } catch (error) {
+                  logError(`发送图片错误: ${error}`);
+                }
+              }
+            }
+          } else {
+            logInfo(`定时发送：概率判断结果：${randomNumber}<= ${config.triggerprobability}\n此次不发送表情包，并且重置计数。`)
+          }
+        });
+      }
+    }
   }
 
 }
