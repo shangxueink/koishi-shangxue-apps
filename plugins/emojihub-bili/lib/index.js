@@ -84,12 +84,6 @@ exports.Config = Schema.intersect([
 
   Schema.object({
     emojihub_bili_command: Schema.string().default('emojihub-bili').description('`父级指令`的指令名称').pattern(/^\S+$/),
-    MoreEmojiHub: Schema.array(Schema.object({
-      command: Schema.string().description('注册的指令名称'),
-      source_url: Schema.string().description('表情包文件地址'),
-    })).role('table').default(defaultMoreEmojiHubList)
-      .description('表情包指令映射表<br>▶ 这里是你的旧版本配置，我们即将更换默认TXT的路径，请确保即使备份、迁移<br>▶ 目前下方的`MoreEmojiHubList`配置项为有效配置'),
-
     MoreEmojiHubList: Schema.array(Schema.object({
       command: Schema.string().description('注册的指令名称'),
       source_url: Schema.string().description('表情包文件地址'),
@@ -138,7 +132,6 @@ exports.Config = Schema.intersect([
     }),
     Schema.object({}),
   ]),
-
 
   Schema.object({
     markdown_button_mode: Schema.union([
@@ -281,7 +274,7 @@ exports.Config = Schema.intersect([
   ]),
 
   Schema.object({
-    LocalSendNetworkPicturesList: Schema.string().role('textarea', { rows: [2, 4] }).description('将`下列指令`对应的内容下载至本地，作为本地图片发送').default().experimental(),
+    LocalSendNetworkPicturesList: Schema.string().role('textarea', { rows: [2, 4] }).description('将`下列指令`对应的内容下载至本地，作为本地图片发送<br>请使用逗号分隔指令').default().experimental(),
     deletePictime: Schema.number().default(10).description('若干`秒`后 删除下载的本地临时文件').experimental(),
     localPicToBase64: Schema.boolean().description("`开启后`本地图片以base64发出 `日常使用无需开启，且不建议官方bot使用`").experimental().default(false),
     QQPicToChannelUrl: Schema.boolean().description("`开启后`， `img_url`会先上传QQ频道，拿到频道URL，用于发送markdown<br>被动md需要URL白名单，用这个也没效果。<br>仅对原生发本地文件夹的图有意义。").experimental().default(false),
