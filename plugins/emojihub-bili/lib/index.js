@@ -5,7 +5,6 @@ const fs = require('node:fs');
 const url = require("node:url");
 const path = require("node:path");
 const crypto = require("node:crypto");
-const promises = require("node:fs/promises");
 const { Schema, Logger, h } = require("koishi");
 exports.inject = {
   optional: ['canvas']
@@ -34,50 +33,50 @@ const defaultMoreEmojiHub = [
   // 下面实际有效为 43套
   { command: '本地图库示例', source_url: path.join(__dirname, 'txts') },
   { command: '网络图片示例', source_url: 'https://i0.hdslb.com/bfs/article/afc31d0e398204d94478473a497028e6352074746.gif' },
-  { command: '2233娘小剧场表情包', source_url: path.join(__dirname, 'txts/2233娘小剧场.txt') },
-  { command: 'acomu414表情包', source_url: path.join(__dirname, 'txts/acomu414.txt') },
-  { command: 'ba表情包', source_url: path.join(__dirname, 'txts/ba.txt') },
-  { command: 'capoo表情包', source_url: path.join(__dirname, 'txts/capoo.txt') },
-  { command: 'chiikawa表情包', source_url: path.join(__dirname, 'txts/chiikawa.txt') },
-  { command: 'downvote表情包', source_url: path.join(__dirname, 'txts/Downvote.txt') },
-  { command: 'doro表情包', source_url: path.join(__dirname, 'txts/doro.txt') },
-  { command: 'eveonecat表情包', source_url: path.join(__dirname, 'txts/eveonecat.txt') },
-  { command: 'fufu表情包', source_url: path.join(__dirname, 'txts/fufu.txt') },
-  { command: 'girlsbandcry', source_url: path.join(__dirname, 'txts/GirlsBandCry.txt') },
-  { command: 'kemomimi表情包', source_url: path.join(__dirname, 'txts/kemomimi酱表情包.txt') },
-  { command: 'koishi-meme表情包', source_url: path.join(__dirname, 'txts/koimeme.txt') },
-  { command: 'mygo表情包', source_url: path.join(__dirname, 'txts/mygo.txt') },
-  { command: 'seseren表情包', source_url: path.join(__dirname, 'txts/seseren.txt') },
-  { command: '阿夸表情包', source_url: path.join(__dirname, 'txts/阿夸.txt') },
-  { command: '阿尼亚表情包', source_url: path.join(__dirname, 'txts/阿尼亚.txt') },
-  { command: '白圣女表情包', source_url: path.join(__dirname, 'txts/白圣女.txt') },
-  { command: '白圣女漫画表情包', source_url: path.join(__dirname, 'txts/白圣女黑白.txt') },
-  { command: '败犬女主表情包', source_url: path.join(__dirname, 'txts/败犬女主.txt') },
-  { command: '柴郡表情包', source_url: path.join(__dirname, 'txts/柴郡.txt') },
-  { command: '初音Q版表情包', source_url: path.join(__dirname, 'txts/初音未来Q.txt') },
-  { command: '甘城猫猫表情包', source_url: path.join(__dirname, 'txts/甘城猫猫.txt') },
-  { command: '孤独摇滚表情包', source_url: path.join(__dirname, 'txts/孤独摇滚.txt') },
-  { command: '狗妈表情包', source_url: path.join(__dirname, 'txts/狗妈.txt') },
-  { command: '滑稽表情包', source_url: path.join(__dirname, 'txts/滑稽.txt') },
-  { command: '疾旋鼬表情包', source_url: path.join(__dirname, 'txts/疾旋鼬.txt') },
-  { command: '卡拉彼丘表情包', source_url: path.join(__dirname, 'txts/卡拉彼丘.txt') },
-  { command: '流萤表情包', source_url: path.join(__dirname, 'txts/流萤.txt') },
-  { command: '龙图表情包', source_url: path.join(__dirname, 'txts/龙图.txt') },
-  { command: '鹿乃子表情包', source_url: path.join(__dirname, 'txts/鹿乃子.txt') },
-  { command: '玛丽猫表情包', source_url: path.join(__dirname, 'txts/玛丽猫.txt') },
-  { command: '小c表情包', source_url: path.join(__dirname, 'txts/蜜汁工坊.txt') },
-  { command: '男娘武器库表情包', source_url: path.join(__dirname, 'txts/男娘武器库.txt') },
-  { command: '千恋万花表情包', source_url: path.join(__dirname, 'txts/0721.txt') },
-  { command: '赛马娘表情包', source_url: path.join(__dirname, 'txts/赛马娘.txt') },
-  { command: '瑟莉亚表情包', source_url: path.join(__dirname, 'txts/瑟莉亚.txt') },
-  { command: '藤田琴音表情包', source_url: path.join(__dirname, 'txts/藤田琴音.txt') },
-  { command: '小黑子表情包', source_url: path.join(__dirname, 'txts/小黑子.txt') },
-  { command: '心海表情包', source_url: path.join(__dirname, 'txts/心海.txt') },
-  { command: '绪山真寻表情包', source_url: path.join(__dirname, 'txts/绪山真寻.txt') },
-  { command: '亚托莉表情包', source_url: path.join(__dirname, 'txts/亚托莉表情包.txt') },
-  { command: '永雏小菲表情包', source_url: path.join(__dirname, 'txts/永雏小菲.txt') },
-  { command: '宇佐紀表情包', source_url: path.join(__dirname, 'txts/宇佐紀.txt') },
-  // { command: '', source_url: path.join(__dirname, 'txts/.txt') },
+  { command: '2233娘小剧场表情包', source_url: path.join(__dirname, '../txts/2233娘小剧场.txt') },
+  { command: 'acomu414表情包', source_url: path.join(__dirname, '../txts/acomu414.txt') },
+  { command: 'ba表情包', source_url: path.join(__dirname, '../txts/ba.txt') },
+  { command: 'capoo表情包', source_url: path.join(__dirname, '../txts/capoo.txt') },
+  { command: 'chiikawa表情包', source_url: path.join(__dirname, '../txts/chiikawa.txt') },
+  { command: 'downvote表情包', source_url: path.join(__dirname, '../txts/Downvote.txt') },
+  { command: 'doro表情包', source_url: path.join(__dirname, '../txts/doro.txt') },
+  { command: 'eveonecat表情包', source_url: path.join(__dirname, '../txts/eveonecat.txt') },
+  { command: 'fufu表情包', source_url: path.join(__dirname, '../txts/fufu.txt') },
+  { command: 'girlsbandcry', source_url: path.join(__dirname, '../txts/GirlsBandCry.txt') },
+  { command: 'kemomimi表情包', source_url: path.join(__dirname, '../txts/kemomimi酱表情包.txt') },
+  { command: 'koishi-meme表情包', source_url: path.join(__dirname, '../txts/koimeme.txt') },
+  { command: 'mygo表情包', source_url: path.join(__dirname, '../txts/mygo.txt') },
+  { command: 'seseren表情包', source_url: path.join(__dirname, '../txts/seseren.txt') },
+  { command: '阿夸表情包', source_url: path.join(__dirname, '../txts/阿夸.txt') },
+  { command: '阿尼亚表情包', source_url: path.join(__dirname, '../txts/阿尼亚.txt') },
+  { command: '白圣女表情包', source_url: path.join(__dirname, '../txts/白圣女.txt') },
+  { command: '白圣女漫画表情包', source_url: path.join(__dirname, '../txts/白圣女黑白.txt') },
+  { command: '败犬女主表情包', source_url: path.join(__dirname, '../txts/败犬女主.txt') },
+  { command: '柴郡表情包', source_url: path.join(__dirname, '../txts/柴郡.txt') },
+  { command: '初音Q版表情包', source_url: path.join(__dirname, '../txts/初音未来Q.txt') },
+  { command: '甘城猫猫表情包', source_url: path.join(__dirname, '../txts/甘城猫猫.txt') },
+  { command: '孤独摇滚表情包', source_url: path.join(__dirname, '../txts/孤独摇滚.txt') },
+  { command: '狗妈表情包', source_url: path.join(__dirname, '../txts/狗妈.txt') },
+  { command: '滑稽表情包', source_url: path.join(__dirname, '../txts/滑稽.txt') },
+  { command: '疾旋鼬表情包', source_url: path.join(__dirname, '../txts/疾旋鼬.txt') },
+  { command: '卡拉彼丘表情包', source_url: path.join(__dirname, '../txts/卡拉彼丘.txt') },
+  { command: '流萤表情包', source_url: path.join(__dirname, '../txts/流萤.txt') },
+  { command: '龙图表情包', source_url: path.join(__dirname, '../txts/龙图.txt') },
+  { command: '鹿乃子表情包', source_url: path.join(__dirname, '../txts/鹿乃子.txt') },
+  { command: '玛丽猫表情包', source_url: path.join(__dirname, '../txts/玛丽猫.txt') },
+  { command: '小c表情包', source_url: path.join(__dirname, '../txts/蜜汁工坊.txt') },
+  { command: '男娘武器库表情包', source_url: path.join(__dirname, '../txts/男娘武器库.txt') },
+  { command: '千恋万花表情包', source_url: path.join(__dirname, '../txts/0721.txt') },
+  { command: '赛马娘表情包', source_url: path.join(__dirname, '../txts/赛马娘.txt') },
+  { command: '瑟莉亚表情包', source_url: path.join(__dirname, '../txts/瑟莉亚.txt') },
+  { command: '藤田琴音表情包', source_url: path.join(__dirname, '../txts/藤田琴音.txt') },
+  { command: '小黑子表情包', source_url: path.join(__dirname, '../txts/小黑子.txt') },
+  { command: '心海表情包', source_url: path.join(__dirname, '../txts/心海.txt') },
+  { command: '绪山真寻表情包', source_url: path.join(__dirname, '../txts/绪山真寻.txt') },
+  { command: '亚托莉表情包', source_url: path.join(__dirname, '../txts/亚托莉表情包.txt') },
+  { command: '永雏小菲表情包', source_url: path.join(__dirname, '../txts/永雏小菲.txt') },
+  { command: '宇佐紀表情包', source_url: path.join(__dirname, '../txts/宇佐紀.txt') },
+  // { command: '', source_url: path.join(__dirname, '../txts/.txt') },
   // 以后添加其他的命令...未完待续
 ];
 
@@ -90,11 +89,11 @@ exports.Config = Schema.intersect([
       //enable: Schema.boolean().description('隐藏指令'),
       source_url: Schema.string().description('表情包文件地址'),
     })).role('table').default(defaultMoreEmojiHub)
-      .description('表情包指令映射 当前默认`43套`txt文件`点击右方按钮 可以恢复到默认值`<br>`表情包文件地址`可以填入`txt文件绝对路径`或者`文件夹绝对路径`或者`图片直链`或者`图片文件绝对路径`'),
+      .description('表情包指令映射表<br>▶ 若出现配置问题 请点击右方按钮 可以恢复到默认值<br>右列`文件地址`可以填入`txt绝对路径`、`文件夹绝对路径`、`图片直链`、`图片文件绝对路径`。支持格式 详见[➩项目README](https://github.com/shangxueink/koishi-shangxue-apps/tree/main/plugins/emojihub-bili)'),
     searchSubfolders: Schema.boolean().description("是否递归搜索文件夹。`开启后 对于本地文件夹地址 会搜索其子文件夹内全部的图片`").default(true),
     deleteMsg: Schema.boolean().description("`开启后`自动撤回表情").default(false),
-
   }).description('表情包设置'),
+
   Schema.union([
     Schema.object({
       deleteMsg: Schema.const(true).required(),
@@ -139,11 +138,11 @@ exports.Config = Schema.intersect([
     markdown_button_mode: Schema.union([
       Schema.const('unset').description('取消应用此配置项'),
       Schema.const('json').description('json按钮-----------20 群（频道不可用）'),
-      Schema.const('markdown').description('被动md模板--------2000 DAU'),
+      Schema.const('markdown').description('被动md模板--------2000 DAU / 私域'),
       Schema.const('markdown_raw_json').description('被动md模板--------2000 DAU - 原生按钮'),
       Schema.const('raw').description('原生md------------10000 DAU'),
     ]).role('radio').description('markdown/按钮模式选择').default("unset"),
-    markdown_button_mode_initiative: Schema.boolean().description("开启后，使用 主动消息 发送markdown。<br>即开启后不带`messageId`发送<br>适用于私域机器人频道使用。私域机器人需要使用`被动md模板、json模板`并且使用主动markdown").default(false),
+    markdown_button_mode_initiative: Schema.boolean().description("开启后，使用 主动消息 发送markdown。<br>即开启后不带`messageId`发送<br>适用于私域机器人频道使用。私域机器人需要使用`被动md模板、json模板`并且开启此配置项").default(false),
     markdown_button_mode_keyboard: Schema.boolean().description("开启后，markdown加上按钮。关闭后，不加按钮内容哦<br>不影响markdown发送，多用于调试功能使用").default(true).experimental(),
     markdown_button_mode_without_emojilist_keyboard: Schema.boolean().description("开启后，表情包列表使用下方`nestedlist`配置的表情包列表按钮。关闭后，仅发送普通的文字列表").default(true).experimental(),
   }).description('QQ官方按钮设置'),
@@ -324,7 +323,7 @@ async function uploadImageToChannel(ctx, consoleinfo, data, appId, secret, chann
   // 处理图片数据
   if (typeof data === 'string') {
     if (new URL(data).protocol === 'file:') {
-      data = await promises.readFile(url.fileURLToPath(data));
+      data = await fs.promises.readFile(url.fileURLToPath(data));
     } else {
       data = await ctx.http.get(data, { responseType: 'arraybuffer' });
       data = Buffer.from(data);
@@ -362,7 +361,6 @@ async function getImageAsBase64(imagePath) {
   }
 }
 
-
 async function determineImagePath(txtPath, config, channelId, command, ctx, local_picture_name = null) {
   // 判断是否是直接的图片链接
   if (txtPath.startsWith('http://') || txtPath.startsWith('https://')) {
@@ -372,22 +370,34 @@ async function determineImagePath(txtPath, config, channelId, command, ctx, loca
 
   // 判断是否是本地图片的绝对路径
   if (isLocalImagePath(txtPath)) {
-    if (!fs.existsSync(txtPath)) {
+    let filePath = txtPath;
+    if (txtPath.startsWith('file:///')) {
+      filePath = decodeURIComponent(txtPath.substring(8)); // 去除 file:/// 并解码 URL
+    }
+    if (!fs.existsSync(filePath)) {
       logError(`错误:路径不存在： ${txtPath}`);
       return { imageUrl: null, isLocal: false };
     }
     logInfoformat(config, channelId, command, `本地图片的绝对路径: ${txtPath}`);
-    return { imageUrl: txtPath, isLocal: true };
+    return { imageUrl: filePath, isLocal: true };
   }
 
   // 判断是否是本地文件夹的绝对路径
   if (isLocalDirectory(txtPath)) {
-    return await getRandomImageFromFolder(txtPath, config, channelId, command, ctx, local_picture_name);
+    let filePath = txtPath;
+    if (txtPath.startsWith('file:///')) {
+      filePath = decodeURIComponent(txtPath.substring(8)); // 去除 file:/// 并解码 URL
+    }
+    return await getRandomImageFromFolder(filePath, config, channelId, command, ctx, local_picture_name);
   }
 
   // 判断是否是本地txt文件的绝对路径
   if (isLocalTextFile(txtPath)) {
-    return await getRandomImageUrlFromFile(txtPath, config, channelId, command, ctx);
+    let filePath = txtPath;
+    if (txtPath.startsWith('file:///')) {
+      filePath = decodeURIComponent(txtPath.substring(8)); // 去除 file:/// 并解码 URL
+    }
+    return await getRandomImageUrlFromFile(filePath, config, channelId, command, ctx);
   }
 
   // 默认处理逻辑：随机选择一个表情包
@@ -407,12 +417,24 @@ async function determineImagePath(txtPath, config, channelId, command, ctx, loca
     logInfoformat(config, channelId, command, `随机选择的网络图片链接: ${txtPath}`);
     return { imageUrl: txtPath, isLocal: false };
   } else if (isLocalDirectory(txtPath)) {
-    return await getRandomImageFromFolder(txtPath, config, channelId, command, ctx, local_picture_name);
+    let filePath = txtPath;
+    if (txtPath.startsWith('file:///')) {
+      filePath = decodeURIComponent(txtPath.substring(8)); // 去除 file:/// 并解码 URL
+    }
+    return await getRandomImageFromFolder(filePath, config, channelId, command, ctx, local_picture_name);
   } else if (isLocalTextFile(txtPath)) {
-    return await getRandomImageUrlFromFile(txtPath, config, channelId, command, ctx);
+    let filePath = txtPath;
+    if (txtPath.startsWith('file:///')) {
+      filePath = decodeURIComponent(txtPath.substring(8)); // 去除 file:/// 并解码 URL
+    }
+    return await getRandomImageUrlFromFile(filePath, config, channelId, command, ctx);
   } else if (isLocalImagePath(txtPath)) {
+    let filePath = txtPath;
+    if (txtPath.startsWith('file:///')) {
+      filePath = decodeURIComponent(txtPath.substring(8)); // 去除 file:/// 并解码 URL
+    }
     logInfoformat(config, channelId, command, `随机选择的本地图片路径: ${txtPath}`);
-    return { imageUrl: txtPath, isLocal: true };
+    return { imageUrl: filePath, isLocal: true };
   }
 }
 
@@ -426,24 +448,39 @@ function getRandomEmojiHubCommand(config) {
 }
 
 function isLocalImagePath(txtPath) {
-  return path.isAbsolute(txtPath) && (txtPath.endsWith('.jpg') || txtPath.endsWith('.png') || txtPath.endsWith('.gif') || txtPath.endsWith('.bmp') || txtPath.endsWith('.webp'));
+  // 修改：同时判断 file:/// 开头的路径
+  return (path.isAbsolute(txtPath) || txtPath.startsWith('file:///')) &&
+    (txtPath.endsWith('.jpg') || txtPath.endsWith('.png') || txtPath.endsWith('.gif') || txtPath.endsWith('.bmp') || txtPath.endsWith('.webp'));
 }
 
 function isLocalDirectory(txtPath) {
+  // 修改：同时判断 file:/// 开头的路径
+  if (txtPath.startsWith('file:///')) {
+    try {
+      const filePath = decodeURIComponent(txtPath.substring(8)); // 去除 file:/// 并解码 URL
+      return fs.lstatSync(filePath).isDirectory();
+    } catch (e) {
+      return false; // 路径不存在或不是目录
+    }
+  }
+
   return path.isAbsolute(txtPath) && fs.lstatSync(txtPath).isDirectory();
 }
 
 function isLocalTextFile(txtPath) {
+  // 修改：同时判断 file:/// 开头的路径
+  if (txtPath.startsWith('file:///')) {
+    return txtPath.endsWith('.txt');
+  }
   return path.isAbsolute(txtPath) && txtPath.endsWith('.txt');
 }
 
 function getAllValidPaths(config) {
   return config.MoreEmojiHub.filter(emoji => {
     const sourceUrl = emoji.source_url;
-    return path.isAbsolute(sourceUrl) || sourceUrl.startsWith('http://') || sourceUrl.startsWith('https://');
+    return path.isAbsolute(sourceUrl) || sourceUrl.startsWith('http://') || sourceUrl.startsWith('https://') || sourceUrl.startsWith('file:///');
   }).map(emoji => emoji.source_url);
 }
-
 // 递归获取文件夹及其子文件夹中的所有文件
 // 用于实现searchSubfolders配置项的功能
 function getAllFiles(dir, fileList = []) {
@@ -494,7 +531,7 @@ async function getRandomImageFromFolder(folderPath, config, channelId, command, 
   }
 
   const imageUrl = files[Math.floor(Math.random() * files.length)];
-  logInfoformat(config, channelId, command, `使用文件夹 ${folderPath} 发送本地图片为 ${imageUrl}`);
+  logInfoformat(config, channelId, command, `使用文件夹 ${folderPath} \n发送本地图片为 ${imageUrl}`);
   return { imageUrl: imageUrl, isLocal: true };
 }
 

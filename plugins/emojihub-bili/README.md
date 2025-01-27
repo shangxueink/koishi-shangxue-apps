@@ -1,9 +1,8 @@
-
 # koishi-plugin-emojihub-bili
 
 [![npm](https://img.shields.io/npm/v/koishi-plugin-emojihub-bili?style=flat-square)](https://www.npmjs.com/package/koishi-plugin-emojihub-bili)   [![npm downloads](https://img.shields.io/npm/dm/koishi-plugin-emojihub-bili)](https://www.npmjs.com/package/koishi-plugin-emojihub-bili)  
 
-🐱🌟欢迎使用 **EmojiHub-bili**，这是**EmojiHub**插件的复刻版本！
+🐱🌟欢迎使用 **emojihub-bili**，这是**emojihub**插件的复刻版本！
 
 拥有丰富多彩的表情包指令！😍 您还可以自定义添加或删除表情包！
 
@@ -19,13 +18,13 @@
 
 ## 安装指南 🛠️
 
-Koishi插件市场搜索并安装`emojihub-bili`
+前往 Koishi 插件市场 搜索并安装`emojihub-bili` 
 
 ---
 
 ## 使用指南 📘
 
-使用 EmojiHub-bili 插件非常简单！只需在聊天中输入相应的指令，即可随机发送一张相关主题的表情包。例如：
+使用 emojihub-bili 插件非常简单！只需在聊天中输入相应的指令，即可随机发送一张相关主题的表情包。例如：
 
 - `2233娘小剧场`：发送与 "2233娘小剧场" 相关的表情包。
 - `阿尼亚表情包`：发送与 "阿尼亚表情包" 相关的表情包。
@@ -78,6 +77,117 @@ Koishi插件市场搜索并安装`emojihub-bili`
 </details>
 
 ---
+
+## 如何额外添加自己喜欢的表情包
+
+添加额外的表情包到 **emojihub-bili** 非常简单！只需按照以下步骤操作：
+
+1. **安装扩展（用户脚本管理器）**：  
+   在浏览器中添加扩展：[ScriptCat---脚本猫](https://docs.scriptcat.org/)。
+
+2. **安装脚本**：  
+   在用户脚本管理器中添加脚本：[点击此处查看 Bilibili专栏原图链接提取2024改版](https://greasyfork.org/zh-CN/scripts/521666-bilibili%E4%B8%93%E6%A0%8F%E5%8E%9F%E5%9B%BE%E9%93%BE%E6%8E%A5%E6%8F%90%E5%8F%962024%E6%94%B9%E7%89%88)。
+
+3. **搜索表情包**：  
+   开启扩展后，访问 [哔哩哔哩专栏搜索](https://search.bilibili.com/article/)，在专栏中搜索您需要的表情包。
+
+4. **提取链接**：  
+   点击进入具体的某个专栏帖子，屏幕靠近右下角会有一个绿色的【提取链接】按钮。点击该按钮，即可下载包含当前专栏所有图片的 URL 的 txt 文件。按钮按下一次后会变成红色，防止误触，不可二次触发。如需再次下载，请刷新页面。
+
+5. **配置 emojihub-bili**：  
+   将同一类表情包图片的 URL 整合到同一个 txt 文件中。然后，在 Koishi 的配置项中填入相应的指令名称与 txt 文件路径。无需像自带的 txt 一样省略前缀，写完整 URL 即可。
+
+6. **保存并重载**：  
+   完成配置后，保存您的配置并重载插件，您就可以使用自定义的指令发送表情包了！🌟📚
+
+### 温馨提示：
+
+- 请勿将自定义的 txt 文件与本插件放置在同一目录下，以免插件更新导致文件丢失。
+- 目前 emojihub-bili 默认提供 43 套表情包。若您的配置内容有误差，请在 Moreemojihub 表格右上角按钮内选择 **恢复默认值**。
+- 若开启插件后，指令不出现，请[重新开关 commands 插件](/market?keyword=commands)。
+
+
+## 如何删除已添加的表情包指令
+
+如果您需要删除已经添加到 **emojihub-bili** 的自定义表情包指令，可以按照以下步骤进行：
+
+1. **在 Koishi 控制台内打开插件**：
+
+   打开您的 Koishi 控制台，并找到 **emojihub-bili** 插件。
+2. **找到 [基础设置] 里面的 [Moreemojihub] 表格**：
+   在插件的设置界面中，找到名为 “Moreemojihub” 的部分。您会看到类似于 “Moreemojihub” 的表格，点击对应的右侧的 [删除] 按钮。
+3. **保存更改**：
+   完成删除操作后，点击页面右上角的勾号，以保存您的更改并重载插件。这样更改就会生效。
+
+
+
+## 自定义表情包指令 ⚙️
+
+除了默认的表情包指令，您还可以通过配置 `MoreEmojiHub` 来自定义添加新的表情包指令。
+
+`MoreEmojiHub` 是一个数组，每个元素都包含以下两个字段：
+
+- `command`：您希望注册的指令名称，例如 `自定义表情包`。
+- `source_url`：表情包的来源地址，支持以下格式：
+  - 本地文件夹绝对路径
+    - `D:\\Pictures\\koishi\\AL1S手绘`
+    - `D:\Pictures\koishi\AL1S手绘`
+    - `file:///D:/Pictures/koishi/AL1S%E6%89%8B%E7%BB%98`
+  - 本地图片文件绝对路径
+    - `D:\\Pictures\\koishi\\AL1S手绘\\image.png`
+    - `D:\Pictures\koishi\AL1S手绘\image.png`
+    - `file:///D:/Pictures/koishi/AL1S%E6%89%8B%E7%BB%98/image.png`
+  - 本地文本文件绝对路径
+    - `D:\\Pictures\\koishi\\AL1S手绘\\urls.txt`
+    - `D:\Pictures\koishi\AL1S手绘\urls.txt`
+    - `file:///D:/Pictures/koishi/AL1S%E6%89%8B%E7%BB%98/urls.txt`
+  - 网络图片直链
+    - `https://i1.hdslb.com/bfs/archive/2b3c803fc2de45d2e3d1090013c2b76ac87a49dc.jpg`
+
+
+**注意:** `file:///` 协议的路径需要使用 URL 编码，你可以把路径放到浏览器地址栏后，在浏览器中确保可以打开后，复制地址栏内容填入此处。这样可以确保URL编码。
+<details>
+<summary>点击此处————查看配置示例（JSON）</summary>
+    
+**配置示例：**
+
+```json
+[
+  {
+    "command": "文件夹1",
+    "source_url": "D:\\Pictures\\koishi\\AL1S手绘"
+  },
+  {
+    "command": "文件夹2",
+    "source_url": "file:///D:/Pictures/koishi/AL1S%E6%89%8B%E7%BB%98"
+  },
+  {
+    "command": "本地图片1",
+    "source_url": "D:\\Pictures\\koishi\\AL1S手绘\\A92277ACCB00A8945D3F72A5EEC796C1.png"
+  },
+  {
+    "command": "本地图片2",
+    "source_url": "file:///D:/Pictures/koishi/AL1S%E6%89%8B%E7%BB%98/A92277ACCB00A8945D3F72A5EEC796C1.png"
+  },
+  {
+    "command": "本地txt1",
+    "source_url": "D:\\Pictures\\koishi\\AL1S手绘\\output_urls.txt"
+  },
+  {
+    "command": "本地txt2",
+    "source_url": "file:///D:/Pictures/koishi/AL1S%E6%89%8B%E7%BB%98/output_urls.txt"
+  },
+  {
+    "command": "网络图片",
+    "source_url": "https://i1.hdslb.com/bfs/archive/2b3c803fc2de45d2e3d1090013c2b76ac87a49dc.jpg"
+  }
+]
+
+```
+</details>
+    
+---
+
 
 ## QQ官方机器人设置指南
 
@@ -637,64 +747,24 @@ markdown的按钮参数，需要填入按钮模板ID，
 - `session.userId`：当前交互的用户ID，替换后格式为`1246A99CFED107A7938ADF07F9B5A398`。
 ---
 
-## 如何额外添加自己喜欢的表情包
-
-添加额外的表情包到 **EmojiHub-bili** 非常简单！只需按照以下步骤操作：
-
-1. **安装扩展（用户脚本管理器）**：  
-   在浏览器中添加扩展：[ScriptCat---脚本猫](https://docs.scriptcat.org/)。
-
-2. **安装脚本**：  
-   在用户脚本管理器中添加脚本：[点击此处查看 Bilibili专栏原图链接提取2024改版](https://greasyfork.org/zh-CN/scripts/521666-bilibili%E4%B8%93%E6%A0%8F%E5%8E%9F%E5%9B%BE%E9%93%BE%E6%8E%A5%E6%8F%90%E5%8F%962024%E6%94%B9%E7%89%88)。
-
-3. **搜索表情包**：  
-   开启扩展后，访问 [哔哩哔哩专栏搜索](https://search.bilibili.com/article/)，在专栏中搜索您需要的表情包。
-
-4. **提取链接**：  
-   点击进入具体的某个专栏帖子，屏幕靠近右下角会有一个绿色的【提取链接】按钮。点击该按钮，即可下载包含当前专栏所有图片的 URL 的 txt 文件。按钮按下一次后会变成红色，防止误触，不可二次触发。如需再次下载，请刷新页面。
-
-5. **配置 EmojiHub-bili**：  
-   将同一类表情包图片的 URL 整合到同一个 txt 文件中。然后，在 Koishi 的配置项中填入相应的指令名称与 txt 文件路径。无需像自带的 txt 一样省略前缀，写完整 URL 即可。
-
-6. **保存并重载**：  
-   完成配置后，保存您的配置并重载插件，您就可以使用自定义的指令发送表情包了！🌟📚
-
-### 温馨提示：
-
-- 请勿将自定义的 txt 文件与本插件放置在同一目录下，以免插件更新导致文件丢失。
-- 目前 EmojiHub-bili 默认提供 43 套表情包。若您的配置内容有误差，请在 MoreEmojiHub 表格右上角按钮内选择 **恢复默认值**。
-- 若开启插件后，指令不出现，请[重新开关 commands 插件](/market?keyword=commands)。
-
-
-## 如何删除已添加的表情包指令
-
-如果您需要删除已经添加到 **EmojiHub-bili** 的自定义表情包指令，可以按照以下步骤进行：
-
-1. **在 Koishi 控制台内打开插件**：
-
-   打开您的 Koishi 控制台，并找到 **EmojiHub-bili** 插件。
-2. **找到 [基础设置] 里面的 [MoreEmojiHub] 表格**：
-   在插件的设置界面中，找到名为 “MoreEmojiHub” 的部分。您会看到类似于 “MoreEmojiHub” 的表格，点击对应的右侧的 [删除] 按钮。
-3. **保存更改**：
-   完成删除操作后，点击页面右上角的勾号，以保存您的更改并重载插件。这样更改就会生效。
 
 ## 免责声明 🤝
 
 ### 表情包来源
 
-本插件（**EmojiHub-bili**）中的所有表情包内容均来源于哔哩哔哩（Bilibili）网站。这些表情包的版权归原作者及哔哩哔哩网站所有。本插件仅提供访问这些内容的途径，并不声称对这些表情包内容拥有任何形式的所有权或知识产权。
+本插件（**emojihub-bili**）中的所有表情包内容均来源于哔哩哔哩（Bilibili）网站。这些表情包的版权归原作者及哔哩哔哩网站所有。本插件仅提供访问这些内容的途径，并不声称对这些表情包内容拥有任何形式的所有权或知识产权。
 
 ### 非官方插件
 
-请注意，**EmojiHub-bili** 是一个非官方插件，与哔哩哔哩（Bilibili）公司或其服务没有任何直接关联。本插件的开发旨在为用户提供更便捷的方式来访问和使用哔哩哔哩上的表情包内容。
+请注意，**emojihub-bili** 是一个非官方插件，与哔哩哔哩（Bilibili）公司或其服务没有任何直接关联。本插件的开发旨在为用户提供更便捷的方式来访问和使用哔哩哔哩上的表情包内容。
 
 ### 使用责任
 
-用户在使用 **EmojiHub-bili** 插件时，应自行承担所有风险。插件开发者不对任何由于使用本插件而可能引起的直接或间接的损失或损害负责。
+用户在使用 **emojihub-bili** 插件时，应自行承担所有风险。插件开发者不对任何由于使用本插件而可能引起的直接或间接的损失或损害负责。
 
 ### 内容责任
 
-插件开发者不对通过 **EmojiHub-bili** 插件获取的任何表情包内容的准确性、完整性、适用性或合法性负责。所有表情包内容的责任均由内容的原始提供者承担。
+插件开发者不对通过 **emojihub-bili** 插件获取的任何表情包内容的准确性、完整性、适用性或合法性负责。所有表情包内容的责任均由内容的原始提供者承担。
 
 ### 最终解释权
 
@@ -713,6 +783,12 @@ markdown的按钮参数，需要填入按钮模板ID，
 
 <details>
 <summary>点击此处————查看更新日志</summary>
+
+- **1.3.0**
+   - 优化表情包本地路径的处理优化，支持`file:///`
+   - 优化readme说明文档
+   - 调整资源文件的存放结构（早就该换地方了
+   - 移除多余引用`fs/promises`
 
 - **1.2.6**
    - 适配私域markdown功能，通过主动md发送，与被动md基本一样
@@ -808,7 +884,7 @@ markdown的按钮参数，需要填入按钮模板ID，
    -  暂不支持对本地文件夹下子文件夹内图片的搜索
    
 - **0.9.0**
-   -  优化MoreEmojiHub的`表情包文件地址`。现版本支持填入`txt文件绝对路径`或者`文件夹绝对路径`或者`图片直链`或者`图片文件绝对路径`。
+   -  优化Moreemojihub的`表情包文件地址`。现版本支持填入`txt文件绝对路径`或者`文件夹绝对路径`或者`图片直链`或者`图片文件绝对路径`。
    -  优化控制台说明内容
 
 - **0.8.12**
@@ -1042,7 +1118,7 @@ markdown的按钮参数，需要填入按钮模板ID，
 
 - **0.2.7** 调整指令排序。修改`groupListmapping`表格的默认内容。
 
-- **0.2.6** 更正控制台说明文字，只需要点击`MoreEmojiHub`表格右上角按钮内的`恢复默认值`就可以恢复到匹配的最新内容了
+- **0.2.6** 更正控制台说明文字，只需要点击`Moreemojihub`表格右上角按钮内的`恢复默认值`就可以恢复到匹配的最新内容了
 
 - **0.2.5** 
    - 加入有关koishi的meme哈哈哈哈哈 
@@ -1064,7 +1140,7 @@ markdown的按钮参数，需要填入按钮模板ID，
    - 1.新增配置项 `autoEmoji`、 `triggerprobability`、 `groupListmapping`、 `count` ，作为进阶设置。
    - 2.支持`自动表情包`功能，可以让机器人接收到一定数量的消息后 概率发送表情包。
    - 3.支持按群组配置自定义的表情包。
-   - 4.优化配置项`MoreEmojiHub`等的排布。更整洁。
+   - 4.优化配置项`Moreemojihub`等的排布。更整洁。
 
 - **0.1.12** 完善说明文档。增添`ba表情包`指令的默认配置项。
 
