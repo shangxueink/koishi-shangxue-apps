@@ -169,19 +169,6 @@ async function apply(ctx, config) {
   const backupDir = path.join(ctx.baseDir, 'backup');
   await fs.mkdir(backupDir, { recursive: true });
 
-  // 备份指令
-  ctx.command("备份", { authority: 4 })
-    .alias('备份koishi')
-    .action(async ({ session }) => {
-      await performBackup();
-      session.send("备份完成！");
-    });
-
-  // 自动备份任务
-  if (config.auto_cron) {
-    ctx.cron(config.cronvalue, performBackup);
-  }
-
   // 递归复制文件和文件夹
   async function copyRecursive(src, dest) {
     const stats = await fs.lstat(src);
@@ -215,6 +202,21 @@ async function apply(ctx, config) {
       await fs.rm(path.join(instanceBackupPath, oldest.name), { recursive: true, force: true });
     }
   }
+
+  ctx.on('ready', () => {
+    // 备份指令
+    ctx.command("备份", { authority: 4 })
+      .alias('备份koishi')
+      .action(async ({ session }) => {
+        await performBackup();
+        session.send("备份完成！");
+      });
+
+    // 自动备份任务
+    if (config.auto_cron) {
+      ctx.cron(config.cronvalue, performBackup);
+    }
+  });
 
 }
 
