@@ -142,7 +142,7 @@ exports.Config = Schema.intersect([
     Schema.object({
       autoEmoji: Schema.const("定时发送").required(),
       bot: Schema.number().description('定时消息由第几个bot发出？`第一个是0，第二个是1，...`<br>▶ 如果你只接了一个机器人，那么`0`即可').default(0).min(0),
-      triggerprobability: Schema.percent().default(0.6).description('达到消息数量阈值时，发送表情包的概率 `范围为 0 到 1 `'),
+      triggerprobability: Schema.percent().default(0.6).description('达到预定时间时，发送表情包的概率 `范围为 0 到 1 `'),
       groupListmapping: Schema.array(Schema.object({
         groupList: Schema.string().description('开启自动表情包的群组ID'),
         defaultemojicommand: Schema.string().description('表情包指令名称 `应与上方指令表格对应`'),

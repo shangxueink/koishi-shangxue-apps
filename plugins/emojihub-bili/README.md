@@ -784,6 +784,11 @@ markdown的按钮参数，需要填入按钮模板ID，
 <details>
 <summary>点击此处————查看更新日志</summary>
 
+- **1.3.9**
+    - 优化配置项说明内容
+    - 修复txts文件夹缺失
+    - 完善readme
+
 - **1.3.7**
     - 优化readme更新日志
     - 同步package.json服务声明
