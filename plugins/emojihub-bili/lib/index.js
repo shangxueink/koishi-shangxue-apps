@@ -31,6 +31,7 @@ exports.usage = `
 const logger = new Logger('emojihub-bili');
 const defaultMoreEmojiHubList = [
   // 下面实际有效为 43套
+  { command: '随机emojihub表情包', source_url: "无效路径/内容会调用随机表情包。注意与【随机表情包】指令的功能一致，但【随机表情包】不可被填入表格使用，【随机emojihub表情包】可以，因为在这个配置项里。" },
   { command: '本地图库示例', source_url: path.join(__dirname, 'txts') },
   { command: '网络图片示例', source_url: 'https://i0.hdslb.com/bfs/article/afc31d0e398204d94478473a497028e6352074746.gif' },
   { command: '2233娘小剧场表情包', source_url: path.join(__dirname, '../txts/2233娘小剧场.txt') },
@@ -116,7 +117,7 @@ exports.Config = Schema.intersect([
     Schema.object({
       autoEmoji: Schema.const("定量消息发送").required(),
       middleware: Schema.boolean().description('开启后使用前置中间件').default(true),
-      triggerprobability: Schema.percent().default(0.6).description('达到消息数量阈值时，发送表情包的概率 `范围为 0 到 1 `'),
+      triggerprobability: Schema.percent().default(0.8).description('达到消息数量阈值时，发送表情包的概率 `范围为 0 到 1 `'),
       groupListmapping: Schema.array(Schema.object({
         groupList: Schema.string().description('开启自动表情包的群组ID'),
         defaultemojicommand: Schema.string().description('表情包指令名称 `应与上方指令表格对应`'),
@@ -136,13 +137,14 @@ exports.Config = Schema.intersect([
           }
         ]),
       allgroupautoEmoji: Schema.boolean().description("`全部群组` 开启自动表情包").default(false),
+      count: Schema.number().description('`全部群组` 触发自动表情包的消息数量的阈值').default(30),
       allgroupemojicommand: Schema.string().role('textarea', { rows: [2, 4] })
         .description('`全部群组的` 表情包指令映射`一行一个指令 或者 逗号分隔`   <br> 可以同时在`groupListmapping`指定群组的表情包内容').default(`宇佐紀表情包\n白圣女表情包\n白圣女漫画表情包`),
     }),
     Schema.object({
       autoEmoji: Schema.const("定时发送").required(),
       bot: Schema.number().description('定时消息由第几个bot发出？`第一个是0，第二个是1，...`<br>▶ 如果你只接了一个机器人，那么`0`即可').default(0).min(0),
-      triggerprobability: Schema.percent().default(0.6).description('达到预定时间时，发送表情包的概率 `范围为 0 到 1 `'),
+      triggerprobability: Schema.percent().default(0.8).description('达到预定时间时，发送表情包的概率 `范围为 0 到 1 `'),
       groupListmapping: Schema.array(Schema.object({
         groupList: Schema.string().description('开启自动表情包的群组ID'),
         defaultemojicommand: Schema.string().description('表情包指令名称 `应与上方指令表格对应`'),
@@ -780,9 +782,8 @@ function apply(ctx, config) {
 
 
 
-
   function command_list_markdown(session) {
-    const markdownMessage = {
+    let markdownMessage = {
       msg_type: 2,
       markdown: {},
       keyboard: {},
@@ -792,7 +793,19 @@ function apply(ctx, config) {
       markdownMessage.msg_id = session.messageId;
     }
 
-    if (config.markdown_button_mode === "markdown") {
+    if (config.markdown_button_mode === "json") {
+      markdownMessage = {
+        msg_type: 2,
+        // markdown: {}, // json情况里不允许传入这个字段，但是其他情况都有。
+        keyboard: {},
+      }
+      const keyboardId = config.nestedlist.json_button_template_id;
+      if (config.markdown_button_mode_keyboard) {
+        markdownMessage.keyboard = {
+          id: keyboardId,
+        };
+      }
+    } else if (config.markdown_button_mode === "markdown") {
       const templateId = config.nestedlist.markdown_button_template_id;
       const keyboardId = config.nestedlist.markdown_button_keyboard_id;
       const contentTable = config.nestedlist.markdown_button_content_table;
@@ -1091,6 +1104,8 @@ function apply(ctx, config) {
       }
     });
 
+
+
   if (config.autoEmoji === "定量消息发送" && (config.groupListmapping.length || config.allgroupautoEmoji)) {
     const groups = {};
     // 初始化特定群组的配置
@@ -1118,21 +1133,28 @@ function apply(ctx, config) {
       // 如果当前群组没有特定配置，并且开启了全部群组自动表情包
       if (!groupConfig && config.allgroupautoEmoji) {
         // 初始化为全部群组的配置
-        groupConfig = { count: 0, emojicommand: config.allgroupemojicommand, threshold: config.count };
+        groupConfig = {
+          count: 0,
+          emojicommand: config.allgroupemojicommand,
+          threshold: config.count
+        };
         groups[channelId] = groupConfig; // 记录配置以供后续使用
       }
 
       // 如果存在配置，处理表情包逻辑
       if (groupConfig) {
         groupConfig.count = (groupConfig.count || 0) + 1; // 增加消息计数
-
+        logInfo(`${channelId} ：${groupConfig.count} ：${session.content}`)
         // 达到触发条件
         if (groupConfig.count >= groupConfig.threshold) {
           const randomNumber = Math.random();
           // 触发概率判断
           if (randomNumber <= config.triggerprobability) {
+            logInfo(`定量消息发送：概率判断：${randomNumber} <= ${config.triggerprobability} 触发表情包`) // 打印触发日志
             let emojicommands = groupConfig.emojicommand.split(/\n|,|，/).map(cmd => cmd.trim());
             const randomCommand = emojicommands[Math.floor(Math.random() * emojicommands.length)];
+            logInfo(`随机选择的指令: ${randomCommand}`);
+            //logInfo(`MoreEmojiHubList: ${JSON.stringify(config.MoreEmojiHubList)}`);
             const emojiConfig = config.MoreEmojiHubList.find(({ command }) => command === randomCommand);
             if (emojiConfig) {
               const imageResult = await determineImagePath(emojiConfig.source_url, config, channelId, emojiConfig.command, ctx);
@@ -1173,13 +1195,15 @@ function apply(ctx, config) {
             }
           } else {
             groupConfig.count = 0; // 没有触发表情包，重置计数
-            logInfo("定量消息发送：概率判断：此次不发送表情包，并且重置计数。")
+            const comparisonSymbol = randomNumber <= config.triggerprobability ? "<=" : ">"; // 根据比较结果设置比较符号
+            logInfo(`定量消息发送：概率判断：${randomNumber} ${comparisonSymbol} ${config.triggerprobability}\n此次不发送表情包，并且重置计数。`)
           }
         }
       }
       return next();
     }, config.middleware);
   }
+
 
   ctx.on('ready', () => {
     if (config.autoEmoji === "定时发送" && config.groupListmapping.length && ctx.cron) {
@@ -1264,7 +1288,8 @@ function apply(ctx, config) {
                 }
               }
             } else {
-              logInfo(`定时发送：概率判断结果：${randomNumber}<= ${config.triggerprobability}\n此次不发送表情包，并且重置计数。`)
+              const comparisonSymbol = randomNumber <= config.triggerprobability ? "<=" : ">"; // 根据比较结果设置比较符号
+              logInfo(`定时发送：概率判断结果：${randomNumber} ${comparisonSymbol} ${config.triggerprobability}\n此次不发送表情包。`)
             }
           });
         }
