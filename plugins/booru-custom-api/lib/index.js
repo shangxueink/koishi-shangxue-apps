@@ -17,6 +17,7 @@ exports.usage = `
     <li>支持多个图源并行配置</li>
     <li>基于标签的图源过滤系统</li>
     <li>权重控制请求优先级</li>    
+    <li>并发请求API</li>    
   </ul>
 
   <h3>示例配置：</h3>
@@ -71,10 +72,17 @@ exports.Config = Schema.intersect([
         // tags: Schema.array(Schema.string()).default([]).description('支持的标签'),
       })
     ).role('table').description('多图源配置表'),
+    consoleinfo: Schema.boolean().default(false).description('日志调试模式'),
   }),
 ]);
 
 exports.apply = (ctx, config) => {
+  const loggerinfo = (message) => {
+    if (config.consoleinfo) {
+      ctx.logger.info(message);
+    }
+  };
+
   class CustomizeImageSource extends koishi_plugin_booru.ImageSource {
     constructor(ctx, config) {
       super(ctx, config);
@@ -85,32 +93,48 @@ exports.apply = (ctx, config) => {
 
     async get(query) {
       try {
-        const response = await this.ctx.http.get(this.config.APIurl);
+        const count = query.count || 1;
+        loggerinfo(`[${this.config.label}] 开始请求 ${count} 张图片`);
 
+        // 创建多个并发的请求
+        const requests = Array.from({ length: count }, (_, i) => {
+          loggerinfo(`[${this.config.label}] 正在请求第 ${i + 1} 张图片`);
+          return this.ctx.http.get(this.config.APIurl)
+            .then(response => {
+              loggerinfo(`[${this.config.label}] 第 ${i + 1} 张图片获取成功`);
+              return {
+                urls: {
+                  original: this.parseImageUrl(response),
+                },
+                pageUrl: this.parsePageUrl(response),
+                nsfw: this.checkNSFW(response),
+              };
+            })
+            .catch(error => {
+              this.ctx.logger.error(`[${this.config.label}] 第 ${i + 1} 张图片失败: ${error.message}`);
+              return null; // 返回 null 表示请求失败
+            });
+        });
 
+        // 等待所有请求完成
+        const images = await Promise.all(requests);
 
-        return [{
-          urls: {
-            original: this.parseImageUrl(response),
-            large: this.parseImageUrl(response),
-            medium: this.parseImageUrl(response),
-            small: this.parseImageUrl(response),
-            thumbnail: this.parseImageUrl(response),
-          },
-          // tags: this.config.tags,
-          pageUrl: this.parsePageUrl(response),
-          nsfw: this.checkNSFW(response),
-        }];
+        // 过滤掉失败的请求
+        const successfulImages = images.filter(image => image !== null);
+
+        loggerinfo(`[${this.config.label}] 成功获取 ${successfulImages.length} 张图片`);
+        loggerinfo(`----------------------------------------------------------`);
+        return successfulImages;
       } catch (error) {
-        ctx.logger.error(`[${this.config.label}] Error: ${error.message}`);
+        this.ctx.logger.error(`[${this.config.label}] 请求失败: ${error.message}`);
         return [];
       }
     }
 
-
-
-    parseImageUrl(item) {
-      return this.config.APIurl; // 直接返回配置的固定URL
+    parseImageUrl(response) {
+      // 将二进制数据转换为Base64
+      const base64 = Buffer.from(response).toString('base64');
+      return `data:image/jpeg;base64,${base64}`;
     }
 
     parsePageUrl(item) {
