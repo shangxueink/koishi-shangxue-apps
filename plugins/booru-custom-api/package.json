@@ -1,7 +1,7 @@
 {
   "name": "koishi-plugin-booru-custom-api",
   "description": "[点我查看说明](https://www.npmjs.com/package/koishi-plugin-booru-custom-api) Support for custom API graph sources for booru viewing! ",
-  "version": "0.1.4",
+  "version": "1.0.0",
   "main": "lib/index.js",
   "typings": "lib/index.d.ts",
   "files": [
@@ -18,7 +18,6 @@
     "image",
     "picture",
     "random",
-    "Custom API graph source support",
     "setu",
     "图源支持",
     "自定义"

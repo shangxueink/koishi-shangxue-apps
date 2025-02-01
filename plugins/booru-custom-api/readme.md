@@ -22,15 +22,3 @@
 
 请确保你的 API URL 是有效可以访问的，并且能直接返回图片数据。
 
-这里给出一个示例API，你可以用它来进行一些测试。
-
-```
-https://source.unsplash.com/1600x900
-
-```
-
-## 免责声明
-
-请注意：此API URL（`https://source.unsplash.com/1600x900`）仅为示例，实际使用时请替换为你的具体API URL。
-请确保API的合法性和稳定性，本插件不对从API获取的内容承担责任。
-
