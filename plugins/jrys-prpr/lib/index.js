@@ -70,14 +70,15 @@ exports.Config =
 
       BackgroundURL: Schema.array(String).description("背景图片，可以写`txt路径（网络图片URL写进txt里）` 或者 `文件夹路径` 或者 `网络图片URL` <br> 建议参考[status-prpr](/market?keyword=status-prpr)与[emojihub-bili](/market?keyword=emojihub-bili)的图片方法 ").role('table')
         .default([
-          path.join(__dirname, '/backgroundFolder/魔卡.txt'),
-          path.join(__dirname, '/backgroundFolder/ba.txt'),
-          path.join(__dirname, '/backgroundFolder/猫羽雫.txt'),
-          path.join(__dirname, '/backgroundFolder/miku.txt'),
-          path.join(__dirname, '/backgroundFolder/白圣女.txt'),
-          //path.join(__dirname, '/backgroundFolder/.txt'),   
+          path.join(__dirname, '../backgroundFolder/魔卡.txt'),
+          path.join(__dirname, '../backgroundFolder/ba.txt'),
+          path.join(__dirname, '../backgroundFolder/猫羽雫.txt'),
+          path.join(__dirname, '../backgroundFolder/miku.txt'),
+          path.join(__dirname, '../backgroundFolder/白圣女.txt'),
+          //path.join(__dirname, '../backgroundFolder/.txt'),   
         ]),
     }),
+
     Schema.object({
       screenshotquality: Schema.number().role('slider').min(0).max(100).step(1).default(50).description('设置图片压缩质量（%）'),
       HTML_setting: Schema.object({
@@ -92,27 +93,135 @@ exports.Config =
         fontPath: Schema.string().description("`请填写.ttf 字体文件的绝对路径`").default(path.join(__dirname, '../font/千图马克手写体.ttf')),
       }).collapse().description('可自定义各种颜色搭配和字体'),
     }).description('面板调节'),
+
+
     Schema.object({
-      ///////////////////////////////////////////////JSON按钮////////////////////////////////////////////////////////////////////////////
-      JSONswitch: Schema.boolean().description("`总开关，开启后`QQ官方 JSON 配置项才生效<br>不可与 MDswitch 同时开启").default(false),
-      json_setting: Schema.object({
-        jsonid: Schema.string().description('QQ官方bot 的 json模板ID').pattern(/^\d+_\d+$/),
-      }).collapse().description('实现QQ官方bot`再来一张`的按钮效果<br> [适用本插件的QQ官方bot json示例模版 可点击这里参考](https://www.npmjs.com/package/koishi-plugin-jrys-prpr)'),
-      ///////////////////////////////////////////////markdown////////////////////////////////////////////////////////////////////////////
-      MDswitch: Schema.boolean().description("`总开关，开启后`QQ官方 markdown 配置项才生效<br>此项功能需要 canvas 服务").default(false),
-      markdown_setting: Schema.object({
-        mdid: Schema.string().description('QQ官方bot 的 MarkDown模板ID').pattern(/^\d+_\d+$/),
-        zlmdtext_1: Schema.string().default('text1').description('`指令MD`.`MD参数`MD文字参数--1'),
-        zlmdtext_2: Schema.string().default('text2').description('`指令MD`.`MD参数`MD文字参数--2'),
-        zltext_1: Schema.array(String).default(["运势来啦~😺", "您的今日运势是：", "这是您的今日运势"]).description('`指令MD`MD显示文字内容--1`每次从下列随机选一个发送`').role('table'),
-        zltext_2: Schema.array(String).default(["邦邦咔邦！", "😺😺😺", "哇！"]).description('`指令MD`MD显示文字内容--2`每次从下列随机选一个发送`').role('table'),
-        zlmdp_1: Schema.string().default('img').description('`指令MD`.`MD参数`MD图片参数--1 `不需要设定图片宽高`'),
-        zlmdp_2: Schema.string().default('url').description('`指令MD`.`MD参数`MD图片参数--2'),
-        ButtonText: Schema.string().default('再来一张😺').description('`指令MD`按钮上`再来一张功能`显示的文字'),
-        ButtonStyle_Color: Schema.number().role('slider').min(0).max(2).step(1).description('markdown按钮样式'),
-      }).collapse().description('实现QQ官方bot`再来一张`的按钮效果，需要`canvas`服务。<br> [适用本插件的QQ官方bot MD示例模版 可点击这里参考](https://www.npmjs.com/package/koishi-plugin-jrys-prpr)'),
-      QQchannelId: Schema.string().description('`填入频道ID`，将该频道作为中转频道`必填，作为图床`').experimental().pattern(/^\S+$/),
-    }).description('QQ官方bot设置'),
+      markdown_button_mode: Schema.union([
+        Schema.const('unset').description('取消应用此配置项'),
+        Schema.const('json').description('json按钮-----------20 群（频道不可用）'),
+        Schema.const('markdown').description('被动md模板--------2000 DAU / 私域'),
+        Schema.const('markdown_raw_json').description('被动md模板--------2000 DAU - 原生按钮'),
+        Schema.const('raw').description('原生md------------10000 DAU'),
+        Schema.const('raw_jrys').description('原生md-不渲染jrys-----------10000 DAU'),
+      ]).role('radio').description('markdown/按钮模式选择').default("unset"),
+    }).description('QQ官方按钮设置'),
+    Schema.union([
+      Schema.object({
+        markdown_button_mode: Schema.const("json").required(),
+        markdown_button_mode_initiative: Schema.boolean().description("开启后，使用 主动消息 发送markdown。<br>即开启后不带`messageId`发送<br>适用于私域机器人频道使用。私域机器人需要使用`被动md模板、json模板`并且开启此配置项").default(false),
+        markdown_button_mode_keyboard: Schema.boolean().description("开启后，markdown加上按钮。关闭后，不加按钮内容哦<br>不影响markdown发送，多用于调试功能使用").default(true).experimental(),
+
+        nested: Schema.object({
+          json_button_template_id: Schema.string().description("模板ID<br>形如 `123456789_1234567890` 的ID编号<br>更多说明，详见[➩项目README](https://github.com/shangxueink/koishi-shangxue-apps/tree/main/plugins/emojihub-bili)").pattern(/^\d+_\d+$/),
+        }).collapse().description('➢表情包--按钮设置<br>更多说明，详见[➩项目README](https://github.com/shangxueink/koishi-shangxue-apps/tree/main/plugins/emojihub-bili)<hr style="border: 2px solid red;"><hr style="border: 2px solid red;">'),
+
+      }),
+      Schema.object({
+        markdown_button_mode: Schema.const("markdown").required(),
+        markdown_button_mode_initiative: Schema.boolean().description("开启后，使用 主动消息 发送markdown。<br>即开启后不带`messageId`发送<br>适用于私域机器人频道使用。私域机器人需要使用`被动md模板、json模板`并且开启此配置项").default(false),
+        markdown_button_mode_keyboard: Schema.boolean().description("开启后，markdown加上按钮。关闭后，不加按钮内容哦<br>不影响markdown发送，多用于调试功能使用").default(true).experimental(),
+        QQchannelId: Schema.string().description('`填入QQ频道的频道ID`，将该ID的频道作为中转频道 <br> 频道ID可以用[inspect插件来查看](/market?keyword=inspect) `频道ID应为纯数字`').experimental().pattern(/^\S+$/),
+
+        nested: Schema.object({
+          markdown_button_template_id: Schema.string().description("md模板ID<br>形如 `123456789_1234567890` 的ID编号，发送markdown").pattern(/^\d+_\d+$/),
+          markdown_button_keyboard_id: Schema.string().description("按钮模板ID<br>形如 `123456789_1234567890` 的ID编号，发送按钮").pattern(/^\d+_\d+$/),
+          markdown_button_content_table: Schema.array(Schema.object({
+            raw_parameters: Schema.string().description("原始参数名称"),
+            replace_parameters: Schema.string().description("替换参数名称"),
+          })).role('table').default([
+            {
+              "raw_parameters": "your_markdown_text_1",
+              "replace_parameters": "表情包来啦！"
+            },
+            {
+              "raw_parameters": "your_markdown_text_2",
+              "replace_parameters": "这是你的表情包哦😽"
+            },
+            {
+              "raw_parameters": "your_markdown_img",
+              "replace_parameters": "${img_pxpx}"
+            },
+            {
+              "raw_parameters": "your_markdown_url",
+              "replace_parameters": "${img_url}"
+            }
+          ]).description("替换参数映射表<br>本插件会替换模板变量，请在左侧填入模板变量，右侧填入真实变量值。<br>本插件提供的参数有`encodedMessageTime`、`img_pxpx`、`img_url`、`ctx`、`session`、`config`<br>`img_pxpx`会被替换为`img#...px #...px`<br>`img_url`会被替换为`一个链接`，其中img_pxpx参数需要使用`canvas`服务<br>▶比如你可以使用`{{.session.userId}}`，这会被本插件替换为`真实的userId值`，若无匹配变量，则视为文本<br>更多说明，详见[➩项目README](https://github.com/shangxueink/koishi-shangxue-apps/tree/main/plugins/emojihub-bili)"),
+
+        }).collapse().description('➢表情包--按钮设置<br>更多说明，详见[➩项目README](https://github.com/shangxueink/koishi-shangxue-apps/tree/main/plugins/emojihub-bili)<hr style="border: 2px solid red;"><hr style="border: 2px solid red;">'),
+
+      }),
+
+      Schema.object({
+        markdown_button_mode: Schema.const("markdown_raw_json").required(),
+        markdown_button_mode_initiative: Schema.boolean().description("开启后，使用 主动消息 发送markdown。<br>即开启后不带`messageId`发送<br>适用于私域机器人频道使用。私域机器人需要使用`被动md模板、json模板`并且开启此配置项").default(false),
+        markdown_button_mode_keyboard: Schema.boolean().description("开启后，markdown加上按钮。关闭后，不加按钮内容哦<br>不影响markdown发送，多用于调试功能使用").default(true).experimental(),
+        QQchannelId: Schema.string().description('`填入QQ频道的频道ID`，将该ID的频道作为中转频道 <br> 频道ID可以用[inspect插件来查看](/market?keyword=inspect) `频道ID应为纯数字`').experimental().pattern(/^\S+$/),
+
+        nested: Schema.object({
+          markdown_raw_json_button_template_id: Schema.string().description("md模板ID<br>形如 `123456789_1234567890` 的ID编号，发送markdown").pattern(/^\d+_\d+$/),
+          markdown_raw_json_button_content_table: Schema.array(Schema.object({
+            raw_parameters: Schema.string().description("原始参数名称"),
+            replace_parameters: Schema.string().description("替换参数名称"),
+          })).role('table').default([
+            {
+              "raw_parameters": "your_markdown_text_1",
+              "replace_parameters": "表情包来啦！"
+            },
+            {
+              "raw_parameters": "your_markdown_text_2",
+              "replace_parameters": "这是你的表情包哦😽"
+            },
+            {
+              "raw_parameters": "your_markdown_img",
+              "replace_parameters": "${img_pxpx}"
+            },
+            {
+              "raw_parameters": "your_markdown_url",
+              "replace_parameters": "${img_url}"
+            }
+          ]).description("替换参数映射表<br>本插件会替换模板变量，请在左侧填入模板变量，右侧填入真实变量值。<br>本插件提供的参数有`encodedMessageTime`、`img_pxpx`、`img_url`、`ctx`、`session`、`config`<br>`img_pxpx`会被替换为`img#...px #...px`<br>`img_url`会被替换为`一个链接`，其中img_pxpx参数需要使用`canvas`服务<br>▶比如你可以使用`{{.session.userId}}`，这会被本插件替换为`真实的userId值`，若无匹配变量，则视为文本<br>更多说明，详见[➩项目README](https://github.com/shangxueink/koishi-shangxue-apps/tree/main/plugins/emojihub-bili)"),
+          markdown_raw_json_button_keyboard: Schema.string().role('textarea', { rows: [12, 12] }).collapse()
+            .default("{\n    \"rows\": [\n        {\n            \"buttons\": [\n                {\n                    \"render_data\": {\n                        \"label\": \"再来一张😺\",\n                        \"style\": 2\n                    },\n                    \"action\": {\n                        \"type\": 2,\n                        \"permission\": {\n                            \"type\": 2\n                        },\n                        \"data\": \"/${config.command}\",\n                        \"enter\": true\n                    }\n                },\n                {\n                    \"render_data\": {\n                        \"label\": \"查看原图😽\",\n                        \"style\": 2\n                    },\n                    \"action\": {\n                        \"type\": 2,\n                        \"permission\": {\n                            \"type\": 2\n                        },\n                        \"data\": \"/获取原图 ${encodedMessageTime}\",\n                        \"enter\": true\n                    }\n                }\n            ]\n        }\n    ]\n}")
+            .description('实现QQ官方bot的按钮效果<br>在这里填入你的按钮内容，注意保持json格式，推荐在编辑器中编辑好后粘贴进来'),
+        }).collapse().description('➢表情包--按钮设置<br>更多说明，详见[➩项目README](https://github.com/shangxueink/koishi-shangxue-apps/tree/main/plugins/emojihub-bili)<hr style="border: 2px solid red;"><hr style="border: 2px solid red;">'),
+
+      }),
+
+      Schema.object({
+        markdown_button_mode: Schema.const("raw").required(),
+        markdown_button_mode_initiative: Schema.boolean().description("开启后，使用 主动消息 发送markdown。<br>即开启后不带`messageId`发送<br>适用于私域机器人频道使用。私域机器人需要使用`被动md模板、json模板`并且开启此配置项").default(false),
+        markdown_button_mode_keyboard: Schema.boolean().description("开启后，markdown加上按钮。关闭后，不加按钮内容哦<br>不影响markdown发送，多用于调试功能使用").default(true).experimental(),
+        QQchannelId: Schema.string().description('`填入QQ频道的频道ID`，将该ID的频道作为中转频道 <br> 频道ID可以用[inspect插件来查看](/market?keyword=inspect) `频道ID应为纯数字`').experimental().pattern(/^\S+$/),
+
+        nested: Schema.object({
+          raw_markdown_button_content: Schema.string().role('textarea', { rows: [6, 6] }).collapse().default("## **今日运势😺**\n### 😽您今天的运势是：\n![${img_pxpx}](${img_url})")
+            .description('实现QQ官方bot的按钮效果，需要`canvas`服务。<br>在这里填入你的markdown内容。本插件会替换形如`{{.xxx}}`或`${xxx}`的参数为`xxx`。<br>本插件提供的参数有`encodedMessageTime`、`img_pxpx`、`img_url`、`ctx`、`session`、`config`<br>`img_pxpx`会被替换为`img#...px #...px`<br>`img_url`会被替换为`一个链接`更多说明，详见[➩项目README](https://github.com/shangxueink/koishi-shangxue-apps/tree/main/plugins/emojihub-bili)'),
+          raw_markdown_button_keyboard: Schema.string().role('textarea', { rows: [12, 12] }).collapse()
+            .default("{\n    \"rows\": [\n        {\n            \"buttons\": [\n                {\n                    \"render_data\": {\n                        \"label\": \"再来一张😺\",\n                        \"style\": 2\n                    },\n                    \"action\": {\n                        \"type\": 2,\n                        \"permission\": {\n                            \"type\": 2\n                        },\n                        \"data\": \"/${config.command}\",\n                        \"enter\": true\n                    }\n                },\n                {\n                    \"render_data\": {\n                        \"label\": \"查看原图😽\",\n                        \"style\": 2\n                    },\n                    \"action\": {\n                        \"type\": 2,\n                        \"permission\": {\n                            \"type\": 2\n                        },\n                        \"data\": \"/获取原图 ${encodedMessageTime}\",\n                        \"enter\": true\n                    }\n                }\n            ]\n        }\n    ]\n}")
+            .description('实现QQ官方bot的按钮效果<br>在这里填入你的按钮内容，注意保持json格式，推荐在编辑器中编辑好后粘贴进来'),
+        }).collapse().description('➢表情包--按钮设置<br>更多说明，详见[➩项目README](https://github.com/shangxueink/koishi-shangxue-apps/tree/main/plugins/emojihub-bili)<hr style="border: 2px solid red;"><hr style="border: 2px solid red;">'),
+
+      }),
+
+      Schema.object({
+        markdown_button_mode: Schema.const("raw_jrys").required(),
+        markdown_button_mode_initiative: Schema.boolean().description("开启后，使用 主动消息 发送markdown。<br>即开启后不带`messageId`发送<br>适用于私域机器人频道使用。私域机器人需要使用`被动md模板、json模板`并且开启此配置项").default(false),
+        markdown_button_mode_keyboard: Schema.boolean().description("开启后，markdown加上按钮。关闭后，不加按钮内容哦<br>不影响markdown发送，多用于调试功能使用").default(true).experimental(),
+        QQchannelId: Schema.string().description('`填入QQ频道的频道ID`，将该ID的频道作为中转频道 <br> 频道ID可以用[inspect插件来查看](/market?keyword=inspect) `频道ID应为纯数字`').experimental().pattern(/^\S+$/),
+
+        nested: Schema.object({
+          raw_jrys_markdown_button_content: Schema.string().role('textarea', { rows: [6, 6] }).collapse().default("<qqbot-at-user id=\"${session.userId}\" />\n您的今日运势为：\n**${dJson.fortuneSummary}**\n${dJson.luckyStar}\n\n> ${dJson.unsignText}\n![${img_pxpx}](${img_url})\n\n> 仅供娱乐|相信科学|请勿迷信")
+            .description('实现QQ官方bot的按钮效果，需要`canvas`服务。<br>在这里填入你的markdown内容。本插件会替换形如`{{.xxx}}`或`${xxx}`的参数为`xxx`。<br>本插件提供的参数有`dJson`、`img_pxpx`、`img_url`、`ctx`、`session`、`config`<br>`img_pxpx`会被替换为`img#...px #...px`<br>`img_url`会被替换为`一个链接`更多说明，详见[➩项目README](https://github.com/shangxueink/koishi-shangxue-apps/tree/main/plugins/emojihub-bili)'),
+          raw_jrys_markdown_button_keyboard: Schema.string().role('textarea', { rows: [12, 12] }).collapse()
+            .default("{\n  \"rows\": [\n      {\n          \"buttons\": [\n              {\n                  \"render_data\": {\n                      \"label\": \"再来一张😺\",\n                      \"style\": 2\n                  },\n                  \"action\": {\n                      \"type\": 2,\n                      \"permission\": {\n                          \"type\": 2\n                      },\n                      \"data\": \"/${config.command}\",\n                      \"enter\": true\n                  }\n              }\n          ]\n      }\n  ]\n}")
+            .description('实现QQ官方bot的按钮效果<br>在这里填入你的按钮内容，注意保持json格式，推荐在编辑器中编辑好后粘贴进来'),
+        }).collapse().description('➢表情包--按钮设置<br>更多说明，详见[➩项目README](https://github.com/shangxueink/koishi-shangxue-apps/tree/main/plugins/emojihub-bili)<hr style="border: 2px solid red;"><hr style="border: 2px solid red;">'),
+
+      }),
+      Schema.object({}),
+    ]),
+
+
     Schema.object({
       enablecurrency: Schema.boolean().description("开启后，签到获取货币").default(false),
       currency: Schema.string().default('jrysprpr').description('monetary 数据库的 currency 字段名称'),
@@ -123,7 +232,8 @@ exports.Config =
       consoleinfo: Schema.boolean().default(false).description("日志调试模式`日常使用无需开启`"),
     }).description('调试功能'),
   ])
-exports.logger = new Logger("jrys-prpr");
+
+
 function apply(ctx, config) {
   const root = path.join(ctx.baseDir, 'data', 'jrys-prpr');
   const jsonFilePath = path.join(root, 'OriginalImageURL_data.json');
@@ -146,7 +256,7 @@ function apply(ctx, config) {
     primary: ["userid", "channelId"]
   });
 
-  var zh_CN_default = {
+  const zh_CN_default = {
     commands: {
       [config.command]: {
         description: "查看今日运势",
@@ -173,7 +283,7 @@ function apply(ctx, config) {
   ctx.i18n.define("zh-CN", zh_CN_default);
   function logInfo(message) {
     if (config.consoleinfo) {
-      exports.logger.error(message);
+      ctx.logger.error(message);
     }
   }
   // 读取 TTF 字体文件并转换为 Base64 编码
@@ -193,11 +303,11 @@ function apply(ctx, config) {
         logInfo(`已删除消息ID ${messageId} 的记录`);
       }
     } catch (error) {
-      exports.logger.error("删除记录时出错: ", error);
+      ctx.logger.error("删除记录时出错: ", error);
     }
   }
   if (config.GetOriginalImageCommand) {
-    ctx.command(config.command2, { authority: 1 })
+    ctx.command(`${config.command2} <InputmessageId:text>`, { authority: 1 })
       .alias('获取原图')
       .action(async ({ session }, InputmessageId) => {
         try {
@@ -217,8 +327,8 @@ function apply(ctx, config) {
           const originalImageURL = await getOriginalImageURL(messageId);
           logInfo(`运势背景原图链接:\n ${originalImageURL}`);
           if (originalImageURL) {
-            await session.send(h.image(originalImageURL));
-            if (config.autocleanjson) {
+            const sendsuccess = await session.send(h.image(originalImageURL));
+            if (config.autocleanjson && sendsuccess) {
               // 删除对应的JSON记录
               await deleteImageRecord(messageId, originalImageURL);
             }
@@ -229,7 +339,7 @@ function apply(ctx, config) {
             return session.text(".FetchIDfailed");
           }
         } catch (error) {
-          exports.logger.error("获取运势图原图时出错: ", error);
+          ctx.logger.error("获取运势图原图时出错: ", error);
           return session.text(".Failedtogetpictures");
         }
       });
@@ -244,12 +354,16 @@ function apply(ctx, config) {
     .action(async ({ session, options }) => {
       let hasSignedInToday = await alreadySignedInToday(ctx, session.userId, session.channelId)
       let Checkin_HintText_messageid
+      let backgroundImage = getRandomBackground(config);
+      let BackgroundURL = backgroundImage.replace(/\\/g, '/');
+      let imageBuffer
+      const dJson = await getJrys(session);
       if (options.split) {
         // 如果开启了分离模式，那就只返回图文消息内容。即文字运势内容与背景图片
         if (config.Checkin_HintText) {
           Checkin_HintText_messageid = await session.send(config.Checkin_HintText)
         }
-        const dJson = await getJrys(session);
+
         let textjrys = `
 ${dJson.fortuneSummary}
 ${dJson.luckyStar}\n
@@ -283,34 +397,37 @@ ${dJson.unsignText}\n
         }
         return;
       }
+
       if (config.Checkin_HintText) {
         Checkin_HintText_messageid = await session.send(config.Checkin_HintText)
       }
+
+
       let page;
       try {
-        page = await ctx.puppeteer.page();
-        await page.setViewport({ width: 1080, height: 1920 });
-        let backgroundImage = getRandomBackground(config);
-        let BackgroundURL = backgroundImage.replace(/\\/g, '/');
-        let BackgroundURL_base64 = convertToBase64IfLocal(BackgroundURL);
-        // 读取 Base64 字体字符串
-        logInfo(config.HTML_setting.fontPath)
-        // 如果字体 Base64 未缓存，则读取并缓存
-        if (!cachedFontBase64) {
-          cachedFontBase64 = getFontBase64(config.HTML_setting.fontPath);
-        }
-        // 使用缓存的字体 Base64
-        const fontBase64 = cachedFontBase64;
+        if (config.markdown_button_mode !== "raw_jrys") {
+          page = await ctx.puppeteer.page();
+          await page.setViewport({ width: 1080, height: 1920 });
 
-        let insertHTMLuseravatar = session.event.user.avatar;
-        let luckyStarHTML = `
+          let BackgroundURL_base64 = convertToBase64IfLocal(BackgroundURL);
+          // 读取 Base64 字体字符串
+          logInfo(config.HTML_setting.fontPath)
+          // 如果字体 Base64 未缓存，则读取并缓存
+          if (!cachedFontBase64) {
+            cachedFontBase64 = getFontBase64(config.HTML_setting.fontPath);
+          }
+          // 使用缓存的字体 Base64
+          const fontBase64 = cachedFontBase64;
+
+          let insertHTMLuseravatar = session.event.user.avatar;
+          let luckyStarHTML = `
 .lucky-star {
 font-size: 60px; 
 margin-bottom: 10px;
 }
 `;
-        if (config.HTML_setting.luckyStarGradientColor) {
-          luckyStarHTML = `
+          if (config.HTML_setting.luckyStarGradientColor) {
+            luckyStarHTML = `
 .lucky-star {
 font-size: 60px;
 margin-bottom: 10px;
@@ -327,10 +444,9 @@ background-clip: text;
 color: transparent;
 }
 `;
-        }
-        const dJson = await getJrys(session);
-        const formattedDate = await getFormattedDate();
-        let HTMLsource = `
+          }
+          const formattedDate = await getFormattedDate();
+          let HTMLsource = `
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -468,26 +584,45 @@ ${dJson.unsignText}
 </body>
 </html>
 `;
-        logInfo(`触发用户: ${session.event.user?.id}`);
-        if (session.platform === 'qq') {
-          logInfo(`QQ官方：bot: ${session.bot.config.id}`);
-          logInfo(`QQ官方：用户头像: http://q.qlogo.cn/qqapp/${session.bot.config.id}/${session.event.user?.id}/640`);
+          logInfo(`触发用户: ${session.event.user?.id}`);
+          if (session.platform === 'qq') {
+            logInfo(`QQ官方：bot: ${session.bot.config.id}`);
+            logInfo(`QQ官方：用户头像: http://q.qlogo.cn/qqapp/${session.bot.config.id}/${session.event.user?.id}/640`);
+          }
+          logInfo(`使用背景URL: ${BackgroundURL}`);
+          logInfo(`蒙版颜色: ${config.HTML_setting.MaskColor}`);
+          logInfo(`虚线框粗细: ${config.HTML_setting.DashedboxThickn}`);
+          logInfo(`虚线框颜色: ${config.HTML_setting.Dashedboxcolor}`);
+          await page.setContent(HTMLsource);
+          // 等待网络空闲
+          await page.waitForNetworkIdle();
+          const element = await page.$('body');
+
+          imageBuffer = await element.screenshot({
+            type: "jpeg",  // 使用 JPEG 格式
+            encoding: "binary",
+            quality: config.screenshotquality  // 设置图片质量
+          });
+        } else {
+          if (BackgroundURL.startsWith('data:image/')) {
+            // Base64 图片数据
+            const base64Data = BackgroundURL.split(',')[1];
+            imageBuffer = Buffer.from(base64Data, 'base64');
+          } else if (BackgroundURL.startsWith('http://') || BackgroundURL.startsWith('https://')) {
+            // 网络 URL
+            imageBuffer = await ctx.http.get(BackgroundURL, { responseType: 'arraybuffer' });
+            imageBuffer = Buffer.from(imageBuffer);
+          } else if (BackgroundURL.startsWith('file:///')) {
+            // 本地文件路径（file:/// 格式）
+            const localPath = fileURLToPath(BackgroundURL);
+            imageBuffer = fs.readFileSync(localPath);
+          } else if (fs.existsSync(BackgroundURL)) {
+            // 本地文件路径
+            imageBuffer = fs.readFileSync(BackgroundURL);
+          } else {
+            throw new Error('不支持的背景图格式');
+          }
         }
-        logInfo(`使用背景URL: ${BackgroundURL}`);
-        logInfo(`蒙版颜色: ${config.HTML_setting.MaskColor}`);
-        logInfo(`虚线框粗细: ${config.HTML_setting.DashedboxThickn}`);
-        logInfo(`虚线框颜色: ${config.HTML_setting.Dashedboxcolor}`);
-        await page.setContent(HTMLsource);
-        // 等待网络空闲
-        await page.waitForNetworkIdle();
-        const element = await page.$('body');
-
-        const imageBuffer = await element.screenshot({
-          type: "jpeg",  // 使用 JPEG 格式
-          encoding: "binary",
-          quality: config.screenshotquality  // 设置图片质量
-        });
-
         const encodeTimestamp = (timestamp) => {
           // 将日期和时间部分分开
           let [date, time] = timestamp.split('T');
@@ -509,19 +644,23 @@ ${dJson.unsignText}
           //let markdownmessageId;
           const messageTime = new Date().toISOString(); // 获取当前时间的ISO格式
           const encodedMessageTime = encodeTimestamp(messageTime); // 对时间戳进行简单编码
-          if (config.MDswitch && !config.JSONswitch && config.markdown_setting.mdid && session.platform === 'qq') {
-            // 保存截图并上传
-            const screenshotPath = path.resolve(__dirname, 'temp_screenshot.png');
-            fs.writeFileSync(screenshotPath, imageBuffer);
-            const uploadedImageURL = await uploadImageToChannel(screenshotPath, session.bot.config.id, session.bot.config.secret, config.QQchannelId);
-            const qqmarkdownmessage = await markdown(session, uploadedImageURL.url, encodedMessageTime);
-            //logInfo(session.event.guild?.id)  // 是群聊，markdown  
-            //sentMessage = await session.qq.sendMessage(session.channelId, qqmarkdownmessage);
-            if (session.event.guild?.id) {
-              sentMessage = await session.qq.sendMessage(session.channelId, qqmarkdownmessage);
-            } else {
-              sentMessage = await session.qq.sendPrivateMessage(session.event.user?.id, qqmarkdownmessage);
+          if ((config.markdown_button_mode === "markdown" || config.markdown_button_mode === "raw" || config.markdown_button_mode === "markdown_raw_json" || config.markdown_button_mode === "raw_jrys") && session.platform === 'qq') {
+            const uploadedImageURL = await uploadImageToChannel(imageBuffer, session.bot.config.id, session.bot.config.secret, config.QQchannelId);
+            const qqmarkdownmessage = await markdown(session, encodedMessageTime, uploadedImageURL.url);
+            if (session.platform === "qqguild") {
+              if (session.isDirect) {
+                await session.qqguild.sendPrivateMessage(session.channelId, qqmarkdownmessage);
+              } else {
+                await session.qqguild.sendMessage(session.channelId, qqmarkdownmessage);
+              }
+            } else if (session.platform === "qq") {
+              if (session.isDirect) {
+                await session.qq.sendPrivateMessage(session.channelId, qqmarkdownmessage);
+              } else {
+                await session.qq.sendMessage(session.channelId, qqmarkdownmessage);
+              }
             }
+
           } else {
             // 根据不同的配置发送不同类型的消息
             const imageMessage = h.image(imageBuffer, "image/png");
@@ -563,64 +702,71 @@ ${dJson.unsignText}
                 break;
             }
           }
-          if (config.JSONswitch && config.json_setting.jsonid && session.platform === 'qq') {
+          if (config.markdown_button_mode === "json" && session.platform === 'qq') {
             let markdownMessage = {
               msg_id: session.event.message.id,
               msg_type: 2,
-              content: "", // content可传入不进去哦~  只能发按钮
               keyboard: {
-                id: config.json_setting.jsonid
+                id: config.nested.json_button_template_id
               },
             }
-            if (session.event.guild?.id) {
-              await session.qq.sendMessage(session.channelId, markdownMessage);
-            } else {
-              await session.qq.sendPrivateMessage(session.event.user?.id, markdownMessage);
-            }
-
-          }
-
-          // 记录日志
-          if (config.consoleinfo && !session.platform === 'qq') {
-            if (Array.isArray(sentMessage)) {
-              sentMessage.forEach((messageId, index) => {
-                exports.logger.info(`发送图片消息ID [${index}]: ${messageId}`);
-              });
-            } else {
-              exports.logger.info(`发送的消息对象: ${JSON.stringify(sentMessage, null, 2)}`);
+            if (session.platform === "qqguild") {
+              if (session.isDirect) {
+                await session.qqguild.sendPrivateMessage(session.channelId, markdownMessage);
+              } else {
+                await session.qqguild.sendMessage(session.channelId, markdownMessage);
+              }
+            } else if (session.platform === "qq") {
+              if (session.isDirect) {
+                await session.qq.sendPrivateMessage(session.channelId, markdownMessage);
+              } else {
+                await session.qq.sendMessage(session.channelId, markdownMessage);
+              }
             }
           }
-          // 记录消息ID和背景图URL到JSON文件
-          if (config.GetOriginalImageCommand) {
-            const imageData = {
-              // 使用 encodedMessageTime 作为唯一标识符的一部分
-              messageId: session.platform === 'qq' ? [encodedMessageTime] : (Array.isArray(sentMessage) ? sentMessage : [sentMessage]),
-              messageTime: encodedMessageTime, // 使用预先获取的时间戳
-              backgroundURL: BackgroundURL
-            };
-            try {
-              let data = [];
-              if (fs.existsSync(jsonFilePath)) {
-                // 读取JSON文件内容
-                const fileContent = fs.readFileSync(jsonFilePath, 'utf8');
-                if (fileContent.trim()) {
-                  data = JSON.parse(fileContent);
+          if (config.markdown_button_mode !== "raw_jrys") {
+            // 记录日志
+            if (config.consoleinfo && !session.platform === 'qq') {
+              if (Array.isArray(sentMessage)) {
+                sentMessage.forEach((messageId, index) => {
+                  ctx.logger.info(`发送图片消息ID [${index}]: ${messageId}`);
+                });
+              } else {
+                ctx.logger.info(`发送的消息对象: ${JSON.stringify(sentMessage, null, 2)}`);
+              }
+            }
+            // 记录消息ID和背景图URL到JSON文件
+            if (config.GetOriginalImageCommand) {
+              const imageData = {
+                // 使用 encodedMessageTime 作为唯一标识符的一部分
+                messageId: session.platform === 'qq' ? [encodedMessageTime] : (Array.isArray(sentMessage) ? sentMessage : [sentMessage]),
+                messageTime: encodedMessageTime, // 使用预先获取的时间戳
+                backgroundURL: BackgroundURL
+              };
+              try {
+                let data = [];
+                if (fs.existsSync(jsonFilePath)) {
+                  // 读取JSON文件内容
+                  const fileContent = fs.readFileSync(jsonFilePath, 'utf8');
+                  if (fileContent.trim()) {
+                    data = JSON.parse(fileContent);
+                  }
                 }
+                // 检查数据是否已存在
+                const exists = data.some(item => item.messageId.includes(imageData.messageId));
+                if (!exists) {
+                  // 添加新数据
+                  data.push(imageData);
+                  fs.writeFileSync(jsonFilePath, JSON.stringify(data, null, 2));
+                }
+              } catch (error) {
+                ctx.logger.error(`处理JSON文件时出错 [${encodedMessageTime}]: `, error); // 记录错误信息并包含时间戳
               }
-              // 检查数据是否已存在
-              const exists = data.some(item => item.messageId.includes(imageData.messageId));
-              if (!exists) {
-                // 添加新数据
-                data.push(imageData);
-                fs.writeFileSync(jsonFilePath, JSON.stringify(data, null, 2));
-              }
-            } catch (error) {
-              exports.logger.error(`处理JSON文件时出错 [${encodedMessageTime}]: `, error); // 记录错误信息并包含时间戳
             }
-          }
-          return sentMessage;
-        };
-        await recordSignIn(ctx, session.userId, session.channelId)
+            return sentMessage;
+          };
+          await recordSignIn(ctx, session.userId, session.channelId)
+        }
         // 调用函数发送消息
         await sendImageMessage(imageBuffer);
         if (Checkin_HintText_messageid) {
@@ -628,13 +774,31 @@ ${dJson.unsignText}
         }
       } catch (e) {
         const errorTime = new Date().toISOString(); // 获取错误发生时间的ISO格式
-        exports.logger.error(`状态渲染失败 [${errorTime}]: `, e); // 记录错误信息并包含时间戳
+        ctx.logger.error(`状态渲染失败 [${errorTime}]: `, e); // 记录错误信息并包含时间戳
         return "渲染失败" + e.message;
       } finally {
         page?.close();
       }
     });
-  async function uploadImageToChannel(data, appId, secret, channelId) {
+
+  // 提取消息发送逻辑为函数
+  async function sendmarkdownMessage(session, message) {
+    if (session.platform === "qqguild") {
+      if (session.isDirect) {
+        await session.qqguild.sendPrivateMessage(session.channelId, message);
+      } else {
+        await session.qqguild.sendMessage(session.channelId, message);
+      }
+    } else if (session.platform === "qq") {
+      if (session.isDirect) {
+        await session.qq.sendPrivateMessage(session.channelId, message);
+      } else {
+        await session.qq.sendMessage(session.channelId, message);
+      }
+    }
+  }
+
+  async function uploadImageToChannel(imageBuffer, appId, secret, channelId) {
     async function refreshToken(bot) {
       const { access_token: accessToken, expires_in: expiresIn } = await ctx.http.post('https://bots.qq.com/app/getAppAccessToken', {
         appId: bot.appId,
@@ -647,18 +811,9 @@ ${dJson.unsignText}
     const bot = { appId, secret, channelId };
     // 刷新令牌
     await refreshToken(bot);
-    // 处理图片数据
-    if (typeof data === 'string') {
-      if (fs.existsSync(data)) {
-        data = fs.readFileSync(data);
-      } else {
-        data = await ctx.http.file(data, { responseType: 'arraybuffer' });
-        data = Buffer.from(data);
-      }
-    }
     const payload = new FormData();
     payload.append('msg_id', '0');
-    payload.append('file_image', new Blob([data], { type: 'image/png' }), 'image.jpg');
+    payload.append('file_image', new Blob([imageBuffer], { type: 'image/png' }), 'image.jpg');
     await ctx.http.post(`https://api.sgroup.qq.com/channels/${bot.channelId}/messages`, payload, {
       headers: {
         Authorization: `QQBot ${bot.token}`,
@@ -666,83 +821,160 @@ ${dJson.unsignText}
       }
     });
     // 计算MD5并返回图片URL
-    const md5 = crypto.createHash('md5').update(data).digest('hex').toUpperCase();
+    const md5 = crypto.createHash('md5').update(imageBuffer).digest('hex').toUpperCase();
     if (channelId !== undefined && config.consoleinfo) {
-      exports.logger.info(`使用本地图片*QQ频道  发送URL为： https://gchat.qpic.cn/qmeetpic/0/0-0-${md5}/0`)
+      ctx.logger.info(`使用本地图片*QQ频道  发送URL为： https://gchat.qpic.cn/qmeetpic/0/0-0-${md5}/0`)
     };
     return { url: `https://gchat.qpic.cn/qmeetpic/0/0-0-${md5}/0` };
   }
-  async function markdown(session, imageUrl, messageIdOrTime) {
-    //imageUrl = "https://i0.hdslb.com/bfs/article/bd7aeef3c2811fcedbe6fc0ca6a20671354558777.gif" 调试放大px的调试URL
-    const mdid = config.markdown_setting.mdid;
-    const mdkey1 = config.markdown_setting.zlmdp_1;
-    const mdkey2 = config.markdown_setting.zlmdp_2;
-    const zltext_1_options = config.markdown_setting.zltext_1;
-    const zltext_2_options = config.markdown_setting.zltext_2;
-    const zltext_1 = zltext_1_options[Math.floor(Math.random() * zltext_1_options.length)];
-    const zltext_2 = zltext_2_options[Math.floor(Math.random() * zltext_2_options.length)];
-    let zlmdtext_1 = config.markdown_setting.zlmdtext_1;
-    let zlmdtext_2 = config.markdown_setting.zlmdtext_2;
-    const ButtonText = config.markdown_setting.ButtonText;
-    const ButtonStyle_Color = config.markdown_setting.ButtonStyle_Color
+  async function markdown(session, encodedMessageTime, imageUrl) {
+    const markdownMessage = {
+      msg_type: 2,
+      markdown: {},
+      keyboard: {},
+    };
+
+    if (!config.markdown_button_mode_initiative) {
+      markdownMessage.msg_id = session.messageId;
+    }
+
     const canvasimage = await ctx.canvas.loadImage(imageUrl);
     let originalWidth = canvasimage.naturalWidth || canvasimage.width;
     let originalHeight = canvasimage.naturalHeight || canvasimage.height;
-    return {
-      msg_type: 2,
-      msg_id: session.messageId,
-      markdown: {
-        custom_template_id: mdid, //md的模版id
-        params: [
-          {
-            key: zlmdtext_1,
-            values: [`${zltext_1}`],//这是第一段文字
-          },
-          {
-            key: zlmdtext_2,
-            values: [`${zltext_2}`],//这是第二段文字
-          },
-          {
-            key: mdkey1,  //md参数1
-            values: [`![img#${originalWidth}px #${originalHeight}px]`],
-          },
-          {
-            key: mdkey2,  //md参数2
-            values: [`(${imageUrl})`],
-          },
-        ]
-      },
-      keyboard: {
-        content: {
-          rows: [
-            {
-              buttons: [
-                {
-                  render_data: { label: `${ButtonText}`, style: ButtonStyle_Color },// 按钮显示的文字。style是按钮样式，有0、1、2
-                  action: {
-                    type: 2, // 指令按钮
-                    permission: { type: 2 }, // 所有人可点击
-                    data: `/${config.command}`, // 点击后发送
-                    enter: true, // 若 false 则填入输入框
-                  },
-                },
-                {
-                  render_data: { label: `查看原图`, style: ButtonStyle_Color },// 按钮显示的文字。style是按钮样式，有0、1、2
-                  action: {
-                    type: 2, // 指令按钮
-                    permission: { type: 2 }, // 所有人可点击
-                    data: `/${config.command2} ${messageIdOrTime}`, // 点击后发送
-                    enter: true, // 若 false 则填入输入框
-                  },
-                },
-              ]
-            },
-          ],
-        },
-      },
-    }
-  }
 
+    // 获取 dJson
+    const dJson = await getJrys(session);
+
+    if (config.markdown_button_mode === "markdown") {
+      const templateId = config.nested.markdown_button_template_id;
+      const keyboardId = config.nested.markdown_button_keyboard_id;
+      const contentTable = config.nested.markdown_button_content_table;
+
+      const params = contentTable.map(item => ({
+        key: item.raw_parameters,
+        values: replacePlaceholders(item.replace_parameters, { session, config, img_pxpx: `img#${originalWidth}px #${originalHeight}px`, img_url: imageUrl, encodedMessageTime, dJson }),
+      }));
+
+      markdownMessage.markdown = {
+        custom_template_id: templateId,
+        params: params,
+      };
+      if (config.markdown_button_mode_keyboard) {
+        markdownMessage.keyboard = {
+          id: keyboardId,
+        };
+      }
+    } else if (config.markdown_button_mode === "markdown_raw_json") {
+      const templateId = config.nested.markdown_raw_json_button_template_id;
+      const contentTable = config.nested.markdown_raw_json_button_content_table;
+      let keyboard = JSON.parse(config.nested.markdown_raw_json_button_keyboard);
+
+      keyboard = replacePlaceholders(keyboard, { session, config, img_pxpx: `img#${originalWidth}px #${originalHeight}px`, img_url: imageUrl, encodedMessageTime, dJson }, true);
+
+      const params = contentTable.map(item => ({
+        key: item.raw_parameters,
+        values: replacePlaceholders(item.replace_parameters, { session, config, img_pxpx: `img#${originalWidth}px #${originalHeight}px`, img_url: imageUrl, encodedMessageTime, dJson }),
+      }));
+
+      markdownMessage.markdown = {
+        custom_template_id: templateId,
+        params: params,
+      };
+      if (config.markdown_button_mode_keyboard) {
+        markdownMessage.keyboard = {
+          content: keyboard,
+        };
+      }
+    } else if (config.markdown_button_mode === "raw") {
+      try {
+        const rawMarkdownContent = config.nested.raw_markdown_button_content;
+        const rawMarkdownKeyboard = config.nested.raw_markdown_button_keyboard;
+
+        const replacedMarkdownContent = replacePlaceholders(rawMarkdownContent, { session, config, img_pxpx: `img#${originalWidth}px #${originalHeight}px`, img_url: imageUrl, encodedMessageTime, dJson }, true);
+        const replacedMarkdownKeyboard = replacePlaceholders(rawMarkdownKeyboard, { session, config, encodedMessageTime, dJson }, true)
+          .replace(/^[\s\S]*?"keyboard":\s*/, '')
+          .replace(/\\n/g, '')
+          .replace(/\\"/g, '"')
+          .trim();
+
+        const keyboard = JSON.parse(replacedMarkdownKeyboard);
+
+        markdownMessage.markdown = {
+          content: replacedMarkdownContent,
+        };
+        if (config.markdown_button_mode_keyboard) {
+          markdownMessage.keyboard = {
+            content: keyboard,
+          };
+        }
+      } catch (error) {
+        ctx.logger.error(`解析原生 Markdown 出错: ${error}`);
+        return null;
+      }
+    } else if (config.markdown_button_mode === "raw_jrys") {
+      try {
+        const raw_jrysMarkdownContent = config.nested.raw_jrys_markdown_button_content;
+        const raw_jrysMarkdownKeyboard = config.nested.raw_jrys_markdown_button_keyboard;
+
+        const replacedMarkdownContent = replacePlaceholders(raw_jrysMarkdownContent, { session, dJson, config, img_pxpx: `img#${originalWidth}px #${originalHeight}px`, img_url: imageUrl, encodedMessageTime }, true);
+        const replacedMarkdownKeyboard = replacePlaceholders(raw_jrysMarkdownKeyboard, { session, config, encodedMessageTime, dJson }, true)
+          .replace(/^[\s\S]*?"keyboard":\s*/, '')
+          .replace(/\\n/g, '')
+          .replace(/\\"/g, '"')
+          .trim();
+
+        const keyboard = JSON.parse(replacedMarkdownKeyboard);
+
+        markdownMessage.markdown = {
+          content: replacedMarkdownContent,
+        };
+        if (config.markdown_button_mode_keyboard) {
+          markdownMessage.keyboard = {
+            content: keyboard,
+          };
+        }
+      } catch (error) {
+        ctx.logger.error(`解析原生 Markdown 出错: ${error}`);
+        return null;
+      }
+    }
+
+    logInfo(`Markdown 模板参数: ${JSON.stringify(markdownMessage, null, 2)}`);
+    return markdownMessage;
+  }
+  function replacePlaceholders(content, context, isRawMode = false) {
+    // 如果 content 是字符串，直接替换占位符
+    if (typeof content === 'string') {
+      if (!/\{\{\.([^}]+)\}\}|\$\{([^}]+)\}/.test(content)) {
+        return isRawMode ? content : [content];
+      }
+
+      const value = content.replace(/\{\{\.([^}]+)\}\}|\$\{([^}]+)\}/g, (match, p1, p2) => {
+        const key = p1 || p2;
+        // 从 context 中查找占位符对应的值
+        const replacement = key.split('.').reduce((obj, k) => obj?.[k], context) || match;
+        return replacement;
+      });
+
+      return isRawMode ? value : [value];
+    }
+
+    // 如果 content 是对象或数组，递归处理
+    if (typeof content === 'object' && content !== null) {
+      if (Array.isArray(content)) {
+        return content.map(item => replacePlaceholders(item, context, isRawMode));
+      } else {
+        const result = {};
+        for (const key in content) {
+          result[key] = replacePlaceholders(content[key], context, isRawMode);
+        }
+        return result;
+      }
+    }
+
+    // 其他情况直接返回
+    return content;
+  }
   function convertToBase64IfLocal(url) {
     if (url.startsWith('file:///')) {
       try {
@@ -909,7 +1141,7 @@ ${dJson.unsignText}
         return null;
       }
     } catch (error) {
-      exports.logger.error('读取或解析JSON文件时出错: ', error);
+      ctx.logger.error('读取或解析JSON文件时出错: ', error);
       throw error;
     }
   }
