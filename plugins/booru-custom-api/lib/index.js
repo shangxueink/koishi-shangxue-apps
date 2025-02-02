@@ -21,17 +21,22 @@ exports.usage = `
   </ul>
 
   <h3>示例配置：</h3>
-  <pre><code>
-[
-  {
-    "APIurl": "https://t.mwm.moe/mp",
-    "label": "moe"
-  }
-]
-  </code></pre>
+ 
+  <table border="1">
+    <tr>
+      <th>图源标签</th>
+      <th>API / URL 地址</th>
+      <th>权重</th>
+    </tr>
+    <tr>
+      <td>moe</td>
+      <td>https://t.mwm.moe/mp</td>
+      <td>1</td>
+    </tr>
+  </table>
 
   <h2>使用示例</h2>
-  <h3>基础指令格式：</h3>
+  
   <pre><code>
 booru -l &lt;标签&gt;
   </code></pre>
