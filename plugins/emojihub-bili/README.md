@@ -632,7 +632,7 @@ https://tx.qqbot.cnm/url/img.php?img=https://i1.hdslb.com/bfs/archive/72fcfba441
   },
   {
     "raw_parameters": "your_markdown_url",
-    "replace_parameters": "https://tx.qqbot.cnm/url/img.php?img=(${img_url})"
+    "replace_parameters": "(https://tx.qqbot.cnm/url/img.php?img=${img_url})"
   }
 ]
 ```
@@ -784,8 +784,9 @@ markdown的按钮参数，需要填入按钮模板ID，
 <details>
 <summary>点击此处————查看更新日志</summary>
 
-- **1.3.12**
+- **1.3.14**
     - 修复json按钮的按钮列表失效的情况
+    - 完善readme
 
 - **1.3.12**
     - 优化配置项说明内容
