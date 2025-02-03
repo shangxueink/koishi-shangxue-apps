@@ -94,7 +94,6 @@ exports.Config =
       }).collapse().description('可自定义各种颜色搭配和字体'),
     }).description('面板调节'),
 
-
     Schema.object({
       markdown_button_mode: Schema.union([
         Schema.const('unset').description('取消应用此配置项'),
@@ -210,7 +209,7 @@ exports.Config =
         QQchannelId: Schema.string().description('`填入QQ频道的频道ID`，将该ID的频道作为中转频道 <br> 频道ID可以用[inspect插件来查看](/market?keyword=inspect) `频道ID应为纯数字`').experimental().pattern(/^\S+$/),
 
         nested: Schema.object({
-          raw_jrys_markdown_button_content: Schema.string().role('textarea', { rows: [6, 6] }).collapse().default("<qqbot-at-user id=\"${session.userId}\" />\n您的今日运势为：\n**${dJson.fortuneSummary}**\n${dJson.luckyStar}\n\n> ${dJson.unsignText}\n![${img_pxpx}](${img_url})\n\n> 仅供娱乐|相信科学|请勿迷信")
+          raw_jrys_markdown_button_content: Schema.string().role('textarea', { rows: [6, 6] }).collapse().default("${qqbotatuser}\n您的今日运势为：\n**${dJson.fortuneSummary}**\n${dJson.luckyStar}\n\n> ${dJson.unsignText}\n![${img_pxpx}](${img_url})\n\n> 仅供娱乐|相信科学|请勿迷信")
             .description('实现QQ官方bot的按钮效果，需要`canvas`服务。<br>在这里填入你的markdown内容。本插件会替换形如`{{.xxx}}`或`${xxx}`的参数为`xxx`。<br>本插件提供的参数有`dJson`、`img_pxpx`、`img_url`、`ctx`、`session`、`config`<br>`img_pxpx`会被替换为`img#...px #...px`<br>`img_url`会被替换为`一个链接`更多说明，详见[➩项目README](https://github.com/shangxueink/koishi-shangxue-apps/tree/main/plugins/emojihub-bili)'),
           raw_jrys_markdown_button_keyboard: Schema.string().role('textarea', { rows: [12, 12] }).collapse()
             .default("{\n  \"rows\": [\n      {\n          \"buttons\": [\n              {\n                  \"render_data\": {\n                      \"label\": \"再来一张😺\",\n                      \"style\": 2\n                  },\n                  \"action\": {\n                      \"type\": 2,\n                      \"permission\": {\n                          \"type\": 2\n                      },\n                      \"data\": \"/${config.command}\",\n                      \"enter\": true\n                  }\n              }\n          ]\n      }\n  ]\n}")
@@ -220,7 +219,6 @@ exports.Config =
       }),
       Schema.object({}),
     ]),
-
 
     Schema.object({
       enablecurrency: Schema.boolean().description("开启后，签到获取货币").default(false),
@@ -889,9 +887,10 @@ ${dJson.unsignText}
       try {
         const rawMarkdownContent = config.nested.raw_markdown_button_content;
         const rawMarkdownKeyboard = config.nested.raw_markdown_button_keyboard;
-
-        const replacedMarkdownContent = replacePlaceholders(rawMarkdownContent, { session, config, img_pxpx: `img#${originalWidth}px #${originalHeight}px`, img_url: imageUrl, encodedMessageTime, dJson }, true);
-        const replacedMarkdownKeyboard = replacePlaceholders(rawMarkdownKeyboard, { session, config, encodedMessageTime, dJson }, true)
+        // 将 atUserString 插入到原始字符串中
+        const qqbotatuser = session.isDirect ? "\n" : `<qqbot-at-user id=${session.userId}>`;
+        const replacedMarkdownContent = replacePlaceholders(rawMarkdownContent, { session, qqbotatuser, config, img_pxpx: `img#${originalWidth}px #${originalHeight}px`, img_url: imageUrl, encodedMessageTime, dJson }, true);
+        const replacedMarkdownKeyboard = replacePlaceholders(rawMarkdownKeyboard, { session, qqbotatuser, config, encodedMessageTime, dJson }, true)
           .replace(/^[\s\S]*?"keyboard":\s*/, '')
           .replace(/\\n/g, '')
           .replace(/\\"/g, '"')
@@ -916,8 +915,11 @@ ${dJson.unsignText}
         const raw_jrysMarkdownContent = config.nested.raw_jrys_markdown_button_content;
         const raw_jrysMarkdownKeyboard = config.nested.raw_jrys_markdown_button_keyboard;
 
-        const replacedMarkdownContent = replacePlaceholders(raw_jrysMarkdownContent, { session, dJson, config, img_pxpx: `img#${originalWidth}px #${originalHeight}px`, img_url: imageUrl, encodedMessageTime }, true);
-        const replacedMarkdownKeyboard = replacePlaceholders(raw_jrysMarkdownKeyboard, { session, config, encodedMessageTime, dJson }, true)
+        // 将 atUserString 插入到原始字符串中
+        const qqbotatuser = session.isDirect ? "\n" : `<qqbot-at-user id=${session.userId}>`;
+
+        const replacedMarkdownContent = replacePlaceholders(raw_jrysMarkdownContent, { session, qqbotatuser, dJson, config, img_pxpx: `img#${originalWidth}px #${originalHeight}px`, img_url: imageUrl, encodedMessageTime }, true);
+        const replacedMarkdownKeyboard = replacePlaceholders(raw_jrysMarkdownKeyboard, { session, qqbotatuser, config, encodedMessageTime, dJson }, true)
           .replace(/^[\s\S]*?"keyboard":\s*/, '')
           .replace(/\\n/g, '')
           .replace(/\\"/g, '"')
