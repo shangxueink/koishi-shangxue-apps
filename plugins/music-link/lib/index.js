@@ -8,7 +8,7 @@ const logger = new Logger('music-link');
 
 const name = 'music-link';
 const inject = {
-    required: ['http'],
+    required: ['http', "i18n"],
     optional: ['puppeteer'],
 };
 const usage = `
@@ -22,8 +22,8 @@ const usage = `
 <pre><code>下载音乐 [keywords]</code></pre>
 <hr>
 
-<h3>使用龙珠API搜索QQ、网易云音乐</h3>
-<pre><code>搜索歌曲 [keywords]</code></pre>
+<h3>使用music.gdstudio.xyz搜索各大音乐</h3>
+<pre><code>歌曲搜索 [keywords]</code></pre>
 <hr>
 
 <h3>如果需要让歌曲链接返回为语音消息/视频消息</h3>
@@ -36,8 +36,13 @@ const usage = `
 <h3>使用 <code>-n 1</code> 直接返回内容</h3>
 <p>在使用命令时，可以通过添加 <code>-n 1</code> 选项直接返回指定序号的歌曲内容。这对于快速获取特定歌曲非常有用。</p>
 <p>例如，使用以下命令可以直接获取第一首歌曲的详细信息：</p>
-<pre><code>搜索歌曲 -n 1 [keywords]</code></pre>
+<pre><code>歌曲搜索 -n 1 蔚蓝档案</code></pre>
 
+---
+
+## 目前 星之阁API的key已经失效，如需使用请自行前往注册
+
+## 目前 推荐使用新指令<code>歌曲搜索</code>，请确保<code>puppeteer</code>服务可用
 `;
 
 const command1_return_qqdata_Field_default = [
@@ -357,7 +362,7 @@ const Config = Schema.intersect([
         xingzhigeAPIkey: Schema.string().role('secret').description('星之阁的音乐API的请求key<br>（默认值是作者自己的哦，如果失效了请你自己获取一个）<br>请前往 QQ群 905188643 <br>添加QQ好友 3556898686 <br>私聊发送 `/getapikey` 获得你的APIkey以填入此处 ').default("up8bpg7bItrfvuCaEdG6vrU-Kr5u68LSKpbGUMHSmsM="),
     }).description('请求设置'),
     Schema.object({
-        waitTimeout: Schema.natural().role('ms').description('允许用户返回选择序号的等待时间').default(45000),
+        waitTimeout: Schema.natural().role('s').description('允许用户返回选择序号的等待时间').default(45),
     }).description('基础设置'),
     Schema.object({
         exitCommand: Schema.string().default('0, 不听了').description('退出选择指令，多个指令间请用逗号分隔开'), // 兼容中文逗号、英文逗号
@@ -370,7 +375,7 @@ const Config = Schema.intersect([
     }).description('图片歌单设置'),
     Schema.object({
         enablemiddleware: Schema.boolean().description("是否自动解析JSON音乐卡片").default(false),
-        used_command: Schema.union(['command1', 'command4']).description("自动解析使用的指令<br>解析内容与下面对应的指令返回设置一致").default("command1"), // , 'command2'
+        used_command: Schema.union(['command1', 'command4', 'command5']).description("自动解析使用的指令<br>解析内容与下面对应的指令返回设置一致").default("command1"), // , 'command2'
         used_id: Schema.number().default(1).min(0).max(10).description("在歌单里默认选择的序号<br>范围`0-10`，无需考虑11-20，会自动根据JSON卡片的平台选择。若音乐平台不匹配 则在搜索项前十个进行选择。"),
     }).description('JSON卡片解析设置'),
     Schema.object({
@@ -436,12 +441,60 @@ const Config = Schema.intersect([
 
 
     Schema.object({
+        command5: Schema.string().default('歌曲搜索').description('`music.gdstudio.xyz`的指令名称'),
+        command5_defaultPlatform: Schema.union([
+            Schema.const('网易云').description('网易云'),
+            Schema.const('QQ').description('QQ'),
+            Schema.const('酷我').description('酷我'),
+            Schema.const('Tidal').description('Tidal'),
+            Schema.const('Qobuz').description('Qobuz'),
+            Schema.const('喜马FM').description('喜马FM'),
+            Schema.const('咪咕').description('咪咕'),
+            Schema.const('酷狗').description('酷狗'),
+            Schema.const('油管').description('油管'),
+            Schema.const('Spotify').description('Spotify'),
+        ]).role('radio').description('音乐 **默认**使用的平台。').default('网易云'),
+        /*
+        command5_defaultQuality: Schema.union([
+            Schema.const('128K').description('128K标准 [ 全部音乐源 ]<br>192K较高 [ 网易云 / QQ / Spotify / 咪咕 / 油管 ]'),
+            Schema.const('320K').description('320K高品 [ 全部音乐源 ]'),
+            Schema.const('16bit').description('16bit无损 [ 网易云 / QQ / 酷我 / Tidal / Qobuz / 咪咕 ]'),
+            Schema.const('24bit').description('24bit无损 [ 网易云 / QQ / Tidal / Qobuz ]'),
+        ]).role('radio').description('音乐 **默认**下载音质。').default('320K'),
+        */
+        command5_searchList: Schema.number().default(10).min(1).max(20).description('歌曲搜索的列表长度。返回1到20个候选项。'),
+        command5_return_data_Field: Schema.array(
+            Schema.object({
+                data: Schema.string().description('返回的字段').disabled(),
+                describe: Schema.string().description('对该字段的中文描述'),
+                type: Schema.union(['text', 'image', 'audio', 'video']).description('发送类型'),
+                enable: Schema.boolean().default(true).description('是否启用'),
+            })
+        )
+            .role('table')
+            .description('歌曲返回信息的字段选择<br>')
+            .default([
+                { data: '歌名', describe: '歌名', type: 'text' },
+                { data: '歌手', describe: '歌手', type: 'text' },
+                { data: '专辑', describe: '专辑', type: 'text', enable: false },
+                { data: '时长', describe: '时长', type: 'text', enable: false },
+                { data: '来源', describe: '来源', enable: false, type: 'text' },
+                { data: '歌曲ID', describe: '歌曲ID', type: 'text', enable: false },
+                { data: '文件大小', describe: '文件大小', type: 'text' },
+                { data: '播放音质', describe: '播放音质', type: 'text', enable: false },
+                { data: '封面链接', describe: '封面链接', type: 'image' },
+                { data: '歌曲链接', describe: '歌曲链接', type: 'text' },
+            ]),
+    }).description('`music.gdstudio.xyz`返回设置'),
+
+
+    Schema.object({
         loggerinfo: Schema.boolean().default(false).description('日志调试开关'),
     }).description('调试模式'),
 ]);
 
 function apply(ctx, config) {
-    const waitTimeInSeconds = config.waitTimeout / 1000;
+    // const waitTimeInSeconds = config.waitTimeout / 1000;
     const exitCommands = config.exitCommand.split(/[,，]/).map(cmd => cmd.trim());
     const exitCommandTip = config.menuExitCommandTip ? `退出选择请发[${exitCommands}]中的任意内容<br /><br />` : '';
 
@@ -554,19 +607,16 @@ function apply(ctx, config) {
                     const imageBuffer = await generateSongListImage(ctx.puppeteer, listText);
                     const payload = [
                         h.image(imageBuffer, 'image/png'),
-                        h.text(`${exitCommandTip.replaceAll('<br />', '\n')}请在 `),
-                        (0, h)('i18n:time', { value: config.waitTimeout }),
-                        h.text('内，\n'),
-                        h.text('输入歌曲对应的序号')
+                        h.text(`${exitCommandTip.replaceAll('<br />', '\n')}请在${config.waitTimeout}秒内，\n输入歌曲对应的序号`),
                     ];
                     const msg = await session.send(payload);
                     quoteId = msg.at(-1);
                 } else {
-                    const msg = await session.send(`${listText}<br /><br />${exitCommandTip}请在 <i18n:time value="${config.waitTimeout}"/>内，<br />输入歌曲对应的序号`);
+                    const msg = await session.send(`${listText}<br /><br />${exitCommandTip}请在 ${config.waitTimeout}秒内，\n输入歌曲对应的序号`);
                     quoteId = msg.at(-1);
                 }
 
-                const input = await session.prompt(config.waitTimeout);
+                const input = await session.prompt(config.waitTimeout * 1000);
                 if (!input) {
                     return `${quoteId ? h.quote(quoteId) : ''}输入超时，已取消点歌。`;
                 }
@@ -653,13 +703,13 @@ function apply(ctx, config) {
     const songListMessage = formatSongList2(songs);
     if (config.imageMode) {
     const imageBuffer = await generateSongListImage(ctx.puppeteer, songListMessage);
-    await session.send(h.image(imageBuffer, 'image/png') + `${exitCommandTip}请在${waitTimeInSeconds}秒内，<br />输入歌曲对应的序号`);
+    await session.send(h.image(imageBuffer, 'image/png') + `${exitCommandTip}请在${waitTimeInSeconds}秒内，\n输入歌曲对应的序号`);
     }
     else {
-    await session.send(songListMessage + `<br /><br />${exitCommandTip}请在${waitTimeInSeconds}秒内，<br />输入歌曲对应的序号`);
+    await session.send(songListMessage + `<br /><br />${exitCommandTip}请在${waitTimeInSeconds}秒内，\n输入歌曲对应的序号`);
     }
     // 用户回复序号
-    const songChoice = await session.prompt(config.waitTimeout); // 获取用户的输入
+    const songChoice = await session.prompt(config.waitTimeout *1000); // 获取用户的输入
     if (!songChoice)
     return '输入超时，已取消点歌。'; // 输入超时判断
     // 将 exitCommands 与 songChoice 比较，而不是 index
@@ -788,9 +838,9 @@ function apply(ctx, config) {
                 if (config.imageMode) {
                     const listText = songListMessage.replace(/\n/g, '<br />');
                     const imageBuffer = await generateSongListImage(ctx.puppeteer, listText);
-                    await session.send(h.image(imageBuffer, 'image/png') + `${exitCommandTip}请在${waitTimeInSeconds}秒内，<br />输入歌曲对应的序号`);
+                    await session.send(h.image(imageBuffer, 'image/png') + `${exitCommandTip}请在${waitTimeInSeconds}秒内，\n输入歌曲对应的序号`);
                 } else {
-                    await session.send(`以下是搜索结果：\n${songListMessage}\n${exitCommandTip}请在${waitTimeInSeconds}秒内，<br />输入歌曲对应的序号`);
+                    await session.send(`以下是搜索结果：\n${songListMessage}\n${exitCommandTip}请在${waitTimeInSeconds}秒内，\n输入歌曲对应的序号`);
                 }
 
                 // 用户回复序号
@@ -861,19 +911,16 @@ function apply(ctx, config) {
                     const imageBuffer = await generateSongListImage(ctx.puppeteer, kugouListText);
                     const payload = [
                         h.image(imageBuffer, 'image/png'),
-                        h.text(`${exitCommandTip.replaceAll('<br />', '\n')}请在 `),
-                        (0, h)('i18n:time', { value: config.waitTimeout }),
-                        h.text('内，\n'),
-                        h.text('输入歌曲对应的序号')
+                        h.text(`${exitCommandTip.replaceAll('<br />', '\n')}请在${config.waitTimeout}秒内，\n输入歌曲对应的序号`),
                     ];
                     const msg = await session.send(payload);
                     quoteId = msg.at(-1);
                 } else {
-                    const msg = await session.send(`${kugouListText}<br /><br />${exitCommandTip}请在 <i18n:time value="${config.waitTimeout}"/>内，<br />输入歌曲对应的序号`);
+                    const msg = await session.send(`${kugouListText}<br /><br />${exitCommandTip}请在 ${config.waitTimeout}秒内，\n输入歌曲对应的序号`);
                     quoteId = msg.at(-1);
                 }
 
-                const input = await session.prompt(config.waitTimeout);
+                const input = await session.prompt(config.waitTimeout * 1000);
                 if (!input) {
                     return `${quoteId ? h.quote(quoteId) : ''}输入超时，已取消点歌。`;
                 }
@@ -910,6 +957,287 @@ function apply(ctx, config) {
                 return '获取歌曲失败：' + song.msg;
             }
         });
+
+
+
+    const platformMap = {
+        '网易云': 'netease',
+        'QQ': 'tencent',
+        '酷我': 'kuwo',
+        'Tidal': 'tidal',
+        'Qobuz': 'qobuz',
+        '喜马FM': 'ximalaya',
+        '咪咕': 'migu',
+        '酷狗': 'kugou',
+        '油管': 'ytmusic',
+        'Spotify': 'spotify',
+    };
+    ctx.command(`${config.command5} <keyword:text>`, '歌曲搜索')
+        .option('platform', '-p <platform:string> 平台名称')
+        .option('number', '-n <number:number> 歌曲序号')
+        .example("歌曲搜索 -p QQ -n 1 蔚蓝档案")
+        .action(async ({ session, options }, keyword) => {
+            if (!ctx.puppeteer) {
+                await session.send("没有开启puppeteer服务");
+                return;
+            }
+            if (!keyword) return '请输入歌曲相关信息。';
+
+            const page = await ctx.puppeteer.page();
+            try {
+                // 打开目标网页
+                await page.goto('https://music.gdstudio.xyz/', { waitUntil: 'networkidle2' });
+
+                // 关闭公告弹窗（如果存在）
+                const announcement = await page.$('.layui-layer-btn0');
+                if (announcement) await announcement.click();
+
+                // 点击【歌曲搜索】按钮
+                const searchButton = await page.$('span[data-action="search"]');
+                if (!searchButton) return '未找到搜索按钮，请检查页面结构。';
+                await searchButton.click();
+
+                // 等待搜索弹窗完全加载
+                await page.waitForSelector('#search-area', { visible: true });
+
+                // 输入搜索关键词
+                await page.type('#search-wd', keyword);
+
+                // 选择平台
+                const platform = options.platform || config.command5_defaultPlatform;
+                const platformValue = platformMap[platform]; // 获取对应的 value
+                if (!platformValue) {
+                    return `不支持的平台: ${platform}`;
+                }
+
+                const platformSelector = `input[name="source"][value="${platformValue}"]`;
+                const platformRadio = await page.$(platformSelector);
+                if (platformRadio) {
+                    await platformRadio.click();
+                } else {
+                    return `未找到平台选项: ${platform}`;
+                }
+                logInfo(`已选择平台: ${platform}`);
+
+                // 获取当前选中的平台（用于调试）
+                const selectedPlatform = await page.$eval('input[name="source"]:checked', el => el.value);
+                logInfo(`当前选中的平台: ${selectedPlatform}`);
+
+                // 等待 500ms，确保选项生效
+                await new Promise(resolve => setTimeout(resolve, 500));
+
+                // 点击【搜索】按钮
+                const submitButton = await page.$('.search-submit');
+                if (!submitButton) return '未找到搜索提交按钮，请检查页面结构。';
+                await submitButton.click();
+
+                // 检查是否存在弹窗
+                const alert = await page.$('.layui-layer-msg.layui-layer-hui');
+                if (alert) {
+                    const alertText = await page.evaluate(() => {
+                        const alertContent = document.querySelector('.layui-layer-msg.layui-layer-hui .layui-layer-content');
+                        return alertContent ? alertContent.innerText : null;
+                    });
+
+                    if (alertText) {
+                        if (alertText.includes('关闭梯子')) {
+                            // 国内节点提示弹窗：直接删除或关闭
+                            await page.evaluate(() => {
+                                const alertElement = document.querySelector('.layui-layer-msg.layui-layer-hui');
+                                if (alertElement) alertElement.remove(); // 直接删除弹窗
+                            });
+                            logInfo('已删除国内节点提示弹窗');
+                        } else if (alertText.includes('QQ请求已达今日上限')) {
+                            // QQ请求上限提示弹窗：返回错误信息给用户
+                            return `错误：${alertText}`;
+                        }
+                    }
+                }
+
+                // 等待搜索结果出现
+                await page.waitForSelector('.list-item', { visible: true });
+
+
+                // 确保搜索结果有效
+                const searchResults = await page.$$('.list-item');
+                if (searchResults.length === 0) {
+                    return '未找到相关歌曲，请尝试其他关键词。';
+                }
+
+                // 静音
+                const muteButton = await page.$('.btn-quiet');
+                if (muteButton) {
+                    await muteButton.click(); // 点击静音按钮
+                    logInfo('已开启静音');
+                } else {
+                    ctx.logger.error('未找到静音按钮');
+                }
+
+                // 将音量调至最低
+                await page.evaluate(() => {
+                    const volumeSlider = document.querySelector('#volume-progress .mkpgb-dot');
+                    if (volumeSlider) {
+                        volumeSlider.style.left = '0%'; // 将音量滑块移动到最左侧
+                    }
+                });
+
+                logInfo('已将音量调至最低');
+                // 等待 1500ms 确保页面完全加载
+                await new Promise(resolve => setTimeout(resolve, 1500));
+
+                // 获取 #main-list 元素
+                const mainListElement = await page.$('#main-list');
+                if (!mainListElement) {
+                    return '未找到歌曲列表元素，请检查页面结构。';
+                }
+
+                // 根据 config.command5_searchList 动态调整截图范围
+                const listItems = await page.$$('.list-item');
+                const screenshotHeight = Math.min(listItems.length, 1 + config.command5_searchList) * 50; // 假设每个列表项高度为 50px
+                const screenshot = await mainListElement.screenshot({
+                    clip: {
+                        x: 0,
+                        y: 0,
+                        width: 800, // 假设宽度为 800px
+                        height: screenshotHeight,
+                    },
+                });
+
+                // 返回图文消息
+                const exitCommands = config.exitCommand.split(/[,，]/).map(cmd => cmd.trim());
+                const exitCommandTip = config.menuExitCommandTip ? `退出选择请发[${exitCommands}]中的任意内容\n\n` : '';
+                const promptText = `${exitCommandTip}请在${config.waitTimeout}秒内，\n输入歌曲对应的序号`;
+
+                // 获取用户输入的序号
+                let selectedIndex;
+                if (options.number) {
+                    // 如果用户通过 -n 指定了序号，则直接使用
+                    selectedIndex = options.number;
+                } else {
+                    await session.send([
+                        h.image(screenshot, 'image/png'),
+                        h.text(promptText),
+                    ]);
+
+                    // 否则等待用户输入
+                    const input = await session.prompt(config.waitTimeout * 1000); // 超时时间
+                    if (!input) return '输入超时，已取消点歌。';
+                    selectedIndex = parseInt(input, 10);
+                }
+
+                // 检查序号是否有效
+                if (isNaN(selectedIndex) || selectedIndex < 1 || selectedIndex > config.command5_searchList) {
+                    return `序号输入错误，请输入 1 到 ${config.command5_searchList} 之间的数字。`;
+                }
+
+                // 点击选择的歌曲
+                const songElement = await page.$(`.list-item[data-no="${selectedIndex - 1}"] .list-num`);
+                if (!songElement) return '未找到歌曲元素，请检查页面结构。';
+
+                // 模拟双击操作
+                await page.evaluate((element) => {
+                    const dblclickEvent = new MouseEvent('dblclick', {
+                        bubbles: true, // 事件冒泡
+                        cancelable: true, // 事件可以取消
+                        view: window, // 事件视图
+                    });
+                    element.dispatchEvent(dblclickEvent);
+                }, songElement);
+
+                logInfo(`已双击歌曲序号: ${selectedIndex}`); // 调试日志
+
+                // 检查是否存在弹窗
+
+                /*额，这里在测试的时候，到了新的一天了  刷新了
+                好像无法复现QQ请求上限提示弹窗了。以后再说吧 */
+
+                if (alert) {
+                    const alertText = await page.evaluate(() => {
+                        const alertContent = document.querySelector('.layui-layer-msg.layui-layer-hui .layui-layer-content');
+                        return alertContent ? alertContent.innerText : null;
+                    });
+
+                    if (alertText) {
+                        if (alertText.includes('关闭梯子')) {
+                            // 国内节点提示弹窗：直接删除或关闭
+                            await page.evaluate(() => {
+                                const alertElement = document.querySelector('.layui-layer-msg.layui-layer-hui');
+                                if (alertElement) alertElement.remove(); // 直接删除弹窗
+                            });
+                            logInfo('已删除国内节点提示弹窗');
+                        } else if (alertText.includes('QQ请求已达今日上限')) {
+                            // QQ请求上限提示弹窗：返回错误信息给用户
+                            return `错误：${alertText}`;
+                        }
+                    }
+                }
+
+                // 等待播放加载完成
+                await page.waitForSelector('.layui-layer-msg', { visible: true });
+                await page.waitForSelector('.layui-layer-msg', { hidden: true });
+
+                // 获取歌曲信息
+                const infoButton = await page.$('#music-info');
+                if (!infoButton) return '未找到歌曲信息按钮，请检查页面结构。';
+                await infoButton.click();
+
+                // 点击【详情】按钮
+                const detailButton = await page.$('.info-btn[onclick*="thisShare"]');
+                if (!detailButton) return '未找到详情按钮，请检查页面结构。';
+                await detailButton.click();
+
+                // 等待【加载中】弹窗消失
+                await page.waitForSelector('.layui-layer-msg', { visible: true });
+                await page.waitForSelector('.layui-layer-msg', { hidden: true });
+
+                // 等待详情加载完成
+                await page.waitForSelector('.layui-layer-content', { visible: true });
+
+                // 解析歌曲信息
+                const songInfo = await page.evaluate(() => {
+                    const infoElement = document.querySelector('.layui-layer-content');
+                    if (!infoElement) return null;
+
+                    const infoText = infoElement.innerText;
+
+                    const extractInfo = (label, regex) => {
+                        const match = infoText.match(new RegExp(`${label}${regex}`));
+                        return match ? match[1] : null;
+                    };
+
+                    const info = {
+                        歌名: extractInfo("歌名：", "(.+)"),
+                        歌手: extractInfo("歌手：", "(.+)"),
+                        专辑: extractInfo("专辑：", "(.+)"),
+                        时长: extractInfo("时长：", "(.+)"),
+                        来源: extractInfo("来源：", "(.+)"),
+                        歌曲ID: extractInfo("歌曲ID：", "(.+)"),
+                        文件大小: extractInfo("文件大小：", "(.+)"),
+                        播放音质: extractInfo("播放音质：", "(.+)"),
+                        歌词链接: extractInfo("歌词链接：", "(https?:\\/\\/.+)"), // 匹配链接
+                        封面链接: extractInfo("封面链接：", "(https?:\\/\\/.+)"), // 匹配链接
+                        歌曲链接: extractInfo("歌曲链接：", "(https?:\\/\\/.+)"), // 匹配链接
+                    };
+
+                    return info;
+                });
+
+                if (!songInfo) {
+                    return '未找到歌曲信息，请稍后再试。';
+                }
+                logInfo(songInfo)
+                // 返回自定义字段
+                const response = generateResponse(songInfo, config.command5_return_data_Field);
+                //logInfo(response)
+                return response;
+            } catch (error) {
+                ctx.logger.error('音乐搜索插件出错:', error);
+                return '音乐搜索插件出错，请稍后再试。';
+            } finally {
+                await page.close();
+            }
+        });
+
 
     async function searchKugou(http, query, br) {
         const apiBase = 'https://api.xingzhige.com/API/Kugou_GN_new/';
@@ -950,7 +1278,7 @@ function apply(ctx, config) {
                         break;
                     case 'image':
                         // 封面图总是存在，单独处理
-                        if (field.data === 'cover') {
+                        if (field.data === 'cover' || field.data === '封面链接') {
                             imageElement.push(h.image(data[field.data]));
                         }
                         break;
