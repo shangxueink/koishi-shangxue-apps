@@ -141,7 +141,44 @@ export const Config: Schema = Schema.intersect([
         item: Schema.string().description("物品名称"),
         cost: Schema.number().description("货币变动"),
       })).role('table').default([{ "item": "锁", "cost": -50 }, { "item": "钥匙", "cost": -250 }]).description('【购买】商店道具货价表'),
-    }).collapse().description('货币平衡设置<br>涉及游戏平衡，谨慎修改'),
+    }).collapse().description('货币平衡设置——**默认价格表**<br>涉及游戏平衡，谨慎修改'),
+    special_cost: Schema.dict(Schema.object({
+      checkin_reward: Schema.array(Schema.object({
+        command: Schema.union(['鹿', "鹿@用户", '补鹿', '戒鹿', "补鹿@用户", "戴锁"]).description("交互指令"),
+        cost: Schema.number().description("货币变动"),
+      })).role('table').description('【获取硬币】本插件指令的货币变动').default(
+        [
+          {
+            "command": "鹿",
+            "cost": 100
+          },
+          {
+            "command": "鹿@用户",
+            "cost": 150
+          },
+          {
+            "command": "补鹿",
+            "cost": -100
+          },
+          {
+            "command": "戒鹿",
+            "cost": -100
+          },
+          {
+            "command": "补鹿@用户",
+            "cost": -500
+          },
+          {
+            "command": "戴锁",
+            "cost": -100
+          }
+        ]
+      ),
+      store_item: Schema.array(Schema.object({
+        item: Schema.string().description("物品名称"),
+        cost: Schema.number().description("货币变动"),
+      })).role('table').default([{ "item": "锁", "cost": -50 }, { "item": "钥匙", "cost": -250 }]).description('【购买】商店道具货价表'),
+    })).role('table').description('货币平衡设置——**特殊价格表**<br>需在`store_item`右侧白框填入`用户ID`或者`频道ID`<br>涉及游戏平衡，谨慎修改')
   }).description('monetary·通用货币设置'),
   Schema.object({
     calendarImagePreset1: Schema.union([
@@ -156,7 +193,7 @@ export const Config: Schema = Schema.intersect([
     ]).role('radio').description("日历图片预设2-完成符号").default("1"),
     calendarImagePath1: Schema.path().description('日历每日背景图像路径（请选择图片）<br>使用方法详见[readme](https://github.com/shangxueink/koishi-shangxue-apps/tree/main/plugins/deer-pipe)').experimental(),
     calendarImagePath2: Schema.path().description('日历每日完成标志路径（请选择图片）<br>使用方法详见[readme](https://github.com/shangxueink/koishi-shangxue-apps/tree/main/plugins/deer-pipe)').experimental(),
-    loggerInfo: Schema.boolean().description('启用调试日志输出模式').default(false).experimental(),
+    console: Schema.boolean().description('启用调试日志输出模式').default(false).experimental(),
   }).description('调试设置')
 ]);
 interface DeerPipeTable {
@@ -295,7 +332,9 @@ export async function apply(ctx: Context, config) {
     .userFields(["id", "name", "permissions"])
     .action(async ({ session }, item) => {
       const userId = session.userId;
-      const storeItems = config.cost.store_item; // 从配置中获取商店商品列表
+      const costTable = getCostTable(config, session); // 获取合适的价格表
+      const storeItems = costTable.store_item; // 从配置中获取商店商品列表
+
       const targetItem = storeItems.find(i => i.item === item);
       if (!targetItem) {
         const availableItems = storeItems.map(i => `${i.item}（${i.cost}点）`).join('\n');
@@ -360,7 +399,8 @@ export async function apply(ctx: Context, config) {
         await session.send(session.text('.no_item'));
         return;
       }
-      const cost = config.cost.checkin_reward.find(c => c.command === '戴锁').cost;
+      const costTable = getCostTable(config, session); // 获取合适的价格表
+      const cost = costTable.checkin_reward.find(c => c.command === '戴锁').cost;
       const balance = await getUserCurrency(ctx, session.user.id);
       if (balance + cost < 0) {
         await session.send(session.text(`.no_balance`, [balance]));
@@ -432,7 +472,10 @@ export async function apply(ctx: Context, config) {
       const currentMonth = currentDate.getMonth() + 1;
       const currentDay = currentDate.getDate();
       const recordtime = `${currentYear}-${currentMonth}`;
-      const cost = config.cost.checkin_reward.find(c => c.command === '鹿').cost;
+
+      const costTable = getCostTable(config, session); // 获取合适的价格表
+      const cost = costTable.checkin_reward.find(c => c.command === '鹿').cost;
+
       const sessionUserId = session.userId;
       const sessionUsername = session.user.name || session.username;
       // 获取目标用户的签到记录
@@ -542,8 +585,7 @@ export async function apply(ctx: Context, config) {
       const currentMonth = currentDate.getMonth() + 1;
       const currentDay = currentDate.getDate();
       const recordtime = `${currentYear}-${currentMonth}`;
-      const cost1 = config.cost.checkin_reward.find(c => c.command === '鹿').cost;
-      const cost2 = config.cost.checkin_reward.find(c => c.command === '鹿@用户').cost;
+
       const parsedUser = h.parse(user)[0];
       if (!parsedUser || parsedUser.type !== 'at' || !parsedUser.attrs.id) {
         await session.send(session.text('.invalid_input_user'));
@@ -551,6 +593,12 @@ export async function apply(ctx: Context, config) {
       }
       const targetUserId = parsedUser.attrs.id;
       let targetUsername = parsedUser.attrs.name || targetUserId;
+
+      const costTable1 = getCostTable(config, session, targetUserId); // 获取合适的价格表 // 被@的 // user
+      const costTable2 = getCostTable(config, session); // 获取合适的价格表  //  session.userId
+      const cost1 = costTable1.checkin_reward.find(c => c.command === '鹿').cost; // +100 为 targetUser 增加签到奖励 // 被@的用户  // user
+      const cost2 = costTable2.checkin_reward.find(c => c.command === '鹿@用户').cost;// -150 为【帮助者】增加货币奖励 //  session.userId
+
       let [targetRecord] = await ctx.database.get('deerpipe', { userid: targetUserId });
       if (!targetRecord) {
         targetRecord = {
@@ -806,8 +854,10 @@ ${deer.order === 3 ? '<span class="medal">🥉</span>' : ''}
       const currentDay = currentDate.getDate();
       let targetUserId = session.userId;
       let targetUsername = session.user.name || session.username;
+      const costTable = getCostTable(config, session); // 获取合适的价格表
+      // const costTable2 = getCostTable(config, session); // 获取合适的价格表
       // 默认消耗货币为补签自己
-      let cost = config.cost.checkin_reward.find(c => c.command === '补鹿').cost;
+      let cost = costTable.checkin_reward.find(c => c.command === '补鹿').cost;
       // 处理用户输入
       if (user) {
         const parsedUser = h.parse(user)[0];
@@ -820,7 +870,7 @@ ${deer.order === 3 ? '<span class="medal">🥉</span>' : ''}
           // 如果是为他人补签，调整目标用户和消耗
           targetUserId = id;
           targetUsername = name || id; // 使用名字或ID
-          cost = config.cost.checkin_reward.find(c => c.command === '补鹿@用户').cost;
+          cost = costTable.checkin_reward.find(c => c.command === '补鹿@用户').cost;
         } else {
           await session.send(session.text('.invalid_input_user'));
           return;
@@ -912,8 +962,9 @@ ${deer.order === 3 ? '<span class="medal">🥉</span>' : ''}
       }
       let [record] = await ctx.database.get('deerpipe', { userid: session.userId });
       if (record) {
+        const costTable = getCostTable(config, session); // 获取合适的价格表
         // 从配置中获取取消签到的奖励或费用
-        const cost = config.cost.checkin_reward.find(c => c.command === '戒鹿').cost;
+        const cost = costTable.checkin_reward.find(c => c.command === '戒鹿').cost;
         // 检查用户是否有足够的货币
         const userCurrency = await getUserCurrency(ctx, session.user.id);
         if (userCurrency < Math.abs(cost)) {
@@ -955,7 +1006,7 @@ ${deer.order === 3 ? '<span class="medal">🥉</span>' : ''}
       }
     });
   function loggerinfo(message) {
-    if (config.loggerinfo) {
+    if (config.console) {
       ctx.logger.info(message);
     }
   }
@@ -1145,4 +1196,36 @@ ${checkedIn && count > 1 ? `<div class="multiple-sign">×${count}</div>` : ''}
     }
     return currentChannels;
   }
+  function getCostTable(config, session, at_userId?) {
+
+    const specialCost = config.special_cost;
+    if (!at_userId) {
+      // 优先查找用户特殊价格表
+      if (specialCost[session.userId]) {
+        return specialCost[session.userId];
+      }
+
+      // 其次查找群组特殊价格表
+      if (specialCost[session.channelId]) {
+        return specialCost[session.channelId];
+      }
+
+      // 如果都没有，返回默认价格表
+      return config.cost;
+    } else {
+      // 优先查找用户特殊价格表
+      if (specialCost[at_userId]) {
+        return specialCost[at_userId];
+      }
+
+      // 其次查找群组特殊价格表
+      if (specialCost[session.channelId]) {
+        return specialCost[session.channelId];
+      }
+
+      // 如果都没有，返回默认价格表
+      return config.cost;
+    }
+  }
+
 }
