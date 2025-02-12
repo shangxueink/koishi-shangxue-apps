@@ -20,21 +20,27 @@ const usage = `
 
 <h4>🚀快速开始</h4>
 <ol>
-<li><strong>编辑菜单模板：</strong> ${htmlPath} ，您可以在此页面编辑 HTML 模板，自定义菜单的样式和布局并且导出JSON配置文件以供本插件使用。</li>
-<li><strong>配置插件：</strong> 在 Koishi 控制面板中配置 <code>preview-help</code> 插件，选择合适的菜单模式并根据需要进行其他配置。</li>
-<li><strong>使用指令：</strong> 在 Koishi 中使用您配置的指令名称 (默认为 "帮助菜单") 即可查看预览的帮助菜单。</li>
+  <li><strong>编辑菜单模板：</strong> ${htmlPath.replace(/\\/g, '/')} ，您可以在此页面编辑 HTML 模板，自定义菜单的样式和布局并且导出JSON配置文件以供本插件使用。</li>
+  <li><strong>配置插件：</strong> 在 Koishi 控制面板中配置 <code>preview-help</code> 插件，选择合适的菜单模式并根据需要进行其他配置。</li>
+  <li><strong>使用指令：</strong> 在 Koishi 中使用您配置的指令名称 (默认为 "帮助菜单") 即可查看预览的帮助菜单。</li>
 </ol>
 
 ---
 
-推荐使用webUI交互生成你喜欢的菜单图片，并且导出JSON配置，用于配置本插件。
+<p>推荐使用webUI交互生成你喜欢的菜单图片，并且导出JSON配置，用于配置本插件。</p>
 
-webUI 交互地址：
+<p>webUI 交互地址：</p>
 
-${htmlPath}
+<p>
+  <a href="${htmlPath.replace(/\\/g, '/')} " target="_blank">${htmlPath.replace(/\\/g, '/')} </a>
+</p>
 
+<p>
+  <button onclick="navigator.clipboard.writeText('${htmlPath.replace(/\\/g, '/')}')">点我复制文件地址</button>
+</p>
 ---
 `;
+
 const Config = Schema.intersect([
     Schema.object({
         command: Schema.string().description('注册指令名称').default("帮助菜单"),
