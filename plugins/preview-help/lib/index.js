@@ -94,9 +94,14 @@ const Config = Schema.intersect([
     Schema.object({
         screenshotquality: Schema.number().role('slider').min(0).max(100).step(1).default(60).description('设置图片压缩质量（%）'),
         tempPNG: Schema.boolean().description('打开后，开启缓存功能。<br>在`输入配置不变`/`help菜单不变`的情况下，使用缓存的PNG菜单图片（同一张图）。<br>关闭后，每次调用均使用puppeteer渲染').default(true),
+        // font: Schema.boolean().description('打开后，渲染时加载字体').default(false),
+        // fontPath: Schema.string().description("`请填写.ttf 字体文件的绝对路径`").default(path.join(__dirname, '../../jrys-prpr/font/千图马克手写体.ttf')),
         loggerinfo: Schema.boolean().default(false).description('日志调试开关'),
     }).description('调试模式'),
 ]);
+
+// 存储上一次的 generateCacheKey
+let lastCacheKey = null;
 
 function apply(ctx, config) {
     function logInfo(message) {
@@ -109,8 +114,7 @@ function apply(ctx, config) {
         const root = path.join(ctx.baseDir, 'data', 'preview-help');
         const jsonFilePath = path.join(root, 'menu-config.json');
         const temp_helpFilePath = path.join(root, 'temp_help.png');
-        const temp_helpCacheFilePath = path.join(root, 'temp_help_cache.json'); // 用于存储上次的输入内容
-        let temp_helpCache = {}; // 内存缓存
+
 
         if (!fs.existsSync(root)) {
             fs.mkdirSync(root, { recursive: true });
@@ -239,17 +243,6 @@ function apply(ctx, config) {
                 "useBackdropFilter": true
             }));
         }
-        // 尝试加载缓存数据
-        if (fs.existsSync(temp_helpCacheFilePath)) {
-            try {
-                const cacheData = fs.readFileSync(temp_helpCacheFilePath, 'utf-8');
-                temp_helpCache = JSON.parse(cacheData);
-                logInfo(`成功加载缓存数据`);
-            } catch (e) {
-                logger.warn(`加载缓存数据失败，将忽略缓存或重建缓存`, e);
-                temp_helpCache = {}; // 加载失败则清空，避免影响后续流程
-            }
-        }
 
 
         ctx.i18n.define("zh-CN", {
@@ -286,8 +279,8 @@ function apply(ctx, config) {
 
 
                 // 生成缓存Key
-                const generateCacheKey = (helpmode, helpContent, screenshotquality, help_json, help_text_json) => {
-                    return `${helpmode}-${helpContent}-${screenshotquality}-${help_json}-${help_text_json}`;
+                const generateCacheKey = (helpmode, helpContent, screenshotquality) => {
+                    return `${helpmode}-${helpContent}-${screenshotquality}`;
                 };
 
 
@@ -348,11 +341,11 @@ function apply(ctx, config) {
                     }
                 }
 
-                const cacheKey = generateCacheKey(config.helpmode, currentHelpContent, config.screenshotquality, config.help_json, config.help_text_json);
+                const cacheKey = generateCacheKey(config.helpmode, currentHelpContent, config.screenshotquality);
 
 
                 if (config.tempPNG && ['2.1', '2.2', '3'].includes(config.helpmode)) {
-                    if (temp_helpCache[cacheKey] && fs.existsSync(temp_helpFilePath)) {
+                    if (lastCacheKey === cacheKey && fs.existsSync(temp_helpFilePath)) {
                         useCache = true;
                     }
                 }
@@ -521,8 +514,7 @@ function apply(ctx, config) {
                         if (config.tempPNG && ['2.1', '2.2', '3'].includes(config.helpmode)) {
                             try {
                                 fs.writeFileSync(temp_helpFilePath, imageBuffer);
-                                temp_helpCache[cacheKey] = true; // 标记为已缓存
-                                fs.writeFileSync(temp_helpCacheFilePath, JSON.stringify(temp_helpCache)); // 更新缓存记录
+                                lastCacheKey = cacheKey; // 存储缓存Key
                                 logInfo(`缓存图片成功，key: ${cacheKey}`);
                             } catch (e) {
                                 logger.warn(`保存缓存图片失败`, e);
