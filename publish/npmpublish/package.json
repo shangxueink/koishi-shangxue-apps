@@ -1,0 +1,26 @@
+{
+  "name": "koishi-plugin-preview-help",
+  "description": "/*图片菜单*/支持webUI编辑、导入导出配置、导出图片、指令渲染，可以help文本菜单转图片菜单。[点我查看使用方法](https://github.com/shangxueink/koishi-shangxue-apps/tree/main/plugins/preview-help)",
+  "version": "1.0.1",
+  "main": "lib/index.js",
+  "typings": "lib/index.d.ts",
+  "files": [
+    "lib",
+    "help"
+  ],
+  "license": "MIT",
+  "keywords": [
+    "chatbot",
+    "koishi",
+    "plugin",
+    "自定义编辑",
+    "图片菜单"
+  ],
+  "homepage": "https://github.com/shangxueink/koishi-shangxue-apps/tree/main/plugins/preview-help",
+  "bugs": {
+    "url": "https://github.com/shangxueink/koishi-shangxue-apps/issues"
+  },
+  "peerDependencies": {
+    "koishi": "^4.16.0"
+  }
+}
