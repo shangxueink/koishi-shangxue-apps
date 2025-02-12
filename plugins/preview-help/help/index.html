@@ -715,18 +715,32 @@
         }
 
         .glassmorphism-custom {
-            background: rgba(255, 255, 255, 0.5);
-            /* Default background if opacity not set */
-            backdrop-filter: blur(10px);
-            /* Default blur if radius not set */
-            -webkit-backdrop-filter: blur(10px);
+            background-color: rgba(255, 255, 255, 0.3);
+            /* 半透明白色，你可以调整颜色和透明度 */
+            /* backdrop-filter: blur(10px);  移除 backdrop-filter */
+            /* -webkit-backdrop-filter: blur(10px); 移除 -webkit-backdrop-filter */
             border: 1px solid rgba(255, 255, 255, 0.3);
+            /* 保留或调整边框 */
+            border-radius: 4px;
+            /* 保留圆角 */
         }
 
         .no-glassmorphism {
             backdrop-filter: none;
             -webkit-backdrop-filter: none;
             border: none;
+            background-color: transparent;
+            /* 确保在禁用毛玻璃时背景透明 */
+        }
+
+        .glassmorphism-custom.use-backdrop-filter {
+            background: rgba(255, 255, 255, 0.6);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+        }
+        .glassmorphism-custom.no-backdrop-filter {
+            backdrop-filter: none;
+            -webkit-backdrop-filter: none;
         }
 
 
@@ -896,16 +910,23 @@
                                 <input type="file" hidden @change="handleBackgroundFileUpload" ref="backgroundInput">
                             </div>
                         </div>
-                         <div class="image-upload-content" :class="{ 'hidden': backgroundUploadTab !== 'default' }">
+                        <div class="image-upload-content" :class="{ 'hidden': backgroundUploadTab !== 'default' }">
                             <p>使用默认随机背景图片，每次刷新或初始化时，将从预设的背景图中随机选择一张。</p>
                         </div>
+                    </div>
+
+                    <div class="form-item">
+                        <label>毛玻璃效果类型</label>
+                        <select v-model="useBackdropFilter">
+                            <option :value="true">毛玻璃 (backdrop-filter, 导出PNG无效)</option>
+                            <option :value="false">CSS 蒙版</option>
+                        </select>
                     </div>
 
                     <div class="form-item">
                         <label>背景明暗度</label>
                         <input type="range" v-model="config.backgroundBrightness" min="0" max="2" step="0.1">
                     </div>
-
                 </div>
 
                 <button class="collapsible" :class="{active: showFooterSettings}"
@@ -1082,7 +1103,7 @@
                             <span v-html="renderMarkdown(config.subtitleContent)"></span>
                         </h2>
                         <div v-for="(item, index) in config.menuItems" :key="index" class="menu-item-preview"
-                            :class="[{'column-layout': item.subItemColumns > 1}, `columns-${item.subItemColumns}`, {'glassmorphism': item.glassmorphism, 'glassmorphism-custom': !item.glassmorphism && item.maskOpacity !== undefined}]"
+                            :class="[{'column-layout': item.subItemColumns > 1}, `columns-${item.subItemColumns}`, {'glassmorphism': item.glassmorphism, 'glassmorphism-custom': !item.glassmorphism && item.maskOpacity !== undefined, 'use-backdrop-filter': useBackdropFilter && !item.glassmorphism && item.maskOpacity !== undefined, 'no-backdrop-filter': !useBackdropFilter && !item.glassmorphism && item.maskOpacity !== undefined}]"
                             :style="[!item.glassmorphism && item.maskOpacity !== undefined ? { 'backgroundColor': `rgba(${hexToRgb(item.maskColor)}, ${item.maskOpacity})` } : {}]"
                             @click="editMenuItem(index)">
                             <div>
@@ -1094,7 +1115,7 @@
                                         v-html="renderMarkdown(item.title)"></span></span>
                             </div>
                             <div v-for="(subItem, subIndex) in item.subItems" :key="subIndex" class="sub-item-preview"
-                                :class="[{'glassmorphism': subItem.glassmorphism, 'glassmorphism-custom': !subItem.glassmorphism && subItem.maskOpacity !== undefined}]"
+                                :class="[{'glassmorphism': subItem.glassmorphism, 'glassmorphism-custom': !subItem.glassmorphism && subItem.maskOpacity !== undefined, 'use-backdrop-filter': useBackdropFilter && !subItem.glassmorphism && subItem.maskOpacity !== undefined, 'no-backdrop-filter': !useBackdropFilter && !subItem.glassmorphism && subItem.maskOpacity !== undefined}]"
                                 :style="[!subItem.glassmorphism && subItem.maskOpacity !== undefined ? { 'backgroundColor': `rgba(${hexToRgb(subItem.maskColor)}, ${subItem.maskOpacity})` } : {}]"
                                 @click.stop="editSubMenuItem(index, subIndex)">
                                 <img v-if="subItem.iconSize > 0" :src="getIconUrl(subItem.iconId)" :alt="subItem.text"
@@ -1179,7 +1200,7 @@
                             <input type="color" v-model="popupData.maskColor">
                         </div>
                         <div class="form-item" v-if="popupType === 'subItem' || popupType === 'menuItem'">
-                            <label>蒙版透明度</label>
+                            <label>蒙版透明度 ({{ popupData.maskOpacity }})</label>
                             <input type="range" v-model.number="popupData.maskOpacity" min="0" max="1" step="0.05">
                         </div>
                     </div>
@@ -1303,6 +1324,8 @@ https://i0.hdslb.com/bfs/new_dyn/79aee60d45ff2e4940b4b7fe3dc0edb01767947324.jpg
                 showBackgroundSettings: true,
                 showFooterSettings: false,
                 showFontSettings: false,
+                showGlassmorphismSettings: false, // 控制毛玻璃设置的折叠面板
+                useBackdropFilter: true, // 新增 useBackdropFilter 数据属性，控制是否使用 backdrop-filter, 默认 true
                 "icons": [
                     { "id": 1, "url": 'https://i1.hdslb.com/bfs/article/9900edae5f684f1f7af41949473b8a1cfd057a5b.png', "name": 'icon1' },
                     { "id": 2, "url": 'https://i1.hdslb.com/bfs/article/f32980cbce6808fd54613dea589eee013f0c5fe3.png', "name": 'icon2' },
@@ -1450,13 +1473,13 @@ https://i0.hdslb.com/bfs/new_dyn/79aee60d45ff2e4940b4b7fe3dc0edb01767947324.jpg
                 'config.customFont': function () {
                     this.$forceUpdate(); // Force preview refresh on font change
                 },
-                'backgroundUploadTab': function(newTab) {
+                'backgroundUploadTab': function (newTab) {
                     if (newTab === 'default') {
                         this.config.backgroundImage = this.getRandomDefaultBackground();
                     }
                 }
             },
-            created: function() {
+            created: function () {
                 if (!this.config.backgroundImage && this.backgroundUploadTab === 'default') {
                     this.config.backgroundImage = this.getRandomDefaultBackground();
                 }
@@ -1488,6 +1511,9 @@ https://i0.hdslb.com/bfs/new_dyn/79aee60d45ff2e4940b4b7fe3dc0edb01767947324.jpg
                 toggleFontSettings() {
                     this.showFontSettings = !this.showFontSettings;
                 },
+                toggleGlassmorphismSettings() {
+                    this.showGlassmorphismSettings = !this.showGlassmorphismSettings;
+                },
                 selectIcon(icon) {
                     if (this.popupVisible) {
                         this.popupData.iconId = icon.id;
@@ -1506,7 +1532,7 @@ https://i0.hdslb.com/bfs/new_dyn/79aee60d45ff2e4940b4b7fe3dc0edb01767947324.jpg
                         subItems: [],
                         subItemColumns: 4, // 默认4栏
                         glassmorphism: false,
-                        maskOpacity: 0.5,
+                        maskOpacity: 0.6,
                         maskColor: '#ffffff'
                     };
                     this.config.menuItems.splice(index + 1, 0, newItem); // 插入到点击项的后面
@@ -1788,6 +1814,15 @@ https://i0.hdslb.com/bfs/new_dyn/79aee60d45ff2e4940b4b7fe3dc0edb01767947324.jpg
                             -webkit-backdrop-filter: none;
                             border: none;
                         }
+                        .glassmorphism-custom.use-backdrop-filter {
+                            background: rgba(255, 255, 255, 0.5);
+                            backdrop-filter: blur(10px);
+                            -webkit-backdrop-filter: blur(10px);
+                        }
+                        .glassmorphism-custom.no-backdrop-filter {
+                            backdrop-filter: none;
+                            -webkit-backdrop-filter: none;
+                        }
                         </style>
                     </head>
                     <body>
@@ -1946,7 +1981,10 @@ https://i0.hdslb.com/bfs/new_dyn/79aee60d45ff2e4940b4b7fe3dc0edb01767947324.jpg
                     this.popupTab = 'basic'; // Reset to basic tab when closing
                 },
                 exportConfig() {
-                    const configStr = JSON.stringify(this.config, null, 2);
+                    const configStr = JSON.stringify({
+                        config: this.config,
+                        useBackdropFilter: this.useBackdropFilter // Include useBackdropFilter in export
+                    }, null, 2);
                     const blob = new Blob([configStr], { type: 'application/json' });
                     const url = URL.createObjectURL(blob);
                     const a = document.createElement('a');
@@ -1970,9 +2008,9 @@ https://i0.hdslb.com/bfs/new_dyn/79aee60d45ff2e4940b4b7fe3dc0edb01767947324.jpg
                         const reader = new FileReader();
                         reader.onload = (e) => {
                             try {
-                                const importedConfig = JSON.parse(e.target.result);
-                                // Directly assign the imported config to this.config
-                                this.config = importedConfig;
+                                const importedData = JSON.parse(e.target.result);
+                                this.config = importedData.config;
+                                this.useBackdropFilter = importedData.useBackdropFilter; // Load useBackdropFilter from import
                                 alert('配置文件导入成功！');
                             } catch (error) {
                                 alert('配置文件解析失败，请检查JSON格式。');
@@ -1986,11 +2024,14 @@ https://i0.hdslb.com/bfs/new_dyn/79aee60d45ff2e4940b4b7fe3dc0edb01767947324.jpg
                     if (this.importTab === 'text' || this.importTab === 'file') { // JSON 导入逻辑
                         if (this.importTab === 'text') {
                             try {
-                                const importedConfig = JSON.parse(this.importTextConfig);
+                                const importedData = JSON.parse(this.importTextConfig);
+                                const importedConfig = importedData.config;
                                 if (importMode === 'replace') { // 替换模式
                                     this.config = importedConfig; // Replace entire config
+                                    this.useBackdropFilter = importedData.useBackdropFilter; // Also load useBackdropFilter
                                 } else { // 默认行为或 'add' 模式, for JSON import, replace is usually the expected behavior
                                     this.config = importedConfig; // Replace entire config
+                                    this.useBackdropFilter = importedData.useBackdropFilter; // Also load useBackdropFilter
                                 }
                                 this.importPopupVisible = false;
                             } catch (error) {
@@ -2036,19 +2077,23 @@ https://i0.hdslb.com/bfs/new_dyn/79aee60d45ff2e4940b4b7fe3dc0edb01767947324.jpg
                         const line = lines[i].trim();
                         if (line) {
                             const parts = line.split(/\s{2,}/); // Split by 2 or more spaces
-                            if (parts.length === 2) {
-                                const command = parts[0].trim();
-                                const description = parts[1].trim();
-                                subItems.push({
-                                    text: `## ${command}`,
-                                    description: description,
-                                    iconId: Math.floor(Math.random() * 37) + 1, //  icon or default icon  1到37 随机
-                                    glassmorphism: false, // 默认关闭玻璃拟物
-                                    maskOpacity: 0.5,
-                                    maskColor: '#ffffff',
-                                    iconSize: 60
-                                });
+                            let command = parts[0].trim();
+                            let description = command; // Default description to command if no separate description is found
+
+                            if (parts.length > 1) {
+                                description = parts.slice(1).join('  ').trim(); // Join the rest of the parts as description, in case description itself contains splitable spaces
                             }
+
+
+                            subItems.push({
+                                text: `## ${command}`,
+                                description: description,
+                                iconId: Math.floor(Math.random() * 37) + 1, //  icon or default icon  1到37 随机
+                                glassmorphism: false, // 默认关闭玻璃拟物
+                                maskOpacity: 0.5,
+                                maskColor: '#ffffff',
+                                iconSize: 60
+                            });
                         }
                     }
 
@@ -2065,6 +2110,7 @@ https://i0.hdslb.com/bfs/new_dyn/79aee60d45ff2e4940b4b7fe3dc0edb01767947324.jpg
 
                     this.config.menuItems.push(helpMenuItem);
                 }
+
 
             }
         });
