@@ -66,14 +66,13 @@ const Config = Schema.intersect([
         Schema.object({
             helpmode: Schema.const("3").required(),
             background_URL: Schema.string().role('textarea', { rows: [8, 8] }).description('渲染使用的背景图地址<br>一行一个网络URL地址').default("https://i0.hdslb.com/bfs/article/3f79c64129020b522a516480c1066ea2f563964b.jpg\nhttps://i0.hdslb.com/bfs/article/28c76b561eadbbb826c2c902088c87a1a7e92f25.jpg\nhttps://i0.hdslb.com/bfs/article/806202a9b867a0b1d2d3399f1a183fc556ec258d.jpg\nhttps://i0.hdslb.com/bfs/article/796ae5ab9ef1f2e7db2c6a6020f5cbb718c9d953.jpg\nhttps://i0.hdslb.com/bfs/article/60e1532cf0a59828fbdd86c1b4e5740ca551f5b2.jpg\nhttps://i0.hdslb.com/bfs/article/9c7e7d66913155a32cad1591472a77374f0caf54.jpg\nhttps://i0.hdslb.com/bfs/article/a6154de573f73246ea4355a614f0b7b94eff8f20.jpg"),
-            help_json: Schema.boolean().description('开启后，使用配置项填入的 json<br>关闭时，使用本地文件的 json文件：`./data/preview-help/menu-config.json`<br> -> 推荐关闭此配置项，并且前往【资源管理器】编辑json（初次需重启koishi才看得见）<br>json文件中可以使用 `${background_URL}` 代表随机背景图（示例见初始化的json文件）').experimental(),
+            help_json: Schema.boolean().default(false).description('开启后，使用配置项填入的 json<br>关闭时，使用本地文件的 json文件：`./data/preview-help/menu-config.json`<br> -> 推荐关闭此配置项，并且前往【资源管理器】编辑json（初次需重启koishi才看得见）<br>json文件中可以使用 `${background_URL}` 代表随机背景图（示例见初始化的json文件）').experimental(),
         }),
         Schema.object({
         }),
     ]),
     Schema.union([
         Schema.object({
-            help_json: Schema.const(false).required(),
         }),
         Schema.object({
             help_json: Schema.const(true).required(),
