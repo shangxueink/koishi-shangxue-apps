@@ -6,6 +6,7 @@ const url = require("node:url");
 const path = require("node:path");
 const { Schema, Logger, h } = require("koishi");
 exports.reusable = true; // 声明此插件可重用
+const htmlPath = path.join(__dirname, '../help/index.html');
 const name = 'preview-help';
 const inject = {
     required: ['http', "i18n"],
@@ -20,7 +21,7 @@ const usage = `
 
 <h4>🚀快速开始</h4>
 <ol>
-<li><strong>编辑菜单模板：</strong> 您可以在活动栏【帮助预览】页面编辑 HTML 模板，自定义菜单的样式和布局并且导出JSON配置文件以供本插件使用。</li>
+<li><strong>编辑菜单模板：</strong> 您可以在本地 HTML 编辑模板，自定义菜单的样式和布局并且导出JSON配置文件以供本插件使用。</li>
 <li><strong>配置插件：</strong> 在 Koishi 控制面板中配置 <code>preview-help</code> 插件，选择合适的菜单模式并根据需要进行其他配置。</li>
 <li><strong>使用指令：</strong> 在 Koishi 中使用您配置的指令名称 (默认为 "帮助菜单") 即可查看预览的帮助菜单。</li>
 </ol>
@@ -30,9 +31,16 @@ const usage = `
 <p>推荐使用webUI交互生成你喜欢的菜单图片，并且导出JSON配置，用于配置本插件。</p>
 <p>当然也可以把渲染好的菜单图片保存，使用本插件的图片返回功能等</p>
 
-webUI 交互 请见 ➤[左侧活动栏【帮助预览】页面](/preview-help)
+webUI 交互 请在浏览器打开本地文件 ➤  
 
-或者本地文件：
+<p>
+  <a href="${htmlPath.replace(/\\/g, '/')} " target="_blank">${htmlPath.replace(/\\/g, '/')} </a>
+</p>
+
+<p>
+  <button onclick="navigator.clipboard.writeText('${htmlPath.replace(/\\/g, '/')}')">点我复制文件地址</button>
+</p>
+---
 
 ---
 
@@ -43,9 +51,11 @@ webUI 交互 请见 ➤[左侧活动栏【帮助预览】页面](/preview-help)
 `;
 
 const Config = Schema.intersect([
+    /*
     Schema.object({
         template: Schema.boolean().default(true).description('侧边栏注册<br>关闭后不注册➤[左侧活动栏【帮助预览】页面](/preview-help)'),
     }).description('功能设置'),
+    */
 
     Schema.object({
         command: Schema.string().description('注册指令名称').default("帮助菜单"),
@@ -121,16 +131,6 @@ function apply(ctx, config) {
         if (config.loggerinfo) {
             logger.info(message);
         }
-    }
-    if (config.template) {
-        ctx.on('ready', () => {
-            ctx.inject(['console'], (ctx) => {
-                ctx.console.addEntry({
-                    dev: path.resolve(__dirname, '../client/index.js'),
-                    prod: path.resolve(__dirname, '../dist'),
-                })
-            })
-        })
     }
 
     ctx.on('ready', async () => {
@@ -347,7 +347,7 @@ function apply(ctx, config) {
                     }
 
                     try {
-                        const htmlPath = path.join(__dirname, '../help/index.html');
+
                         const helpHTMLUrl = url.pathToFileURL(htmlPath).href
                         logInfo(`正在加载本地HTML文件：${helpHTMLUrl}`);
                         await page.goto(helpHTMLUrl, {
