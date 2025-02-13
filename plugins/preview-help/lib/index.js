@@ -32,12 +32,19 @@ const usage = `
 
 webUI 交互 请见 ➤[左侧活动栏【帮助预览】页面](/preview-help)
 
+或者本地文件：
+
 ---
+
+<h4>⚙️高级设置</h4>
+<p><strong>字体设置：</strong> 您可以在插件配置中启用自定义字体，并指定字体 URL。启用后，插件在渲染菜单时会尝试加载您提供的字体。</p>
+<p><strong>缓存设置：</strong> 开启缓存功能后，对于配置和 help 菜单内容不变的情况，插件会直接使用缓存的 PNG 图片，提高响应速度。关闭缓存则每次调用都会重新渲染。</p>
+<p><strong>调试日志：</strong> 开启日志调试开关后，插件会在控制台输出更详细的日志信息，用于问题排查。</p>
 `;
 
 const Config = Schema.intersect([
     Schema.object({
-        template: Schema.boolean().default(true).description('侧边栏注册<br>关闭后不注册侧边页面'),
+        template: Schema.boolean().default(true).description('侧边栏注册<br>关闭后不注册➤[左侧活动栏【帮助预览】页面](/preview-help)'),
     }).description('功能设置'),
 
     Schema.object({
@@ -52,13 +59,13 @@ const Config = Schema.intersect([
             Schema.const('2.1').description('返回渲染图片菜单（自动从help指令获取）'),
             Schema.const('2.2').description('返回渲染图片菜单（手动输入help文字菜单）'),
             Schema.const('3').description('返回渲染图片菜单（自定义json配置） '),
-        ]).role('radio').default('2.1'),
+        ]).role('radio').default('2.1').description('菜单返回模式<br>`自动获取的help菜单可能会与预设模版不吻合`<br>推荐前往webUI手动编辑后导出json文件使用'),
     }).description('基础配置'),
     Schema.union([
         Schema.object({
             helpmode: Schema.const("1.1").required(),
             help_text: Schema.string().default("当前可用的指令有：\n    /chatluna  ChatLuna 相关指令。\n    /glot  运行代码\n    /group-manage  群组管理\n    /help  显示帮助信息\n    /inspect  查看用户、频道或消息的详细信息\n    /lunavits  lunavits 语音合成\n    /market  插件市场信息\n    /musicjs  用 JavaScript 代码演奏旋律\n    /osu-funny  一些有趣的 osu! 功能\n    /ping  ping指定的ip或域名\n    /plugin  插件管理\n    /propose  向群友求婚\n    /rryth-test  人人有图画测试服 v0.0.7\n    /sayo-roll  随机选择\n    /shot  网页截图\n    /status  查看运行状态\n    /status-image  查看运行状态\n    /timer  定时器信息\n    /translate  文本翻译\n    /usage  调用次数信息\n    /waifu  娶群友\n    /wh-sub  订阅Github事件推送\n    /wh-unsub  取消Github事件推送\n    /钓鱼  \n    /鹿管签到  鹿管签到\n输入“/help 指令名”查看特定指令的语法和使用示例。")
-                .role('textarea', { rows: [8, 8] }).description('返回的文字菜单内容'),
+                .role('textarea', { rows: [8, 8] }).description('返回的文字菜单内容<br>每行格式: `指令名称  指令描述  指令分类`<br>其中`指令分类`为导入添加标记所用，help文字菜单并不自带，需手动指定'),
         }),
         Schema.object({
             helpmode: Schema.const("1.2").required(),
@@ -72,7 +79,7 @@ const Config = Schema.intersect([
             helpmode: Schema.const("2.2").required(),
             background_URL: Schema.string().role('textarea', { rows: [8, 8] }).description('渲染使用的背景图地址<br>一行一个网络URL地址').default("https://i0.hdslb.com/bfs/article/3f79c64129020b522a516480c1066ea2f563964b.jpg\nhttps://i0.hdslb.com/bfs/article/28c76b561eadbbb826c2c902088c87a1a7e92f25.jpg\nhttps://i0.hdslb.com/bfs/article/806202a9b867a0b1d2d3399f1a183fc556ec258d.jpg\nhttps://i0.hdslb.com/bfs/article/796ae5ab9ef1f2e7db2c6a6020f5cbb718c9d953.jpg\nhttps://i0.hdslb.com/bfs/article/60e1532cf0a59828fbdd86c1b4e5740ca551f5b2.jpg\nhttps://i0.hdslb.com/bfs/article/9c7e7d66913155a32cad1591472a77374f0caf54.jpg\nhttps://i0.hdslb.com/bfs/article/a6154de573f73246ea4355a614f0b7b94eff8f20.jpg"),
             help_text: Schema.string().default("当前可用的指令有：\n    /chatluna  ChatLuna 相关指令。\n    /glot  运行代码\n    /group-manage  群组管理\n    /help  显示帮助信息\n    /inspect  查看用户、频道或消息的详细信息\n    /lunavits  lunavits 语音合成\n    /market  插件市场信息\n    /musicjs  用 JavaScript 代码演奏旋律\n    /osu-funny  一些有趣的 osu! 功能\n    /ping  ping指定的ip或域名\n    /plugin  插件管理\n    /propose  向群友求婚\n    /rryth-test  人人有图画测试服 v0.0.7\n    /sayo-roll  随机选择\n    /shot  网页截图\n    /status  查看运行状态\n    /status-image  查看运行状态\n    /timer  定时器信息\n    /translate  文本翻译\n    /usage  调用次数信息\n    /waifu  娶群友\n    /wh-sub  订阅Github事件推送\n    /wh-unsub  取消Github事件推送\n    /钓鱼  \n    /鹿管签到  鹿管签到\n输入“/help 指令名”查看特定指令的语法和使用示例。")
-                .role('textarea', { rows: [8, 8] }).description('返回的文字菜单内容'),
+                .role('textarea', { rows: [8, 8] }).description('返回的文字菜单内容<br>每行格式: `指令名称  指令描述  指令分类`<br>其中`指令分类`为导入添加标记所用，help文字菜单并不自带，需手动指定'),
         }),
         Schema.object({
             helpmode: Schema.const("3").required(),
@@ -84,18 +91,23 @@ const Config = Schema.intersect([
     ]),
     Schema.union([
         Schema.object({
-        }),
-        Schema.object({
             help_json: Schema.const(true).required(),
             help_text_json: Schema.string().role('textarea', { rows: [8, 8] }).description('导入配置使用的JSON内容'),
         }),
+        Schema.object({
+
+        }),
     ]),
+
+
+    Schema.object({
+        fontEnabled: Schema.boolean().description('启用自定义字体').default(false),
+        fontURL: Schema.string().description("字体 URL (.ttf)<br>注意：需填入本地绝对路径的URL编码地址<br>默认内容 即为使用`jrys-prpr字体`的URL示例写法").default(url.pathToFileURL(path.join(__dirname, '../../jrys-prpr/font/千图马克手写体.ttf')).href),
+    }).description('高级设置'),
 
     Schema.object({
         screenshotquality: Schema.number().role('slider').min(0).max(100).step(1).default(60).description('设置图片压缩质量（%）'),
         tempPNG: Schema.boolean().description('打开后，开启缓存功能。<br>在`输入配置不变`/`help菜单不变`的情况下，使用缓存的PNG菜单图片（同一张图）。<br>关闭后，每次调用均使用puppeteer渲染').default(true),
-        // font: Schema.boolean().description('打开后，渲染时加载字体').default(false),
-        // fontPath: Schema.string().description("`请填写.ttf 字体文件的绝对路径`").default(path.join(__dirname, '../../jrys-prpr/font/千图马克手写体.ttf')),
         loggerinfo: Schema.boolean().default(false).description('日志调试开关'),
     }).description('调试模式'),
 ]);
@@ -133,125 +145,6 @@ function apply(ctx, config) {
         // 检查并创建 JSON 文件
         if (!fs.existsSync(jsonFilePath)) {
             fs.writeFileSync(jsonFilePath, JSON.stringify({
-                "config": {
-                    "helpTitleContent": "# 帮助菜单",
-                    "subtitleContent": "指令列表",
-                    "helpTitleFontSize": 24,
-                    "helpTitleColor": "#333",
-                    "helpTitleBold": true,
-                    "subtitleFontSize": 18,
-                    "subtitleColor": "#666",
-                    "subtitleBold": false,
-                    "previewWidth": 960,
-                    "previewHeight": 1440,
-                    "backgroundImage": "https://i0.hdslb.com/bfs/article/806202a9b867a0b1d2d3399f1a183fc556ec258d.jpg",
-                    "backgroundBrightness": 1,
-                    "footerTextContent": "### Bot of Kosihi & koishi-plugin-preview-help",
-                    "footerPosition": "center",
-                    "footerTextColor": "#909399",
-                    "footerTextBold": false,
-                    "parentMenuFontSize": 16,
-                    "subMenuFontSize": 14,
-                    "lineHeight": 1.5,
-                    "customFont": "",
-                    "menuItems": [
-                        {
-                            "title": "### 游戏功能",
-                            "iconId": 1,
-                            "iconSize": 60,
-                            "subItems": [
-                                {
-                                    "text": "## booru",
-                                    "description": "返回好看的图图",
-                                    "iconId": 2,
-                                    "glassmorphism": false,
-                                    "maskOpacity": 0.5,
-                                    "maskColor": "#ffffff",
-                                    "iconSize": 60
-                                },
-                                {
-                                    "text": "## status",
-                                    "description": "返回机器人状态",
-                                    "iconId": 3,
-                                    "glassmorphism": false,
-                                    "maskOpacity": 0.6,
-                                    "maskColor": "#f0f0f0",
-                                    "iconSize": 60
-                                },
-                                {
-                                    "text": "## 点歌",
-                                    "description": "点播音乐",
-                                    "iconId": 11,
-                                    "glassmorphism": false,
-                                    "maskOpacity": 0.7,
-                                    "maskColor": "#e0e0e0",
-                                    "iconSize": 60
-                                },
-                                {
-                                    "text": "## jrysprpr",
-                                    "description": "查看你的今日运势~",
-                                    "iconId": 2,
-                                    "glassmorphism": false,
-                                    "maskOpacity": 0.8,
-                                    "maskColor": "#d0d0d0",
-                                    "iconSize": 60
-                                }
-                            ],
-                            "subItemColumns": 4,
-                            "glassmorphism": false,
-                            "maskOpacity": 0.3,
-                            "maskColor": "#ffffff"
-                        },
-                        {
-                            "title": "### emojihub",
-                            "iconId": 3,
-                            "iconSize": 60,
-                            "subItems": [
-                                {
-                                    "text": "## 柴郡",
-                                    "description": "柴郡的表情包",
-                                    "iconId": 12,
-                                    "glassmorphism": false,
-                                    "maskOpacity": 0.5,
-                                    "maskColor": "#ffffff",
-                                    "iconSize": 60
-                                },
-                                {
-                                    "text": "## doro",
-                                    "description": "doro的表情包哦",
-                                    "iconId": 7,
-                                    "glassmorphism": false,
-                                    "maskOpacity": 0.6,
-                                    "maskColor": "#f0f0f0",
-                                    "iconSize": 60
-                                },
-                                {
-                                    "text": "## 白圣女漫画",
-                                    "description": "塞西莉亚的漫画表情包哦",
-                                    "iconId": 8,
-                                    "glassmorphism": false,
-                                    "maskOpacity": 0.7,
-                                    "maskColor": "#e0e0e0",
-                                    "iconSize": 60
-                                },
-                                {
-                                    "text": "## 白圣女",
-                                    "description": "塞西莉亚的表情包哦~",
-                                    "iconId": 2,
-                                    "glassmorphism": false,
-                                    "maskOpacity": 0.8,
-                                    "maskColor": "#d0d0d0",
-                                    "iconSize": 60
-                                }
-                            ],
-                            "subItemColumns": 4,
-                            "glassmorphism": false,
-                            "maskOpacity": 0.4,
-                            "maskColor": "#f0f0f0"
-                        }
-                    ]
-                },
-                "useBackdropFilter": true
             }));
         }
 
@@ -273,7 +166,10 @@ function apply(ctx, config) {
                         "mode.notsupport": "不支持的帮助模式",
                         "somerror": "生成帮助时发生错误",
                         "image.load.error": "图片加载失败: {0}",
-                        "cache.hit": "命中缓存，使用缓存图片"
+                        "cache.hit": "命中缓存，使用缓存图片",
+                        "font.load.start": "开始加载字体: {0}",
+                        "font.load.success": "字体加载成功: {0}",
+                        "font.load.fail": "字体加载失败: {0}",
                     }
                 },
             }
@@ -475,6 +371,26 @@ function apply(ctx, config) {
                         const importButton = await logElementAction('.btn-group button:nth-child(2)', '点击导入配置按钮');
                         await importButton.click();
 
+                        if (config.fontEnabled && config.fontURL) {
+                            logInfo(session.text('.font.load.start', [config.fontURL]));
+                            try {
+                                const fontURLInput = await logElementAction('.image-upload-content input[placeholder="字体 URL (.ttf)"]', '查找字体URL输入框');
+                                const addFontButton = await logElementAction('.image-upload-content button', '查找添加字体按钮');
+
+                                await page.evaluate((inputElement, fontURL) => {
+                                    inputElement.value = fontURL;
+                                    inputElement.dispatchEvent(new Event('input', { bubbles: true })); // 触发输入事件
+                                }, fontURLInput, config.fontURL);
+                                await addFontButton.click();
+                                logInfo(session.text('.font.load.success', [config.fontURL]));
+
+                                // 等待字体加载完成，这里可能需要更精确的判断方式，例如监听字体加载事件
+                                await new Promise(resolve => setTimeout(resolve, 1000)); // 简单等待 1 秒
+                            } catch (fontError) {
+                                logger.warn(`字体加载失败: ${config.fontURL}`, fontError);
+                                logInfo(session.text('.font.load.fail', [config.fontURL]));
+                            }
+                        }
 
 
                         if (config.helpmode === '3') {

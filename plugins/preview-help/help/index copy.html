@@ -985,10 +985,10 @@
                             <!-- <div class="image-upload-tab" :class="{ 'active': fontUploadTab === 'file' }"
                                 @click="fontUploadTab = 'file'">本地上传</div> -->
                             <div class="image-upload-tab" :class="{ 'active': fontUploadTab === 'url' }"
-                                @click="fontUploadTab = 'url'">URL路径</div>
+                                @click="fontUploadTab = 'url'">URL</div>
                         </div>
                         <div class="image-upload-content" :class="{ 'hidden': fontUploadTab !== 'url' }">
-                            <input v-model="customFontURL" placeholder="绝对路径的 URL编码 (.ttf)">
+                            <input v-model="customFontURL" placeholder="字体 URL (.ttf)">
                             <button @click="addFontFromURL">添加字体</button>
                         </div>
                         <!-- MODIFIED: 移除文件上传内容 -->
