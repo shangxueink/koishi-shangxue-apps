@@ -192,6 +192,15 @@
             /* width and height are now dynamic via vue style binding */
         }
 
+        .background-image {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            z-index: 0;
+        }
 
         .preview-container {
             background-size: cover;
@@ -738,6 +747,7 @@
             backdrop-filter: blur(10px);
             -webkit-backdrop-filter: blur(10px);
         }
+
         .glassmorphism-custom.no-backdrop-filter {
             backdrop-filter: none;
             -webkit-backdrop-filter: none;
@@ -918,7 +928,7 @@
                     <div class="form-item">
                         <label>毛玻璃效果类型</label>
                         <select v-model="useBackdropFilter">
-                            <option :value="true">毛玻璃 (backdrop-filter, 导出PNG无效)</option>
+                            <option :value="true">毛玻璃 (backdrop-filter)</option>
                             <option :value="false">CSS 蒙版</option>
                         </select>
                     </div>
@@ -940,7 +950,7 @@
                         <label>角标位置</label>
                         <select v-model="config.footerPosition">
                             <option value="top-center">顶部居中</option>
-                            <option value="center">居中</option>
+                            <option value="center">底部居中</option>
                             <option value="left-top">左上角</option>
                             <option value="left-bottom">左下角</option>
                             <option value="right-top">右上角</option>
@@ -1008,7 +1018,8 @@
                         <div v-for="icon in icons" :key="icon.id" class="icon-option"
                             :class="{active: popupData.iconId === icon.id, selected: popupData.iconId === icon.id}"
                             @click="selectIcon(icon)">
-                            <img :src="icon.url" :alt="icon.name">
+                            <img :src="icon.url" :alt="icon.name"
+                                :referrerpolicy="icon.url && icon.url.includes('hdslb.com') ? 'no-referrer' : undefined">
                         </div>
                     </div>
 
@@ -1079,20 +1090,25 @@
 
             <!-- 中间预览面板 -->
             <div class="preview-panel panel">
-                <h3>------------————实时预览————------------</h3>
+                <h5>点击预览元素即可编辑。编辑完成请点击【导出配置】</h5>
+                <h5>菜单添加按钮 在左侧最下方</h5>
+                <h5>内容文字均支持markdown标记</h5>
+                <h3>实时预览</h3>
                 <div class="btn-group">
                     <div>
                         <button @click="exportConfig">导出配置</button>
                         <button @click="showImportPopup">导入配置</button>
                     </div>
                     <div>
-                        <!--button @click="exportHTML">导出HTML</button--><!--导出HTML的效果十分不理想-->
-                        <button @click="exportImage">导出图片 (PNG)</button><!--导出PNG的话，毛玻璃效果不行-->
+                        <!--button @click="exportHTML">导出HTML</button--> <!--导出HTML的效果十分不理想-->
+                        <!--button @click="exportImage">导出图片 (PNG)</button--> <!--导出PNG的话，毛玻璃效果不行-->
                     </div>
                 </div>
 
                 <div class="preview-container-wrapper" ref="screenshotArea"
                     :style="{width: config.previewWidth + 'px', height: config.previewHeight + 'px'}">
+                    <img class="background-image" :src="config.backgroundImage"
+                        :referrerpolicy="config.backgroundImage && config.backgroundImage.includes('hdslb.com') ? 'no-referrer' : undefined">
                     <div class="preview-container" :style="previewStyles">
                         <h1 v-if="config.helpTitleContent" class="editable-title" @click="editTitle('helpTitle')"
                             :style="{fontSize: config.helpTitleFontSize + 'px', color: config.helpTitleColor, fontWeight: config.helpTitleBold ? 'bold' : 'normal'}">
@@ -1108,7 +1124,8 @@
                             @click="editMenuItem(index)">
                             <div>
                                 <img v-if="item.iconSize > 0" :src="getIconUrl(item.iconId)" :alt="item.title"
-                                    :style="{width: `${item.iconSize}px`, height: `${item.iconSize}px`}">
+                                    :style="{width: `${item.iconSize}px`, height: `${item.iconSize}px`}"
+                                    :referrerpolicy="getIconUrl(item.iconId).includes('hdslb.com') ? 'no-referrer' : undefined">
                                 </component>
                                 <span
                                     :style="{fontSize: config.parentMenuFontSize + 'px', lineHeight: config.lineHeight + 'em'}"><span
@@ -1119,7 +1136,8 @@
                                 :style="[!subItem.glassmorphism && subItem.maskOpacity !== undefined ? { 'backgroundColor': `rgba(${hexToRgb(subItem.maskColor)}, ${subItem.maskOpacity})` } : {}]"
                                 @click.stop="editSubMenuItem(index, subIndex)">
                                 <img v-if="subItem.iconSize > 0" :src="getIconUrl(subItem.iconId)" :alt="subItem.text"
-                                    :style="{width: `${subItem.iconSize}px`, height: `${subItem.iconSize}px`}">
+                                    :style="{width: `${subItem.iconSize}px`, height: `${subItem.iconSize}px`}"
+                                    :referrerpolicy="getIconUrl(subItem.iconId).includes('hdslb.com') ? 'no-referrer' : undefined">
                                 </component>
                                 <div class="sub-item-text-content">
                                     <div class="sub-item-text-preview"
@@ -1222,7 +1240,8 @@
                                 <div v-for="icon in icons" :key="icon.id" class="icon-option"
                                     :class="{active: popupData.iconId === icon.id, selected: popupData.iconId === icon.id}"
                                     @click="selectPopupIcon(icon)">
-                                    <img :src="icon.url" :alt="icon.name">
+                                    <img :src="icon.url" :alt="icon.name"
+                                        :referrerpolicy="icon.url && icon.url.includes('hdslb.com') ? 'no-referrer' : undefined">
                                 </div>
                             </div>
                         </div>
@@ -1320,12 +1339,12 @@ https://i0.hdslb.com/bfs/new_dyn/79aee60d45ff2e4940b4b7fe3dc0edb01767947324.jpg
                 selectedSubIndex: null,
                 backgroundFile: null,
                 showMenuStructure: true,
-                showIconLibrary: false,
+                showIconLibrary: true,
                 showBackgroundSettings: true,
-                showFooterSettings: false,
-                showFontSettings: false,
-                showGlassmorphismSettings: false, // 控制毛玻璃设置的折叠面板
-                useBackdropFilter: true, // 新增 useBackdropFilter 数据属性，控制是否使用 backdrop-filter, 默认 true
+                showFooterSettings: true,
+                showFontSettings: true,
+                showGlassmorphismSettings: true, // 控制毛玻璃设置的折叠面板
+                useBackdropFilter: true,
                 "icons": [
                     { "id": 1, "url": 'https://i1.hdslb.com/bfs/article/9900edae5f684f1f7af41949473b8a1cfd057a5b.png', "name": 'icon1' },
                     { "id": 2, "url": 'https://i1.hdslb.com/bfs/article/f32980cbce6808fd54613dea589eee013f0c5fe3.png', "name": 'icon2' },
@@ -1370,14 +1389,13 @@ https://i0.hdslb.com/bfs/new_dyn/79aee60d45ff2e4940b4b7fe3dc0edb01767947324.jpg
                     'https://i0.hdslb.com/bfs/article/28c76b561eadbbb826c2c902088c87a1a7e92f25.jpg',
                     'https://i0.hdslb.com/bfs/article/806202a9b867a0b1d2d3399f1a183fc556ec258d.jpg',
                     'https://i0.hdslb.com/bfs/article/796ae5ab9ef1f2e7db2c6a6020f5cbb718c9d953.jpg',
-                    'https://i0.hdslb.com/bfs/article/60e1532cf0a59828fbdd86c1b4e5740ca551f5b2.jpg',
                     'https://i0.hdslb.com/bfs/article/9c7e7d66913155a32cad1591472a77374f0caf54.jpg',
                     'https://i0.hdslb.com/bfs/article/a6154de573f73246ea4355a614f0b7b94eff8f20.jpg'
                 ],
                 fonts: [], // Array to store fonts. Structure: { id: , name: , url: , type: 'url' or 'file', base64: (if file) }
                 config: {
                     helpTitleContent: '# 帮助菜单', // 支持Markdown
-                    subtitleContent: '指令列表',     // 支持Markdown
+                    subtitleContent: '*指令列表*',     // 支持Markdown
                     helpTitleFontSize: 24,
                     helpTitleColor: '#333',
                     helpTitleBold: true,
@@ -1388,7 +1406,7 @@ https://i0.hdslb.com/bfs/new_dyn/79aee60d45ff2e4940b4b7fe3dc0edb01767947324.jpg
                     previewHeight: 1440, // 默认预览高度 改为1440
                     backgroundImage: '',
                     backgroundBrightness: 1,
-                    footerTextContent: '### Bot of Kosihi & koishi-plugin-preview-help', // 默认角标文字, 支持Markdown
+                    footerTextContent: '## *Bot of Kosihi & koishi-plugin-preview-help*', // 默认角标文字, 支持Markdown
                     footerPosition: 'center', // 默认居中
                     footerTextColor: '#909399',
                     footerTextBold: false,
@@ -1672,173 +1690,8 @@ https://i0.hdslb.com/bfs/new_dyn/79aee60d45ff2e4940b4b7fe3dc0edb01767947324.jpg
                         this.customFontURL = '';
                     }
                 },
-                exportHTML() {
-                    let fontFaceHTML = '';
-                    if (this.config.customFont) {
-                        const selectedFont = this.fonts.find(font => font.name === this.config.customFont);
-                        if (selectedFont && selectedFont.type === 'file' && selectedFont.base64) {
-                            fontFaceHTML = `@font-face {
-                                font-family: '${selectedFont.name}';
-                                src: url('${selectedFont.base64}') format('truetype');
-                            }\n`;
-                        } else if (selectedFont && selectedFont.type === 'url' && selectedFont.url) {
-                            fontFaceHTML = `@font-face {
-                                font-family: '${selectedFont.name}';
-                                src: url('${selectedFont.url}') format('truetype');
-                            }\n`;
-                        }
-                    }
 
 
-                    let menuHTML = `
-                        <div class="menu-container" style="
-                            background-color: ${this.config.backgroundColor};
-                            background-image: url(${this.config.backgroundImage});
-                            background-size: cover;
-                            background-position: center;
-                            filter: brightness(${this.config.backgroundBrightness});
-                            position: relative;
-                            width: ${this.config.previewWidth}px;
-                            font-family: '${this.config.customFont || 'inherit'}', sans-serif; /* 应用字体 */
-                        ">
-                        <h1 style="font-size: ${this.config.helpTitleFontSize}px; color: ${this.config.helpTitleColor}; font-weight: ${this.config.helpTitleBold ? 'bold' : 'normal'};"> ${this.renderMarkdown(this.config.helpTitleContent)}</h1>
-                        <h2 style="font-size: ${this.config.subtitleFontSize}px; color: ${this.config.subtitleColor}; font-weight: ${this.config.subtitleBold ? 'bold' : 'normal'};"> ${this.renderMarkdown(this.config.subtitleContent)}</h2>
-                    `;
-                    this.config.menuItems.forEach(item => {
-                        const menuItemIconUrl = this.getIconUrl(item.iconId);
-                        menuHTML += `
-                            <div class="menu-item-preview ${item.glassmorphism ? 'glassmorphism' : (!item.glassmorphism && item.maskOpacity !== undefined) ? 'glassmorphism-custom' : 'no-glassmorphism'} ${item.subItemColumns > 1 ? 'column-layout columns-' + item.subItemColumns : ''}"
-                            style="${!item.glassmorphism && item.maskOpacity !== undefined ? `background-color: rgba(${this.hexToRgb(item.maskColor)}, ${item.maskOpacity});` : ''}">
-                                <div>
-                                    ${item.iconSize > 0 ? `<img src="${menuItemIconUrl}" style="width: ${item.iconSize}px; height: ${item.iconSize}px;">` : ''}
-                                    <span style="font-size: ${this.config.parentMenuFontSize}px; line-height: ${this.config.lineHeight}em;"><span v-html="renderMarkdown(item.title)}</span></span>
-                                </div>`;
-                        item.subItems.forEach(subItem => {
-                            const subItemIconUrl = this.getIconUrl(subItem.iconId);
-                            menuHTML += `
-                                    <div class="sub-item-preview ${subItem.glassmorphism ? 'glassmorphism' : (!subItem.glassmorphism && subItem.maskOpacity !== undefined) ? 'glassmorphism-custom' : 'no-glassmorphism'}"
-                                    style="${!subItem.glassmorphism && subItem.maskOpacity !== undefined ? `background-color: rgba(${this.hexToRgb(subItem.maskColor)}, ${subItem.maskOpacity});` : ''}">
-                                        ${subItem.iconSize > 0 ? `<img src="${subItemIconUrl}" style="width: ${subItem.iconSize}px; height: ${subItem.iconSize}px;">` : ''}
-                                        <div class="sub-item-text-content">
-                                            <div class="sub-item-text-preview" style="font-size: ${this.config.subMenuFontSize}px; line-height: ${this.config.lineHeight}em;"><span v-html="renderMarkdown(subItem.text)"></span></div>
-                                            ${subItem.description ? `<div class="sub-item-description-preview"><span v-html="renderMarkdown(subItem.description)"></span></div>` : ''}
-                                        </div>
-                                    </div>`;
-                        });
-                        menuHTML += `
-                            </div>`;
-                    });
-                    menuHTML += `
-                            <div class="footer ${this.config.footerPosition}" style="color: ${this.config.footerTextColor}; font-weight: ${this.config.footerTextBold ? 'bold' : 'normal'};"> ${this.renderMarkdown(this.config.footerTextContent)}</div>
-                        </div>
-                    `;
-
-                    const fullHTML = `<!DOCTYPE html>
-                    <html lang="zh-CN">
-                    <head>
-                        <meta charset="UTF-8">
-                        <title>导出菜单</title>
-                        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
-                        <style>
-                         :root {
-                            --primary-color: #409EFF;
-                            --bg-color: #f8f9fa;
-                            --border-color: #ebeef5;
-                            --text-color-dark: #333;
-                            --text-color-light: #666;
-                        }
-                        ${fontFaceHTML}
-                        body { font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; color: var(--text-color-dark); }
-                        .menu-container { padding: 20px; position: relative; overflow: hidden;} /* Added overflow:hidden to container */
-                        .menu-item-preview { display: flex; flex-direction: column; padding: 12px; margin-bottom: 8px; background: rgba(255, 255, 255, 0.9); border-radius: 4px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1); cursor: pointer; }
-                        .menu-item-preview:last-child { margin-bottom: 0; }
-                        .menu-item-preview>div { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
-                        .menu-item-preview>div:last-child { margin-bottom: 0; }
-                        .sub-item-preview { padding: 8px 12px; margin-left: 20px; display: flex; flex-direction: row; align-items: flex-start; gap: 8px; cursor: pointer; font-size: 0.9em; line-height: 1.4; margin-bottom: 4px; word-wrap: break-word; overflow-wrap: break-word; border-radius: 4px;} /* Added margin-bottom for sub-items and vertical layout and border-radius */
-                        .sub-item-preview:last-child { margin-bottom: 0; } /* Remove bottom margin for last sub-item */
-                        .sub-item-description-preview { font-size: 0.8em; color: var(--text-color-light); line-height: 1.2; } /* Sub-item description style */
-                        .sub-item-text-content { display: flex; flex-direction: column; }
-                        .sub-item-text-preview {
-                            display: flex;
-                            align-items: center;
-                            gap: 0px;
-                            /* 恢复图标和文字之间的间距 */
-                            overflow: hidden;
-                            /* 隐藏溢出内容 */
-                            max-width: 200px;
-                            /* 设置最大宽度，根据需要调整 */
-                        }
-
-                        .sub-item-text-preview span {
-                            /* 应用到 sub-item-text-preview 内的 span 元素 */
-                            white-space: nowrap;
-                            /* 强制文本不换行 */
-                            overflow: hidden;
-                            /* 再次隐藏溢出内容，确保省略号效果 */
-                            text-overflow: ellipsis;
-                            /* 当文本溢出时显示省略号 */
-                            display: block;
-                            /* 确保 text-overflow 生效，如果 span 是 inline 元素可能需要设置为 block 或 inline-block */
-                        }
-
-                        /* 如果你仍然觉得图标和文字太近，可以调整 img 的 margin-right */
-                        .sub-item-preview img {
-                            margin-right: 0px; /* 移除 sub-item-text-preview img 的 margin-right */
-                            font-size: 1em;
-                            color: var(--text-color-light);
-                            vertical-align: top; /* Align icon to the top */
-                            object-fit: contain;
-                            flex-shrink: 0; /* Prevent icon from shrinking */
-                        }
-                        .footer { position: absolute; bottom: 15px; left: 0; right: 0; font-size: 12px; color: #909399; text-align: center; cursor: pointer;} /* Footer style - default center and cursor */
-                        .footer.left-top { top: 15px; left: 15px; text-align: left; bottom: auto; right: auto; }
-                        .footer.left-bottom { bottom: 15px; left: 15px; text-align: left; right: auto; }
-                        .footer.right-top { top: 15px; right: 15px; text-align: right; bottom: auto; left: auto; }
-                        .footer.right-bottom { bottom: 15px; right: 15px; text-align: right; left: auto; }
-                        .footer.top-center { top: 15px; text-align: center; bottom: auto; }
-                        .glassmorphism { background: rgba(255, 255, 255, 0.5); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.3); }
-                        .glassmorphism-custom { background-color: var(--glassmorphism-mask-color, rgba(255, 255, 255, 0.5)); opacity: var(--glassmorphism-mask-opacity, 0.5); border-radius: 4px;} /* glassmorphism-custom with border-radius */
-                        .no-glassmorphism { backdrop-filter: none; -webkit-backdrop-filter: none; border: none; }
-                        .menu-item-preview.column-layout { flex-direction: row; flex-wrap: wrap; align-items: flex-start; }
-                        .menu-item-preview.column-layout > div:first-child { width: 100%; margin-bottom: 10px; }
-                        .menu-item-preview.column-layout .sub-item-preview { margin-left: 0; margin-right: 10px; margin-bottom: 10px; }
-                        .menu-item-preview.columns-2 .sub-item-preview { width: calc(50% - 10px); }
-                        .menu-item-preview.columns-3 .sub-item-preview { width: calc(33.333% - 10px); }
-                        .menu-item-preview.columns-4 .sub-item-preview { width: calc(25% - 10px); }
-                        .menu-item-preview.columns-5 .sub-item-preview { width: calc(20% - 10px); }
-                        .menu-item-preview.columns-6 .sub-item-preview { width: calc(16.666% - 10px); }
-                        .menu-item i, .sub-item i, .menu-item-preview i, .sub-item-preview i, .icon-option i,
-                        .menu-item img, .sub-item img, .menu-item-preview img, .sub-item-preview img, .icon-option img { margin-right: 8px; font-size: 1em; color: var(--text-color-light); width: 2em; height: 2em; vertical-align: middle; object-fit: contain; } /* Unified icon size in exported HTML */
-                        .glassmorphism-custom {
-                            backdrop-filter: none;
-                            -webkit-backdrop-filter: none;
-                            border: none;
-                        }
-                        .glassmorphism-custom.use-backdrop-filter {
-                            background: rgba(255, 255, 255, 0.5);
-                            backdrop-filter: blur(10px);
-                            -webkit-backdrop-filter: blur(10px);
-                        }
-                        .glassmorphism-custom.no-backdrop-filter {
-                            backdrop-filter: none;
-                            -webkit-backdrop-filter: none;
-                        }
-                        </style>
-                    </head>
-                    <body>
-                    ${menuHTML}
-                    </body>
-                    </html>`;
-
-
-                    const blob = new Blob([fullHTML], { type: 'text/html' });
-                    const url = URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = 'menu.html';
-                    a.click();
-                    URL.revokeObjectURL(url);
-                },
                 hexToRgb(hex) {
                     // Expand shorthand form (e.g. "03F") to full form (e.g. "0033FF")
                     var shorthandRegex = /^#?([a-f\d])([a-f\d])([a-f\d])$/i;
@@ -1983,7 +1836,8 @@ https://i0.hdslb.com/bfs/new_dyn/79aee60d45ff2e4940b4b7fe3dc0edb01767947324.jpg
                 exportConfig() {
                     const configStr = JSON.stringify({
                         config: this.config,
-                        useBackdropFilter: this.useBackdropFilter // Include useBackdropFilter in export
+                        useBackdropFilter: this.useBackdropFilter,
+                        icons: this.icons // 导出 icons 数组
                     }, null, 2);
                     const blob = new Blob([configStr], { type: 'application/json' });
                     const url = URL.createObjectURL(blob);
@@ -1993,6 +1847,7 @@ https://i0.hdslb.com/bfs/new_dyn/79aee60d45ff2e4940b4b7fe3dc0edb01767947324.jpg
                     a.click();
                     URL.revokeObjectURL(url);
                 },
+
                 showImportPopup() {
                     this.importPopupVisible = true;
                     this.importTab = 'text'; // Default to file upload tab
@@ -2010,7 +1865,8 @@ https://i0.hdslb.com/bfs/new_dyn/79aee60d45ff2e4940b4b7fe3dc0edb01767947324.jpg
                             try {
                                 const importedData = JSON.parse(e.target.result);
                                 this.config = importedData.config;
-                                this.useBackdropFilter = importedData.useBackdropFilter; // Load useBackdropFilter from import
+                                this.useBackdropFilter = importedData.useBackdropFilter;
+                                this.icons = importedData.icons || this.icons; // 导入 icons 数组，如果导入的数据中没有 icons，则保留当前的 icons
                                 alert('配置文件导入成功！');
                             } catch (error) {
                                 alert('配置文件解析失败，请检查JSON格式。');
@@ -2020,6 +1876,8 @@ https://i0.hdslb.com/bfs/new_dyn/79aee60d45ff2e4940b4b7fe3dc0edb01767947324.jpg
                         reader.readAsText(file);
                     }
                 },
+
+
                 confirmImportConfig(importMode) {
                     if (this.importTab === 'text' || this.importTab === 'file') { // JSON 导入逻辑
                         if (this.importTab === 'text') {
@@ -2029,9 +1887,11 @@ https://i0.hdslb.com/bfs/new_dyn/79aee60d45ff2e4940b4b7fe3dc0edb01767947324.jpg
                                 if (importMode === 'replace') { // 替换模式
                                     this.config = importedConfig; // Replace entire config
                                     this.useBackdropFilter = importedData.useBackdropFilter; // Also load useBackdropFilter
+                                    this.icons = importedData.icons || this.icons; // 导入 icons 数组
                                 } else { // 默认行为或 'add' 模式, for JSON import, replace is usually the expected behavior
                                     this.config = importedConfig; // Replace entire config
                                     this.useBackdropFilter = importedData.useBackdropFilter; // Also load useBackdropFilter
+                                    this.icons = importedData.icons || this.icons; // 导入 icons 数组
                                 }
                                 this.importPopupVisible = false;
                             } catch (error) {
@@ -2051,6 +1911,7 @@ https://i0.hdslb.com/bfs/new_dyn/79aee60d45ff2e4940b4b7fe3dc0edb01767947324.jpg
                     }
                     this.closeImportPopup(); // 确保在非取消情况下关闭弹窗
                 },
+
 
 
                 parseHelpText(helpText) {

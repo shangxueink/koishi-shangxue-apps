@@ -8,9 +8,9 @@ const { Schema, Logger, h } = require("koishi");
 exports.reusable = true; // 声明此插件可重用
 const name = 'preview-help';
 const inject = {
-    required: ['http', "i18n", "puppeteer"],
+    required: ['http', "i18n"],
+    optional: ['console', "puppeteer"]
 };
-const htmlPath = path.join(__dirname, '../help/index.html');
 const logger = new Logger('preview-help');
 const usage = `
 <h3>使用指南</h3>
@@ -20,28 +20,26 @@ const usage = `
 
 <h4>🚀快速开始</h4>
 <ol>
-  <li><strong>编辑菜单模板：</strong> ${htmlPath.replace(/\\/g, '/')} ，您可以在此页面编辑 HTML 模板，自定义菜单的样式和布局并且导出JSON配置文件以供本插件使用。</li>
-  <li><strong>配置插件：</strong> 在 Koishi 控制面板中配置 <code>preview-help</code> 插件，选择合适的菜单模式并根据需要进行其他配置。</li>
-  <li><strong>使用指令：</strong> 在 Koishi 中使用您配置的指令名称 (默认为 "帮助菜单") 即可查看预览的帮助菜单。</li>
+<li><strong>编辑菜单模板：</strong> 您可以在活动栏【帮助预览】页面编辑 HTML 模板，自定义菜单的样式和布局并且导出JSON配置文件以供本插件使用。</li>
+<li><strong>配置插件：</strong> 在 Koishi 控制面板中配置 <code>preview-help</code> 插件，选择合适的菜单模式并根据需要进行其他配置。</li>
+<li><strong>使用指令：</strong> 在 Koishi 中使用您配置的指令名称 (默认为 "帮助菜单") 即可查看预览的帮助菜单。</li>
 </ol>
 
 ---
 
 <p>推荐使用webUI交互生成你喜欢的菜单图片，并且导出JSON配置，用于配置本插件。</p>
+<p>当然也可以把渲染好的菜单图片保存，使用本插件的图片返回功能等</p>
 
-<p>webUI 交互地址：</p>
+webUI 交互 请见 ➤[左侧活动栏【帮助预览】页面](/preview-help)
 
-<p>
-  <a href="${htmlPath.replace(/\\/g, '/')} " target="_blank">${htmlPath.replace(/\\/g, '/')} </a>
-</p>
-
-<p>
-  <button onclick="navigator.clipboard.writeText('${htmlPath.replace(/\\/g, '/')}')">点我复制文件地址</button>
-</p>
 ---
 `;
 
 const Config = Schema.intersect([
+    Schema.object({
+        template: Schema.boolean().default(true).description('侧边栏注册<br>关闭后不注册侧边页面'),
+    }).description('功能设置'),
+
     Schema.object({
         command: Schema.string().description('注册指令名称').default("帮助菜单"),
         rendering: Schema.union([
@@ -59,7 +57,8 @@ const Config = Schema.intersect([
     Schema.union([
         Schema.object({
             helpmode: Schema.const("1.1").required(),
-            help_text: Schema.string().role('textarea', { rows: [8, 8] }).description('返回的文字菜单内容'),
+            help_text: Schema.string().default("当前可用的指令有：\n    /chatluna  ChatLuna 相关指令。\n    /glot  运行代码\n    /group-manage  群组管理\n    /help  显示帮助信息\n    /inspect  查看用户、频道或消息的详细信息\n    /lunavits  lunavits 语音合成\n    /market  插件市场信息\n    /musicjs  用 JavaScript 代码演奏旋律\n    /osu-funny  一些有趣的 osu! 功能\n    /ping  ping指定的ip或域名\n    /plugin  插件管理\n    /propose  向群友求婚\n    /rryth-test  人人有图画测试服 v0.0.7\n    /sayo-roll  随机选择\n    /shot  网页截图\n    /status  查看运行状态\n    /status-image  查看运行状态\n    /timer  定时器信息\n    /translate  文本翻译\n    /usage  调用次数信息\n    /waifu  娶群友\n    /wh-sub  订阅Github事件推送\n    /wh-unsub  取消Github事件推送\n    /钓鱼  \n    /鹿管签到  鹿管签到\n输入“/help 指令名”查看特定指令的语法和使用示例。")
+                .role('textarea', { rows: [8, 8] }).description('返回的文字菜单内容'),
         }),
         Schema.object({
             helpmode: Schema.const("1.2").required(),
@@ -72,7 +71,8 @@ const Config = Schema.intersect([
         Schema.object({
             helpmode: Schema.const("2.2").required(),
             background_URL: Schema.string().role('textarea', { rows: [8, 8] }).description('渲染使用的背景图地址<br>一行一个网络URL地址').default("https://i0.hdslb.com/bfs/article/3f79c64129020b522a516480c1066ea2f563964b.jpg\nhttps://i0.hdslb.com/bfs/article/28c76b561eadbbb826c2c902088c87a1a7e92f25.jpg\nhttps://i0.hdslb.com/bfs/article/806202a9b867a0b1d2d3399f1a183fc556ec258d.jpg\nhttps://i0.hdslb.com/bfs/article/796ae5ab9ef1f2e7db2c6a6020f5cbb718c9d953.jpg\nhttps://i0.hdslb.com/bfs/article/60e1532cf0a59828fbdd86c1b4e5740ca551f5b2.jpg\nhttps://i0.hdslb.com/bfs/article/9c7e7d66913155a32cad1591472a77374f0caf54.jpg\nhttps://i0.hdslb.com/bfs/article/a6154de573f73246ea4355a614f0b7b94eff8f20.jpg"),
-            help_text: Schema.string().role('textarea', { rows: [8, 8] }).description('help插件返回的文字菜单'),
+            help_text: Schema.string().default("当前可用的指令有：\n    /chatluna  ChatLuna 相关指令。\n    /glot  运行代码\n    /group-manage  群组管理\n    /help  显示帮助信息\n    /inspect  查看用户、频道或消息的详细信息\n    /lunavits  lunavits 语音合成\n    /market  插件市场信息\n    /musicjs  用 JavaScript 代码演奏旋律\n    /osu-funny  一些有趣的 osu! 功能\n    /ping  ping指定的ip或域名\n    /plugin  插件管理\n    /propose  向群友求婚\n    /rryth-test  人人有图画测试服 v0.0.7\n    /sayo-roll  随机选择\n    /shot  网页截图\n    /status  查看运行状态\n    /status-image  查看运行状态\n    /timer  定时器信息\n    /translate  文本翻译\n    /usage  调用次数信息\n    /waifu  娶群友\n    /wh-sub  订阅Github事件推送\n    /wh-unsub  取消Github事件推送\n    /钓鱼  \n    /鹿管签到  鹿管签到\n输入“/help 指令名”查看特定指令的语法和使用示例。")
+                .role('textarea', { rows: [8, 8] }).description('返回的文字菜单内容'),
         }),
         Schema.object({
             helpmode: Schema.const("3").required(),
@@ -103,11 +103,22 @@ const Config = Schema.intersect([
 // 存储上一次的 generateCacheKey
 let lastCacheKey = null;
 
+
 function apply(ctx, config) {
     function logInfo(message) {
         if (config.loggerinfo) {
             logger.info(message);
         }
+    }
+    if (config.template) {
+        ctx.on('ready', () => {
+            ctx.inject(['console'], (ctx) => {
+                ctx.console.addEntry({
+                    dev: path.resolve(__dirname, '../client/index.js'),
+                    prod: path.resolve(__dirname, '../dist'),
+                })
+            })
+        })
     }
 
     ctx.on('ready', async () => {
@@ -440,7 +451,7 @@ function apply(ctx, config) {
                     }
 
                     try {
-
+                        const htmlPath = path.join(__dirname, '../help/index.html');
                         const helpHTMLUrl = url.pathToFileURL(htmlPath).href
                         logInfo(`正在加载本地HTML文件：${helpHTMLUrl}`);
                         await page.goto(helpHTMLUrl, {
