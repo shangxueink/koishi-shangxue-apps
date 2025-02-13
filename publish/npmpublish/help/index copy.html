@@ -1,0 +1,2027 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <title>可视化菜单编辑器</title>
+    <script src="js/vue.js"></script>
+    <script src="js/marked.min.js"></script>
+    <script src="js/html2canvas.min.js"></script>
+    <link rel="stylesheet" href="css/min.css">
+    <style>
+        :root {
+            --primary-color: #409EFF;
+            --bg-color: #f8f9fa;
+            --border-color: #ebeef5;
+            --text-color-dark: #333;
+            --text-color-light: #666;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+            background: var(--bg-color);
+            padding: 20px;
+            color: var(--text-color-dark);
+        }
+
+        .container {
+            display: flex;
+            gap: 20px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .panel {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.05);
+        }
+
+        .structure-panel {
+            width: 280px;
+        }
+
+        .preview-panel {
+            flex: 1;
+            /* Preview takes remaining space */
+            min-width: 320px;
+            /* Minimum width for preview - adjusted for vertical */
+            position: relative;
+        }
+
+        .menu-structure {
+            margin-top: 10px;
+            padding-left: 5px;
+            /* Indentation for root level items */
+        }
+
+        .menu-item-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .menu-item-row,
+        .sub-item-row {
+            padding: 8px;
+            margin: 4px 0;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border: 1px solid transparent;
+            /* Default border to handle active state */
+        }
+
+        .menu-item-row-level-0 {
+            border: 2px solid purple;
+        }
+
+
+        .menu-item-row {
+            /* No specific style for menu item row if needed */
+        }
+
+        .sub-item-row {
+            margin-left: 15px;
+            border-left: 1px dashed var(--border-color);
+            font-size: 0.95em;
+        }
+
+        .menu-item-row:hover,
+        .sub-item-row:hover {
+            background-color: #f0f2f5;
+        }
+
+        .menu-item-row.active,
+        .sub-item-row.active {
+            background-color: #e6f7ff;
+            border-color: var(--primary-color);
+            /* Highlight border when active */
+        }
+
+        .sub-item-row.active {
+            border-left-color: var(--primary-color);
+            /* Highlight left border for sub-items */
+        }
+
+
+        .btn-group {
+            margin-top: 10px;
+            display: flex;
+            gap: 8px;
+            justify-content: flex-start;
+            /* Align buttons to the start */
+        }
+
+        .btn-group button {
+            padding: 8px 12px;
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: opacity 0.3s;
+        }
+
+        .btn-group button:hover {
+            opacity: 0.8;
+        }
+
+        .form-item {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+            color: var(--text-color-light);
+        }
+
+        input,
+        select,
+        textarea,
+        /* 添加 textarea 样式 */
+        input[type="color"] {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            transition: border-color 0.3s;
+            font-size: 14px;
+        }
+
+        textarea {
+            resize: none;
+            /* 禁止手动调整textarea大小 */
+        }
+
+        input:focus,
+        select:focus,
+        textarea:focus,
+        /* 添加 textarea focus 样式 */
+        input[type="color"]:focus {
+            border-color: var(--primary-color);
+            outline: none;
+        }
+
+        input[type="range"] {
+            width: 100%;
+        }
+
+
+        .preview-container-wrapper {
+            min-height: 600px;
+            position: relative;
+            overflow: hidden;
+            border: 1px solid var(--border-color);
+            /* Preview container border */
+            border-radius: 8px;
+            margin: 0 auto;
+            /* Center preview in panel if needed */
+            /* width and height are now dynamic via vue style binding */
+        }
+
+        .background-image {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            z-index: 0;
+        }
+
+        .preview-container {
+            background-size: cover;
+            background-position: center;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            /* Enable flexbox for menu items */
+            flex-direction: column;
+            /* Stack menu items vertically */
+            padding: 20px;
+            /* Add padding around the menu */
+            height: 100%;
+            /* Occupy full height of wrapper */
+            font-family: var(--preview-font, inherit);
+            /* 应用预览字体 */
+        }
+
+        .menu-item-preview {
+            display: flex;
+            flex-direction: column;
+            padding: 12px;
+            margin-bottom: 8px;
+            /* Space between menu items */
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 4px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            cursor: pointer;
+            /* Indicate clickability */
+        }
+
+        .menu-item-preview:last-child {
+            margin-bottom: 0;
+            /* Remove margin from last menu item */
+        }
+
+
+        .menu-item-preview>div {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 8px;
+            /* Space between title and sub-items */
+        }
+
+        .menu-item-preview>div:last-child {
+            margin-bottom: 0;
+            /* Remove margin after title if no sub-items */
+        }
+
+        .sub-item-preview {
+            padding: 8px 12px;
+            margin-left: 20px;
+            display: flex;
+            /* Use flexbox for icon and text alignment */
+            flex-direction: row;
+            /* Arrange icon and text in a row */
+            align-items: flex-start;
+            /* Align items at the top */
+            gap: 8px;
+            /* Space between icon and text content */
+            cursor: pointer;
+            /* Indicate clickability */
+            font-size: 0.9em;
+            /* Smaller font for sub-items */
+            line-height: 1.4;
+            /* Adjusted line height */
+            margin-bottom: 4px;
+            /* 子项之间增加间距 */
+            word-wrap: break-word;
+            /* Allow text to break */
+            overflow-wrap: break-word;
+            border-radius: 4px;
+            /* Slightly rounded corners for sub-items */
+        }
+
+        .sub-item-preview.glassmorphism-custom {
+            border-radius: 4px;
+            /* 确保 glassmorphism-custom 也应用圆角 */
+        }
+
+
+        .sub-item-preview:last-child {
+            margin-bottom: 0;
+            /* 移除最后一个子项的底部间距 */
+        }
+
+        .sub-item-description-preview {
+            font-size: 0.8em;
+            color: var(--text-color-light);
+            line-height: 1.2;
+        }
+
+        .sub-item-text-content {
+            /* Container for text and description */
+            display: flex;
+            flex-direction: column;
+            /* Stack text and description vertically */
+        }
+
+        .sub-item-text-preview {
+            display: flex;
+            align-items: center;
+            gap: 0px;
+            /* 恢复图标和文字之间的间距 */
+            overflow: hidden;
+            /* 隐藏溢出内容 */
+            max-width: 200px;
+            /* 设置最大宽度，根据需要调整 */
+        }
+
+        .sub-item-text-preview span {
+            /* 应用到 sub-item-text-preview 内的 span 元素 */
+            white-space: nowrap;
+            /* 强制文本不换行 */
+            overflow: hidden;
+            /* 再次隐藏溢出内容，确保省略号效果 */
+            text-overflow: ellipsis;
+            /* 当文本溢出时显示省略号 */
+            display: block;
+            /* 确保 text-overflow 生效，如果 span 是 inline 元素可能需要设置为 block 或 inline-block */
+        }
+
+        /* 如果你仍然觉得图标和文字太近，可以调整 img 的 margin-right */
+        .sub-item-preview img {
+            margin-right: 0px;
+            /* 移除 sub-item-text-preview img 的 margin-right */
+            font-size: 1em;
+            color: var(--text-color-light);
+            vertical-align: top;
+            /* Align icon to the top */
+            object-fit: contain;
+            flex-shrink: 0;
+            /* Prevent icon from shrinking */
+        }
+
+
+        .icon-picker {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            /* 每行2个图标 in structure panel */
+            gap: 8px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .popup-content .icon-picker {
+            grid-template-columns: repeat(3, 1fr);
+            /* 每行3个图标 in popup */
+        }
+
+
+        .icon-option {
+            padding: 8px;
+            text-align: center;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .icon-option:hover {
+            border-color: var(--primary-color);
+        }
+
+        .icon-option img {
+            width: 2em;
+            /* Fixed width for icons in picker */
+            height: 2em;
+            /* Fixed height for icons in picker */
+            /* max-width: 1.5em;  调整图标大小 */
+            /* max-height: 1.5em; */
+        }
+
+        .icon-option.selected {
+            border: 2px solid purple;
+            /* 添加紫色边框 */
+        }
+
+
+        .upload-box {
+            border: 1px dashed var(--border-color);
+            padding: 20px;
+            text-align: center;
+            cursor: pointer;
+            border-radius: 4px;
+            margin-top: 10px;
+        }
+
+        .footer {
+            position: absolute;
+            bottom: 15px;
+            left: 0;
+            right: 0;
+            font-size: 12px;
+            color: #909399;
+            text-align: center;
+            /* Default to center alignment */
+            cursor: pointer;
+            /* Make footer editable */
+        }
+
+        .footer.left-top {
+            top: 15px;
+            left: 15px;
+            text-align: left;
+            bottom: auto;
+            right: auto;
+        }
+
+        .footer.left-bottom {
+            bottom: 15px;
+            left: 15px;
+            text-align: left;
+            right: auto;
+        }
+
+        .footer.right-top {
+            top: 15px;
+            right: 15px;
+            text-align: right;
+            bottom: auto;
+            left: auto;
+        }
+
+        .footer.right-bottom {
+            bottom: 15px;
+            right: 15px;
+            text-align: right;
+            left: auto;
+        }
+
+        .footer.top-center {
+            top: 15px;
+            text-align: center;
+            bottom: auto;
+        }
+
+
+        .collapsible {
+            background-color: #f1f1f1;
+            color: #444;
+            cursor: pointer;
+            padding: 10px 18px;
+            /* Reduced padding */
+            width: 100%;
+            text-align: left;
+            border: none;
+            /* Remove border */
+            outline: none;
+            font-size: 14px;
+            /* Smaller font size */
+            margin: 0;
+            /* Remove default margins */
+            border-bottom: 1px solid #ddd;
+            /* Add bottom border for separation */
+            border-radius: 0;
+            /* Ensure no rounded corners */
+            position: relative;
+            /* For indicator positioning */
+        }
+
+        .collapsible:first-of-type {
+            border-top: 1px solid #ddd;
+            /* Add top border to the first collapsible */
+        }
+
+        .collapsible::after {
+            content: '⇒';
+            /* Default collapsed indicator */
+            position: absolute;
+            right: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            transition: transform 0.3s ease-in-out;
+        }
+
+        .collapsible.active::after {
+            content: '⇓';
+            /* Expanded indicator */
+        }
+
+
+        .collapsible.active,
+        .collapsible:hover {
+            background-color: #e0e0e0;
+            /* Lighter hover/active color */
+        }
+
+        .content {
+            padding: 10px;
+            display: none;
+            overflow: hidden;
+            background-color: #f9f9f9;
+            /* Slightly lighter content background */
+            border-left: 1px solid #ddd;
+            border-right: 1px solid #ddd;
+            border-bottom: 1px solid #ddd;
+            border-radius: 0 0 8px 8px;
+            /* Rounded corners for content bottom */
+            margin-bottom: 5px;
+            /* Space between collapsible sections */
+        }
+
+        .content:last-of-type {
+            margin-bottom: 0;
+            /* Remove margin from last content section */
+        }
+
+        /* VS Code Style Menu Structure */
+        .menu-structure {
+            padding-left: 5px;
+            /* Indentation for root level items */
+        }
+
+
+        .menu-item-text {
+            flex-grow: 1;
+            /* Allow text to take up space */
+            padding: 5px 0;
+            overflow: hidden;
+            /* Required for text-overflow */
+            text-overflow: ellipsis;
+            /* Ellipsis for long text */
+            white-space: nowrap;
+            /* Prevent text wrapping */
+            max-width: 150px;
+            /* Adjust max width as needed */
+        }
+
+        .sub-item-text {
+            flex-grow: 1;
+            padding: 5px 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            max-width: 130px;
+            /* Slightly less width for sub-items */
+        }
+
+
+        /* Icon Styling */
+        .menu-item i,
+        .sub-item i,
+        .menu-item-preview i,
+        .sub-item-preview i,
+        .icon-option i,
+        .menu-item img,
+        .sub-item img,
+        .menu-item-preview img,
+        .sub-item-preview img,
+        .icon-option img {
+            margin-right: 8px;
+            /* Space between icon and text */
+            font-size: 1em;
+            /* Adjust icon size as needed */
+            color: var(--text-color-light);
+            /* Icon color */
+            max-width: none;
+            /* important to override and use width/height */
+            max-height: none;
+            width: 2em;
+            /* Unified icon size */
+            height: 2em;
+            vertical-align: middle;
+            /* Align icon with text */
+            object-fit: contain;
+            /* Make sure icon scales within its bounds */
+        }
+
+
+        /* Pop-up Styles (Basic) */
+        .popup-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .popup-content {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+            width: 400px;
+            /* Adjust width as needed */
+        }
+
+        .popup-content h3 {
+            margin-top: 0;
+            margin-bottom: 15px;
+            text-align: center;
+            /* Center popup title */
+        }
+
+        .popup-content .form-item {
+            margin-bottom: 15px;
+        }
+
+        .popup-buttons {
+            display: flex;
+            justify-content: center;
+            /* Center buttons horizontally */
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .popup-button {
+            /* Style for popup buttons */
+            padding: 8px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            color: white;
+            background-color: var(--primary-color);
+            transition: background-color 0.3s;
+        }
+
+        .popup-button:hover {
+            background-color: #3a8ee6;
+            /* Darker shade on hover */
+        }
+
+
+        .popup-tabs {
+            display: flex;
+            margin-bottom: 15px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .popup-tab {
+            padding: 8px 15px;
+            cursor: pointer;
+            border: 1px solid transparent;
+            border-bottom: none;
+            border-radius: 4px 4px 0 0;
+            background-color: #f0f0f0;
+            text-align: center;
+            /* Center tab text */
+            flex-grow: 1;
+            /* Evenly distribute tabs */
+        }
+
+        .popup-tab.active {
+            background-color: white;
+            border: 1px solid var(--border-color);
+            border-bottom: none;
+        }
+
+
+        /* Footer Position Styles - Removed individual positioning, using default center */
+
+
+        /* Column Layout for Sub-items */
+        .menu-item-preview.column-layout {
+            flex-direction: row;
+            /* Arrange title and sub-items horizontally */
+            flex-wrap: wrap;
+            /* Allow wrapping of sub-items */
+            align-items: flex-start;
+            /* Align items to the start of the container */
+        }
+
+        .menu-item-preview.column-layout>div:first-child {
+            /* Style for title row */
+            width: 100%;
+            /* Title takes full width */
+            margin-bottom: 10px;
+            /* Space between title and columns */
+        }
+
+        .menu-item-preview.column-layout .sub-item-preview {
+            margin-left: 0;
+            /* Remove default left margin */
+            margin-right: 10px;
+            /* Space between columns */
+            margin-bottom: 10px;
+            /* Space between rows in columns */
+        }
+
+        .menu-item-preview.columns-2 .sub-item-preview {
+            width: calc(50% - 10px);
+            /* Two columns */
+        }
+
+        .menu-item-preview.columns-3 .sub-item-preview {
+            width: calc(33.333% - 10px);
+            /* Three columns */
+        }
+
+        .menu-item-preview.columns-4 .sub-item-preview {
+            width: calc(25% - 10px);
+            /* Four columns */
+        }
+
+        .menu-item-preview.columns-5 .sub-item-preview {
+            width: calc(20% - 10px);
+            /* Five columns */
+        }
+
+        .menu-item-preview.columns-6 .sub-item-preview {
+            width: calc(16.666% - 10px);
+            /* Six columns */
+        }
+
+        /* Glassmorphism Effect */
+        .glassmorphism {
+            background: rgba(255, 255, 255, 0.5);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            /* For Safari */
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .glassmorphism-custom {
+            background-color: rgba(255, 255, 255, 0.3);
+            /* 半透明白色，你可以调整颜色和透明度 */
+            /* backdrop-filter: blur(10px);  移除 backdrop-filter */
+            /* -webkit-backdrop-filter: blur(10px); 移除 -webkit-backdrop-filter */
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            /* 保留或调整边框 */
+            border-radius: 4px;
+            /* 保留圆角 */
+        }
+
+        .no-glassmorphism {
+            backdrop-filter: none;
+            -webkit-backdrop-filter: none;
+            border: none;
+            background-color: transparent;
+            /* 确保在禁用毛玻璃时背景透明 */
+        }
+
+        .glassmorphism-custom.use-backdrop-filter {
+            background: rgba(255, 255, 255, 0.6);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+        }
+
+        .glassmorphism-custom.no-backdrop-filter {
+            backdrop-filter: none;
+            -webkit-backdrop-filter: none;
+        }
+
+
+        /* Image Upload Tabs */
+        .image-upload-tabs {
+            display: flex;
+            margin-bottom: 10px;
+        }
+
+        .image-upload-tab {
+            padding: 8px 12px;
+            cursor: pointer;
+            border: 1px solid var(--border-color);
+            border-bottom: none;
+            border-radius: 4px 4px 0 0;
+            background-color: #f0f0f0;
+            margin-right: 2px;
+        }
+
+        .image-upload-tab.active {
+            background-color: white;
+            border-color: var(--primary-color);
+            border-bottom: none;
+        }
+
+        .image-upload-content {
+            border: 1px solid var(--primary-color);
+            padding: 15px;
+            border-radius: 0 0 4px 4px;
+            background-color: white;
+        }
+
+        .image-upload-content.hidden {
+            display: none;
+        }
+
+        /* Structure Panel Buttons */
+        .menu-item-actions,
+        .sub-item-actions {
+            display: flex;
+            gap: 5px;
+        }
+
+        .menu-item-actions button,
+        .sub-item-actions button {
+            padding: 0;
+            /* No padding */
+            border: none;
+            /* No border */
+            background-color: transparent;
+            /* Transparent background */
+            color: var(--text-color-light);
+            /* Icon color */
+            cursor: pointer;
+            font-size: 1em;
+            /* Adjust as needed */
+            width: 20px;
+            /* Set a fixed width */
+            height: 20px;
+            /* Set a fixed height */
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 3px;
+            /* Optional: for rounded corners on hover */
+            transition: background-color 0.3s;
+            /* Smooth transition for hover effect */
+        }
+
+        .menu-item-actions button:hover,
+        .sub-item-actions button:hover {
+            background-color: rgba(0, 0, 0, 0.08);
+            /* Light background on hover */
+            color: var(--text-color-dark);
+            /* Darker color on hover if needed */
+        }
+
+
+        .menu-item-actions button i,
+        .sub-item-actions button i {
+            margin: 0;
+            /* No extra margin in buttons */
+        }
+
+        .menu-item-actions button.add-sub-item-btn {
+            color: var(--primary-color);
+        }
+
+        .menu-item-actions button.add-sub-item-btn:hover {
+            background-color: rgba(64, 158, 255, 0.1);
+            /* Light background on hover */
+        }
+
+        /* Preview Panel Title Style */
+        .preview-panel h3 {
+            text-align: center;
+            margin-bottom: -10px;
+            /* Move upwards */
+            color: var(--text-color-light);
+        }
+
+        /* Modified Button Group Layout */
+        .preview-panel .btn-group {
+            display: flex;
+            justify-content: space-between;
+            /* Distribute space between groups */
+            align-items: center;
+            /* Vertically align items */
+        }
+
+        .preview-panel .btn-group>div {
+            display: flex;
+            /* Make child divs flex containers */
+            gap: 8px;
+            /* Gap between buttons in each group */
+        }
+
+        .preview-panel .btn-group:nth-child(n+2) {
+            /* Apply margin to the second and subsequent btn-group */
+            margin-top: 15px;
+        }
+    </style>
+</head>
+
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <title>可视化菜单编辑器</title>
+    <script src="js/vue.js"></script>
+    <script src="js/marked.min.js"></script>
+    <script src="js/html2canvas.min.js"></script>
+    <link rel="stylesheet" href="css/min.css">
+    <style>
+        /* ... CSS 样式保持不变 ... */
+    </style>
+</head>
+
+<body>
+    <div id="app">
+        <div class="container">
+            <!-- 左侧工具栏 -->
+            <div class="structure-panel panel">
+
+                <button class="collapsible" :class="{active: showBackgroundSettings}"
+                    @click="toggleBackgroundSettings">背景设置</button>
+                <div class="content" :style="{display: showBackgroundSettings ? 'block' : 'none'}">
+                    <div class="form-item">
+                        <label>帮助标题</label>
+                        <input v-model="config.helpTitleContent" placeholder="例如：# 帮助中心">
+                    </div>
+                    <div class="form-item">
+                        <label>副标题</label>
+                        <input v-model="config.subtitleContent" placeholder="例如：指令列表">
+                    </div>
+                    <div class="form-item">
+                        <label>预览宽度 (px)</label>
+                        <input type="number" v-model.number="config.previewWidth">
+                    </div>
+                    <div class="form-item">
+                        <label>预览高度 (px)</label>
+                        <input type="number" v-model.number="config.previewHeight">
+                    </div>
+                    <div class="form-item">
+                        <label>背景图片</label>
+                        <!-- 背景图片上传 Tabs -->
+                        <div class="image-upload-tabs">
+                            <div class="image-upload-tab" :class="{ 'active': backgroundUploadTab === 'file' }"
+                                @click="backgroundUploadTab = 'file'">本地上传</div>
+                            <div class="image-upload-tab" :class="{ 'active': backgroundUploadTab === 'url' }"
+                                @click="backgroundUploadTab = 'url'">URL</div>
+                            <div class="image-upload-tab" :class="{ 'active': backgroundUploadTab === 'default' }"
+                                @click="backgroundUploadTab = 'default'">默认随机</div>
+                        </div>
+                        <div class="image-upload-content" :class="{ 'hidden': backgroundUploadTab !== 'url' }">
+                            <input v-model="config.backgroundImage" placeholder="图片URL">
+                        </div>
+                        <div class="image-upload-content" :class="{ 'hidden': backgroundUploadTab !== 'file' }">
+                            <div class="upload-box" @click="uploadBackgroundFile">
+                                {{ backgroundFile ? '已选择文件' : '点击上传背景图' }}
+                                <input type="file" hidden @change="handleBackgroundFileUpload" ref="backgroundInput">
+                            </div>
+                        </div>
+                        <div class="image-upload-content" :class="{ 'hidden': backgroundUploadTab !== 'default' }">
+                            <p>使用默认随机背景图片，每次刷新或初始化时，将从预设的背景图中随机选择一张。</p>
+                        </div>
+                    </div>
+
+                    <div class="form-item">
+                        <label>毛玻璃效果类型</label>
+                        <select v-model="useBackdropFilter">
+                            <option :value="true">毛玻璃 (backdrop-filter)</option>
+                            <option :value="false">CSS 蒙版</option>
+                        </select>
+                    </div>
+
+                    <div class="form-item">
+                        <label>背景明暗度</label>
+                        <input type="range" v-model="config.backgroundBrightness" min="0" max="2" step="0.1">
+                    </div>
+                </div>
+
+                <button class="collapsible" :class="{active: showFooterSettings}"
+                    @click="toggleFooterSettings">角标设置</button>
+                <div class="content" :style="{display: showFooterSettings ? 'block' : 'none'}">
+                    <div class="form-item">
+                        <label>角标文本</label>
+                        <input v-model="config.footerTextContent">
+                    </div>
+                    <div class="form-item">
+                        <label>角标位置</label>
+                        <select v-model="config.footerPosition">
+                            <option value="top-center">顶部居中</option>
+                            <option value="center">底部居中</option>
+                            <option value="left-top">左上角</option>
+                            <option value="left-bottom">左下角</option>
+                            <option value="right-top">右上角</option>
+                            <option value="right-bottom">右下角</option>
+                        </select>
+                    </div>
+                </div>
+
+                <button class="collapsible" :class="{active: showFontSettings}"
+                    @click="toggleFontSettings">字体设置</button>
+                <div class="content" :style="{display: showFontSettings ? 'block' : 'none'}">
+                    <div class="form-item">
+                        <label>字体</label>
+                        <!-- 字体上传 Tabs -->
+                        <div class="image-upload-tabs">
+                            <!-- MODIFIED: 移除本地上传 Tab -->
+                            <!-- <div class="image-upload-tab" :class="{ 'active': fontUploadTab === 'file' }"
+                                @click="fontUploadTab = 'file'">本地上传</div> -->
+                            <div class="image-upload-tab" :class="{ 'active': fontUploadTab === 'url' }"
+                                @click="fontUploadTab = 'url'">URL</div>
+                        </div>
+                        <div class="image-upload-content" :class="{ 'hidden': fontUploadTab !== 'url' }">
+                            <input v-model="customFontURL" placeholder="字体 URL (.ttf)">
+                            <button @click="addFontFromURL">添加字体</button>
+                        </div>
+                        <!-- MODIFIED: 移除文件上传内容 -->
+                        <!-- <div class="image-upload-content" :class="{ 'hidden': fontUploadTab !== 'file' }">
+                            <div class="upload-box" @click="uploadFontFile">
+                                上传字体文件 (.ttf)
+                                <input type="file" hidden @change="handleFontFileUpload" accept=".ttf" ref="fontInput">
+                            </div>
+                        </div> -->
+                    </div>
+                    <div class="form-item">
+                        <label>选择字体</label>
+                        <select v-model="config.customFont">
+                            <option value="">默认字体</option>
+                            <option v-for="font in fonts" :key="font.id" :value="font.name">{{ font.name }}</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Icon Library moved to be above Menu Structure -->
+                <button class="collapsible" :class="{active: showIconLibrary}" @click="toggleIconLibrary">图标库</button>
+                <div class="content" :style="{display: showIconLibrary ? 'block' : 'none'}">
+                    <div class="form-item">
+                        <!-- 图标上传 Tabs -->
+                        <div class="image-upload-tabs">
+                            <div class="image-upload-tab" :class="{ 'active': iconUploadTab === 'file' }"
+                                @click="iconUploadTab = 'file'">本地上传</div>
+                            <div class="image-upload-tab" :class="{ 'active': iconUploadTab === 'url' }"
+                                @click="iconUploadTab = 'url'">URL</div>
+                        </div>
+                        <div class="image-upload-content" :class="{ 'hidden': iconUploadTab !== 'url' }">
+                            <input v-model="customIconURL" placeholder="图标 URL">
+                            <button @click="addIconFromURL">添加图标</button>
+                        </div>
+                        <div class="image-upload-content" :class="{ 'hidden': iconUploadTab !== 'file' }">
+                            <div class="upload-box" @click="uploadCustomIconFile">
+                                上传自定义图标
+                                <input type="file" hidden @change="handleCustomIconFileUpload" accept="image/*"
+                                    ref="customIconInput">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="icon-picker">
+                        <div v-for="icon in icons" :key="icon.id" class="icon-option"
+                            :class="{active: popupData.iconId === icon.id, selected: popupData.iconId === icon.id}"
+                            @click="selectIcon(icon)">
+                            <img :src="icon.url" :alt="icon.name"
+                                :referrerpolicy="icon.url && icon.url.includes('hdslb.com') ? 'no-referrer' : undefined">
+                        </div>
+                    </div>
+
+                </div>
+
+                <button class="collapsible" :class="{active: showMenuStructure}"
+                    @click="toggleMenuStructure">菜单结构</button>
+                <div class="content" :style="{display: showMenuStructure ? 'block' : 'none'}">
+                    <ul class="menu-structure menu-item-list">
+                        <li v-for="(item, index) in config.menuItems" :key="index">
+                            <div class="menu-item-row menu-item-row-level-0"
+                                :class="{active: selectedIndex === index && selectedSubIndex === null}"
+                                @click="editMenuItem(index)">
+                                <div class="menu-item-text">
+                                    <span v-html="renderMarkdown(item.title) || '未命名菜单'"></span>
+                                </div>
+                                <div class="menu-item-actions">
+                                    <button @click.stop="addSiblingMenuItem(index)" title="添加同级菜单"><i
+                                            class="fas fa-plus"></i></button>
+                                    <button class="add-sub-item-btn" @click.stop="addSubMenuItemToMenu(index)"
+                                        title="添加子菜单"><i class="fas fa-chevron-right"></i></button>
+                                    <button @click.stop="removeItem(index)" title="删除菜单"><i
+                                            class="fas fa-times"></i></button>
+                                </div>
+                            </div>
+                            <ul v-if="item.subItems" class="menu-item-list">
+                                <li v-for="(subItem, subIndex) in item.subItems" :key="`${index}-${subIndex}`">
+                                    <div class="sub-item-row"
+                                        :class="{active: selectedIndex === index && selectedSubIndex === subIndex}"
+                                        @click.stop="editSubMenuItem(index, subIndex)">
+                                        <div class="sub-item-text">
+                                            <span v-html="renderMarkdown(subItem.text) || '未命名子项'"></span>
+                                        </div>
+                                        <div class="sub-item-actions">
+                                            <button @click.stop="addSiblingSubItem(index, subIndex)" title="添加同级子项"><i
+                                                    class="fas fa-plus"></i></button>
+                                            <button @click.stop="removeSubItem(index, subIndex)" title="删除子项"><i
+                                                    class="fas fa-times"></i></button>
+                                        </div>
+                                    </div>
+                                    <div v-if="subItem.subItems && subItem.subItems.length > 0">
+                                        <!-- Example of deeper nesting - for future if needed -->
+                                        <ul class="menu-item-list">
+                                            <li v-for="(nestedSubItem, nestedSubIndex) in subItem.subItems"
+                                                :key="`${index}-${subIndex}-${nestedSubIndex}`">
+                                                <div class="sub-item-row" style="margin-left: 30px;" @click.stop="">
+                                                    <!-- Even more indentation -->
+                                                    <div class="sub-item-text">
+                                                        <span
+                                                            v-html="renderMarkdown(nestedSubItem.text) || '未命名嵌套子项'"></span>
+                                                    </div>
+                                                    <div class="sub-item-actions">
+                                                        <button @click.stop=""><i class="fas fa-times"></i></button>
+                                                    </div>
+                                                </div>
+                                            </li>
+                                        </ul>
+                                    </div>
+                                </li>
+                            </ul>
+                        </li>
+                    </ul>
+                    <!-- Removed "+ 添加主菜单" button -->
+                </div>
+
+
+            </div>
+
+            <!-- 中间预览面板 -->
+            <div class="preview-panel panel">
+                <h5>点击预览元素即可编辑。编辑完成请点击【导出配置】</h5>
+                <h5>菜单添加按钮 在左侧最下方</h5>
+                <h5>内容文字均支持markdown标记</h5>
+                <h3>实时预览</h3>
+                <div class="btn-group">
+                    <div>
+                        <button @click="exportConfig">导出配置</button>
+                        <button @click="showImportPopup">导入配置</button>
+                    </div>
+                    <div>
+                        <!--button @click="exportHTML">导出HTML</button--> <!--导出HTML的效果十分不理想-->
+                        <!--button @click="exportImage">导出图片 (PNG)</button--> <!--导出PNG的话，毛玻璃效果不行-->
+                    </div>
+                </div>
+
+                <div class="preview-container-wrapper" ref="screenshotArea"
+                    :style="{width: config.previewWidth + 'px', height: config.previewHeight + 'px'}">
+                    <img class="background-image" :src="config.backgroundImage"
+                        :referrerpolicy="config.backgroundImage && config.backgroundImage.includes('hdslb.com') ? 'no-referrer' : undefined">
+                    <div class="preview-container" :style="previewStyles">
+                        <h1 v-if="config.helpTitleContent" class="editable-title" @click="editTitle('helpTitle')"
+                            :style="{fontSize: config.helpTitleFontSize + 'px', color: config.helpTitleColor, fontWeight: config.helpTitleBold ? 'bold' : 'normal'}">
+                            <span v-html="renderMarkdown(config.helpTitleContent)"></span>
+                        </h1>
+                        <h2 v-if="config.subtitleContent" class="editable-title" @click="editTitle('subtitle')"
+                            :style="{fontSize: config.subtitleFontSize + 'px', color: config.subtitleColor, fontWeight: config.subtitleBold ? 'bold' : 'normal'}">
+                            <span v-html="renderMarkdown(config.subtitleContent)"></span>
+                        </h2>
+                        <div v-for="(item, index) in config.menuItems" :key="index" class="menu-item-preview"
+                            :class="[{'column-layout': item.subItemColumns > 1}, `columns-${item.subItemColumns}`, {'glassmorphism': item.glassmorphism, 'glassmorphism-custom': !item.glassmorphism && item.maskOpacity !== undefined, 'use-backdrop-filter': useBackdropFilter && !item.glassmorphism && item.maskOpacity !== undefined, 'no-backdrop-filter': !useBackdropFilter && !item.glassmorphism && item.maskOpacity !== undefined}]"
+                            :style="[!item.glassmorphism && item.maskOpacity !== undefined ? { 'backgroundColor': `rgba(${hexToRgb(item.maskColor)}, ${item.maskOpacity})` } : {}]"
+                            @click="editMenuItem(index)">
+                            <div>
+                                <img v-if="item.iconSize > 0" :src="getIconUrl(item.iconId)" :alt="item.title"
+                                    :style="{width: `${item.iconSize}px`, height: `${item.iconSize}px`}"
+                                    :referrerpolicy="getIconUrl(item.iconId).includes('hdslb.com') ? 'no-referrer' : undefined">
+                                </component>
+                                <span
+                                    :style="{fontSize: config.parentMenuFontSize + 'px', lineHeight: config.lineHeight + 'em'}"><span
+                                        v-html="renderMarkdown(item.title)"></span></span>
+                            </div>
+                            <div v-for="(subItem, subIndex) in item.subItems" :key="subIndex" class="sub-item-preview"
+                                :class="[{'glassmorphism': subItem.glassmorphism, 'glassmorphism-custom': !subItem.glassmorphism && subItem.maskOpacity !== undefined, 'use-backdrop-filter': useBackdropFilter && !subItem.glassmorphism && subItem.maskOpacity !== undefined, 'no-backdrop-filter': !useBackdropFilter && !subItem.glassmorphism && subItem.maskOpacity !== undefined}]"
+                                :style="[!subItem.glassmorphism && subItem.maskOpacity !== undefined ? { 'backgroundColor': `rgba(${hexToRgb(subItem.maskColor)}, ${subItem.maskOpacity})` } : {}]"
+                                @click.stop="editSubMenuItem(index, subIndex)">
+                                <img v-if="subItem.iconSize > 0" :src="getIconUrl(subItem.iconId)" :alt="subItem.text"
+                                    :style="{width: `${subItem.iconSize}px`, height: `${subItem.iconSize}px`}"
+                                    :referrerpolicy="getIconUrl(subItem.iconId).includes('hdslb.com') ? 'no-referrer' : undefined">
+                                </component>
+                                <div class="sub-item-text-content">
+                                    <div class="sub-item-text-preview"
+                                        :style="{fontSize: config.subMenuFontSize + 'px', lineHeight: config.lineHeight + 'em'}">
+                                        <span v-html="renderMarkdown(subItem.text)"></span>
+                                    </div>
+                                    <div v-if="subItem.description" class="sub-item-description-preview">
+                                        <span v-html="renderMarkdown(subItem.description)"></span>
+                                    </div>
+                                </div>
+                            </div>
+
+                        </div>
+                        <div class="footer" :class="config.footerPosition" @click="editFooter()"
+                            :style="{color: config.footerTextColor, fontWeight: config.footerTextBold ? 'bold' : 'normal'}">
+                            <span v-html="renderMarkdown(config.footerTextContent)"></span>
+                        </div>
+                    </div>
+                </div>
+
+
+            </div>
+        </div>
+
+        <!-- Pop-up Editor for Menu Items -->
+        <template v-if="popupVisible">
+            <div class="popup-overlay" @click.self="closePopup">
+                <div class="popup-content">
+                    <h3>{{ popupTitle }}</h3>
+                    <div class="popup-tabs">
+                        <div class="popup-tab" :class="{ 'active': popupTab === 'basic' }" @click="popupTab = 'basic'">
+                            基本设置</div>
+                        <div class="popup-tab" :class="{ 'active': popupTab === 'style' }" @click="popupTab = 'style'">
+                            样式</div>
+                        <div class="popup-tab" :class="{ 'active': popupTab === 'icon' }" @click="popupTab = 'icon'">图标
+                        </div>
+                        <div class="popup-tab" v-if="popupType === 'menuItem'"
+                            :class="{ 'active': popupTab === 'layout' }" @click="popupTab = 'layout'">布局</div>
+                    </div>
+
+                    <div v-if="popupTab === 'basic'">
+                        <div class="form-item">
+                            <label>内容</label>
+                            <textarea v-model="popupData.content" rows="3"
+                                v-if="popupType === 'title' || popupType === 'footer'"></textarea>
+                            <textarea v-model="popupData.title" rows="3"
+                                v-else-if="popupType === 'menuItem'"></textarea>
+                            <textarea v-model="popupData.text" rows="3" v-else-if="popupType === 'subItem'"></textarea>
+                        </div>
+                        <div class="form-item" v-if="popupType === 'subItem'">
+                            <label>描述</label>
+                            <textarea v-model="popupData.description" rows="3"></textarea>
+                        </div>
+                    </div>
+
+                    <div v-if="popupTab === 'style'">
+                        <div class="form-item" v-if="popupType === 'title' || popupType === 'footer'">
+                            <label>字体大小 (px)</label>
+                            <input type="number" v-model.number="popupData.fontSize">
+                        </div>
+                        <div class="form-item" v-if="popupType === 'title' || popupType === 'footer'">
+                            <label>文字颜色</label>
+                            <input type="color" v-model="popupData.color">
+                        </div>
+                        <div class="form-item" v-if="popupType === 'title' || popupType === 'footer'">
+                            <label>加粗</label>
+                            <input type="checkbox" v-model="popupData.bold">
+                        </div>
+                        <div class="form-item" v-if="popupType === 'subItem' || popupType === 'menuItem'">
+                            <label>启用蒙版</label>
+                            <select v-model="popupData.glassmorphism">
+                                <option :value="false">启用</option>
+                                <option :value="true">禁用</option>
+                            </select>
+                        </div>
+                        <div class="form-item" v-if="popupType === 'subItem' || popupType === 'menuItem'">
+                            <label>蒙版颜色</label>
+                            <input type="color" v-model="popupData.maskColor">
+                        </div>
+                        <div class="form-item" v-if="popupType === 'subItem' || popupType === 'menuItem'">
+                            <label>蒙版透明度 ({{ popupData.maskOpacity }})</label>
+                            <input type="range" v-model.number="popupData.maskOpacity" min="0" max="1" step="0.05">
+                        </div>
+                    </div>
+
+                    <div v-if="popupTab === 'icon'">
+                        <!-- 修改图标大小输入部分 -->
+                        <div class="form-item" v-if="popupType === 'subItem' ">
+                            <label>图标大小 ( {{ popupData.iconSize }} px) </label>
+                            <input type="range" v-model.number="popupData.iconSize" min="0" max="200" step="1">
+                        </div>
+
+                        <div class="form-item" v-if="popupType === 'menuItem'">
+                            <label>菜单图标大小 ( {{ popupData.iconSize }} px) </label>
+                            <input type="range" v-model.number="popupData.iconSize" min="0" max="200" step="1">
+                        </div>
+                        <div class="form-item">
+                            <label>图标选择</label>
+                            <div class="icon-picker popup-icon-picker"> <!-- Added class for popup icon picker style -->
+                                <div v-for="icon in icons" :key="icon.id" class="icon-option"
+                                    :class="{active: popupData.iconId === icon.id, selected: popupData.iconId === icon.id}"
+                                    @click="selectPopupIcon(icon)">
+                                    <img :src="icon.url" :alt="icon.name"
+                                        :referrerpolicy="icon.url && icon.url.includes('hdslb.com') ? 'no-referrer' : undefined">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div v-if="popupTab === 'layout' && popupType === 'menuItem'">
+                        <div class="form-item">
+                            <label>子菜单分栏数</label>
+                            <select v-model.number="popupData.subItemColumns">
+                                <option value="1">1栏</option>
+                                <option value="2">2栏</option>
+                                <option value="3">3栏</option>
+                                <option value="4">4栏</option>
+                                <option value="5">5栏</option>
+                                <option value="6">6栏</option>
+                            </select>
+                        </div>
+                    </div>
+
+
+                    <div class="popup-buttons">
+                        <button class="popup-button" @click="confirmPopup">确认</button> <!-- Added popup-button class -->
+                        <button class="popup-button" @click="closePopup">取消</button> <!-- Added popup-button class -->
+                    </div>
+                </div>
+            </div>
+        </template>
+
+        <!-- Import Config Popup -->
+        <template v-if="importPopupVisible">
+            <div class="popup-overlay" @click.self="closeImportPopup">
+                <div class="popup-content">
+                    <h3>导入配置</h3>
+                    <div class="popup-tabs">
+                        <div class="popup-tab" :class="{ 'active': importTab === 'text' }" @click="importTab = 'text'">
+                            粘贴JSON</div>
+                        <div class="popup-tab" :class="{ 'active': importTab === 'file' }" @click="importTab = 'file'">
+                            文件上传</div>
+                        <div class="popup-tab" :class="{ 'active': importTab === 'help' }" @click="importTab = 'help'">
+                            help快速导入</div>
+                    </div>
+
+                    <div v-if="importTab === 'file'">
+                        <div class="form-item">
+                            <input type="file" @change="handleConfigUpload" accept=".json">
+                        </div>
+                    </div>
+                    <div v-if="importTab === 'text'">
+                        <div class="form-item">
+                            <textarea v-model="importTextConfig" rows="5" style="width: 100%; resize: none;"></textarea>
+                        </div>
+                    </div>
+                    <div v-if="importTab === 'help'">
+                        <div class="form-item">
+                            <textarea v-model="importHelpText" rows="5" placeholder="粘贴 help 文本。 示例：
+当前可用的指令有：
+echo  发送消息  其他功能
+help  显示帮助信息  系统工具
+inspect  查看用户、频道或消息的详细信息  系统工具
+plugin  插件管理  系统功能
+status  查看运行状态  系统工具
+timer  定时器信息  系统功能
+usage  调用次数信息  系统功能
+输入“help 指令名”查看特定指令的语法和使用示例。
+https://i0.hdslb.com/bfs/new_dyn/79aee60d45ff2e4940b4b7fe3dc0edb01767947324.jpg
+" style="width: 100%; resize: none;"></textarea>
+                        </div>
+                    </div>
+
+                    <div class="popup-buttons">
+                        <template v-if="importTab === 'help'">
+                            <button class="popup-button" @click="confirmImportConfig('replace')">导入 (替换)</button>
+                            <button class="popup-button" @click="confirmImportConfig('add')">仅增加</button>
+                        </template>
+                        <template v-else>
+                            <button class="popup-button" @click="confirmImportConfig">导入</button>
+                        </template>
+                        <button class="popup-button" @click="closeImportPopup">取消</button>
+                    </div>
+                </div>
+            </div>
+        </template>
+
+
+
+    </div>
+
+    <script>
+        let iconIdCounter = 38; // Corrected counter to start after default icons (1-37 are default)
+        let fontIdCounter = 1; // Counter for unique font IDs
+        new Vue({
+            el: '#app',
+            data: {
+                selectedIndex: null,
+                selectedSubIndex: null,
+                backgroundFile: null,
+                showMenuStructure: true,
+                showIconLibrary: true,
+                showBackgroundSettings: true,
+                showFooterSettings: true,
+                showFontSettings: true,
+                showGlassmorphismSettings: true, // 控制毛玻璃设置的折叠面板
+                useBackdropFilter: true,
+                "icons": [
+                    { "id": 1, "url": 'https://i1.hdslb.com/bfs/article/9900edae5f684f1f7af41949473b8a1cfd057a5b.png', "name": 'icon1' },
+                    { "id": 2, "url": 'https://i1.hdslb.com/bfs/article/f32980cbce6808fd54613dea589eee013f0c5fe3.png', "name": 'icon2' },
+                    { "id": 3, "url": 'https://i1.hdslb.com/bfs/article/36a2a1fdc8e52006dafae2f089eeccba3ea176ef.png', "name": 'icon3' },
+                    { "id": 4, "url": 'https://i1.hdslb.com/bfs/article/f50f3a6c28c17b8923cd56c242fb09977c06c797.png', "name": 'icon4' },
+                    { "id": 5, "url": 'https://i1.hdslb.com/bfs/article/c35f52488ad9f534b4456cc4e467aacd039ad622.png', "name": 'icon5' },
+                    { "id": 6, "url": 'https://i1.hdslb.com/bfs/article/dd0bc39178bdd2303fee6ccf858a972702968466.png', "name": 'icon6' },
+                    { "id": 7, "url": 'https://i1.hdslb.com/bfs/article/c69edd76a138f118b1144f8f600c9d9dad963c15.png', "name": 'icon7' },
+                    { "id": 8, "url": 'https://i1.hdslb.com/bfs/article/c05110dde583ba8766458baa17616a618979a2a5.png', "name": 'icon8' },
+                    { "id": 9, "url": 'https://i1.hdslb.com/bfs/article/7b6fd2733c5644c6d7cf9b617edb6baa0c5379a5.png', "name": 'icon9' },
+                    { "id": 10, "url": 'https://i1.hdslb.com/bfs/article/a3bd4239b1a26d259652b11fe29a1496fbd201fe.png', "name": 'icon10' },
+                    { "id": 11, "url": 'https://i1.hdslb.com/bfs/article/e025de23c6e000d83469a740d47bce3a65ce4c44.png', "name": 'icon11' },
+                    { "id": 12, "url": 'https://i1.hdslb.com/bfs/article/0d21fd96d55df85724f8e9b069d9b9d3e29cad33.png', "name": 'icon12' },
+                    { "id": 13, "url": 'https://i1.hdslb.com/bfs/article/f7b00bef54aa797bde704b3a590358047d5d6762.png', "name": 'icon13' },
+                    { "id": 14, "url": 'https://i1.hdslb.com/bfs/article/aa9400a9b654c9cf72165bd11e3210e871d298dd.png', "name": 'icon14' },
+                    { "id": 15, "url": 'https://i1.hdslb.com/bfs/article/36d6d2be224c11102aa2ab2d20330d3bb15a2924.png', "name": 'icon15' },
+                    { "id": 16, "url": 'https://i1.hdslb.com/bfs/article/4b8bc612868d774d414b635221a717995b8b0b46.png', "name": 'icon16' },
+                    { "id": 17, "url": 'https://i1.hdslb.com/bfs/article/7160be82845ef3fed8aace339dfdad7e319002fe.png', "name": 'icon17' },
+                    { "id": 18, "url": 'https://i1.hdslb.com/bfs/article/ea880a3a9ca6b8c8d11b1a512a10c2632b74a7ba.png', "name": 'icon18' },
+                    { "id": 19, "url": 'https://i0.hdslb.com/bfs/article/bf296c58cec4d269a7d9500f40b570b26ba11a60.png', "name": 'icon19' },
+                    { "id": 20, "url": 'https://i0.hdslb.com/bfs/new_dyn/3a3652f53a620ae254c1683475e5a07f1611507597.png', "name": 'icon20' },
+                    { "id": 21, "url": 'https://i0.hdslb.com/bfs/new_dyn/64b6fb00ee1021ac5af03851429e9ad81611507597.png', "name": 'icon21' },
+                    { "id": 22, "url": 'https://i0.hdslb.com/bfs/new_dyn/193c7f98a15265ddba6721a380c4a9061611507597.png', "name": 'icon22' },
+                    { "id": 23, "url": 'https://i0.hdslb.com/bfs/new_dyn/b46f4a50f84e39f039e5b16f291680161611507597.png', "name": 'icon23' },
+                    { "id": 24, "url": 'https://i0.hdslb.com/bfs/new_dyn/a5b45af3045f82d9c75a525d38d67db01611507597.png', "name": 'icon24' },
+                    { "id": 25, "url": 'https://i0.hdslb.com/bfs/new_dyn/399be2f393c4f10b968382609df097101611507597.png', "name": 'icon25' },
+                    { "id": 26, "url": 'https://i0.hdslb.com/bfs/new_dyn/d8c142bfd436797ff8123f4af886c81a1611507597.png', "name": 'icon26' },
+                    { "id": 27, "url": 'https://i0.hdslb.com/bfs/new_dyn/8bfa48c5763f4c8e548f3cbf32043a091611507597.png', "name": 'icon27' },
+                    { "id": 28, "url": 'https://i0.hdslb.com/bfs/new_dyn/d0947829c013bb103b04f39a56c6cb0c1611507597.png', "name": 'icon28' },
+                    { "id": 29, "url": 'https://i0.hdslb.com/bfs/new_dyn/9cc49fc40a7ae18349123593720eb6421611507597.png', "name": 'icon29' },
+                    { "id": 30, "url": 'https://i0.hdslb.com/bfs/new_dyn/709ce4ea5418da2d12ffe6abc90aeeef1611507597.png', "name": 'icon30' },
+                    { "id": 31, "url": 'https://i0.hdslb.com/bfs/new_dyn/d1568a7e015df9e890be5dc8e3ab93441611507597.png', "name": 'icon31' },
+                    { "id": 32, "url": 'https://i0.hdslb.com/bfs/new_dyn/3d808ad0e30961d08938726c2ef9c0f01611507597.png', "name": 'icon32' },
+                    { "id": 33, "url": 'https://i0.hdslb.com/bfs/new_dyn/5596146b20bd902b4f4f5c61e5ba09671611507597.png', "name": 'icon33' },
+                    { "id": 34, "url": 'https://i0.hdslb.com/bfs/new_dyn/15aa1363147be5a7b689fb61c1579e1d1611507597.png', "name": 'icon34' },
+                    { "id": 35, "url": 'https://i0.hdslb.com/bfs/new_dyn/48b1e1e6ea983d6b4cc4dec2aba4d3931611507597.png', "name": 'icon35' },
+                    { "id": 36, "url": 'https://i0.hdslb.com/bfs/new_dyn/7cfcf81409ed2293b87e417f6a0f83201611507597.png', "name": 'icon36' },
+                    { "id": 37, "url": 'https://i0.hdslb.com/bfs/new_dyn/153a5559251950679912bfcfd8b377761611507597.png', "name": 'icon37' }
+                ],
+                defaultBackgroundImages: [
+                    'https://i0.hdslb.com/bfs/article/3f79c64129020b522a516480c1066ea2f563964b.jpg',
+                    'https://i0.hdslb.com/bfs/article/28c76b561eadbbb826c2c902088c87a1a7e92f25.jpg',
+                    'https://i0.hdslb.com/bfs/article/806202a9b867a0b1d2d3399f1a183fc556ec258d.jpg',
+                    'https://i0.hdslb.com/bfs/article/796ae5ab9ef1f2e7db2c6a6020f5cbb718c9d953.jpg',
+                    'https://i0.hdslb.com/bfs/article/9c7e7d66913155a32cad1591472a77374f0caf54.jpg',
+                    'https://i0.hdslb.com/bfs/article/a6154de573f73246ea4355a614f0b7b94eff8f20.jpg'
+                ],
+                fonts: [], // Array to store fonts. Structure: { id: , name: , url: , type: 'url' or 'file', base64: (if file) }
+                config: {
+                    helpTitleContent: '# 帮助菜单', // 支持Markdown
+                    subtitleContent: '*指令列表*',     // 支持Markdown
+                    helpTitleFontSize: 24,
+                    helpTitleColor: '#333',
+                    helpTitleBold: true,
+                    subtitleFontSize: 18,
+                    subtitleColor: '#666',
+                    subtitleBold: false,
+                    previewWidth: 960, // 默认预览宽度 改为960
+                    previewHeight: 1440, // 默认预览高度 改为1440
+                    backgroundImage: '',
+                    backgroundBrightness: 1,
+                    footerTextContent: '## *Bot of Kosihi & koishi-plugin-preview-help*', // 默认角标文字, 支持Markdown
+                    footerPosition: 'center', // 默认居中
+                    footerTextColor: '#909399',
+                    footerTextBold: false,
+                    parentMenuFontSize: 16,
+                    subMenuFontSize: 14,
+                    lineHeight: 1.5,
+                    customFont: '', // Store selected font-family or base64 font-face
+                    menuItems: [
+                        {
+                            title: '### 游戏功能', iconId: 1, iconSize: 60, subItems: [ // 使用 iconId, 添加 iconSize
+                                { text: '## booru', description: '返回好看的图图', iconId: 2, glassmorphism: false, maskOpacity: 0.5, maskColor: '#ffffff', iconSize: 60 },
+                                { text: '## status', description: '返回机器人状态', iconId: 3, glassmorphism: false, maskOpacity: 0.6, maskColor: '#f0f0f0', iconSize: 60 },
+                                { text: '## 点歌', description: '点播音乐', iconId: 11, glassmorphism: false, maskOpacity: 0.7, maskColor: '#e0e0e0', iconSize: 60 },
+                                { text: '## jrysprpr', description: '查看你的今日运势~', iconId: 2, glassmorphism: false, maskOpacity: 0.8, maskColor: '#d0d0d0', iconSize: 60 }
+                            ], subItemColumns: 4, glassmorphism: false, maskOpacity: 0.3, maskColor: '#ffffff'
+                        },
+                        {
+                            title: '### emojihub', iconId: 3, iconSize: 60, subItems: [ // 使用 iconId, 添加 iconSize
+                                { text: '## 柴郡', description: '柴郡的表情包', iconId: 12, glassmorphism: false, maskOpacity: 0.5, maskColor: '#ffffff', iconSize: 60 },
+                                { text: '## doro', description: 'doro的表情包哦', iconId: 7, glassmorphism: false, maskOpacity: 0.6, maskColor: '#f0f0f0', iconSize: 60 },
+                                { text: '## 白圣女漫画', description: '塞西莉亚的漫画表情包哦', iconId: 8, glassmorphism: false, maskOpacity: 0.7, maskColor: '#e0e0e0', iconSize: 60 },
+                                { text: '## 白圣女', description: '塞西莉亚的表情包哦~', iconId: 2, glassmorphism: false, maskOpacity: 0.8, maskColor: '#d0d0d0', iconSize: 60 }
+                            ], subItemColumns: 4, glassmorphism: false, maskOpacity: 0.4, maskColor: '#f0f0f0'
+                        }
+                    ]
+                },
+                popupVisible: false,
+                popupTitle: '',
+                popupData: {},
+                popupType: null, // 'menuItem' or 'subItem' or 'title' or 'footer'
+                popupTab: 'basic', // 'basic', 'style', 'icon', 'layout', 'advanced'
+                importPopupVisible: false,
+                importTab: 'text', // 'file', 'text', 'help' default to 'text'
+                importTextConfig: '',
+                importHelpText: '',
+                backgroundUploadTab: 'default', // 'url' or 'file' or 'default' for background image upload, default to 'default'
+                iconUploadTab: 'file', // 'url' or 'file' for icon upload
+                fontUploadTab: 'url', // MODIFIED:  'url' or 'file' for font upload, now only URL, default to 'url'
+                customIconURL: '', // For inputting custom icon URL
+                customFontURL: '', // For inputting custom font URL
+                // fontFile: null  // MODIFIED: 移除 fontFile
+            },
+            computed: {
+                previewStyles() {
+                    let fontStyle = {};
+                    if (this.config.customFont) {
+                        const selectedFont = this.fonts.find(font => font.name === this.config.customFont);
+                        let fontSrc = '';
+                        if (selectedFont && selectedFont.type === 'file' && selectedFont.base64) {
+                            fontSrc = `url('${selectedFont.base64}') format('truetype')`;
+                        } else if (selectedFont && selectedFont.type === 'url' && selectedFont.url) {
+                            fontSrc = `url('${selectedFont.url}') format('truetype')`;
+                        }
+                        if (fontSrc) {
+                            let styleElement = document.getElementById('custom-font-style');
+                            if (!styleElement) {
+                                styleElement = document.createElement('style');
+                                styleElement.id = 'custom-font-style';
+                                document.head.appendChild(styleElement);
+                            }
+                            styleElement.textContent = `@font-face { font-family: '${this.config.customFont}'; src: ${fontSrc}; }`;
+                            fontStyle['font-family'] = `'${this.config.customFont}', sans-serif`;
+                            fontStyle['--preview-font'] = `'${this.config.customFont}', sans-serif`; // For CSS variable
+                        } else {
+                            fontStyle['font-family'] = 'inherit';
+                            fontStyle['--preview-font'] = 'inherit';
+                        }
+
+                    }
+                    return {
+                        backgroundImage: this.config.backgroundImage ?
+                            `url(${this.config.backgroundImage})` : 'none',
+                        backgroundSize: 'cover',
+                        backgroundPosition: 'center',
+                        filter: `brightness(${this.config.backgroundBrightness})`,
+                        backgroundColor: this.config.backgroundImage ? 'transparent' : this.config.backgroundColor, // Make background transparent if image is used
+                        ...fontStyle
+                    }
+                }
+            },
+            watch: {
+                'config.customFont': function () {
+                    this.$forceUpdate(); // Force preview refresh on font change
+                },
+                'backgroundUploadTab': function (newTab) {
+                    if (newTab === 'default') {
+                        this.config.backgroundImage = this.getRandomDefaultBackground();
+                    }
+                }
+            },
+            created: function () {
+                if (!this.config.backgroundImage && this.backgroundUploadTab === 'default') {
+                    this.config.backgroundImage = this.getRandomDefaultBackground();
+                }
+            },
+            methods: {
+                getRandomDefaultBackground() {
+                    const randomIndex = Math.floor(Math.random() * this.defaultBackgroundImages.length);
+                    return this.defaultBackgroundImages[randomIndex];
+                },
+                renderMarkdown(markdownText) {
+                    return markdownText ? marked.parse(markdownText) : '';
+                },
+                getIconUrl(iconId) {
+                    const icon = this.icons.find(icon => icon.id === iconId);
+                    return icon ? icon.url : ''; // Return URL or empty string if not found
+                },
+                toggleMenuStructure() {
+                    this.showMenuStructure = !this.showMenuStructure;
+                },
+                toggleIconLibrary() {
+                    this.showIconLibrary = !this.showIconLibrary;
+                },
+                toggleBackgroundSettings() {
+                    this.showBackgroundSettings = !this.showBackgroundSettings;
+                },
+                toggleFooterSettings() {
+                    this.showFooterSettings = !this.showFooterSettings;
+                },
+                toggleFontSettings() {
+                    this.showFontSettings = !this.showFontSettings;
+                },
+                toggleGlassmorphismSettings() {
+                    this.showGlassmorphismSettings = !this.showGlassmorphismSettings;
+                },
+                selectIcon(icon) {
+                    if (this.popupVisible) {
+                        this.popupData.iconId = icon.id;
+                        this.popupData.icon = icon.url; // Keep icon URL for input display, but use iconId for config
+                    }
+                },
+                selectPopupIcon(icon) {
+                    this.popupData.iconId = icon.id;
+                    this.popupData.icon = icon.url; // Keep icon URL for input display, but use iconId for config
+                },
+                addSiblingMenuItem(index) {  // 新增 addSiblingMenuItem 方法，添加同级菜单
+                    const newItem = {
+                        title: '### 新菜单',
+                        iconId: 1,
+                        iconSize: 40, // 菜单项默认图标大小
+                        subItems: [],
+                        subItemColumns: 4, // 默认4栏
+                        glassmorphism: false,
+                        maskOpacity: 0.6,
+                        maskColor: '#ffffff'
+                    };
+                    this.config.menuItems.splice(index + 1, 0, newItem); // 插入到点击项的后面
+                    this.$nextTick(() => {
+                        const menuStructure = document.querySelector('.menu-structure');
+                        if (menuStructure) {
+                            menuStructure.scrollTop = menuStructure.scrollHeight;
+                        }
+                    });
+                    this.selectedIndex = index + 1; // 选中新添加的同级菜单
+                    this.selectedSubIndex = null;
+                },
+                addSubMenuItemToMenu(index) {
+                    const randomIconIndex = Math.floor(Math.random() * this.icons.length); // 获取随机索引
+                    const randomIconId = this.icons[randomIconIndex].id; // 获取随机iconId
+                    const newSubItem = {
+                        text: '## 新子项',
+                        description: '子项描述内容',
+                        iconId: randomIconId, // 默认图标ID为随机
+                        glassmorphism: false,
+                        maskOpacity: 0.5,
+                        maskColor: '#ffffff',
+                        iconSize: 60 // 默认图标大小
+                    };
+                    if (!this.config.menuItems[index].subItems) {
+                        this.config.menuItems[index].subItems = [];
+                    }
+                    this.config.menuItems[index].subItems.push(newSubItem);
+                },
+                removeItem(index) {
+                    this.config.menuItems.splice(index, 1);
+                    if (this.selectedIndex === index) {
+                        this.selectedIndex = null;
+                        this.selectedSubIndex = null;
+                    }
+                },
+                addSubItem(menuIndex, subIndex = null) {
+                    const randomIconIndex = Math.floor(Math.random() * this.icons.length); // 获取随机索引
+                    const randomIconId = this.icons[randomIconIndex].id; // 获取随机iconId
+                    const newSubItem = {
+                        text: '## 新子项',
+                        description: '子项描述内容',
+                        iconId: randomIconId, // 默认图标ID为随机
+                        glassmorphism: false,
+                        maskOpacity: 0.5,
+                        maskColor: '#ffffff',
+                        iconSize: 60 // 默认图标大小
+                    };
+                    if (menuIndex !== null && subIndex === null) { // Add to main menu item
+                        if (!this.config.menuItems[menuIndex].subItems) {
+                            this.config.menuItems[menuIndex].subItems = [];
+                        }
+                        this.config.menuItems[menuIndex].subItems.push(newSubItem);
+                    }
+                },
+                addSiblingSubItem(menuIndex, subIndex) {
+                    const randomIconIndex = Math.floor(Math.random() * this.icons.length); // 获取随机索引
+                    const randomIconId = this.icons[randomIconIndex].id; // 获取随机iconId
+                    const newSubItem = {
+                        text: '## 新子项',
+                        description: '子项描述内容',
+                        iconId: randomIconId,
+                        glassmorphism: false,
+                        maskOpacity: 0.5,
+                        maskColor: '#ffffff',
+                        iconSize: 60 // 默认图标大小
+                    };
+                    this.config.menuItems[menuIndex].subItems.splice(subIndex + 1, 0, newSubItem);
+                    if (this.selectedIndex === menuIndex && this.selectedSubIndex === subIndex) {
+                        this.selectedSubIndex = subIndex + 1; // Select the new sibling sub-item
+                    }
+                },
+                removeSubItem(index, subIndex) {
+                    this.config.menuItems[index].subItems.splice(subIndex, 1);
+                    if (this.selectedIndex === index && this.selectedSubIndex === subIndex) {
+                        this.selectedSubIndex = null;
+                    }
+                },
+                uploadCustomIconFile() {
+                    this.$refs.customIconInput.click();
+                },
+                handleCustomIconFileUpload(event) {
+                    const file = event.target.files[0];
+                    if (file) {
+                        const reader = new FileReader();
+                        reader.onload = (e) => {
+                            this.icons.push({ id: iconIdCounter++, type: 'url', url: e.target.result, name: 'custom-icon' });
+                        };
+                        reader.readAsDataURL(file);
+                    }
+                },
+                addIconFromURL() {  // 新增 addIconFromURL 方法
+                    if (this.customIconURL) {
+                        this.icons.push({ id: iconIdCounter++, type: 'url', url: this.customIconURL, name: 'custom-icon-url' });
+                        this.customIconURL = ''; // 清空 URL 输入框
+                    }
+                },
+                uploadBackgroundFile() {
+                    this.$refs.backgroundInput.click();
+                },
+                handleBackgroundFileUpload(event) {
+                    const file = event.target.files[0];
+                    if (file) {
+                        this.backgroundFile = file;
+                        const reader = new FileReader();
+                        reader.onload = (e) => {
+                            this.config.backgroundImage = e.target.result;
+                            this.backgroundUploadTab = 'url'; // 切换回 URL Tab，方便下次使用 URL
+                        };
+                        reader.readAsDataURL(file);
+                    }
+                },
+                // MODIFIED: 移除 uploadFontFile 和 handleFontFileUpload 方法
+                // uploadFontFile() {
+                //     this.$refs.fontInput.click();
+                // },
+                // handleFontFileUpload(event) {
+                //     const file = event.target.files[0];
+                //     if (file) {
+                //         this.fontFile = file;
+                //         const reader = new FileReader();
+                //         reader.onload = (e) => {
+                //             const fontName = file.name.split('.')[0];
+                //             const newFont = { id: fontIdCounter++, type: 'file', name: fontName, url: null, base64: e.target.result };
+                //             this.fonts.push(newFont);
+                //             this.config.customFont = fontName; // Set custom font to the uploaded font name
+                //             this.fontUploadTab = 'url'; // Switch back to URL tab
+                //         };
+                //         reader.readAsDataURL(file);
+                //     }
+                // },
+                addFontFromURL() {
+                    if (this.customFontURL) {
+                        const fontName = this.customFontURL.split('/').pop().split('.')[0]; // Extract name from URL
+                        const newFont = { id: fontIdCounter++, type: 'url', name: fontName, url: this.customFontURL, base64: null };
+                        this.fonts.push(newFont);
+                        this.config.customFont = fontName;
+                        this.customFontURL = '';
+                    }
+                },
+
+
+                hexToRgb(hex) {
+                    // Expand shorthand form (e.g. "03F") to full form (e.g. "0033FF")
+                    var shorthandRegex = /^#?([a-f\d])([a-f\d])([a-f\d])$/i;
+                    hex = hex.replace(shorthandRegex, function (m, r, g, b) {
+                        return r + r + g + g + b + b;
+                    });
+
+                    var result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+                    return result ? `${parseInt(result[1], 16)}, ${parseInt(result[2], 16)}, ${parseInt(result[3], 16)}` : '255, 255, 255'; // default white
+                },
+
+
+                exportImage() {
+                    html2canvas(this.$refs.screenshotArea, {
+                        useCORS: true,
+                        allowTaint: true,  // 允许跨域图片
+                        scale: 2,         // 使用更高分辨率
+                        logging: true,     // 开启日志用于调试
+                        backgroundColor: null,  // 保留透明背景
+                        ignoreElements: (element) => {
+                            // 保留所有元素
+                            return false;
+                        }
+                    }).then(canvas => {
+                        const url = canvas.toDataURL('image/png');
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = 'menu.png';
+                        a.click();
+                    }).catch(error => {
+                        console.error("Error exporting image:", error);
+                        alert("图片导出失败，请检查控制台错误信息。");
+                    });
+                },
+                editTitle(titleType) {
+                    this.popupType = 'title';
+                    this.popupTitle = '编辑标题';
+                    if (titleType === 'helpTitle') {
+                        this.popupData = {
+                            content: this.config.helpTitleContent,
+                            fontSize: this.config.helpTitleFontSize,
+                            color: this.config.helpTitleColor,
+                            bold: this.config.helpTitleBold,
+                            type: 'helpTitle'
+                        };
+                    } else if (titleType === 'subtitle') {
+                        this.popupData = {
+                            content: this.config.subtitleContent,
+                            fontSize: this.config.subtitleFontSize,
+                            color: this.config.subtitleColor,
+                            bold: this.config.subtitleBold,
+                            type: 'subtitle'
+                        };
+                    }
+                    this.popupVisible = true;
+                    this.popupTab = 'basic'; // Reset tab
+                },
+                editFooter() {
+                    this.popupType = 'footer';
+                    this.popupTitle = '编辑角标';
+                    this.popupData = {
+                        content: this.config.footerTextContent,
+                        color: this.config.footerTextColor,
+                        bold: this.config.footerTextBold,
+                        type: 'footer'
+                    };
+                    this.popupVisible = true;
+                    this.popupTab = 'basic'; // Reset tab
+                },
+                editMenuItem(index) {
+                    this.popupType = 'menuItem';
+                    this.popupTitle = '编辑菜单项';
+                    this.popupData = JSON.parse(JSON.stringify(this.config.menuItems[index])); // Deep copy
+                    this.popupVisible = true;
+                    this.selectedIndex = index;
+                    this.selectedSubIndex = null;
+                    this.popupTab = 'basic'; // Reset tab
+                },
+                editSubMenuItem(menuIndex, subIndex) {
+                    this.popupType = 'subItem';
+                    this.popupTitle = '编辑子菜单项';
+                    this.popupData = JSON.parse(JSON.stringify(this.config.menuItems[menuIndex].subItems[subIndex])); // Deep copy
+                    this.popupVisible = true;
+                    this.selectedIndex = menuIndex;
+                    this.selectedSubIndex = subIndex;
+                    this.popupTab = 'basic'; // Reset tab
+                },
+                confirmPopup() {
+                    if (this.popupType === 'menuItem') {
+                        const updatedItem = { ...this.popupData };
+                        if (updatedItem.icon) {
+                            const existingIcon = this.icons.find(icon => icon.url === updatedItem.icon);
+                            if (existingIcon) {
+                                updatedItem.iconId = existingIcon.id; // Use existing iconId if URL matches
+                            } else {
+                                const newIcon = { id: iconIdCounter++, url: updatedItem.icon, name: 'user-icon' };
+                                this.icons.push(newIcon);
+                                updatedItem.iconId = newIcon.id; // Assign new iconId and add to library
+                            }
+                        }
+                        Vue.set(this.config.menuItems, this.selectedIndex, updatedItem);
+
+                    } else if (this.popupType === 'subItem') {
+                        const updatedSubItem = { ...this.popupData };
+                        if (updatedSubItem.icon) {
+                            const existingIcon = this.icons.find(icon => icon.url === updatedSubItem.icon);
+                            if (existingIcon) {
+                                updatedSubItem.iconId = existingIcon.id; // Use existingIconId if URL matches
+                            } else {
+                                const newIcon = { id: iconIdCounter++, url: updatedSubItem.icon, name: 'user-sub-icon' };
+                                this.icons.push(newIcon);
+                                updatedSubItem.iconId = newIcon.id; // Assign new iconId and add to library
+                            }
+                        }
+                        Vue.set(this.config.menuItems[this.selectedIndex].subItems, this.selectedSubIndex, updatedSubItem);
+                    } else if (this.popupType === 'title') {
+                        if (this.popupData.type === 'helpTitle') {
+                            this.config.helpTitleContent = this.popupData.content;
+                            this.config.helpTitleFontSize = this.popupData.fontSize;
+                            this.config.helpTitleColor = this.popupData.color;
+                            this.config.helpTitleBold = this.popupData.bold;
+                        } else if (this.popupData.type === 'subtitle') {
+                            this.config.subtitleContent = this.popupData.content;
+                            this.config.subtitleFontSize = this.popupData.fontSize;
+                            this.config.subtitleColor = this.popupData.color;
+                            this.config.subtitleBold = this.popupData.bold;
+                        }
+                    } else if (this.popupType === 'footer') {
+                        this.config.footerTextContent = this.popupData.content;
+                        this.config.footerTextColor = this.popupData.color;
+                        this.config.footerTextBold = this.popupData.bold;
+                    }
+                    this.closePopup();
+                },
+
+                closePopup() {
+                    this.popupVisible = false;
+                    this.popupData = {};
+                    this.popupType = null;
+                    this.popupTab = 'basic'; // Reset to basic tab when closing
+                },
+                exportConfig() {
+                    const configStr = JSON.stringify({
+                        config: this.config,
+                        useBackdropFilter: this.useBackdropFilter,
+                        icons: this.icons, // 导出 icons 数组
+                        fonts: this.fonts // 导出 fonts 数组  <-- 添加这一行
+                    }, null, 2);
+                    const blob = new Blob([configStr], { type: 'application/json' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = 'menu-config.json';
+                    a.click();
+                    URL.revokeObjectURL(url);
+                },
+
+
+                showImportPopup() {
+                    this.importPopupVisible = true;
+                    this.importTab = 'text'; // Default to file upload tab
+                    this.importTextConfig = ''; // Clear text area
+                    this.importHelpText = ''; // Clear help text area
+                },
+                closeImportPopup() {
+                    this.importPopupVisible = false;
+                },
+                handleConfigUpload(event) {
+                    const file = event.target.files[0];
+                    if (file) {
+                        const reader = new FileReader();
+                        reader.onload = (e) => {
+                            try {
+                                const importedData = JSON.parse(e.target.result);
+                                this.config = importedData.config;
+                                this.useBackdropFilter = importedData.useBackdropFilter;
+                                this.icons = importedData.icons || this.icons; // 导入 icons 数组，如果导入的数据中没有 icons，则保留当前的 icons
+                                this.fonts = importedData.fonts || this.fonts; // 导入 fonts 数组，如果导入的数据中没有 fonts，则保留当前的 fonts  <-- 添加这一行
+                                alert('配置文件导入成功！');
+                            } catch (error) {
+                                alert('配置文件解析失败，请检查JSON格式。');
+                            }
+                            this.closeImportPopup();
+                        };
+                        reader.readAsText(file);
+                    }
+                },
+
+
+                confirmImportConfig(importMode) {
+                    if (this.importTab === 'text' || this.importTab === 'file') { // JSON 导入逻辑
+                        if (this.importTab === 'text') {
+                            try {
+                                const importedData = JSON.parse(this.importTextConfig);
+                                const importedConfig = importedData.config;
+                                if (importMode === 'replace') { // 替换模式
+                                    this.config = importedConfig; // Replace entire config
+                                    this.useBackdropFilter = importedData.useBackdropFilter; // Also load useBackdropFilter
+                                    this.icons = importedData.icons || this.icons; // 导入 icons 数组
+                                    this.fonts = importedData.fonts || this.fonts; // 导入 fonts 数组  <-- 添加这一行
+                                } else { // 默认行为或 'add' 模式, for JSON import, replace is usually the expected behavior
+                                    this.config = importedConfig; // Replace entire config
+                                    this.useBackdropFilter = importedData.useBackdropFilter; // Also load useBackdropFilter
+                                    this.icons = importedData.icons || this.icons; // 导入 icons 数组
+                                    this.fonts = importedData.fonts || this.fonts; // 导入 fonts 数组  <-- 添加这一行
+                                }
+                                this.importPopupVisible = false;
+                            } catch (error) {
+                                alert('JSON文本解析失败，请检查JSON格式。');
+                            }
+                        } else if (this.importTab === 'file') {
+                            this.handleConfigUpload(importMode); // 文件上传的逻辑也需要传递 importMode
+                        }
+                    } else if (this.importTab === 'help') { // Help 导入逻辑
+                        if (importMode === 'replace') {
+                            this.config.menuItems = []; // 清空现有菜单项
+                            this.parseHelpText(this.importHelpText); // 解析 help 文本并添加到空的菜单项列表
+                        } else if (importMode === 'add') {
+                            this.parseHelpText(this.importHelpText); // 保持现有追加行为
+                        }
+                        this.importPopupVisible = false;
+                    }
+                    this.closeImportPopup(); // 确保在非取消情况下关闭弹窗
+                },
+
+
+
+                parseHelpText(helpText) {
+                    const lines = helpText.trim().split('\n');
+                    if (lines.length < 3) {
+                        alert('Help 文本格式不正确，请检查。');
+                        return;
+                    }
+
+                    let backgroundImageURL = null;
+                    const lastLine = lines[lines.length - 1].trim();
+                    if (lastLine.startsWith('http://') || lastLine.startsWith('https://')) {
+                        backgroundImageURL = lastLine;
+                        lines.pop();
+                    }
+
+                    if (backgroundImageURL) {
+                        this.config.backgroundImage = backgroundImageURL;
+                    }
+
+                    const categoryMap = {}; // 用来存储类别和指令的映射关系
+
+                    for (let i = 1; i < lines.length - 1; i++) {
+                        const line = lines[i].trim();
+                        if (line) {
+                            const parts = line.split(/\s{2,}/); // 仍然按多个空格分割
+                            if (parts.length >= 3) { // 确保有指令，描述和类别
+                                const command = parts[0].trim();
+                                const description = parts.slice(1, parts.length - 1).join('  ').trim(); // 描述是指令名和类别之间的所有内容
+                                const categoryName = parts[parts.length - 1].trim(); // 最后一个是类别
+
+                                if (!categoryMap[categoryName]) {
+                                    categoryMap[categoryName] = []; // 如果类别不存在，则创建新的类别数组
+                                }
+                                categoryMap[categoryName].push({
+                                    text: `## ${command}`,
+                                    description: description,
+                                    iconId: Math.floor(Math.random() * 37) + 1,
+                                    glassmorphism: false,
+                                    maskOpacity: 0.5,
+                                    maskColor: '#ffffff',
+                                    iconSize: 60
+                                });
+                            } else if (parts.length === 2) { // 如果只有指令和描述，没有类别，则归为 "其他" 类别
+                                const command = parts[0].trim();
+                                const description = parts[1].trim();
+                                const categoryName = "其他功能"; // 默认类别名称
+
+                                if (!categoryMap[categoryName]) {
+                                    categoryMap[categoryName] = [];
+                                }
+                                categoryMap[categoryName].push({
+                                    text: `## ${command}`,
+                                    description: description,
+                                    iconId: Math.floor(Math.random() * 37) + 1,
+                                    glassmorphism: false,
+                                    maskOpacity: 0.5,
+                                    maskColor: '#ffffff',
+                                    iconSize: 60
+                                });
+                            }
+                        }
+                    }
+
+                    this.config.menuItems = []; // 清空现有的菜单项
+                    for (const categoryName in categoryMap) {
+                        if (categoryMap.hasOwnProperty(categoryName)) {
+                            const categoryMenuItem = {
+                                title: `### ${categoryName}`, // 类别名作为菜单标题
+                                iconId: Math.floor(Math.random() * 37) + 1,
+                                iconSize: 60,
+                                subItems: categoryMap[categoryName], // 子项是该类别下的指令列表
+                                subItemColumns: 4,
+                                glassmorphism: false,
+                                maskOpacity: 0.3,
+                                maskColor: '#ffffff'
+                            };
+                            this.config.menuItems.push(categoryMenuItem); // 添加类别菜单项
+                        }
+                    }
+                }
+
+
+
+            }
+        });
+    </script>
+</body>
+
+</html>
