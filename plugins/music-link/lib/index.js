@@ -512,14 +512,12 @@ const Config = Schema.intersect([
 ]);
 
 function apply(ctx, config) {
-
     // h.file的临时存储
     const tempDir = path.join(__dirname, 'temp');
     let isTempDirInitialized = false;
     const tempFiles = new Set(); // 用于跟踪临时文件路径
 
     ctx.on('ready', async () => {
-
 
         ctx.i18n.define("zh-CN", {
             commands: {
@@ -637,7 +635,7 @@ function apply(ctx, config) {
         }
 
         ctx.command(name, "下载歌曲")
-        ctx.command(name + '/' + config.command1 + '  <keyword:text>')
+        ctx.command(`${name}/${config.command1} <keyword:text>`)
             .option('quality', '-q <value:number> 品质因数')
             .option('number', '-n <number:number> 歌曲序号')
             .action(async ({ session, options }, keyword) => {
@@ -778,8 +776,7 @@ function apply(ctx, config) {
             });
 
 
-
-        ctx.command(config.command4 + ' <keyword:text>')
+        ctx.command(`${name}/${config.command4} <keyword:text>`)
             .option('quality', '-q <value:number> 音质因数')
             .option('number', '-n <number:number> 歌曲序号')
             .action(async ({ session, options }, keyword) => {
@@ -866,7 +863,7 @@ function apply(ctx, config) {
 
 
 
-        ctx.command(`${config.command5} <keyword:text>`)
+        ctx.command(`${name}/${config.command5} <keyword:text>`)
             .option('platform', '-p <platform:string> 平台名称')
             .option('number', '-n <number:number> 歌曲序号')
             .example("歌曲搜索 -p QQ -n 1 蔚蓝档案")
@@ -1140,7 +1137,7 @@ function apply(ctx, config) {
 
 
 
-        ctx.command(`${config.command6} <keyword:text>`)
+        ctx.command(`${name}/${config.command6} <keyword:text>`)
             .example("网易单曲id点歌 2608813264")
             .action(async ({ session, options }, keyword) => {
                 if (!keyword) return h.text(session.text(`.nokeyword`));
@@ -1447,9 +1444,6 @@ transform: scale(0.77);
             await page.close();
             return screenshot;
         }
-
-
-
 
         function logInfo(message, message2) {
             if (config.loggerinfo) {
