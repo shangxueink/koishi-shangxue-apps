@@ -341,7 +341,8 @@ const platformMap = {
 };
 const Config = Schema.intersect([
     Schema.object({
-        xingzhigeAPIkey: Schema.string().role('secret').description('星之阁的音乐API的请求key<br>（默认值是作者自己的哦，如果失效了请你自己获取一个）<br>请前往 QQ群 905188643 <br>添加QQ好友 3556898686 <br>私聊发送 `/getapikey` 获得你的APIkey以填入此处 ').default("up8bpg7bItrfvuCaEdG6vrU-Kr5u68LSKpbGUMHSmsM="),
+        xingzhigeAPIkey: Schema.string().role('secret').description('星之阁的音乐API的请求key<br>（默认值是作者自己的哦，如果失效了请你自己获取一个）<br>请前往 QQ群 905188643 <br>添加QQ好友 3556898686 <br>私聊发送 `/getapikey` 获得你的APIkey以填入此处 ')
+        .default("xhsP7Q4MulpzDU6BVwHSKB-j-NfvBxaqiT37hx8djyE="),
     }).description('请求设置'),
     Schema.object({
         waitTimeout: Schema.natural().role('s').description('允许用户返回选择序号的等待时间').default(45),
@@ -501,19 +502,29 @@ function apply(ctx, config) {
                             const title = musicMeta.title;
                             const desc = musicMeta.desc;
                             // 根据音乐标签选择 API
-                            let command;
+                            let command = config.used_command;
                             let usedId = config.used_id;
-                            if (tag === 'QQ音乐') {
-                                command = config.used_command === "command1" ? config.command1 : config.command3;
-                            } else if (tag === '网易云音乐') {
-                                command = config.used_command === "command1" ? config.command1 : config.command3;
-                                usedId += 10;
-                                // 理想情况下 这样是可以的，但是如果歌单不足10个，就不行了 以后再改吧
+                            if (tag === '网易云音乐') {
+                                if (config.used_command === "command1" || config.used_command === "command4") {
+                                    usedId += 10;
+                                    // 理想情况下 这样是可以的，但是如果歌单不足10个，就不行了 以后再改吧
+                                }
+                            }
+                            logInfo(`${command}`)
+                            if (command) {
+
+                                if (command) {
+                                    // 更通用的获取指令名称方式
+                                    let commandName = config[command]; // 直接使用 config[command] 获取配置项的值
+                                    logInfo(`${commandName} -n ${usedId} “${title} ${desc}”`)
+                                    if (!commandName) {
+                                        commandName = '歌曲搜索'; // 默认值，以防配置项不存在
+                                        logger.warn(`未找到配置项 ${command} 对应的指令名称，使用默认指令名称 '歌曲搜索'`);
+                                    }
+                                    await session.execute(`${commandName} -n ${usedId} “${title} ${desc}”`);
+                                }
                             }
 
-                            if (command) {
-                                await session.execute(`${command} -n ${usedId} “${title} ${desc}”`);
-                            }
                         }
                     }
                 }
