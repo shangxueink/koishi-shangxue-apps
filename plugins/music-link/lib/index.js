@@ -554,7 +554,7 @@ const Config = Schema.intersect([
     }).description('`网易单曲id点歌`返回设置'),
 
     Schema.object({
-        command7: Schema.string().default('音乐搜索器').description('`音乐搜索器`的指令名称<br>使用 dev.iw233.cn 提供的API'),
+        command7: Schema.string().default('音乐搜索器').description('`音乐搜索器`的指令名称<br>使用 dev.iw233.cn 提供的网站'),
         command7_searchList: Schema.number().default(20).min(2).step(2).max(20).description('歌曲搜索的列表长度。返回的候选项个数。<br>为`网易云 + 酷狗音乐`的组合，默认20即代表各平台为10首<br>`因为该网页的两个平台返回字段相同，所以就只需要一个字段映射表了`'),
         command7_return_data_Field: Schema.array(Schema.object({
             data: Schema.string().description('返回的字段').disabled(), // .disabled()
@@ -586,7 +586,11 @@ function apply(ctx, config) {
 
         ctx.i18n.define("zh-CN", {
             commands: {
-                [config.command1]: {
+                [name]: {
+                    description: `下载音乐`,
+                    messages: {
+                    }
+                }, [config.command1]: {
                     description: `搜索歌曲`,
                     messages: {
                         "nokeyword": "请输入歌曲相关信息。\n➣示例：/music 蔚蓝档案",
@@ -731,7 +735,7 @@ function apply(ctx, config) {
             });
         }
 
-
+        ctx.command(name)
 
         ctx.command(`${name}/${config.command1} <keyword:text>`)
             .option('quality', '-q <value:number> 品质因数')
