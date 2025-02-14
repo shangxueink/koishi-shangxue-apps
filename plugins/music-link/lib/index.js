@@ -4,7 +4,7 @@ exports.apply = exports.Config = exports.usage = exports.inject = exports.name =
 const { Schema, Logger, h } = require("koishi");
 const fs = require('node:fs/promises');
 const path = require('node:path');
-const url_1 = require('node:url');
+const url = require('node:url');
 const crypto = require('node:crypto');
 const name = 'music-link';
 const inject = {
@@ -507,7 +507,7 @@ const Config = Schema.intersect([
 
     Schema.object({
         loggerinfo: Schema.boolean().default(false).description('日志调试开关'),
-        deleteTempTime: Schema.number().default(10).description('对于`file`类型的Tmep临时文件的删除时间<br>若干`秒`后 删除下载的本地临时文件').experimental(),
+        deleteTempTime: Schema.number().default(20).description('对于`file`类型的Tmep临时文件的删除时间<br>若干`秒`后 删除下载的本地临时文件').experimental(),
     }).description('调试模式'),
 ]);
 
@@ -616,7 +616,7 @@ function apply(ctx, config) {
                                         logInfo(`${commandName} -n ${usedId} “${title} ${desc}”`)
                                         if (!commandName) {
                                             commandName = '歌曲搜索'; // 默认值，以防配置项不存在
-                                            logger.warn(`未找到配置项 ${command} 对应的指令名称，使用默认指令名称 '歌曲搜索'`);
+                                            logger.error(`未找到配置项 ${command} 对应的指令名称，使用默认指令名称 '歌曲搜索'`);
                                         }
                                         await session.execute(`${commandName} -n ${usedId} “${title} ${desc}”`);
                                     }
@@ -659,7 +659,7 @@ function apply(ctx, config) {
                     };
                     logInfo(qq)
                 } catch (e) {
-                    logger.warn('获取QQ音乐数据时发生错误', e);
+                    logger.error('获取QQ音乐数据时发生错误', e);
                 }
 
                 try {
@@ -670,7 +670,7 @@ function apply(ctx, config) {
 
                         });
                 } catch (e) {
-                    logger.warn('获取网易云音乐数据时发生错误', e);
+                    logger.error('获取网易云音乐数据时发生错误', e);
                 }
 
                 const qqData = qq?.data;
@@ -770,7 +770,7 @@ function apply(ctx, config) {
                         return h.text(session.text(`.somerror`));
                     }
                 } else {
-                    logger.warn(`获取歌曲失败：${JSON.stringify(song)}`);
+                    logger.error(`获取歌曲失败：${JSON.stringify(song)}`);
                     return '获取歌曲失败：' + song.msg;
                 }
             });
@@ -787,7 +787,7 @@ function apply(ctx, config) {
                 try {
                     kugou = await searchKugou(ctx.http, keyword, options.quality || config.command4_kugouQuality);
                 } catch (e) {
-                    logger.warn('获取酷狗音乐数据时发生错误', e);
+                    logger.error('获取酷狗音乐数据时发生错误', e);
                     return h.text(session.text(`.songlisterror`));
                 }
 
@@ -856,7 +856,7 @@ function apply(ctx, config) {
                         return h.text(session.text(`.somerror`));
                     }
                 } else {
-                    logger.warn(`获取歌曲失败：${JSON.stringify(song)}`);
+                    logger.error(`获取歌曲失败：${JSON.stringify(song)}`);
                     return '获取歌曲失败：' + song.msg;
                 }
             });
@@ -956,7 +956,7 @@ function apply(ctx, config) {
                     // 确保搜索结果有效
                     const listItems = await page.$('.list-item');
                     if (!listItems || listItems.length === 0) { // 检查 listItems 是否为空或 null
-                        logger.warn('未找到歌曲列表项 (.list-item)，可能搜索结果为空或页面结构异常'); // 添加日志
+                        logger.error('未找到歌曲列表项 (.list-item)，可能搜索结果为空或页面结构异常'); // 添加日志
                         return h.text(session.text(`.songlisterror`)); // 返回错误提示
                     }
 
@@ -1062,7 +1062,7 @@ function apply(ctx, config) {
                         });
 
                         if (alertTextDetail) {
-                            logger.warn(`歌曲详情加载过程中出现弹窗: ${alertTextDetail}`); // 记录弹窗信息
+                            logger.error(`歌曲详情加载过程中出现弹窗: ${alertTextDetail}`); // 记录弹窗信息
                             // 可以根据弹窗内容进行特定处理，或者直接返回错误
                             if (alertTextDetail.includes('某些错误提示')) { // 示例：根据弹窗内容判断错误类型
                                 return `错误：${alertTextDetail}`;
@@ -1164,7 +1164,7 @@ function apply(ctx, config) {
                         parsedApiResponse = JSON.parse(apiResponse); // 尝试解析 JSON
                         logInfo("JSON 解析成功");
                     } catch (e) {
-                        ctx.logger.warn("JSON 解析失败:", e);
+                        ctx.logger.error("JSON 解析失败:", e);
                         logInfo("JSON 解析失败错误:", e);
                         logInfo("解析失败的 apiResponse:", apiResponse); // 打印解析失败的 apiResponse 内容
                         return h.text(session.text(`.songlisterror`)); // 返回错误提示
@@ -1188,7 +1188,7 @@ function apply(ctx, config) {
                             const lrcResponse = await ctx.http.get(songData.lrc);
                             songData.lrc = `\n${lrcResponse}`;
                         } catch (error) {
-                            ctx.logger.warn(`获取歌词失败: ${songData.lrc}`, error);
+                            ctx.logger.error(`获取歌词失败: ${songData.lrc}`, error);
                             songData.lrc = `歌词获取失败: ${songData.lrc}`;
                         }
                     }
@@ -1283,7 +1283,7 @@ function apply(ctx, config) {
                     try {
                         const localFilePath = await downloadFile(data[field.data]); // 获取本地文件路径
                         if (localFilePath) {
-                            elements.push(h.file(`file://${localFilePath}`)); // 使用 file:// 协议构建 Koishi h.file 可用的本地 URL
+                            elements.push(h.file(`${url.pathToFileURL(localFilePath).href}`)); // 使用 URL 协议构建 Koishi h.file 可用的 本地 URL (部分onebot协议端没做网络URL的文件处理)
                             tempFiles.add(localFilePath); // 添加到临时文件跟踪 Set
 
                             // 设置定时删除任务
@@ -1294,7 +1294,7 @@ function apply(ctx, config) {
                                         tempFiles.delete(localFilePath); // 从 Set 中移除
                                         logInfo(`临时文件 ${localFilePath} 已删除`);
                                     } catch (e) {
-                                        logger.warn(`删除临时文件 ${localFilePath} 失败:`, e);
+                                        logger.error(`删除临时文件 ${localFilePath} 失败:`, e);
                                     }
                                 }, deleteTempTime * 1000); // 延迟 deleteTempTime 秒后删除
                             }
@@ -1421,12 +1421,17 @@ transform: scale(0.77);
             await page.close();
             return screenshot;
         }
+
+
+
+
         function logInfo(message, message2) {
             if (config.loggerinfo) {
-                if (message2)
+                if (message2) {
                     logger.info(`${message}${message2}`)
-            } else {
-                logger.info(message);
+                } else {
+                    logger.info(message);
+                }
             }
         }
 
