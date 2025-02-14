@@ -4,15 +4,18 @@ exports.apply = exports.Config = exports.usage = exports.inject = exports.name =
 const fs = require('node:fs');
 const url = require("node:url");
 const path = require("node:path");
-const { Schema, Logger, h } = require("koishi");
+const { stat } = require('fs/promises');
+const { Schema, Logger, h, noop } = require("koishi");
+
 exports.reusable = true; // 声明此插件可重用
-const htmlPath = path.join(__dirname, '../help/index.html');
 const name = 'preview-help';
 const inject = {
     required: ['http', "i18n"],
-    optional: ['console', "puppeteer"]
+    optional: ['console', "puppeteer", 'server'] // 增加 server
 };
 const logger = new Logger('preview-help');
+
+const htmlPath = path.join(__dirname, '../help/index.html');
 const usage = `
 <h3>使用指南</h3>
 <p><strong>推荐使用【渲染图片菜单】模式，
@@ -21,7 +24,7 @@ const usage = `
 
 <h4>🚀快速开始</h4>
 <ol>
-<li><strong>编辑菜单模板：</strong> 您可以在本地 HTML 编辑模板，自定义菜单的样式和布局并且导出JSON配置文件以供本插件使用。</li>
+<li><strong>编辑菜单模板：</strong> 您可以在活动栏【帮助预览】页面编辑 HTML 模板，自定义菜单的样式和布局并且导出JSON配置文件以供本插件使用。</li>
 <li><strong>配置插件：</strong> 在 Koishi 控制面板中配置 <code>preview-help</code> 插件，选择合适的菜单模式并根据需要进行其他配置。</li>
 <li><strong>使用指令：</strong> 在 Koishi 中使用您配置的指令名称 (默认为 "帮助菜单") 即可查看预览的帮助菜单。</li>
 </ol>
@@ -31,16 +34,8 @@ const usage = `
 <p>推荐使用webUI交互生成你喜欢的菜单图片，并且导出JSON配置，用于配置本插件。</p>
 <p>当然也可以把渲染好的菜单图片保存，使用本插件的图片返回功能等</p>
 
-webUI 交互 请在浏览器打开本地文件 ➤  
+webUI 交互 请见 ➤ <a href="/help/index.html" target="_blank">/help/index.html</a>
 
-<p>
-  <a href="${htmlPath.replace(/\\/g, '/')} " target="_blank">${htmlPath.replace(/\\/g, '/')} </a>
-</p>
-
-<p>
-  <button onclick="navigator.clipboard.writeText('${htmlPath.replace(/\\/g, '/')}')">点我复制文件地址</button>
-</p>
----
 
 ---
 
@@ -48,15 +43,24 @@ webUI 交互 请在浏览器打开本地文件 ➤
 <p><strong>字体设置：</strong> 您可以在插件配置中启用自定义字体，并指定字体 URL。启用后，插件在渲染菜单时会尝试加载您提供的字体。</p>
 <p><strong>缓存设置：</strong> 开启缓存功能后，对于配置和 help 菜单内容不变的情况，插件会直接使用缓存的 PNG 图片，提高响应速度。关闭缓存则每次调用都会重新渲染。</p>
 <p><strong>调试日志：</strong> 开启日志调试开关后，插件会在控制台输出更详细的日志信息，用于问题排查。</p>
+
+
+---
+
+## <a href="/help/index.html" target="_blank">菜单 webUI 交互 请点击这里 ➤ /help/index.html</a>
+
+或者本地文件地址：
+<p>
+  <a href="${htmlPath.replace(/\\/g, '/')} " target="_blank">${htmlPath.replace(/\\/g, '/')} </a>
+</p>
+
+<p>
+  <button onclick="navigator.clipboard.writeText('${htmlPath.replace(/\\/g, '/')}')">点我复制文件地址</button>
+</p>
+
 `;
 
 const Config = Schema.intersect([
-    /*
-    Schema.object({
-        template: Schema.boolean().default(true).description('侧边栏注册<br>关闭后不注册➤[左侧活动栏【帮助预览】页面](/preview-help)'),
-    }).description('功能设置'),
-    */
-
     Schema.object({
         command: Schema.string().description('注册指令名称').default("帮助菜单"),
         rendering: Schema.union([
@@ -116,6 +120,10 @@ const Config = Schema.intersect([
     }).description('高级设置'),
 
     Schema.object({
+        staticHelp: Schema.boolean().default(true).description('是否静态部署 help 目录到 /help<br>关闭后将没有 webUI，仅能使用本地HTML文件交互'), // 新增配置项
+    }).description('交互功能设置'),
+
+    Schema.object({
         screenshotquality: Schema.number().role('slider').min(0).max(100).step(1).default(60).description('设置图片压缩质量（%）'),
         tempPNG: Schema.boolean().description('打开后，开启缓存功能。<br>在`输入配置不变`/`help菜单不变`的情况下，使用缓存的PNG菜单图片（同一张图）。<br>关闭后，每次调用均使用puppeteer渲染').default(true),
         loggerinfo: Schema.boolean().default(false).description('日志调试开关'),
@@ -132,6 +140,29 @@ function apply(ctx, config) {
             logger.info(message);
         }
     }
+
+    ctx.on('ready', async () => {
+        // 静态资源部署
+        if (config.staticHelp && ctx.server) {
+            const helpRoot = path.resolve(__dirname, '../help');
+            const helpPath = '/help';
+
+            ctx.server.get(helpPath + '(.*)', async (ctx, next) => {
+                const filename = path.resolve(helpRoot, ctx.path.slice(helpPath.length).replace(/^\/+/, ''));
+                if (!filename.startsWith(helpRoot)) return next();
+                const stats = await stat(filename).catch(noop);
+                if (stats?.isFile()) {
+                    ctx.type = path.extname(filename);
+                    return ctx.body = fs.createReadStream(filename);
+                }
+                return next();
+            });
+
+            logInfo(`静态资源部署：help 目录部署到 http://127.0.0.1:${ctx.server.config.port}${helpPath}`);
+        }
+    });
+
+
 
     ctx.on('ready', async () => {
         const root = path.join(ctx.baseDir, 'data', 'preview-help');
@@ -286,7 +317,7 @@ function apply(ctx, config) {
                     switch (config.helpmode) {
                         case '1.1': {
                             logInfo(config.help_text);
-                            await session.send(h.text(session.text(config.help_text)));
+                            await session.send(h.text(config.help_text));
                             return;
                         }
                         case '1.2': {
@@ -347,7 +378,6 @@ function apply(ctx, config) {
                     }
 
                     try {
-
                         const helpHTMLUrl = url.pathToFileURL(htmlPath).href
                         logInfo(`正在加载本地HTML文件：${helpHTMLUrl}`);
                         await page.goto(helpHTMLUrl, {
