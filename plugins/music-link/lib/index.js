@@ -512,12 +512,14 @@ const Config = Schema.intersect([
 ]);
 
 function apply(ctx, config) {
+
+    // h.file的临时存储
+    const tempDir = path.join(__dirname, 'temp');
+    let isTempDirInitialized = false;
+    const tempFiles = new Set(); // 用于跟踪临时文件路径
+
     ctx.on('ready', async () => {
 
-        // h.file的临时存储
-        const tempDir = path.join(__dirname, 'temp');
-        let isTempDirInitialized = false;
-        const tempFiles = new Set(); // 用于跟踪临时文件路径
 
         ctx.i18n.define("zh-CN", {
             commands: {
@@ -1234,6 +1236,25 @@ function apply(ctx, config) {
                 return null;
             }
         }
+        async function safeUnlink(filePath, maxRetries = 5, interval = 1000) {
+            let retries = 0;
+            while (retries < maxRetries) {
+                try {
+                    await fs.access(filePath); // 先检查文件是否存在
+                    await fs.unlink(filePath);
+                    return;
+                } catch (error) {
+                    if (error.code === 'ENOENT') return; // 文件不存在直接返回
+                    if (error.code === 'EBUSY') {
+                        retries++;
+                        await new Promise(resolve => setTimeout(resolve, interval));
+                    } else {
+                        throw error;
+                    }
+                }
+            }
+            throw new Error(`Failed to delete ${filePath} after ${maxRetries} retries`);
+        }
 
         /**
          * 生成响应消息，处理不同类型的字段 (text, image, audio, video, file)。
@@ -1287,16 +1308,22 @@ function apply(ctx, config) {
                             tempFiles.add(localFilePath); // 添加到临时文件跟踪 Set
 
                             // 设置定时删除任务
+                            // 修改文件删除部分
                             if (deleteTempTime > 0) {
-                                setTimeout(async () => {
+                                ctx.setTimeout(async () => {
                                     try {
-                                        await fs.unlink(localFilePath);
-                                        tempFiles.delete(localFilePath); // 从 Set 中移除
+                                        await safeUnlink(localFilePath);
+                                        tempFiles.delete(localFilePath);
                                         logInfo(`临时文件 ${localFilePath} 已删除`);
                                     } catch (e) {
                                         logger.error(`删除临时文件 ${localFilePath} 失败:`, e);
+                                        // 最终强制尝试一次删除
+                                        try {
+                                            await fs.unlink(localFilePath).catch(() => { });
+                                            tempFiles.delete(localFilePath);
+                                        } catch { }
                                     }
-                                }, deleteTempTime * 1000); // 延迟 deleteTempTime 秒后删除
+                                }, deleteTempTime * 1000);
                             }
                         }
                     } catch (error) {
@@ -1307,7 +1334,6 @@ function apply(ctx, config) {
 
             return elements.join('\n');
         }
-
 
         async function searchKugou(http, query, br) {
             const apiBase = 'https://api.xingzhige.com/API/Kugou_GN_new/';
@@ -1437,6 +1463,9 @@ transform: scale(0.77);
 
 
     });
+
+
+
 }
 exports.apply = apply;
 exports.Config = Config;
