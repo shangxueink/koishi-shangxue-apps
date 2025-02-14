@@ -4,7 +4,7 @@ exports.apply = exports.Config = exports.usage = exports.inject = exports.name =
 const fs = require('node:fs');
 const url = require("node:url");
 const path = require("node:path");
-const { stat } = require('fs/promises');
+const { stat, readdir } = require('fs/promises');
 const { Schema, Logger, h, noop } = require("koishi");
 
 exports.reusable = true; // 声明此插件可重用
@@ -47,9 +47,8 @@ webUI 交互 请见 ➤ <a href="/help/index.html" target="_blank">/help/index.h
 
 ---
 
-## <a href="/help/index.html" target="_blank">菜单 webUI 交互 请点击这里 ➤ /help/index.html</a>
 
-或者本地文件地址：
+本地文件地址：
 <p>
   <a href="${htmlPath.replace(/\\/g, '/')} " target="_blank">${htmlPath.replace(/\\/g, '/')} </a>
 </p>
@@ -58,6 +57,9 @@ webUI 交互 请见 ➤ <a href="/help/index.html" target="_blank">/help/index.h
   <button onclick="navigator.clipboard.writeText('${htmlPath.replace(/\\/g, '/')}')">点我复制文件地址</button>
 </p>
 
+## <a href="/help/index.html" target="_blank">菜单 webUI 交互 请点击这里 ➤ /help/index.html</a>
+
+---
 `;
 
 const Config = Schema.intersect([
@@ -72,13 +74,14 @@ const Config = Schema.intersect([
             Schema.const('1.2').description('返回图片菜单'),
             Schema.const('2.1').description('返回渲染图片菜单（自动从help指令获取）'),
             Schema.const('2.2').description('返回渲染图片菜单（手动输入help文字菜单）'),
-            Schema.const('3').description('返回渲染图片菜单（自定义json配置） '),
+            Schema.const('3').description('返回渲染图片菜单（自定义json配置）（本地JSON文件） '),
+            Schema.const('3.2').description('返回渲染图片菜单（自定义json配置）（json写入配置项） '),
         ]).role('radio').default('2.1').description('菜单返回模式<br>`自动获取的help菜单可能会与预设模版不吻合`<br>推荐前往webUI手动编辑后导出json文件使用'),
     }).description('基础配置'),
     Schema.union([
         Schema.object({
             helpmode: Schema.const("1.1").required(),
-            help_text: Schema.string().default("当前可用的指令有：\n    /chatluna  ChatLuna 相关指令。\n    /glot  运行代码\n    /group-manage  群组管理\n    /help  显示帮助信息\n    /inspect  查看用户、频道或消息的详细信息\n    /lunavits  lunavits 语音合成\n    /market  插件市场信息\n    /musicjs  用 JavaScript 代码演奏旋律\n    /osu-funny  一些有趣的 osu! 功能\n    /ping  ping指定的ip或域名\n    /plugin  插件管理\n    /propose  向群友求婚\n    /rryth-test  人人有图画测试服 v0.0.7\n    /sayo-roll  随机选择\n    /shot  网页截图\n    /status  查看运行状态\n    /status-image  查看运行状态\n    /timer  定时器信息\n    /translate  文本翻译\n    /usage  调用次数信息\n    /waifu  娶群友\n    /wh-sub  订阅Github事件推送\n    /wh-unsub  取消Github事件推送\n    /钓鱼  \n    /鹿管签到  鹿管签到\n输入“/help 指令名”查看特定指令的语法和使用示例。")
+            help_text: Schema.string().default("当前可用的指令有：\necho  发送消息  其他功能\nhelp  显示帮助信息  系统工具\ninspect  查看用户、频道或消息的详细信息  系统工具\nplugin  插件管理  系统功能\nstatus  查看运行状态  系统工具\ntimer  定时器信息  系统功能\nusage  调用次数信息  系统功能\n输入“help 指令名”查看特定指令的语法和使用示例。")
                 .role('textarea', { rows: [8, 8] }).description('返回的文字菜单内容<br>每行格式: `指令名称  指令描述  指令分类`<br>其中`指令分类`为导入添加标记所用，help文字菜单并不自带，需手动指定'),
         }),
         Schema.object({
@@ -92,28 +95,20 @@ const Config = Schema.intersect([
         Schema.object({
             helpmode: Schema.const("2.2").required(),
             background_URL: Schema.string().role('textarea', { rows: [8, 8] }).description('渲染使用的背景图地址<br>一行一个网络URL地址').default("https://i0.hdslb.com/bfs/article/3f79c64129020b522a516480c1066ea2f563964b.jpg\nhttps://i0.hdslb.com/bfs/article/28c76b561eadbbb826c2c902088c87a1a7e92f25.jpg\nhttps://i0.hdslb.com/bfs/article/806202a9b867a0b1d2d3399f1a183fc556ec258d.jpg\nhttps://i0.hdslb.com/bfs/article/796ae5ab9ef1f2e7db2c6a6020f5cbb718c9d953.jpg\nhttps://i0.hdslb.com/bfs/article/60e1532cf0a59828fbdd86c1b4e5740ca551f5b2.jpg\nhttps://i0.hdslb.com/bfs/article/9c7e7d66913155a32cad1591472a77374f0caf54.jpg\nhttps://i0.hdslb.com/bfs/article/a6154de573f73246ea4355a614f0b7b94eff8f20.jpg"),
-            help_text: Schema.string().default("当前可用的指令有：\n    /chatluna  ChatLuna 相关指令。\n    /glot  运行代码\n    /group-manage  群组管理\n    /help  显示帮助信息\n    /inspect  查看用户、频道或消息的详细信息\n    /lunavits  lunavits 语音合成\n    /market  插件市场信息\n    /musicjs  用 JavaScript 代码演奏旋律\n    /osu-funny  一些有趣的 osu! 功能\n    /ping  ping指定的ip或域名\n    /plugin  插件管理\n    /propose  向群友求婚\n    /rryth-test  人人有图画测试服 v0.0.7\n    /sayo-roll  随机选择\n    /shot  网页截图\n    /status  查看运行状态\n    /status-image  查看运行状态\n    /timer  定时器信息\n    /translate  文本翻译\n    /usage  调用次数信息\n    /waifu  娶群友\n    /wh-sub  订阅Github事件推送\n    /wh-unsub  取消Github事件推送\n    /钓鱼  \n    /鹿管签到  鹿管签到\n输入“/help 指令名”查看特定指令的语法和使用示例。")
+            help_text: Schema.string().default("当前可用的指令有：\necho  发送消息  其他功能\nhelp  显示帮助信息  系统工具\ninspect  查看用户、频道或消息的详细信息  系统工具\nplugin  插件管理  系统功能\nstatus  查看运行状态  系统工具\ntimer  定时器信息  系统功能\nusage  调用次数信息  系统功能\n输入“help 指令名”查看特定指令的语法和使用示例。")
                 .role('textarea', { rows: [8, 8] }).description('返回的文字菜单内容<br>每行格式: `指令名称  指令描述  指令分类`<br>其中`指令分类`为导入添加标记所用，help文字菜单并不自带，需手动指定'),
         }),
         Schema.object({
             helpmode: Schema.const("3").required(),
             background_URL: Schema.string().role('textarea', { rows: [8, 8] }).description('渲染使用的背景图地址<br>一行一个网络URL地址').default("https://i0.hdslb.com/bfs/article/3f79c64129020b522a516480c1066ea2f563964b.jpg\nhttps://i0.hdslb.com/bfs/article/28c76b561eadbbb826c2c902088c87a1a7e92f25.jpg\nhttps://i0.hdslb.com/bfs/article/806202a9b867a0b1d2d3399f1a183fc556ec258d.jpg\nhttps://i0.hdslb.com/bfs/article/796ae5ab9ef1f2e7db2c6a6020f5cbb718c9d953.jpg\nhttps://i0.hdslb.com/bfs/article/60e1532cf0a59828fbdd86c1b4e5740ca551f5b2.jpg\nhttps://i0.hdslb.com/bfs/article/9c7e7d66913155a32cad1591472a77374f0caf54.jpg\nhttps://i0.hdslb.com/bfs/article/a6154de573f73246ea4355a614f0b7b94eff8f20.jpg"),
-            help_json: Schema.boolean().default(false).description('开启后，使用配置项填入的 json<br>关闭时，使用本地文件的 json文件：`./data/preview-help/menu-config.json`<br> -> 推荐关闭此配置项，并且前往【资源管理器】编辑json（初次需重启koishi才看得见）<br>json文件中可以使用 `${background_URL}` 代表随机背景图（示例见初始化的json文件）').experimental(),
+            help_text_json_path: Schema.string().role('textarea', { rows: [4, 4] }).default("C:\\Users\\shangxue\\Downloads").description('导入配置使用的JSON的`所在文件夹`的绝对路径<br>你可以直接填入浏览器导出json的默认文件夹地址 `即浏览器下载文件夹`<br>若不填入，则默认使用`./data/preview-help/menu-config.json`'),
         }),
         Schema.object({
-        }),
-    ]),
-    Schema.union([
-        Schema.object({
-            help_json: Schema.const(true).required(),
+            helpmode: Schema.const("3.2").required(),
+            background_URL: Schema.string().role('textarea', { rows: [8, 8] }).description('渲染使用的背景图地址<br>一行一个网络URL地址').default("https://i0.hdslb.com/bfs/article/3f79c64129020b522a516480c1066ea2f563964b.jpg\nhttps://i0.hdslb.com/bfs/article/28c76b561eadbbb826c2c902088c87a1a7e92f25.jpg\nhttps://i0.hdslb.com/bfs/article/806202a9b867a0b1d2d3399f1a183fc556ec258d.jpg\nhttps://i0.hdslb.com/bfs/article/796ae5ab9ef1f2e7db2c6a6020f5cbb718c9d953.jpg\nhttps://i0.hdslb.com/bfs/article/60e1532cf0a59828fbdd86c1b4e5740ca551f5b2.jpg\nhttps://i0.hdslb.com/bfs/article/9c7e7d66913155a32cad1591472a77374f0caf54.jpg\nhttps://i0.hdslb.com/bfs/article/a6154de573f73246ea4355a614f0b7b94eff8f20.jpg"),
             help_text_json: Schema.string().role('textarea', { rows: [8, 8] }).description('导入配置使用的JSON内容'),
         }),
-        Schema.object({
-
-        }),
     ]),
-
-
     Schema.object({
         fontEnabled: Schema.boolean().description('启用自定义字体').default(false),
         fontURL: Schema.string().description("字体 URL (.ttf)<br>注意：需填入本地绝对路径的URL编码地址<br>默认内容 即为使用`jrys-prpr字体`的URL示例写法").default(url.pathToFileURL(path.join(__dirname, '../../jrys-prpr/font/千图马克手写体.ttf')).href),
@@ -157,7 +152,6 @@ function apply(ctx, config) {
                 }
                 return next();
             });
-
             logInfo(`静态资源部署：help 目录部署到 http://127.0.0.1:${ctx.server.config.port}${helpPath}`);
         }
     });
@@ -166,7 +160,7 @@ function apply(ctx, config) {
 
     ctx.on('ready', async () => {
         const root = path.join(ctx.baseDir, 'data', 'preview-help');
-        const jsonFilePath = path.join(root, 'menu-config.json');
+        let jsonFilePath = path.join(root, 'menu-config.json'); // 默认json文件路径
         const temp_helpFilePath = path.join(root, 'temp_help.png');
 
 
@@ -201,6 +195,8 @@ function apply(ctx, config) {
                         "font.load.start": "开始加载字体: {0}",
                         "font.load.success": "字体加载成功: {0}",
                         "font.load.fail": "字体加载失败: {0}",
+                        "path.invalid": "无效的路径: {0}",
+                        "jsonfile.notfound": "未找到 menu-config.json 文件",
                     }
                 },
             }
@@ -244,20 +240,83 @@ function apply(ctx, config) {
                         break;
                     }
                     case '3': {
-                        logInfo(`正在读取JSON配置...`);
-                        if (config.help_json) {
-                            currentHelpContent = config.help_text_json;
-                            logInfo(`使用配置项JSON，长度：${currentHelpContent?.length || 0}`);
-                        } else {
+
+                        let jsonFilePathToUse = jsonFilePath; // 默认路径
+
+                        if (config.help_text_json_path) {
+                            let inputPath = config.help_text_json_path.trim();
+                            if (inputPath.startsWith('file:///')) {
+                                inputPath = url.fileURLToPath(inputPath);
+                            }
+
                             try {
-                                currentHelpContent = fs.readFileSync(jsonFilePath, 'utf-8');
-                                logInfo(`从文件读取JSON成功，长度：${currentHelpContent?.length || 0}`);
-                            } catch (error) {
-                                logger.error(`文件读取失败：`, error);
-                                await session.send(h.text(session.text('.file.read.error')));
-                                return;
+                                const pathStat = await stat(inputPath);
+                                if (pathStat.isDirectory()) {
+                                    const files = await readdir(inputPath);
+                                    const jsonFiles = files.filter(file => file.startsWith('menu-config (') && file.endsWith(').json'));
+                                    let latestNumberedJson = null;
+                                    let latestNumber = -1;
+
+                                    for (const file of jsonFiles) {
+                                        const match = file.match(/menu-config \((\d+)\)\.json/);
+                                        if (match) {
+                                            const number = parseInt(match[1], 10);
+                                            if (number > latestNumber) {
+                                                latestNumber = number;
+                                                latestNumberedJson = file;
+                                            }
+                                        }
+                                    }
+
+                                    if (latestNumberedJson) {
+                                        jsonFilePathToUse = path.join(inputPath, latestNumberedJson);
+                                    } else if (files.includes('menu-config.json')) {
+                                        jsonFilePathToUse = path.join(inputPath, 'menu-config.json');
+                                    } else {
+                                        await session.send(h.text(session.text('.jsonfile.notfound')));
+                                        return; // 找不到文件直接返回，使用默认的空json文件
+                                    }
+
+                                } else if (pathStat.isFile() && path.extname(inputPath) === '.json') {
+                                    jsonFilePathToUse = inputPath;
+                                } else {
+                                    await session.send(h.text(session.text('.path.invalid', [config.help_text_json_path])));
+                                    return; // 路径无效直接返回，使用默认的空json文件
+                                }
+                            } catch (e) {
+                                logger.warn(`路径检查失败: ${config.help_text_json_path}`, e);
+                                await session.send(h.text(session.text('.path.invalid', [config.help_text_json_path])));
+                                return; // 路径无效直接返回，使用默认的空json文件
                             }
                         }
+
+
+                        try {
+                            logInfo(`正在读取JSON配置...`);
+                            currentHelpContent = fs.readFileSync(jsonFilePathToUse, 'utf-8');
+                            logInfo(`从文件读取JSON成功，路径：${jsonFilePathToUse}，长度：${currentHelpContent?.length || 0}`);
+                        } catch (error) {
+                            logger.error(`文件读取失败：`, error);
+                            await session.send(h.text(session.text('.file.read.error')));
+                            return;
+                        }
+
+                        // 验证JSON格式
+                        try {
+                            JSON.parse(currentHelpContent);
+                        } catch (error) {
+                            logger.error(`JSON解析失败：`, error);
+                            await session.send(h.text(session.text('.json.parse.error')));
+                            return;
+                        }
+                        break;
+                    }
+                    case '3.2': {
+                        logInfo(`正在读取JSON配置...`);
+
+                        currentHelpContent = config.help_text_json;
+                        logInfo(`使用配置项JSON，长度：${currentHelpContent?.length || 0}`);
+
                         // 验证JSON格式
                         try {
                             JSON.parse(currentHelpContent);
@@ -282,7 +341,7 @@ function apply(ctx, config) {
                 const cacheKey = generateCacheKey(config.helpmode, currentHelpContent, config.screenshotquality);
 
 
-                if (config.tempPNG && ['2.1', '2.2', '3'].includes(config.helpmode)) {
+                if (config.tempPNG && ['2.1', '2.2', '3', '3.2'].includes(config.helpmode)) { // 模式 3.2 也应该支持缓存
                     if (lastCacheKey === cacheKey && fs.existsSync(temp_helpFilePath)) {
                         useCache = true;
                     }
@@ -334,6 +393,7 @@ function apply(ctx, config) {
                         case '2.1':
                         case '2.2':
                         case '3':
+                        case '3.2': // 模式 3.2 也应该进入渲染流程
                             break; // These modes will be handled below after cache check
                         default:
                             await session.send(h.text(session.text('.mode.notsupport')));
@@ -423,7 +483,7 @@ function apply(ctx, config) {
                         }
 
 
-                        if (config.helpmode === '3') {
+                        if (config.helpmode === '3' || config.helpmode === '3.2') { // 模式 3.2 同样使用 JSON 导入
                             // JSON模式处理
                             const textarea = await logElementAction('.popup-content textarea', '输入JSON内容');
                             await page.evaluate((element, content) => {
@@ -468,7 +528,7 @@ function apply(ctx, config) {
                         });
 
                         // 保存缓存
-                        if (config.tempPNG && ['2.1', '2.2', '3'].includes(config.helpmode)) {
+                        if (config.tempPNG && ['2.1', '2.2', '3', '3.2'].includes(config.helpmode)) { // 模式 3.2 也应该支持缓存
                             try {
                                 fs.writeFileSync(temp_helpFilePath, imageBuffer);
                                 lastCacheKey = cacheKey; // 存储缓存Key
