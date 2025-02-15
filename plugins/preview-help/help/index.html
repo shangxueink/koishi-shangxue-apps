@@ -1858,6 +1858,15 @@ https://i0.hdslb.com/bfs/new_dyn/79aee60d45ff2e4940b4b7fe3dc0edb01767947324.jpg
                                 this.useBackdropFilter = importedData.useBackdropFilter;
                                 this.icons = importedData.icons || this.icons; // 导入 icons 数组，如果导入的数据中没有 icons，则保留当前的 icons
                                 this.fonts = importedData.fonts || this.fonts; // 导入 fonts 数组，如果导入的数据中没有 fonts，则保留当前的 fonts  <-- 添加这一行
+
+                                // 添加以下代码来更新 iconIdCounter
+                                if (importedData.icons && importedData.icons.length > 0) {
+                                    const maxId = importedData.icons.reduce((max, icon) => Math.max(max, icon.id), 0);
+                                    iconIdCounter = maxId + 1;
+                                } else {
+                                    iconIdCounter = 38; // 如果没有导入icons或者icons为空，则重置为默认值，或者你认为合适的起始值
+                                }
+
                                 alert('配置文件导入成功！');
                             } catch (error) {
                                 alert('配置文件解析失败，请检查JSON格式。');
@@ -1867,6 +1876,7 @@ https://i0.hdslb.com/bfs/new_dyn/79aee60d45ff2e4940b4b7fe3dc0edb01767947324.jpg
                         reader.readAsText(file);
                     }
                 },
+
 
 
                 confirmImportConfig(importMode) {
@@ -1880,11 +1890,28 @@ https://i0.hdslb.com/bfs/new_dyn/79aee60d45ff2e4940b4b7fe3dc0edb01767947324.jpg
                                     this.useBackdropFilter = importedData.useBackdropFilter; // Also load useBackdropFilter
                                     this.icons = importedData.icons || this.icons; // 导入 icons 数组
                                     this.fonts = importedData.fonts || this.fonts; // 导入 fonts 数组  <-- 添加这一行
+
+                                    //  添加以下代码来更新 iconIdCounter
+                                    if (importedData.icons && importedData.icons.length > 0) {
+                                        const maxId = importedData.icons.reduce((max, icon) => Math.max(max, icon.id), 0);
+                                        iconIdCounter = maxId + 1;
+                                    } else {
+                                        iconIdCounter = 38; // 如果没有导入icons或者icons为空，则重置为默认值，或者你认为合适的起始值
+                                    }
+
                                 } else { // 默认行为或 'add' 模式, for JSON import, replace is usually the expected behavior
                                     this.config = importedConfig; // Replace entire config
                                     this.useBackdropFilter = importedData.useBackdropFilter; // Also load useBackdropFilter
                                     this.icons = importedData.icons || this.icons; // 导入 icons 数组
                                     this.fonts = importedData.fonts || this.fonts; // 导入 fonts 数组  <-- 添加这一行
+
+                                    //  添加以下代码来更新 iconIdCounter
+                                    if (importedData.icons && importedData.icons.length > 0) {
+                                        const maxId = importedData.icons.reduce((max, icon) => Math.max(max, icon.id), 0);
+                                        iconIdCounter = maxId + 1;
+                                    } else {
+                                        iconIdCounter = 38; // 如果没有导入icons或者icons为空，则重置为默认值，或者你认为合适的起始值
+                                    }
                                 }
                                 this.importPopupVisible = false;
                             } catch (error) {
@@ -1904,6 +1931,7 @@ https://i0.hdslb.com/bfs/new_dyn/79aee60d45ff2e4940b4b7fe3dc0edb01767947324.jpg
                     }
                     this.closeImportPopup(); // 确保在非取消情况下关闭弹窗
                 },
+
 
 
 
