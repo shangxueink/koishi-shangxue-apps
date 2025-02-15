@@ -440,6 +440,7 @@ const Config = Schema.intersect([
     }).description('图片歌单设置'),
     Schema.object({
         enablemiddleware: Schema.boolean().description("是否自动解析JSON音乐卡片").default(false),
+        middleware: Schema.boolean().description("`enablemiddleware`是否使用前置中间件监听<br>`中间件无法接受到消息可以考虑开启`").default(false),
         used_command: Schema.union(['command1', 'command4', 'command5', 'command6', 'command7']).description("自动解析使用的指令<br>解析内容与下面对应的指令返回设置一致").default("command1"), // , 'command2'
         used_id: Schema.number().default(1).min(0).max(10).description("在歌单里默认选择的序号<br>范围`0-10`，无需考虑11-20，会自动根据JSON卡片的平台选择。若音乐平台不匹配 则在搜索项前十个进行选择。"),
     }).description('JSON卡片解析设置'),
@@ -674,10 +675,12 @@ function apply(ctx, config) {
                         // 确保元素类型为 'json' 并且有数据
                         if (element.type === 'json' && element.attrs && element.attrs.data) {
                             const jsonData = JSON.parse(element.attrs.data);
-                            logInfo(jsonData);
+                            logInfo(JSON.stringify(jsonData, null, 2));
+
 
                             // 检查是否存在 musicMeta 和 tag
-                            const musicMeta = jsonData?.meta?.music;
+                            const musicMeta = jsonData?.meta?.music || jsonData?.meta?.news; // 尝试兼容两种结构
+
                             if (musicMeta) {
                                 const tag = musicMeta.tag;
                                 const title = musicMeta.title;
@@ -690,7 +693,7 @@ function apply(ctx, config) {
                                 // 获取配置的指令名称
                                 let command = config.used_command;
                                 let commandName = config[command]; // 直接使用 config[command] 获取配置项的值
-
+                                logInfo(commandName);
                                 if (!commandName) {
                                     commandName = '歌曲搜索'; // 默认值，以防配置项不存在
                                     logger.error(`未找到配置项 ${command} 对应的指令名称，使用默认指令名称 '歌曲搜索'`);
@@ -736,7 +739,7 @@ function apply(ctx, config) {
                 }
                 // 如果没有匹配到任何 json 数据，继续下一个中间件
                 return next();
-            });
+            }, config.middleware);
         }
 
         ctx.command(name)
