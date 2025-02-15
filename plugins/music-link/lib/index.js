@@ -1191,28 +1191,22 @@ function apply(ctx, config) {
                         return h.text(session.text(`.songlisterror`)); // 返回错误提示
                     }
 
-                    // 静音
-                    const muteButton = await page.$('.btn-quiet');
-                    if (muteButton) {
-                        await muteButton.click(); // 点击静音按钮
-                        logInfo('已开启静音');
-                    } else {
-                        ctx.logger.error('未找到静音按钮');
+                    // 音量直接滑动到最左侧实现静音
+                    try {
+                        await page.evaluate(() => {
+                            const volumeSlider = document.querySelector('#volume-progress .mkpgb-dot');
+                            if (volumeSlider) {
+                                volumeSlider.style.left = '0%'; // 直接将音量滑块移动到最左侧
+                            }
+                        });
+                        logInfo('已将音量调至最低 (滑动音量条静音)');
+                    } catch (volumeSetError) {
+                        ctx.logger.warn('调整音量失败 (滑动音量条静音):', volumeSetError);
+                        ctx.logger.warn('跳过音量调整.');
                     }
 
-                    // 将音量调至最低
-                    await page.evaluate(() => {
-                        const volumeSlider = document.querySelector('#volume-progress .mkpgb-dot');
-                        if (volumeSlider) {
-                            volumeSlider.style.left = '0%'; // 将音量滑块移动到最左侧
-                        }
-                    });
-
-                    logInfo('已将音量调至最低');
                     // 等待 1500ms 确保页面完全加载 //config.command5_page_setTimeout
                     await new Promise(resolve => setTimeout(resolve, config.command5_page_setTimeout));
-
-
 
 
                     // 获取 .data-area 元素
