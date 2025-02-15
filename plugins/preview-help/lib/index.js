@@ -11,7 +11,7 @@ exports.reusable = true; // 声明此插件可重用
 const name = 'preview-help';
 const inject = {
     required: ['http', "i18n"],
-    optional: ['console', "puppeteer", 'server'] 
+    optional: ['console', "puppeteer", 'server']
 };
 const logger = new Logger('preview-help');
 
@@ -464,14 +464,17 @@ function apply(ctx, config) {
                         if (config.fontEnabled && config.fontURL) {
                             logInfo(session.text('.font.load.start', [config.fontURL]));
                             try {
-                                const fontURLInput = await logElementAction('.image-upload-content input[placeholder="字体 URL (.ttf)"]', '查找字体URL输入框');
-                                const addFontButton = await logElementAction('.image-upload-content button', '查找添加字体按钮');
+                                
+                                const fontURLInput = await logElementAction('.image-upload-content input[placeholder="绝对路径的 URL编码 (.ttf)"]', '查找字体URL输入框');
 
                                 await page.evaluate((inputElement, fontURL) => {
                                     inputElement.value = fontURL;
                                     inputElement.dispatchEvent(new Event('input', { bubbles: true })); // 触发输入事件
                                 }, fontURLInput, config.fontURL);
-                                await addFontButton.click();
+                                await page.evaluate(() => {
+                                    document.querySelector('.image-upload-content button').click();
+                                });
+
                                 logInfo(session.text('.font.load.success', [config.fontURL]));
 
                                 // 等待字体加载完成，这里可能需要更精确的判断方式，例如监听字体加载事件
@@ -552,9 +555,9 @@ function apply(ctx, config) {
                         logger.error(`渲染过程出错：`, error);
                         await session.send(h.text(session.text('.somerror')));
                     } finally {
-                        await page.close().catch(error => {
-                            logger.warn(`页面关闭失败：`, error);
-                        });
+                        // await page.close().catch(error => {
+                        //    logger.warn(`页面关闭失败：`, error);
+                        // });
                     }
 
                 } catch (error) {
