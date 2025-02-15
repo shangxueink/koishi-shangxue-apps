@@ -1,29 +1,31 @@
 {
-  "name": "koishi-plugin-preview-help",
-  "description": "[<ruby>交互图片菜单<rp>（</rp><rt>点我查看效果预览图</rt><rp>）</rp></ruby>](https://i0.hdslb.com/bfs/article/07fec85a1bb90656e8dbd163b7e2222f312276085.jpg)支持webUI编辑、导入导出配置、导出图片、指令渲染，可以help文本菜单转图片菜单。[点我查看使用方法](https://github.com/shangxueink/koishi-shangxue-apps/tree/main/plugins/preview-help)",
-  "version": "1.2.4",
+  "name": "koishi-plugin-music-link",
+  "description": "/*音乐下载*/🎵搜索音乐资源🤩提供QQ、网易云平台的音乐下载，付费的也可以欸？[点我查看使用方法](https://github.com/shangxueink/koishi-shangxue-apps/tree/main/plugins/music-link)",
+  "version": "1.6.13",
   "main": "lib/index.js",
   "typings": "lib/index.d.ts",
   "files": [
     "lib",
-    "help"
+    "dist"
   ],
   "license": "MIT",
   "keywords": [
     "chatbot",
     "koishi",
     "plugin",
-    "自定义编辑",
-    "图片菜单"
+    "下载音乐",
+    "QQ音乐",
+    "网易云",
+    "下载",
+    "免费",
+    "链接",
+    "music"
   ],
-  "homepage": "https://github.com/shangxueink/koishi-shangxue-apps/tree/main/plugins/preview-help",
+  "homepage": "https://github.com/shangxueink/koishi-shangxue-apps/tree/main/plugins/music-link",
   "bugs": {
     "url": "https://github.com/shangxueink/koishi-shangxue-apps/issues"
   },
   "peerDependencies": {
-    "koishi": "^4.16.0"
-  },
-  "devDependencies": {
-    "koishi": "^4.16.0"
+    "koishi": "^4.15.0"
   }
 }
