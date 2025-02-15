@@ -682,6 +682,10 @@ function apply(ctx, config) {
                                 const tag = musicMeta.tag;
                                 const title = musicMeta.title;
                                 const desc = musicMeta.desc;
+                                logInfo("---------");
+                                logInfo(tag);
+                                logInfo(title);
+                                logInfo(desc);
 
                                 // 获取配置的指令名称
                                 let command = config.used_command;
@@ -705,9 +709,9 @@ function apply(ctx, config) {
                                         await session.execute(`${commandName} ${songId}`);
                                         return; // 结束当前中间件处理
                                     } else {
-                                        logger.warn('未能在 jumpUrl 中找到歌曲 ID');
+                                        logger.error('未能在 jumpUrl 中找到歌曲 ID');
                                     }
-                                } else {
+                                } else if (command !== 'command6') { // 除了command6 都可以处理
                                     // 其他情况，按照原逻辑处理
                                     let usedId = config.used_id;
                                     if (tag === '网易云音乐') {
@@ -1279,18 +1283,21 @@ function apply(ctx, config) {
                     // 获取单曲数据
                     const songData = parsedApiResponse[0]; // 使用解析后的数据
                     //  logInfo("songData 对象 (JSON):", JSON.stringify(songData, null, 2));
-
+                    if (!songData || songData?.includes("unknown song")) {
+                        ctx.logger.error('网易单曲点歌插件出错， unknown song');
+                        // return h.text(session.text(`.somerror`));
+                    }
                     // 处理歌词
-                    if (songData.lrc) {
+                    if (songData?.lrc) {
                         try {
-                            const lrcResponse = await ctx.http.get(songData.lrc);
+                            const lrcResponse = await ctx.http.get(songData?.lrc);
                             songData.lrc = `\n${lrcResponse}`;
                         } catch (error) {
-                            ctx.logger.error(`获取歌词失败: ${songData.lrc}`, error);
-                            songData.lrc = `歌词获取失败: ${songData.lrc}`;
+                            ctx.logger.error(`获取歌词失败: ${songData?.lrc}`, error);
+                            songData.lrc = `歌词获取失败: ${songData?.lrc}`;
                         }
                     }
-                    logInfo("songData.url:", songData.url);
+                    logInfo("songData.url:", songData?.url);
 
                     const response = generateResponse(songData, config.command6_return_data_Field, config.deleteTempTime, tempFiles, fs, tempDir);
                     return response;
@@ -1317,37 +1324,25 @@ function apply(ctx, config) {
                 let kugouResponseData = [];
                 let neteaseResponseData = [];
                 let resolveKugouDataFetch, resolveNetEaseDataFetch;
+                let kugouDataFetched = false;
+                let neteaseDataFetched = false;
 
                 const kugouDataFetchPromise = new Promise(resolve => resolveKugouDataFetch = resolve);
                 const neteaseDataFetchPromise = new Promise(resolve => resolveNetEaseDataFetch = resolve);
-                const allDataFetchPromise = Promise.all([kugouDataFetchPromise, neteaseDataFetchPromise]);
+                // const allDataFetchPromise = Promise.all([kugouDataFetchPromise, neteaseDataFetchPromise]);
+
+                // 添加一个超时 Promise，如果在指定时间内没有获取到数据，则 reject
+                const timeoutPromise = new Promise((resolve, reject) => {
+                    setTimeout(() => {
+                        reject(new Error('超时未获取到足够的数据'));
+                    }, 30000); // 设置超时时间为 30 秒
+                });
 
 
                 try {
                     kugouPage = await ctx.puppeteer.page();
                     neteasePage = await ctx.puppeteer.page();
 
-
-                    kugouPage.on('response', async response => {
-                        const url = response.url();
-                        if (url === 'https://dev.iw233.cn/Music1/') {
-                            const contentType = response.headers()['content-type'];
-                            if (contentType && contentType.includes('json')) {
-                                try {
-                                    const json = await response.json();
-                                    if (json && json.data) {
-                                        kugouResponseData.push(...json.data);
-                                    }
-                                } catch (error) {
-                                    ctx.logger.debug('酷狗 - 解析网络响应 JSON 失败', error);
-                                } finally {
-                                    if (kugouResponseData.length >= config.command7_searchList / 2) { // 每个平台获取一半数量
-                                        resolveKugouDataFetch();
-                                    }
-                                }
-                            }
-                        }
-                    });
 
                     neteasePage.on('response', async response => {
                         const url = response.url();
@@ -1360,15 +1355,44 @@ function apply(ctx, config) {
                                         neteaseResponseData.push(...json.data);
                                     }
                                 } catch (error) {
-                                    ctx.logger.debug('网易云 - 解析网络响应 JSON 失败', error);
+                                    ctx.logger.error('网易云 - 解析网络响应 JSON 失败', error);
                                 } finally {
-                                    if (neteaseResponseData.length >= config.command7_searchList / 2) { // 每个平台获取一半数量
-                                        resolveNetEaseDataFetch();
-                                    }
+                                    neteaseDataFetched = true;
+                                    resolveNetEaseDataFetch();
+                                    // if (neteaseResponseData.length >= config.command7_searchList / 2) { // 每个平台获取一半数量
+                                    //     resolveNetEaseDataFetch();
+                                    // }
                                 }
                             }
                         }
                     });
+
+                    kugouPage.on('response', async response => {
+                        const url = response.url();
+                        logInfo(url)
+                        if (url === 'https://dev.iw233.cn/Music1/') {
+
+                            const contentType = response.headers()['content-type'];
+                            logInfo(contentType)
+                            if (contentType && contentType.includes('json')) {
+                                try {
+                                    const json = await response.json();
+                                    if (json && json.data) {
+                                        kugouResponseData.push(...json.data);
+                                    }
+                                } catch (error) {
+                                    ctx.logger.error('酷狗 - 解析网络响应 JSON 失败', error);
+                                } finally {
+                                    kugouDataFetched = true;
+                                    resolveKugouDataFetch();
+                                    // if (kugouResponseData.length >= config.command7_searchList / 2) { // 每个平台获取一半数量
+                                    //     resolveKugouDataFetch();
+                                    // }
+                                }
+                            }
+                        }
+                    });
+
 
 
                     // 同时打开两个平台的搜索页面
@@ -1378,8 +1402,8 @@ function apply(ctx, config) {
                     ]);
 
 
-                    await allDataFetchPromise; // 等待两个平台的数据都获取完成
-
+                    // await allDataFetchPromise; // 等待两个平台的数据都获取完成
+                    await Promise.race([Promise.all([kugouDataFetchPromise, neteaseDataFetchPromise]), timeoutPromise]); // 竞速等待
 
                     const combinedData = [...neteaseResponseData, ...kugouResponseData];
                     if (combinedData.length !== 0) {
@@ -1392,6 +1416,8 @@ function apply(ctx, config) {
                     } else {
                         return h.text(session.text(`.songlisterror`));
                     }
+
+
                     // 根据 config.command7_searchList 截取总数，防止超出预期
                     const finalCombinedData = combinedData.slice(0, config.command7_searchList);
 
@@ -1441,9 +1467,10 @@ function apply(ctx, config) {
                     if (!selectedSong) {
                         return h.text(session.text(`.noplatform`));
                     }
-
                     // 返回自定义字段
                     const response = generateResponse(selectedSong, config.command7_return_data_Field, config.deleteTempTime, tempFiles, fs, tempDir);
+
+                    logInfo(response)
                     return response;
 
                 } catch (error) {
@@ -1458,6 +1485,8 @@ function apply(ctx, config) {
                     }
                 }
             });
+
+
 
 
 
