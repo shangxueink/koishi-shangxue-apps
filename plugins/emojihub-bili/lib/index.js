@@ -91,7 +91,6 @@ exports.Config = Schema.intersect([
     })).role('table').default(defaultMoreEmojiHubList)
       .description('表情包指令映射表<br>▶ 若丢失了旧版本`MoreEmojiHub`配置 请先回退到 1.3.0 版本<br>▶ 若出现配置问题 请点击右方按钮 可以恢复到默认值<br>右列`文件地址`可以填入`txt绝对路径`、`文件夹绝对路径`、`图片直链`、`图片文件绝对路径`。支持格式 详见[➩项目README](https://github.com/shangxueink/koishi-shangxue-apps/tree/main/plugins/emojihub-bili)'),
 
-    searchSubfolders: Schema.boolean().description("是否递归搜索文件夹。`开启后 对于本地文件夹地址 会搜索其子文件夹内全部的图片`").default(true),
     deleteMsg: Schema.boolean().description("`开启后`自动撤回表情").default(false),
   }).description('表情包设置'),
 
@@ -108,6 +107,11 @@ exports.Config = Schema.intersect([
       Schema.const('channelId').description('按频道ID区分'),
       Schema.const('userId').description('按用户ID区分'),
     ]).role('radio').default("channelId").description('`再来一张`指令的区分逻辑。<br>按频道ID区分：触发指令后发送当前频道最后触发的表情包<br>按用户ID区分：触发指令后发送当前用户最后触发的表情包'),
+
+    searchSubfolders: Schema.boolean().description("本地发图，输入提供文件名称参数时，是否递归搜索文件夹。<br>`开启后 对于本地文件夹地址 会搜索其子文件夹内全部的图片`").default(true),
+    localPictureToName: Schema.string().role('textarea', { rows: [4, 4] })
+      .description("对于本地图片/文件，是否输出文件名<br>仅图片：`${IMAGE}`<br>图+文件名：`${IMAGE}\\n${NAME}`<br>文件名+图：`${NAME}\\n${IMAGE}`<br>文本+变量：`今天你的幸运神：${NAME}\\n${IMAGE}`<br>`\\n`就是换行，可以写字也可以直接回车。<br>可用替换变量有：IMAGE、 NAME、 SIZE、 TIME、 PATH<br>仅对指令发送本地图片有效。<br>更多说明，详见[➩项目README](https://github.com/shangxueink/koishi-shangxue-apps/tree/main/plugins/emojihub-bili)")
+      .default("${IMAGE}"),
   }).description('进阶设置'),
 
   Schema.object({
@@ -323,14 +327,19 @@ exports.Config = Schema.intersect([
     Schema.object({}),
   ]),
 
+
   Schema.object({
     LocalSendNetworkPicturesList: Schema.string().role('textarea', { rows: [2, 4] }).description('将`下列指令`对应的内容下载至本地，作为本地图片发送<br>请使用逗号分隔指令').default().experimental(),
     deletePictime: Schema.number().default(10).description('若干`秒`后 删除下载的本地临时文件').experimental(),
     localPicToBase64: Schema.boolean().description("`开启后`本地图片以base64发出 `日常使用无需开启，且不建议官方bot使用`").experimental().default(false),
     QQPicToChannelUrl: Schema.boolean().description("`开启后`， `img_url`会先上传QQ频道，拿到频道URL，用于发送markdown<br>被动md需要URL白名单，用这个也没效果。<br>仅对原生发本地文件夹的图有意义。").experimental().default(false),
     QQchannelId: Schema.string().description('`填入QQ频道的频道ID`，将该ID的频道作为中转频道 <br> 频道ID可以用[inspect插件来查看](/market?keyword=inspect) `频道ID应为纯数字`').experimental().pattern(/^\S+$/),
-    consoleinfo: Schema.boolean().default(false).description("日志调试模式`日常使用无需开启`"),
   }).description('调试选项'),
+
+
+  Schema.object({
+    consoleinfo: Schema.boolean().default(false).description("日志调试模式`日常使用无需开启`"),
+  }).description('日志调试选项'),
   Schema.union([
     Schema.object({
       consoleinfo: Schema.const(true).required(),
@@ -339,9 +348,6 @@ exports.Config = Schema.intersect([
     Schema.object({})
   ]),
 ])
-
-
-
 
 /**
  * 刷新机器人的令牌并上传图片到指定频道
@@ -411,6 +417,15 @@ async function getImageAsBase64(imagePath) {
 }
 
 async function determineImagePath(txtPath, config, channelId, command, ctx, local_picture_name = null) {
+  // 判断是否是本地文件夹的绝对路径 (优先判断文件夹，解决linux路径识别问题)
+  if (isLocalDirectory(txtPath)) {
+    let filePath = txtPath;
+    if (txtPath.startsWith('file:///')) {
+      filePath = decodeURIComponent(txtPath.substring(8)); // 去除 file:/// 并解码 URL
+    }
+    return await getRandomImageFromFolder(filePath, config, channelId, command, ctx, local_picture_name);
+  }
+
   // 判断是否是直接的图片链接
   if (txtPath.startsWith('http://') || txtPath.startsWith('https://')) {
     logInfoformat(config, channelId, command, `直接的图片链接: ${txtPath}`);
@@ -428,17 +443,17 @@ async function determineImagePath(txtPath, config, channelId, command, ctx, loca
       return { imageUrl: null, isLocal: false };
     }
     logInfoformat(config, channelId, command, `本地图片的绝对路径: ${txtPath}`);
-    return { imageUrl: filePath, isLocal: true };
+    const stats = fs.statSync(filePath);
+    return {
+      imageUrl: filePath,
+      isLocal: true,
+      imageName: path.basename(filePath), // 文件名称
+      imageTime: stats.mtime, // 修改时间
+      imageSize: stats.size,   // 文件大小
+      imagePath: filePath     // 文件路径 
+    };
   }
 
-  // 判断是否是本地文件夹的绝对路径
-  if (isLocalDirectory(txtPath)) {
-    let filePath = txtPath;
-    if (txtPath.startsWith('file:///')) {
-      filePath = decodeURIComponent(txtPath.substring(8)); // 去除 file:/// 并解码 URL
-    }
-    return await getRandomImageFromFolder(filePath, config, channelId, command, ctx, local_picture_name);
-  }
 
   // 判断是否是本地txt文件的绝对路径
   if (isLocalTextFile(txtPath)) {
@@ -483,9 +498,21 @@ async function determineImagePath(txtPath, config, channelId, command, ctx, loca
       filePath = decodeURIComponent(txtPath.substring(8)); // 去除 file:/// 并解码 URL
     }
     logInfoformat(config, channelId, command, `随机选择的本地图片路径: ${txtPath}`);
-    return { imageUrl: filePath, isLocal: true };
+    const stats = fs.statSync(imageUrl);
+    return {
+      imageUrl: imageUrl,
+      isLocal: true,
+      imageName: path.basename(imageUrl),
+      imageTime: stats.mtime, // 修改时间
+      imageSize: stats.size,   // 文件大小
+      imagePath: imageUrl      // 文件路径
+    };
   }
 }
+
+
+
+
 
 function getRandomEmojiHubCommand(config) {
   const commands = config.MoreEmojiHubList.map(emoji => emoji.command);
@@ -581,7 +608,15 @@ async function getRandomImageFromFolder(folderPath, config, channelId, command, 
 
   const imageUrl = files[Math.floor(Math.random() * files.length)];
   logInfoformat(config, channelId, command, `使用文件夹 ${folderPath} \n发送本地图片为 ${imageUrl}`);
-  return { imageUrl: imageUrl, isLocal: true };
+  const stats = fs.statSync(imageUrl);
+  return {
+    imageUrl: imageUrl,
+    isLocal: true,
+    imageName: path.basename(imageUrl),
+    imageTime: stats.mtime, // 修改时间
+    imageSize: stats.size,   // 文件大小
+    imagePath: imageUrl      // 文件路径
+  };
 }
 
 async function getRandomImageUrlFromFile(txtPath, config, channelId, command, ctx) {
@@ -639,7 +674,7 @@ async function getRandomImageUrlFromFile(txtPath, config, channelId, command, ct
       const outputPath = path.join(__dirname, `${Date.now()}.png`); // 临时文件
       try {
         imageUrl = await downloadImage(txtUrl, outputPath, ctx);
-        setTimeout(() => {
+        ctx.setTimeout(() => {
           fs.unlinkSync(imageUrl);
           logInfoformat(config, null, null, `临时文件已删除：${imageUrl}`);
         }, config.deletePictime * 1000);
@@ -703,8 +738,8 @@ function listAllCommands(config) {
 function apply(ctx, config) {
   const emojihub_bili_codecommand = config.emojihub_bili_command;
 
-  function applyI18n(emojihub_bili_codecommand) {
-    return {
+  ctx.i18n.define("zh-CN",
+    {
       commands: {
         [emojihub_bili_codecommand]: {
           description: `${emojihub_bili_codecommand}表情包功能`,
@@ -726,11 +761,8 @@ function apply(ctx, config) {
           }
         }
       }
-    };
-  }
-
-  const zh_CN_default = applyI18n(emojihub_bili_codecommand);
-  ctx.i18n.define("zh-CN", zh_CN_default);
+    }
+  );
 
   const lastCommandByChannel = {};
 
@@ -1036,13 +1068,19 @@ function apply(ctx, config) {
               }
             } else {
               if (imageResult.isLocal) {
-                if (config.localPicToBase64) {
-                  let imagebase64 = await getImageAsBase64(imageResult.imageUrl);
-                  message = await session.send(h('image', { url: 'data:image/png;base64,' + imagebase64 }));
-                } else {
-                  const imageUrl = url.pathToFileURL(imageResult.imageUrl).href;
-                  message = await session.send(h.image(imageUrl));
-                }
+                const format = config.localPictureToName;
+                logInfo(imageResult.imageName)
+                const context = {
+                  IMAGE: h.image(imageResult.imageUrl),
+                  NAME: imageResult.imageName,
+                  TIME: imageResult.imageTime,
+                  SIZE: imageResult.imageSize,
+                  PATH: imageResult.imagePath,
+                };
+                const messageContent = replacePlaceholders(format, context);
+                logInfo("变量替换本地文件名称，messageContent：")
+                logInfo(messageContent)
+                message = await session.send(h.unescape(`${messageContent}`.replace(/\\n/g, '\n')));
               } else {
                 message = await session.send(h.image(imageResult.imageUrl));
               }
@@ -1063,7 +1101,7 @@ function apply(ctx, config) {
             }
 
             if (config.deleteMsg) {
-              setTimeout(async () => {
+              ctx.setTimeout(async () => {
                 try {
                   await session.bot.deleteMessage(session.channelId, message);
                 } catch (error) {
@@ -1178,7 +1216,7 @@ function apply(ctx, config) {
                   let sentMessage = await session.send(message);
                   // 如果需要撤回消息
                   if (config.deleteMsg) {
-                    setTimeout(async () => {
+                    ctx.setTimeout(async () => {
                       try {
                         await session.bot.deleteMessage(session.channelId, sentMessage);
                       } catch (error) {
@@ -1274,7 +1312,7 @@ function apply(ctx, config) {
 
                     // 如果需要撤回消息
                     if (config.deleteMsg) {
-                      setTimeout(async () => {
+                      ctx.setTimeout(async () => {
                         try {
                           await bot.deleteMessage(channelId, message);
                         } catch (error) {
