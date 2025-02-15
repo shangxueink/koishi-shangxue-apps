@@ -13,19 +13,43 @@ const inject = {
 };
 const logger = new Logger('music-link');
 const usage = `
-<h2>使用方法</h2>
+<h2>插件说明 - Music Link</h2>
 <hr>
+
+<details>
+<summary><h3>使用方法 (点击展开)</h3></summary>
 
 <p>安装并配置插件后，使用下述命令搜索和下载音乐：</p>
 <hr>
 
 <h3>使用星之阁API搜索QQ、网易云音乐</h3>
 <pre><code>下载音乐 [keywords]</code></pre>
+<p><b>(不推荐)</b> 星之阁API，需要加群申请API Key，且API Key可能存在失效风险。支持QQ音乐和网易云音乐，速度较慢，稳定性一般。</p>
 <hr>
 
-<h3>使用music.gdstudio.xyz搜索各大音乐</h3>
-<pre><code>歌曲搜索 [keywords]</code></pre>
+<h3>使用星之阁-酷狗API搜索酷狗音乐</h3>
+<pre><code>酷狗音乐 [keywords]</code></pre>
+<p><b>(不推荐)</b> 星之阁-酷狗API，需要加群申请API Key，且API Key可能存在失效风险。仅支持酷狗音乐，速度较慢，稳定性一般。</p>
 <hr>
+
+<h3>使用music.gdstudio.xyz网站搜索各大音乐平台</h3>
+<pre><code>歌曲搜索 [keywords]</code></pre>
+<p><b>(一般推荐)</b> music.gdstudio.xyz 网站，无需API Key，但需要 <b>puppeteer</b> 服务支持进行网页爬取，速度较慢，资源占用较高。默认使用网易云音乐搜索，支持多平台选择。</p>
+<hr>
+
+<h3>使用api.injahow.cn网站搜索网易云音乐</h3>
+<pre><code>网易点歌 [歌曲名称/歌曲ID]</code></pre>
+<p><b>(强烈推荐)</b> api.injahow.cn 网站，API请求快速且稳定，无需 puppeteer 服务。<b>仅支持网易云音乐</b>，可以通过歌曲名称或歌曲ID进行搜索。</p>
+<hr>
+
+<h3>使用dev.iw233.cn网站搜索网易云 + 酷狗音乐</h3>
+<pre><code>音乐搜索器 [keywords]</code></pre>
+<p><b>(推荐)</b> dev.iw233.cn 网站，无需API Key，但需要 <b>puppeteer</b> 服务支持进行网页爬取，速度较慢，资源占用较高。支持网易云音乐和酷狗音乐双平台搜索。</p>
+<hr>
+
+</details>
+
+---
 
 <h3>如果需要让歌曲链接返回为语音消息/视频消息</h3>
 <p>可以修改对应指令的返回字段表中的下载链接对应的 <code>type</code> 字段，把 <code>text</code> 更改为 <code>audio</code> 就是返回语音，改为 <code>video</code> 就是返回视频消息。</p>
@@ -39,12 +63,29 @@ const usage = `
 <p>例如，使用以下命令可以直接获取第一首歌曲的详细信息：</p>
 <pre><code>歌曲搜索 -n 1 蔚蓝档案</code></pre>
 
+
 ---
 
-## 目前 星之阁API的key已经失效，如需使用请自行前往注册
+## 重要提示⚠️
 
-## 目前 推荐使用新指令<code>歌曲搜索</code>，请确保<code>puppeteer</code>服务可用
+### 目前 星之阁API的key已经失效，如需使用请自行前往注册
+
+### 目前 推荐使用新指令<code>歌曲搜索</code>，请确保<code>puppeteer</code>服务可用
+
+---
+
+## 后端推荐度：
+
+ⅰ . <code>api.injahow.cn (网易点歌)</code> >
+
+ - ⅱ . <code>dev.iw233.cn (音乐搜索器)</code> >=
+
+     - ⅲ . <code>music.gdstudio.xyz (歌曲搜索)</code> >
+
+        - ⅳ . <code>星之阁API (下载音乐/酷狗音乐)</code>
 `;
+
+
 
 const command1_return_qqdata_Field_default = [
     {
@@ -526,7 +567,7 @@ const Config = Schema.intersect([
             Schema.const('command7').description('command7：`dev.iw233.cn` 网站（需puppeteer爬取 较慢）（网易云 + 酷狗）'),
             // Schema.const('command8').description('command8（龙珠API）'),
         ]).role('radio').default("command6")
-        .description('选择使用的后端<br>➣ 推荐度：`api.injahow.cn` > `dev.iw233.cn` >= `music.gdstudio.xyz` > `星之阁API`'),
+            .description('选择使用的后端<br>➣ 推荐度：`api.injahow.cn` > `dev.iw233.cn` >= `music.gdstudio.xyz` > `星之阁API`'),
     }).description('后端选择'),
     Schema.union([
         Schema.object({
@@ -718,11 +759,7 @@ function apply(ctx, config) {
 
         ctx.i18n.define("zh-CN", {
             commands: {
-                [name]: {
-                    description: `下载音乐`,
-                    messages: {
-                    }
-                }, [config.command1]: {
+                [config.command1]: {
                     description: `搜索歌曲`,
                     messages: {
                         "nokeyword": "请输入歌曲相关信息。\n➣示例：/music 蔚蓝档案",
@@ -1371,14 +1408,15 @@ function apply(ctx, config) {
         if (config.serverSelect === "command6") {
             ctx.command(`${config.command6} <keyword:text>`)
                 .example("网易点歌 2608813264")
-                .example("网易点歌 蔚蓝档案") // 添加歌名搜索的示例
+                .example("网易点歌 蔚蓝档案")
+                .option('number', '-n <number:number> 歌曲序号')
                 .action(async ({ session, options }, keyword) => {
                     if (!keyword) return h.text(session.text(`.nokeyword`));
 
                     // 尝试判断输入是否为歌曲ID (纯数字)
                     const isSongId = /^\d+$/.test(keyword.trim());
 
-                    if (isSongId) {
+                    if (isSongId && !options.number) { // 指定了 -n 当然是因为有列表啦 
                         // 如果是歌曲ID，则直接使用原有的ID点歌逻辑
                         try {
                             // 请求 API 获取单曲数据
@@ -1451,33 +1489,37 @@ function apply(ctx, config) {
                                     albumName: song.album.name
                                 };
                             });
+                            let input = options.number;
 
-                            // 格式化歌单供用户选择
-                            const formattedList = songList.map((song, index) => `${index + 1}. ${song.name} - ${song.artists} - ${song.albumName}`).join('<br />');
-                            const exitCommands = config.exitCommand.split(/[,，]/).map(cmd => cmd.trim());
-                            const exitCommandTip = config.menuExitCommandTip ? `退出选择请发[${exitCommands}]中的任意内容<br /><br />` : '';
-                            let quoteId = session.messageId;
+                            if (!options.number) {
+                                // 格式化歌单供用户选择
+                                const formattedList = songList.map((song, index) => `${index + 1}. ${song.name} - ${song.artists} - ${song.albumName}`).join('<br />');
+                                const exitCommands = config.exitCommand.split(/[,，]/).map(cmd => cmd.trim());
+                                const exitCommandTip = config.menuExitCommandTip ? `退出选择请发[${exitCommands}]中的任意内容<br /><br />` : '';
+                                let quoteId = session.messageId;
 
-                            if (config.imageMode) {
-                                const imageBuffer = await generateSongListImage(ctx.puppeteer, formattedList);
-                                const payload = [
-                                    h.image(imageBuffer, 'image/png'),
-                                    h.text(`${exitCommandTip.replaceAll('<br />', '\n')}${h.text(session.text(`.waitTime`, [config.waitTimeout]))}`),
-                                ];
-                                const msg = await session.send(payload);
-                                quoteId = msg.at(-1);
-                            } else {
-                                const msg = await session.send(`${formattedList}<br /><br />${exitCommandTip}${h.text(session.text(`.waitTime`, [config.waitTimeout]))}`);
-                                quoteId = msg.at(-1);
+                                if (config.imageMode) {
+                                    const imageBuffer = await generateSongListImage(ctx.puppeteer, formattedList);
+                                    const payload = [
+                                        h.image(imageBuffer, 'image/png'),
+                                        h.text(`${exitCommandTip.replaceAll('<br />', '\n')}${h.text(session.text(`.waitTime`, [config.waitTimeout]))}`),
+                                    ];
+                                    const msg = await session.send(payload);
+                                    quoteId = msg.at(-1);
+                                } else {
+                                    const msg = await session.send(`${formattedList}<br /><br />${exitCommandTip}${h.text(session.text(`.waitTime`, [config.waitTimeout]))}`);
+                                    quoteId = msg.at(-1);
+                                }
+
+                                input = await session.prompt(config.waitTimeout * 1000);
+                                if (!input) {
+                                    return quoteId ? h.quote(quoteId) : '' + h.text(session.text(`.waitTimeout`));
+                                }
+                                if (exitCommands.includes(input)) {
+                                    return h.text(session.text(`.exitprompt`));
+                                }
                             }
 
-                            const input = await session.prompt(config.waitTimeout * 1000);
-                            if (!input) {
-                                return quoteId ? h.quote(quoteId) : '' + h.text(session.text(`.waitTimeout`));
-                            }
-                            if (exitCommands.includes(input)) {
-                                return h.text(session.text(`.exitprompt`));
-                            }
                             const serialNumber = +input;
                             if (Number.isNaN(serialNumber) || serialNumber < 1 || serialNumber > songList.length) {
                                 return h.text(session.text(`.invalidNumber`));
