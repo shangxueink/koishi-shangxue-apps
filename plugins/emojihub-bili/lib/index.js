@@ -1067,9 +1067,25 @@ function apply(ctx, config) {
                 await sendmarkdownMessage(session, message);
               }
             } else {
-              if (imageResult.isLocal) {
+              if (imageResult.isLocal && config.localPicToBase64) {// 本地图片 + base64发出
                 const format = config.localPictureToName;
-                logInfo(imageResult.imageName)
+                logInfo(imageResult.imageUrl)
+                let imagebase64 = await getImageAsBase64(imageResult.imageUrl);
+                const context = {
+                  IMAGE: h('image', { url: 'data:image/png;base64,' + imagebase64 }),
+                  NAME: imageResult.imageName,
+                  TIME: imageResult.imageTime,
+                  SIZE: imageResult.imageSize,
+                  PATH: imageResult.imagePath,
+                };
+                const messageContent = replacePlaceholders(format, context);
+                logInfo("变量替换本地文件名称，messageContent： base64太长了不打印了")
+                // logInfo(messageContent)
+                message = await session.send(h.unescape(`${messageContent}`.replace(/\\n/g, '\n')));
+
+              } else if (imageResult.isLocal) {// 本地图片 + 绝对路径
+                const format = config.localPictureToName;
+                logInfo(imageResult.imageUrl)
                 const context = {
                   IMAGE: h.image(imageResult.imageUrl),
                   NAME: imageResult.imageName,
@@ -1081,7 +1097,8 @@ function apply(ctx, config) {
                 logInfo("变量替换本地文件名称，messageContent：")
                 logInfo(messageContent)
                 message = await session.send(h.unescape(`${messageContent}`.replace(/\\n/g, '\n')));
-              } else {
+
+              } else { // 网络图片
                 message = await session.send(h.image(imageResult.imageUrl));
               }
 
