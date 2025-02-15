@@ -180,6 +180,7 @@ exports.Config = Schema.intersect([
 
 
   Schema.object({
+    commandName: Schema.string().description('指令名称').default('保存图片'),
     showSavePath: Schema.boolean().description("保存成功后，告知具体文件保存路径，关闭后只会回复`图片已成功保存。`").default(false),
     checkDuplicate: Schema.boolean().description("开启后将检查重名文件，避免覆盖，若同名，则在文件名后加`(1)`,`(2)`... ...").default(true),
     imageSaveMode: Schema.boolean().description("开启后，默认选择了第一行的文件夹，可以缺省路径参数<br>当然也支持输入路径参数<br>[此配置项效果图](https://i0.hdslb.com/bfs/article/1d34ae45de7e3c875eec0caee5444149312276085.png)").default(false),
@@ -191,11 +192,15 @@ exports.Config = Schema.intersect([
 
 
   Schema.object({
-    ImageExtension: Schema.array(Schema.object({
-      prefix: Schema.string().description('前缀'),
-      suffix: Schema.string().description('后缀'),
-      extension: Schema.union(['.jpg', '.png', '.gif', '.jpeg', '.webp', '.bmp']).description('扩展名'),
-    })).experimental().role('table').default([{ "extension": ".png" }])
+    ImageExtension: Schema.array(
+      Schema.object(
+        {
+        prefix: Schema.string().description('前缀'),
+        suffix: Schema.string().description('后缀'),
+        extension: Schema.union(['.jpg', '.png', '.gif', '.jpeg', '.webp', '.bmp']).description('扩展名'),
+        }
+      )
+    ).experimental().role('table').default([{ "extension": ".png" }])
       .description('图片`保存`时的`命名格式`、默认`扩展名`<br>▶仅第一行视为有效配置<br>前缀后缀对所有保存图片的名称生效，扩展名可以通过指令选项自定义<br><hr style="border: 2px solid red;">配置方法：变量请使用`${}`代替。<br>可用变量有：`session`、 `config`<br>日期：`YYYY`、 `MM`、 `DD`<br>随机数字：`A`、 `BB`、 `CCC`<br>▶详细说明 [请参考README](https://www.npmjs.com/package/koishi-plugin-image-save-path)'),
     autoRenameRules: Schema.string().role('textarea', { rows: [2, 4] }).default("${YYYY}-${MM}-${DD}-${BB}-${BB}-${BB}-${CCC}").experimental()
       .description("图片`自动重命名`时使用的名称格式<br>与上个配置项语法一致 支持使用变量替换"),
@@ -248,7 +253,8 @@ function apply(ctx, config) {
   // 本地化支持
   const applyI18nresult = {
     commands: {
-      "保存图片": {
+      // "保存图片": {
+      [config.commandName]: {
         description: "保存图片到指定路径",
         messages: {
           "image_save_notfound_image": "请回复带有图片的消息。",
@@ -354,7 +360,8 @@ function apply(ctx, config) {
 
 
 
-  ctx.command('保存图片 [参数...]')
+  // ctx.command('保存图片 [参数...]')
+  ctx.command(`${config.commandName} [参数...]`)
     .option('ext', '-e <ext:string> 指定图片后缀名')
     .option('name', '-n <name:string> 严格指定图片重命名')
     .action(async ({ session, options }, ...args) => {
