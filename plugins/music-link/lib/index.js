@@ -1,2037 +1,571 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.apply = exports.Config = exports.usage = exports.inject = exports.name = void 0;
-const { Schema, Logger, h } = require("koishi");
-const fs = require('node:fs/promises');
-const path = require('node:path');
-const url = require('node:url');
-const crypto = require('node:crypto');
-const name = 'music-link';
+const fs = require('node:fs');
+const url = require("node:url");
+const path = require("node:path");
+const { stat, readdir } = require('fs/promises');
+const { Schema, Logger, h, noop } = require("koishi");
+
+exports.reusable = true; // 声明此插件可重用
+const name = 'preview-help';
 const inject = {
     required: ['http', "i18n"],
-    optional: ['puppeteer'],
+    optional: ['console', "puppeteer", 'server']
 };
-const logger = new Logger('music-link');
+const logger = new Logger('preview-help');
+
+const htmlPath = path.join(__dirname, '../help/index.html');
 const usage = `
-<h2>使用方法</h2>
-<hr>
+<h3>使用指南</h3>
+<p><strong>推荐使用【渲染图片菜单】模式，
 
-<p>安装并配置插件后，使用下述命令搜索和下载音乐：</p>
-<hr>
+特别是【返回渲染图片菜单（自定义json配置）】模式，以获得最佳的展示效果和自定义能力。</strong></p>
 
-<h3>使用星之阁API搜索QQ、网易云音乐</h3>
-<pre><code>下载音乐 [keywords]</code></pre>
-<hr>
-
-<h3>使用music.gdstudio.xyz搜索各大音乐</h3>
-<pre><code>歌曲搜索 [keywords]</code></pre>
-<hr>
-
-<h3>如果需要让歌曲链接返回为语音消息/视频消息</h3>
-<p>可以修改对应指令的返回字段表中的下载链接对应的 <code>type</code> 字段，把 <code>text</code> 更改为 <code>audio</code> 就是返回语音，改为 <code>video</code> 就是返回视频消息。</p>
-<hr>
-
-<p>需要注意的是，当配置返回格式为音频/视频的时候，请自行检查是否安装了 <code>silk</code>、<code>ffmpeg</code> 等服务。</p>
-<hr>
-
-<h3>使用 <code>-n 1</code> 直接返回内容</h3>
-<p>在使用命令时，可以通过添加 <code>-n 1</code> 选项直接返回指定序号的歌曲内容。这对于快速获取特定歌曲非常有用。</p>
-<p>例如，使用以下命令可以直接获取第一首歌曲的详细信息：</p>
-<pre><code>歌曲搜索 -n 1 蔚蓝档案</code></pre>
+<h4>🚀快速开始</h4>
+<ol>
+<li><strong>编辑菜单模板：</strong> 您可以在活动栏【帮助预览】页面编辑 HTML 模板，自定义菜单的样式和布局并且导出JSON配置文件以供本插件使用。</li>
+<li><strong>配置插件：</strong> 在 Koishi 控制面板中配置 <code>preview-help</code> 插件，选择合适的菜单模式并根据需要进行其他配置。</li>
+<li><strong>使用指令：</strong> 在 Koishi 中使用您配置的指令名称 (默认为 "帮助菜单") 即可查看预览的帮助菜单。</li>
+</ol>
 
 ---
 
-## 目前 星之阁API的key已经失效，如需使用请自行前往注册
+<p>推荐使用webUI交互生成你喜欢的菜单图片，并且导出JSON配置，用于配置本插件。</p>
+<p>当然也可以把渲染好的菜单图片保存，使用本插件的图片返回功能等</p>
 
-## 目前 推荐使用新指令<code>歌曲搜索</code>，请确保<code>puppeteer</code>服务可用
+webUI 交互 请见 ➤ <a href="/help/index.html" target="_blank">/help/index.html</a>
+
+
+---
+
+<h4>⚙️高级设置</h4>
+<p><strong>字体设置：</strong> 您可以在插件配置中启用自定义字体，并指定字体 URL。启用后，插件在渲染菜单时会尝试加载您提供的字体。</p>
+<p><strong>缓存设置：</strong> 开启缓存功能后，对于配置和 help 菜单内容不变的情况，插件会直接使用缓存的 PNG 图片，提高响应速度。关闭缓存则每次调用都会重新渲染。</p>
+<p><strong>调试日志：</strong> 开启日志调试开关后，插件会在控制台输出更详细的日志信息，用于问题排查。</p>
+
+
+---
+
+
+本地文件地址：
+<p>
+  <a href="${htmlPath.replace(/\\/g, '/')} " target="_blank">${htmlPath.replace(/\\/g, '/')} </a>
+</p>
+
+<p>
+  <button onclick="navigator.clipboard.writeText('${htmlPath.replace(/\\/g, '/')}')">点我复制文件地址</button>
+</p>
+
+## <a href="/help/index.html" target="_blank">菜单 webUI 交互 请点击这里 ➤ /help/index.html</a>
+
+---
 `;
 
-const command1_return_qqdata_Field_default = [
-    {
-        "data": "songname",
-        "describe": "歌曲名称",
-        "type": "text"
-    },
-    {
-        "data": "subtitle",
-        "describe": "标题",
-        "type": "text",
-        "enable": false
-    },
-    {
-        "data": "name",
-        "describe": "歌手",
-        "type": "text",
-    },
-    {
-        "data": "album",
-        "describe": "专辑",
-        "type": "text",
-        "enable": false
-    },
-    {
-        "data": "pay",
-        "describe": "付费情况",
-        "type": "text",
-        "enable": false
-    },
-    {
-        "data": "song_type",
-        "describe": "歌曲类型",
-        "type": "text",
-        "enable": false
-    },
-    {
-        "data": "type",
-        "describe": "类型",
-        "type": "text",
-        "enable": false
-    },
-    {
-        "data": "songid",
-        "describe": "歌曲ID",
-        "type": "text",
-        "enable": false
-    },
-    {
-        "data": "mid",
-        "describe": "mid",
-        "type": "text",
-        "enable": false
-    },
-    {
-        "data": "time",
-        "describe": "发行时间",
-        "type": "text",
-        "enable": false
-    },
-    {
-        "data": "bpm",
-        "describe": "bpm",
-        "type": "text",
-        "enable": false
-    },
-    {
-        "data": "quality",
-        "describe": "音质",
-        "type": "text"
-    },
-    {
-        "data": "interval",
-        "describe": "时长",
-        "type": "text",
-        "enable": false
-    },
-    {
-        "data": "size",
-        "describe": "大小",
-        "type": "text"
-    },
-    {
-        "data": "kbps",
-        "describe": "分辨率",
-        "type": "text",
-        "enable": false
-    },
-    {
-        "data": "cover",
-        "describe": "封面",
-        "type": "image"
-    },
-    {
-        "data": "songurl",
-        "describe": "歌曲链接",
-        "type": "text",
-        "enable": false
-    },
-    {
-        "data": "src",
-        "describe": "下载链接",
-        "type": "text"
-    }
-];
-const command1_return_wyydata_Field_default = [
-    {
-        "data": "songname",
-        "describe": "歌曲名称",
-        "type": "text"
-    },
-    {
-        "data": "name",
-        "describe": "歌手",
-        "type": "text"
-    },
-    {
-        "data": "album",
-        "describe": "专辑",
-        "type": "text",
-        "enable": false
-    },
-    {
-        "data": "pay",
-        "describe": "付费情况",
-        "enable": false,
-        "type": "text"
-    },
-    {
-        "data": "id",
-        "describe": "歌曲ID",
-        "enable": false,
-        "type": "text"
-    },
-    {
-        "data": "quality",
-        "describe": "音质",
-        "type": "text"
-    },
-    {
-        "data": "interval",
-        "describe": "时长",
-        "enable": false,
-        "type": "text"
-    },
-    {
-        "data": "size",
-        "describe": "大小",
-        "type": "text"
-    },
-    {
-        "data": "kbps",
-        "describe": "分辨率",
-        "enable": false,
-        "type": "text"
-    },
-    {
-        "data": "cover",
-        "describe": "封面",
-        "type": "image"
-    },
-    {
-        "data": "songurl",
-        "describe": "歌曲链接",
-        "type": "text",
-        "enable": false
-    },
-    {
-        "data": "src",
-        "describe": "下载链接",
-        "type": "text"
-    }
-];
-const command4_return_data_Field_default = [
-    {
-        "data": "songname",
-        "describe": "歌曲名称",
-        "type": "text"
-    },
-    {
-        "data": "name",
-        "describe": "歌手",
-        "type": "text"
-    },
-    {
-        "data": "album",
-        "describe": "专辑",
-        "type": "text"
-    },
-    {
-        "data": "quality",
-        "describe": "音质",
-        "type": "text"
-    },
-    {
-        "data": "interval",
-        "describe": "时长",
-        "type": "text",
-        "enable": false
-    },
-    {
-        "data": "size",
-        "describe": "大小",
-        "type": "text",
-        "enable": null
-    },
-    {
-        "data": "kbps",
-        "describe": "分辨率",
-        "type": "text",
-        "enable": false
-    },
-    {
-        "data": "cover",
-        "describe": "封面",
-        "type": "image"
-    },
-    {
-        "data": "src",
-        "describe": "下载链接",
-        "type": "text"
-    },
-    {
-        "data": "songurl",
-        "describe": "跳转链接",
-        "type": "text",
-        "enable": false
-    }
-];
-const command5_return_data_Field_default = [
-    {
-        "data": "歌名",
-        "describe": "歌曲名称",
-        "type": "text"
-    },
-    {
-        "data": "歌手",
-        "describe": "歌手",
-        "type": "text"
-    },
-    {
-        "data": "专辑",
-        "describe": "专辑",
-        "type": "text",
-        "enable": false
-    },
-    {
-        "data": "时长",
-        "describe": "时长",
-        "type": "text",
-        "enable": false
-    },
-    {
-        "data": "来源",
-        "describe": "来源平台",
-        "enable": false,
-        "type": "text"
-    },
-    {
-        "data": "歌曲ID",
-        "describe": "歌曲ID",
-        "type": "text",
-        "enable": false
-    },
-    {
-        "data": "文件大小",
-        "describe": "大小",
-        "type": "text"
-    },
-    {
-        "data": "播放音质",
-        "describe": "音质",
-        "type": "text",
-        "enable": false
-    },
-    {
-        "data": "封面链接",
-        "describe": "封面链接",
-        "type": "image"
-    },
-    {
-        "data": "歌曲链接",
-        "describe": "下载链接",
-        "type": "text"
-    }
-];
-
-const command6_return_data_Field_default = [
-    {
-        "data": "name",
-        "describe": "歌曲名称",
-        "type": "text"
-    },
-    {
-        "data": "artist",
-        "describe": "歌手",
-        "type": "text"
-    },
-    {
-        "data": "url",
-        "describe": "下载链接",
-        "type": "text"
-    },
-    {
-        "data": "pic",
-        "describe": "封面链接",
-        "type": "image"
-    },
-    {
-        "data": "lrc",
-        "describe": "歌词",
-        "type": "text",
-        "enable": false
-    }
-];
-
-
-const command7_return_data_Field_default = [
-    {
-        "type": "text",
-        "data": "type",
-        "describe": "平台名称",
-        "enable": false
-    },
-    {
-        "data": "link",
-        "describe": "音乐地址",
-        "type": "text",
-        "enable": false
-    },
-    {
-        "data": "songid",
-        "describe": "歌曲ID",
-        "type": "text",
-        "enable": false
-    },
-    {
-        "data": "title",
-        "describe": "歌曲名称",
-        "type": "text",
-        "enable": null
-    },
-    {
-        "data": "author",
-        "describe": "歌手",
-        "type": "text"
-    },
-    {
-        "data": "lrc",
-        "describe": "歌词",
-        "type": "text",
-        "enable": false
-    },
-    {
-        "data": "url",
-        "describe": "下载链接",
-        "type": "text"
-    },
-    {
-        "data": "pic",
-        "describe": "封面链接",
-        "type": "image"
-    }
-];
-
-
-const command8_return_qqdata_Field_default = [
-    {
-        "data": "song_name",
-        "type": "text",
-        "describe": "歌曲名称"
-    },
-    {
-        "data": "song_singer",
-        "describe": "歌手",
-        "type": "text"
-    },
-    {
-        "data": "quality",
-        "describe": "音质",
-        "type": "text"
-    },
-    {
-        "data": "cover",
-        "describe": "封面",
-        "type": "image"
-    },
-    {
-        "data": "link",
-        "describe": "歌曲链接",
-        "type": "text",
-        "enable": false
-    },
-    {
-        "data": "music_url",
-        "describe": "下载链接",
-        "type": "text"
-    },
-    {
-        "data": "lyric",
-        "describe": "歌词",
-        "type": "text",
-        "enable": false
-    }
-];
-const command8_return_wyydata_Field_default = [
-    {
-        "data": "title",
-        "describe": "歌曲名称",
-        "type": "text"
-    },
-    {
-        "data": "singer",
-        "describe": "歌手",
-        "type": "text"
-    },
-    {
-        "data": "id",
-        "describe": "音质",
-        "type": "text",
-        "enable": null
-    },
-    {
-        "data": "cover",
-        "describe": "封面",
-        "type": "image"
-    },
-    {
-        "data": "link",
-        "describe": "歌曲链接",
-        "type": "text",
-        "enable": false
-    },
-    {
-        "data": "music_url",
-        "describe": "下载链接",
-        "type": "text"
-    },
-    {
-        "data": "lrc",
-        "describe": "歌词",
-        "type": "text",
-        "enable": false
-    }
-];
-
-
-const platformMap = {
-    '网易云': 'netease',
-    'QQ': 'tencent',
-    '酷我': 'kuwo',
-    'Tidal': 'tidal',
-    'Qobuz': 'qobuz',
-    '喜马FM': 'ximalaya',
-    '咪咕': 'migu',
-    '酷狗': 'kugou',
-    '油管': 'ytmusic',
-    'Spotify': 'spotify',
-};
 const Config = Schema.intersect([
     Schema.object({
-        xingzhigeAPIkey: Schema.string().role('secret').description('星之阁的音乐API的请求key<br>（默认值是作者自己的哦，如果失效了请你自己获取一个）<br>请前往 QQ群 905188643 <br>添加QQ好友 3556898686 <br>私聊发送 `/getapikey` 获得你的APIkey以填入此处 ')
-            .default("xhsP7Q4MulpzDU6BVwHSKB-j-NfvBxaqiT37hx8djyE="),
-    }).description('请求设置'),
+        command: Schema.string().description('注册指令名称').default("帮助菜单"),
+        rendering: Schema.union([
+            Schema.const().description('unset').description("不返回提示语"),
+            Schema.string().description('string').description("请在右侧修改提示语").default("正在生成帮助菜单，请稍候..."),
+        ]).description("`菜单渲染中`提示语"),
+        helpmode: Schema.union([
+            Schema.const('1.1').description('返回文字菜单'),
+            Schema.const('1.2').description('返回图片菜单'),
+            Schema.const('2.1').description('返回渲染图片菜单（自动从help指令获取）'),
+            Schema.const('2.2').description('返回渲染图片菜单（手动输入help文字菜单）'),
+            Schema.const('3').description('返回渲染图片菜单（自定义json配置）（本地JSON文件） '),
+            Schema.const('3.2').description('返回渲染图片菜单（自定义json配置）（json写入配置项） '),
+        ]).role('radio').default('2.1').description('菜单返回模式<br>`自动获取的help菜单可能会与预设模版不吻合`<br>推荐前往webUI手动编辑后导出json文件使用'),
+    }).description('基础配置'),
+    Schema.union([
+        Schema.object({
+            helpmode: Schema.const("1.1").required(),
+            help_text: Schema.string().default("当前可用的指令有：\necho  发送消息  其他功能\nhelp  显示帮助信息  系统工具\ninspect  查看用户、频道或消息的详细信息  系统工具\nplugin  插件管理  系统功能\nstatus  查看运行状态  系统工具\ntimer  定时器信息  系统功能\nusage  调用次数信息  系统功能\n输入“help 指令名”查看特定指令的语法和使用示例。")
+                .role('textarea', { rows: [8, 8] }).description('返回的文字菜单内容<br>每行格式: `指令名称  指令描述  指令分类`<br>其中`指令分类`为导入添加标记所用，help文字菜单并不自带，需手动指定'),
+        }),
+        Schema.object({
+            helpmode: Schema.const("1.2").required(),
+            help_URL: Schema.string().role('link').default('https://i0.hdslb.com/bfs/article/a6154de573f73246ea4355a614f0b7b94eff8f20.jpg').description('图片菜单的网络URL地址'),
+        }),
+        Schema.object({
+            helpmode: Schema.const("2.1"),
+            background_URL: Schema.string().role('textarea', { rows: [8, 8] }).description('渲染使用的背景图地址<br>一行一个网络URL地址').default("https://i0.hdslb.com/bfs/article/3f79c64129020b522a516480c1066ea2f563964b.jpg\nhttps://i0.hdslb.com/bfs/article/28c76b561eadbbb826c2c902088c87a1a7e92f25.jpg\nhttps://i0.hdslb.com/bfs/article/806202a9b867a0b1d2d3399f1a183fc556ec258d.jpg\nhttps://i0.hdslb.com/bfs/article/796ae5ab9ef1f2e7db2c6a6020f5cbb718c9d953.jpg\nhttps://i0.hdslb.com/bfs/article/60e1532cf0a59828fbdd86c1b4e5740ca551f5b2.jpg\nhttps://i0.hdslb.com/bfs/article/9c7e7d66913155a32cad1591472a77374f0caf54.jpg\nhttps://i0.hdslb.com/bfs/article/a6154de573f73246ea4355a614f0b7b94eff8f20.jpg"),
+        }),
+        Schema.object({
+            helpmode: Schema.const("2.2").required(),
+            background_URL: Schema.string().role('textarea', { rows: [8, 8] }).description('渲染使用的背景图地址<br>一行一个网络URL地址').default("https://i0.hdslb.com/bfs/article/3f79c64129020b522a516480c1066ea2f563964b.jpg\nhttps://i0.hdslb.com/bfs/article/28c76b561eadbbb826c2c902088c87a1a7e92f25.jpg\nhttps://i0.hdslb.com/bfs/article/806202a9b867a0b1d2d3399f1a183fc556ec258d.jpg\nhttps://i0.hdslb.com/bfs/article/796ae5ab9ef1f2e7db2c6a6020f5cbb718c9d953.jpg\nhttps://i0.hdslb.com/bfs/article/60e1532cf0a59828fbdd86c1b4e5740ca551f5b2.jpg\nhttps://i0.hdslb.com/bfs/article/9c7e7d66913155a32cad1591472a77374f0caf54.jpg\nhttps://i0.hdslb.com/bfs/article/a6154de573f73246ea4355a614f0b7b94eff8f20.jpg"),
+            help_text: Schema.string().default("当前可用的指令有：\necho  发送消息  其他功能\nhelp  显示帮助信息  系统工具\ninspect  查看用户、频道或消息的详细信息  系统工具\nplugin  插件管理  系统功能\nstatus  查看运行状态  系统工具\ntimer  定时器信息  系统功能\nusage  调用次数信息  系统功能\n输入“help 指令名”查看特定指令的语法和使用示例。")
+                .role('textarea', { rows: [8, 8] }).description('返回的文字菜单内容<br>每行格式: `指令名称  指令描述  指令分类`<br>其中`指令分类`为导入添加标记所用，help文字菜单并不自带，需手动指定'),
+        }),
+        Schema.object({
+            helpmode: Schema.const("3").required(),
+            background_URL: Schema.string().role('textarea', { rows: [8, 8] }).description('渲染使用的背景图地址<br>一行一个网络URL地址').default("https://i0.hdslb.com/bfs/article/3f79c64129020b522a516480c1066ea2f563964b.jpg\nhttps://i0.hdslb.com/bfs/article/28c76b561eadbbb826c2c902088c87a1a7e92f25.jpg\nhttps://i0.hdslb.com/bfs/article/806202a9b867a0b1d2d3399f1a183fc556ec258d.jpg\nhttps://i0.hdslb.com/bfs/article/796ae5ab9ef1f2e7db2c6a6020f5cbb718c9d953.jpg\nhttps://i0.hdslb.com/bfs/article/60e1532cf0a59828fbdd86c1b4e5740ca551f5b2.jpg\nhttps://i0.hdslb.com/bfs/article/9c7e7d66913155a32cad1591472a77374f0caf54.jpg\nhttps://i0.hdslb.com/bfs/article/a6154de573f73246ea4355a614f0b7b94eff8f20.jpg"),
+            help_text_json_path: Schema.string().role('textarea', { rows: [4, 4] }).default("C:\\Users\\shangxue\\Downloads").description('导入配置使用的JSON的`所在文件夹`的绝对路径<br>你可以直接填入浏览器导出json的默认文件夹地址 `即浏览器下载文件夹`<br>若不填入，则默认使用`./data/preview-help/menu-config.json`'),
+        }),
+        Schema.object({
+            helpmode: Schema.const("3.2").required(),
+            background_URL: Schema.string().role('textarea', { rows: [8, 8] }).description('渲染使用的背景图地址<br>一行一个网络URL地址').default("https://i0.hdslb.com/bfs/article/3f79c64129020b522a516480c1066ea2f563964b.jpg\nhttps://i0.hdslb.com/bfs/article/28c76b561eadbbb826c2c902088c87a1a7e92f25.jpg\nhttps://i0.hdslb.com/bfs/article/806202a9b867a0b1d2d3399f1a183fc556ec258d.jpg\nhttps://i0.hdslb.com/bfs/article/796ae5ab9ef1f2e7db2c6a6020f5cbb718c9d953.jpg\nhttps://i0.hdslb.com/bfs/article/60e1532cf0a59828fbdd86c1b4e5740ca551f5b2.jpg\nhttps://i0.hdslb.com/bfs/article/9c7e7d66913155a32cad1591472a77374f0caf54.jpg\nhttps://i0.hdslb.com/bfs/article/a6154de573f73246ea4355a614f0b7b94eff8f20.jpg"),
+            help_text_json: Schema.string().role('textarea', { rows: [8, 8] }).description('导入配置使用的JSON内容'),
+        }),
+    ]),
     Schema.object({
-        waitTimeout: Schema.natural().role('s').description('允许用户返回选择序号的等待时间').default(45),
-    }).description('基础设置'),
-    Schema.object({
-        exitCommand: Schema.string().default('0, 不听了').description('退出选择指令，多个指令间请用逗号分隔开'), // 兼容中文逗号、英文逗号
-        menuExitCommandTip: Schema.boolean().default(false).description('是否在歌单内容的后面，加上退出选择指令的文字提示'),
-        //retryExitCommandTip: Schema.boolean().default(true).description('是否交互序号错误时，加上退出选择指令的文字提示'),
-    }).description('进阶设置'),
-    Schema.object({
-        imageMode: Schema.boolean().default(true).description('开启后返回图片歌单，关闭后返回文本歌单'),
-        darkMode: Schema.boolean().default(true).description('是否开启暗黑模式')
-    }).description('图片歌单设置'),
-    Schema.object({
-        enablemiddleware: Schema.boolean().description("是否自动解析JSON音乐卡片").default(false),
-        middleware: Schema.boolean().description("`enablemiddleware`是否使用前置中间件监听<br>`中间件无法接受到消息可以考虑开启`").default(false),
-        // used_command: Schema.union(['command1', 'command4', 'command5', 'command6', 'command7'])        .description("自动解析使用的指令<br>解析内容与下面对应的指令返回设置一致").default("command1"), // , 'command2'
-        used_command: Schema.union([
-            Schema.const('command1').description('command1（星之阁API）'),
-            Schema.const('command4').description('command4（星之阁-酷狗API）'),
-            Schema.const('command5').description('command5（`music.gdstudio.xyz`）'),
-            Schema.const('command6').description('command6（`网易单曲id点歌`）'),
-            Schema.const('command7').description('command7（`dev.iw233.cn`）'),
-            Schema.const('command8').description('command8（龙珠API）'),
-        ]).description("自动解析使用的指令<br>解析内容与下面对应的指令返回设置一致").default("command1"),
-        used_id: Schema.number().default(1).min(0).max(10).description("在歌单里默认选择的序号<br>范围`0-10`，无需考虑11-20，会自动根据JSON卡片的平台选择。若音乐平台不匹配 则在搜索项前十个进行选择。"),
-    }).description('JSON卡片解析设置'),
-
-
-    Schema.object({
-        command1: Schema.string().default('下载音乐').description('星之阁API的指令名称'),
-        command1_wyy_Quality: Schema.number().default(2).description('网易云音乐默认下载音质。默认2，其余自己试 `不建议更改，可能会导致无音源`'),
-        command1_qq_Quality: Schema.number().default(2).description('QQ音乐默认下载音质。音质11为最高 `不建议更改，可能会导致无音源`'),
-        command1_qq_uin: Schema.string().description('QQ音乐搜索：提供skey的账号(当站长提供的cookie失效时必填，届时生效)'),
-        command1_qq_skey: Schema.string().description('QQ音乐搜索：提供开通有绿钻特权的skey可获取vip歌曲(当站长提供的cookie失效时必填，届时生效)为空默认获取站长提供的skey'),
-
-        command1_return_qqdata_Field: Schema.array(Schema.object({
-            data: Schema.string().description('返回的字段').disabled(),
-            describe: Schema.string().description('对该字段的中文描述'),
-            type: Schema.union([
-                Schema.const('text').description('文本（text）'),
-                Schema.const('image').description('图片（image）'),
-                Schema.const('audio').description('语音（audio）'),
-                Schema.const('video').description('视频（video）'),
-                Schema.const('file').description('文件（file）'),
-            ]).description('字段发送类型'),
-            enable: Schema.boolean().default(true).description('是否启用')
-        })).role('table').default(command1_return_qqdata_Field_default).description('歌曲返回信息的字段选择<br>[➣ 点我查看该API返回内容示例](https://api.xingzhige.com/API/QQmusicVIP/?songid=499449053&br=2&uin=2&skey=2&key=)'),
-
-        command1_return_wyydata_Field: Schema.array(Schema.object({
-            data: Schema.string().description('返回的字段').disabled(),
-            describe: Schema.string().description('对该字段的中文描述'),
-            type: Schema.union([
-                Schema.const('text').description('文本（text）'),
-                Schema.const('image').description('图片（image）'),
-                Schema.const('audio').description('语音（audio）'),
-                Schema.const('video').description('视频（video）'),
-                Schema.const('file').description('文件（file）'),
-            ]).description('字段发送类型'),
-            enable: Schema.boolean().default(true).description('是否启用')
-        })).role('table').default(command1_return_wyydata_Field_default).description('歌曲返回信息的字段选择<br>[➣ 点我查看该API返回内容示例](https://api.xingzhige.com/API/NetEase_CloudMusic_new/?name=%E8%94%9A%E8%93%9D%E6%A1%88&n=1&key=)'),
-
-    }).description('星之阁API返回设置'),
+        fontEnabled: Schema.boolean().description('启用自定义字体').default(false),
+        fontURL: Schema.string().description("字体 URL (.ttf)<br>注意：需填入本地绝对路径的URL编码地址<br>默认内容 即为使用`jrys-prpr字体`的URL示例写法").default(url.pathToFileURL(path.join(__dirname, '../../jrys-prpr/font/千图马克手写体.ttf')).href),
+    }).description('高级设置'),
 
     Schema.object({
-        command4: Schema.string().default('酷狗音乐').description('酷狗-星之阁API的指令名称'),
-        command4_kugouQuality: Schema.number().default(1).description('音乐默认下载音质。音质，默认为1'),
-        command4_return_data_Field: Schema.array(Schema.object({
-            data: Schema.string().description('返回的字段').disabled(),
-            describe: Schema.string().description('对该字段的中文描述'),
-            type: Schema.union([
-                Schema.const('text').description('文本（text）'),
-                Schema.const('image').description('图片（image）'),
-                Schema.const('audio').description('语音（audio）'),
-                Schema.const('video').description('视频（video）'),
-                Schema.const('file').description('文件（file）'),
-            ]).description('字段发送类型'),
-            enable: Schema.boolean().default(true).description('是否启用')
-        })).role('table').default(command4_return_data_Field_default).description('歌曲返回信息的字段选择<br>[➣ 点我查看该API返回内容示例](https://api.xingzhige.com/API/Kugou_GN_new/?name=蔚蓝档案&pagesize=20&br=2&key=)'),
-    }).description('酷狗-星之阁API返回设置'),
+        staticHelp: Schema.boolean().default(true).description('是否静态部署 help 目录到 /help<br>关闭后将没有 webUI，仅能使用本地HTML文件交互'), // 新增配置项
+    }).description('交互功能设置'),
 
     Schema.object({
-        command5: Schema.string().default('歌曲搜索').description('`music.gdstudio.xyz`的指令名称'),
-        command5_defaultPlatform: Schema.union([
-            Schema.const('网易云').description('网易云'),
-            Schema.const('QQ').description('QQ'),
-            Schema.const('酷我').description('酷我'),
-            Schema.const('Tidal').description('Tidal'),
-            Schema.const('Qobuz').description('Qobuz'),
-            Schema.const('喜马FM').description('喜马FM'),
-            Schema.const('咪咕').description('咪咕'),
-            Schema.const('酷狗').description('酷狗'),
-            Schema.const('油管').description('油管'),
-            Schema.const('Spotify').description('Spotify'),
-        ]).description('音乐 **默认**使用的平台。').default('网易云'),
-        /*
-        command5_defaultQuality: Schema.union([
-            Schema.const('128K').description('128K标准 [ 全部音乐源 ]<br>192K较高 [ 网易云 / QQ / Spotify / 咪咕 / 油管 ]'),
-            Schema.const('320K').description('320K高品 [ 全部音乐源 ]'),
-            Schema.const('16bit').description('16bit无损 [ 网易云 / QQ / 酷我 / Tidal / Qobuz / 咪咕 ]'),
-            Schema.const('24bit').description('24bit无损 [ 网易云 / QQ / Tidal / Qobuz ]'),
-        ]).role('radio').description('音乐 **默认**下载音质。').default('320K'),
-        */
-        command5_searchList: Schema.number().default(10).min(1).max(10).description('歌曲搜索的列表长度。返回的候选项个数。'), // max应该是20 但是截图还没写好
-        command5_page_setTimeout: Schema.number().default(1500).min(1).description('等待页面完全加载的等待时间（ms）'),
-        command5_return_data_Field: Schema.array(Schema.object({
-            data: Schema.string().description('返回的字段').disabled(),
-            describe: Schema.string().description('对该字段的中文描述'),
-            type: Schema.union([
-                Schema.const('text').description('文本（text）'),
-                Schema.const('image').description('图片（image）'),
-                Schema.const('audio').description('语音（audio）'),
-                Schema.const('video').description('视频（video）'),
-                Schema.const('file').description('文件（file）'),
-            ]).description('字段发送类型'),
-            enable: Schema.boolean().default(true).description('是否启用'),
-        })).role('table').description('歌曲返回信息的字段选择<br>').default(command5_return_data_Field_default),
-    }).description('`music.gdstudio.xyz`返回设置'),
-
-    Schema.object({
-        command6: Schema.string().default('网易单曲id点歌').description('`网易单曲id点歌`的指令名称<br>输入歌曲ID，返回歌曲'),
-        // 单曲点歌 不需要考虑 command6_searchList: Schema.number().default(20).min(1).max(500).description('歌曲搜索的列表长度。返回的候选项个数。'),
-        command6_return_data_Field: Schema.array(Schema.object({
-            data: Schema.string().description('返回的字段').disabled(),
-            describe: Schema.string().description('对该字段的中文描述'),
-            type: Schema.union([
-                Schema.const('text').description('文本（text）'),
-                Schema.const('image').description('图片（image）'),
-                Schema.const('audio').description('语音（audio）'),
-                Schema.const('video').description('视频（video）'),
-                Schema.const('file').description('文件（file）'),
-            ]).description('字段发送类型'),
-            enable: Schema.boolean().default(true).description('是否启用'),
-        })).role('table').description('歌曲返回信息的字段选择<br>[➣ 点我查看该API返回内容示例](https://api.injahow.cn/meting/?id=2608813264&type=song)').default(command6_return_data_Field_default),
-    }).description('`网易单曲id点歌`返回设置'),
-
-    Schema.object({
-        command7: Schema.string().default('音乐搜索器').description('`音乐搜索器`的指令名称<br>使用 dev.iw233.cn 提供的网站'),
-        command7_searchList: Schema.number().default(20).min(2).step(2).max(20).description('歌曲搜索的列表长度。返回的候选项个数。<br>为`网易云 + 酷狗音乐`的组合，默认20即代表各平台为10首<br>`因为该网页的两个平台返回字段相同，所以就只需要一个字段映射表了`'),
-        command7_return_data_Field: Schema.array(Schema.object({
-            data: Schema.string().description('返回的字段').disabled(), // .disabled()
-            describe: Schema.string().description('对该字段的中文描述'),
-            type: Schema.union([
-                Schema.const('text').description('文本（text）'),
-                Schema.const('image').description('图片（image）'),
-                Schema.const('audio').description('语音（audio）'),
-                Schema.const('video').description('视频（video）'),
-                Schema.const('file').description('文件（file）'),
-            ]).description('字段发送类型'),
-            enable: Schema.boolean().default(true).description('是否启用'),
-        })).role('table').description('歌曲返回信息的字段选择<br>[➣ 点我查看该API返回内容示例](https://dev.iw233.cn/Music1/?name=%E8%94%9A%E8%93%9D%E6%A1%A3%E6%A1%88&type=netease) 需F12 网络标签页 预览响应 `Music1/`').default(command7_return_data_Field_default),
-    }).description('`dev.iw233.cn`返回设置'),
-
-    /*
-    Schema.object({
-        command8: Schema.string().default('龙珠搜索').description('龙珠API的指令名称'),
-        command8_qqQuality: Schema.number().default(1).description('QQ音乐默认下载音质。<br>1=(默认SQ无损,从高到低),2=HQ高品MP3'),
-
-        command8_wyyQuality: Schema.number().default(1).description('网易云音乐默认下载音质。`找不到对应音质，会自动使用标准音质`<br>1(标准音质)/2(极高音质)/3(无损音质)/4(Hi-Res音质)/5(高清环绕声)/6(沉浸环绕声)/7(超清母带)'),
-
-        command8_return_qqdata_Field: Schema.array(Schema.object({
-            data: Schema.string().description('返回的字段').disabled(),
-            describe: Schema.string().description('对该字段的中文描述'),
-            type: Schema.union([
-                Schema.const('text').description('文本（text）'),
-                Schema.const('image').description('图片（image）'),
-                Schema.const('audio').description('语音（audio）'),
-                Schema.const('video').description('视频（video）'),
-                Schema.const('file').description('文件（file）'),
-            ]).description('字段发送类型'),
-            enable: Schema.boolean().default(true).description('是否启用')
-        })).role('table').default(command8_return_qqdata_Field_default).description('QQ歌曲  返回信息的字段选择<br>[➣ 点我查看该API返回内容示例](https://www.hhlqilongzhu.cn/api/dg_shenmiMusic_SQ.php?msg=蔚蓝档案&n=3&type=json)'),
-
-        command8_return_wyydata_Field: Schema.array(Schema.object({
-            data: Schema.string().description('返回的字段').disabled(),
-            describe: Schema.string().description('对该字段的中文描述'),
-            type: Schema.union([
-                Schema.const('text').description('文本（text）'),
-                Schema.const('image').description('图片（image）'),
-                Schema.const('audio').description('语音（audio）'),
-                Schema.const('video').description('视频（video）'),
-                Schema.const('file').description('文件（file）'),
-            ]).description('字段发送类型'),
-            enable: Schema.boolean().default(true).description('是否启用')
-        })).role('table').default(command8_return_wyydata_Field_default).description('网易云歌曲  返回信息的字段选择<br>[➣ 点我查看该API返回内容示例](https://www.hhlqilongzhu.cn/api/dg_wyymusic.php?gm=蔚蓝档案&type=json&num=10&n=1)'),
-    }).description('龙珠API返回设置'),
-*/
-
-    Schema.object({
-        deleteTempTime: Schema.number().default(20).description('对于`file`类型的Tmep临时文件的删除时间<br>若干`秒`后 删除下载的本地临时文件').experimental(),
+        screenshotquality: Schema.number().role('slider').min(0).max(100).step(1).default(60).description('设置图片压缩质量（%）'),
+        tempPNG: Schema.boolean().description('打开后，开启缓存功能。<br>在`输入配置不变`/`help菜单不变`的情况下，使用缓存的PNG菜单图片（同一张图）。<br>关闭后，每次调用均使用puppeteer渲染').default(true),
         loggerinfo: Schema.boolean().default(false).description('日志调试开关'),
     }).description('调试模式'),
 ]);
 
+// 存储上一次的 generateCacheKey
+let lastCacheKey = null;
+
+
 function apply(ctx, config) {
-    // h.file的临时存储
-    const tempDir = path.join(__dirname, 'temp');
-    let isTempDirInitialized = false;
-    const tempFiles = new Set(); // 用于跟踪临时文件路径
+    function logInfo(message) {
+        if (config.loggerinfo) {
+            logger.info(message);
+        }
+    }
 
     ctx.on('ready', async () => {
+        // 静态资源部署
+        if (config.staticHelp && ctx.server) {
+            const helpRoot = path.resolve(__dirname, '../help');
+            const helpPath = '/help';
+
+            ctx.server.get(helpPath + '(.*)', async (ctx, next) => {
+                const filename = path.resolve(helpRoot, ctx.path.slice(helpPath.length).replace(/^\/+/, ''));
+                if (!filename.startsWith(helpRoot)) return next();
+                const stats = await stat(filename).catch(noop);
+                if (stats?.isFile()) {
+                    ctx.type = path.extname(filename);
+                    return ctx.body = fs.createReadStream(filename);
+                }
+                return next();
+            });
+            logInfo(`静态资源部署：help 目录部署到 http://127.0.0.1:${ctx.server.config.port}${helpPath}`);
+        }
+    });
+
+
+
+    ctx.on('ready', async () => {
+        const root = path.join(ctx.baseDir, 'data', 'preview-help');
+        let jsonFilePath = path.join(root, 'menu-config.json'); // 默认json文件路径
+        const temp_helpFilePath = path.join(root, 'temp_help.png');
+
+
+        if (!fs.existsSync(root)) {
+            fs.mkdirSync(root, { recursive: true });
+        }
+        // 检查并创建 JSON 文件
+        if (!fs.existsSync(jsonFilePath)) {
+            fs.writeFileSync(jsonFilePath, JSON.stringify({
+            }));
+        }
+
 
         ctx.i18n.define("zh-CN", {
             commands: {
-                [name]: {
-                    description: `下载音乐`,
+                [config.command]: {
+                    description: `返回帮助菜单`,
                     messages: {
-                    }
-                }, [config.command1]: {
-                    description: `搜索歌曲`,
-                    messages: {
-                        "nokeyword": "请输入歌曲相关信息。\n➣示例：/music 蔚蓝档案",
-                        "songlisterror": "无法获取歌曲列表，请稍后再试。",
-                        "invalidNumber": "序号输入错误，已退出歌曲选择。",
-                        "waitTime": "请在{0}秒内，\n输入歌曲对应的序号:\n➣示例：@机器人 1",
-                        "waitTimeout": "输入超时，已取消点歌。",
-                        "exitprompt": "已退出歌曲选择。",
-                        "noplatform": "获取歌曲失败。",
-                        "somerror": "解析歌曲详情时发生错误",
-                    }
-                },
-                [config.command4]: {
-                    description: `搜索酷狗音乐`,
-                    messages: {
-                        "nokeyword": "请输入歌曲相关信息。\n➣示例：/music 蔚蓝档案",
-                        "songlisterror": "获取酷狗音乐数据时发生错误，请稍后再试。",
-                        "invalidNumber": "序号输入错误，已退出歌曲选择。",
-                        "waitTime": "请在{0}秒内，\n输入歌曲对应的序号:\n➣示例：@机器人 1",
-                        "waitTimeout": "输入超时，已取消点歌。",
-                        "exitprompt": "已退出歌曲选择。",
-                        "noplatform": "获取歌曲失败。",
-                        "somerror": "解析歌曲详情时发生错误",
+                        "nopuppeteer": "需要安装puppeteer插件才能使用此功能",
+                        "rendering": "正在生成帮助菜单，请稍候...",
+                        "element.notfound": "页面元素未找到：{0}",
+                        "import.failed": "配置导入失败",
+                        "json.parse.error": "JSON解析失败，请检查格式",
+                        "file.read.error": "配置文件读取失败",
+                        "file.write.error": "配置文件写入失败",
+                        "screenshot.failed": "截图失败",
+                        "background.invalid": "无效的背景图URL",
+                        "mode.notsupport": "不支持的帮助模式",
+                        "somerror": "生成帮助时发生错误",
+                        "image.load.error": "图片加载失败: {0}",
+                        "cache.hit": "命中缓存，使用缓存图片",
+                        "font.load.start": "开始加载字体: {0}",
+                        "font.load.success": "字体加载成功: {0}",
+                        "font.load.fail": "字体加载失败: {0}",
+                        "path.invalid": "无效的路径: {0}",
+                        "jsonfile.notfound": "未找到 menu-config.json 文件",
                     }
                 },
-                [config.command5]: {
-                    description: `歌曲搜索`,
-                    messages: {
-                        "nopuppeteer": "没有开启puppeteer服务",
-                        "nokeyword": "请输入歌曲相关信息。\n➣示例：/music 蔚蓝档案",
-                        "invalidplatform": "`不支持的平台: {0}`;",
-                        "songlisterror": "无法获取歌曲列表，请稍后再试。",
-                        "invalidNumber": "序号输入错误，已退出歌曲选择。",
-                        "waitTime": "请在{0}秒内，\n输入歌曲对应的序号:\n➣示例：@机器人 1",
-                        "waitTimeout": "输入超时，已取消点歌。",
-                        "exitprompt": "已退出歌曲选择。",
-                        "noplatform": "获取歌曲失败。",
-                        "somerror": "解析歌曲详情时发生错误",
-                    }
-                },
-                [config.command6]: {
-                    description: `网易云单曲id点歌`,
-                    messages: {
-                        "nopuppeteer": "没有开启puppeteer服务",
-                        "nokeyword": "请输入歌曲相关信息。\n➣示例：/网易id点歌 2619366284",
-                        "invalidplatform": "`不支持的平台: {0}`;",
-                        "songlisterror": "无法获取歌曲列表，请稍后再试。",
-                        "invalidNumber": "序号输入错误，已退出歌曲选择。",
-                        "waitTime": "请在{0}秒内，\n输入歌曲对应的序号:\n➣示例：@机器人 1",
-                        "waitTimeout": "输入超时，已取消点歌。",
-                        "exitprompt": "已退出歌曲选择。",
-                        "noplatform": "获取歌曲失败。",
-                        "somerror": "解析歌曲详情时发生错误",
-                    }
-                },
-                [config.command7]: {
-                    description: `音乐搜索器`,
-                    messages: {
-                        "nopuppeteer": "没有开启puppeteer服务",
-                        "nokeyword": "请输入歌曲相关信息。\n➣示例：/音乐搜索器 蔚蓝档案",
-                        "invalidNumber": "序号输入错误，已退出歌曲选择。",
-                        "waitTime": "请在{0}秒内，\n输入歌曲对应的序号:\n➣示例：@机器人 1",
-                        "waitTimeout": "输入超时，已取消点歌。",
-                        "exitprompt": "已退出歌曲选择。",
-                        "noplatform": "获取歌曲失败。",
-                        "somerror": "解析歌曲详情时发生错误",
-                        "songlisterror": "无法获取歌曲列表，请稍后再试。",
-                    }
-                }
             }
         });
 
-        if (config.enablemiddleware) {
-            ctx.middleware(async (session, next) => {
-                try {
-                    // 解析消息内容
-                    const messageElements = await h.parse(session.content);
-
-                    // 遍历解析后的消息元素
-                    for (const element of messageElements) {
-                        // 确保元素类型为 'json' 并且有数据
-                        if (element.type === 'json' && element.attrs && element.attrs.data) {
-                            const jsonData = JSON.parse(element.attrs.data);
-                            logInfo(JSON.stringify(jsonData, null, 2));
-
-
-                            // 检查是否存在 musicMeta 和 tag
-                            const musicMeta = jsonData?.meta?.music || jsonData?.meta?.news; // 尝试兼容两种结构
-                            const tag = musicMeta?.tag;
-                            if (musicMeta && tag.includes("音乐")) {
-
-                                const title = musicMeta.title;
-                                const desc = musicMeta.desc;
-                                logInfo("---------");
-                                logInfo(tag);
-                                logInfo(title);
-                                logInfo(desc);
-
-                                // 获取配置的指令名称
-                                let command = config.used_command;
-                                let commandName = config[command]; // 直接使用 config[command] 获取配置项的值
-                                logInfo(commandName);
-                                if (!commandName) {
-                                    commandName = '歌曲搜索'; // 默认值，以防配置项不存在
-                                    logger.error(`未找到配置项 ${command} 对应的指令名称，使用默认指令名称 '歌曲搜索'`);
-                                }
-
-                                // 如果选择了 command6 并且是网易云音乐卡片
-                                if (command === 'command6' && tag === '网易云音乐') {
-                                    // 提取歌曲 ID
-                                    const jumpUrl = musicMeta.jumpUrl;
-                                    const match = jumpUrl?.match(/id=(\d+)/); // 使用 ?. 确保 jumpUrl 不为 null 或 undefined
-                                    if (match && match[1]) {
-                                        const songId = match[1];
-                                        logInfo(`提取到网易云音乐 ID: ${songId}`);
-
-                                        // 执行 command6 指令
-                                        await session.execute(`${commandName} ${songId}`);
-                                        return; // 结束当前中间件处理
-                                    } else {
-                                        logger.error('未能在 jumpUrl 中找到歌曲 ID');
-                                    }
-                                } else if (command !== 'command6') { // 除了command6 都可以处理
-                                    // 其他情况，按照原逻辑处理
-                                    let usedId = config.used_id;
-                                    if (tag === '网易云音乐') {
-                                        if (config.used_command === "command1" || config.used_command === "command4") {
-                                            usedId += 10;
-                                        }
-                                    }
-                                    logInfo(`${command}`)
-
-                                    if (command) {
-                                        // 更通用的获取指令名称方式
-                                        logInfo(`${commandName} -n ${usedId} “${title} ${desc}”`)
-                                        await session.execute(`${commandName} -n ${usedId} “${title} ${desc}”`);
-                                    }
-                                }
-                            }
-                        }
-                    }
-                } catch (error) {
-                    ctx.logger.error(error);
-                    await session.send('处理消息时出错。');
-                }
-                // 如果没有匹配到任何 json 数据，继续下一个中间件
-                return next();
-            }, config.middleware);
-        }
-
-        ctx.command(name)
-
-        ctx.command(`${name}/${config.command1} <keyword:text>`)
-            .option('quality', '-q <value:number> 品质因数')
-            .option('number', '-n <number:number> 歌曲序号')
-            .action(async ({ session, options }, keyword) => {
-                if (!keyword) return h.text(session.text(".nokeyword"));
-
-                let qq, netease;
-                try {
-                    let res = await searchQQ(ctx.http, keyword);
-                    if (typeof res === 'string') res = JSON.parse(res);
-                    const item = res.request?.data?.body?.item_song;
-                    qq = {
-                        code: res.code,
-                        msg: '',
-                        data: Array.isArray(item) ? item.map(v => ({
-                            songname: v.title.replaceAll('<em>', '').replaceAll('</em>', ''),
-                            album: v.album.name,
-                            songid: v.id,
-                            songurl: `https://y.qq.com/n/ryqq/songDetail/${v.mid}`,
-                            name: v.singer.map(v => v.name).join('/')
-                        })) : []
-                    };
-                    logInfo(qq)
-                } catch (e) {
-                    logger.error('获取QQ音乐数据时发生错误', e);
-                }
-
-                try {
-                    netease = await searchXZG(ctx.http, 'NetEase Music',
-                        {
-                            name: keyword,
-                            key: config.xingzhigeAPIkey
-
-                        });
-                } catch (e) {
-                    logger.error('获取网易云音乐数据时发生错误', e);
-                }
-
-                const qqData = qq?.data;
-                const neteaseData = netease?.data;
-                if (!qqData?.length && !neteaseData?.length) return h.text(session.text(`.songlisterror`));
-
-                const totalQQSongs = qqData?.length ?? 0;
-                const totalNetEaseSongs = neteaseData?.length ?? 0;
-
-                // 检查是不是可用序号
-                let serialNumber = options.number;
-                if (serialNumber) {
-                    serialNumber = Number(serialNumber);
-                    if (Number.isNaN(serialNumber) || serialNumber < 1 || serialNumber > (totalQQSongs + totalNetEaseSongs)) {
-                        return h.text(session.text(`.invalidNumber`));
-                    }
-                } else {
-                    // 给用户选择序号
-                    const qqListText = qqData?.length ? formatSongList(qqData, 'QQ Music', 0) : '<b>QQ Music</b>: 无法获取歌曲列表';
-                    const neteaseListText = neteaseData?.length ? formatSongList(neteaseData, 'NetEase Music', qqData?.length ?? 0) : '<b>NetEase Music</b>: 无法获取歌曲列表';
-                    const listText = `${qqListText}<br /><br />${neteaseListText}`;
-                    const exitCommands = config.exitCommand.split(/[,，]/).map(cmd => cmd.trim());
-                    const exitCommandTip = config.menuExitCommandTip ? `退出选择请发[${exitCommands}]中的任意内容<br /><br />` : '';
-                    let quoteId = session.messageId;
-
-                    if (config.imageMode) {
-                        const imageBuffer = await generateSongListImage(ctx.puppeteer, listText);
-                        const payload = [
-                            h.image(imageBuffer, 'image/png'),
-                            h.text(`${exitCommandTip.replaceAll('<br />', '\n')}${h.text(session.text(`.waitTime`, [config.waitTimeout]))}`),
-                        ];
-                        const msg = await session.send(payload);
-                        quoteId = msg.at(-1);
-                    } else {
-                        const msg = await session.send(`${listText}<br /><br />${exitCommandTip}${h.text(session.text(`.waitTime`, [config.waitTimeout]))}`);
-                        quoteId = msg.at(-1);
-                    }
-
-                    const input = await session.prompt(config.waitTimeout * 1000);
-                    if (!input) {
-                        return quoteId ? h.quote(quoteId) : '' + h.text(session.text(`.waitTimeout`));
-                    }
-                    if (exitCommands.includes(input)) {
-                        return h.text(session.text(`.exitprompt`));
-                    }
-                    serialNumber = +input;
-                    if (Number.isNaN(serialNumber) || serialNumber < 1 || serialNumber > (totalQQSongs + totalNetEaseSongs)) {
-                        return h.text(session.text(`.songlisterror`));
-                    }
-                }
-
-                let platform, songid, br, uin, skey;
-                let selected;
-
-                if (serialNumber <= totalQQSongs) {
-                    selected = qqData[serialNumber - 1];
-                    platform = 'QQ Music';
-                    songid = selected.songid;
-                    br = config.command1_qq_Quality;
-                    uin = config.command1_qq_uin;
-                    skey = config.command1_qq_skey;
-                } else {
-                    selected = neteaseData[serialNumber - totalQQSongs - 1];
-                    platform = 'NetEase Music';
-                    songid = selected.id;
-                    br = config.command1_wyy_Quality;
-                    uin = 'onlyqq';
-                    skey = 'onlyqq';
-                }
-
-                if (options.quality) {
-                    br = options.quality;
-                }
-                if (!platform) return h.text(session.text(`.noplatform`));
-
-                const song = await searchXZG(ctx.http, platform, {
-                    songid,
-                    br,
-                    uin,
-                    skey,
-                    key: config.xingzhigeAPIkey
-                });
-
-                if (song.code === 0) {
-                    const data = song.data;
-                    try {
-                        let songDetails;
-                        if (serialNumber <= totalQQSongs) {
-                            songDetails = generateResponse(data, config.command1_return_qqdata_Field, config.deleteTempTime, tempFiles, fs, tempDir);
-                        } else {
-                            songDetails = generateResponse(data, config.command1_return_wyydata_Field, config.deleteTempTime, tempFiles, fs, tempDir);
-                        }
-                        logInfo(songDetails);
-                        return songDetails;
-                    } catch (e) {
-                        logger.error(e);
-                        return h.text(session.text(`.somerror`));
-                    }
-                } else {
-                    logger.error(`获取歌曲失败：${JSON.stringify(song)}`);
-                    return '获取歌曲失败：' + song.msg;
-                }
-            });
-
-
-        ctx.command(`${name}/${config.command4} <keyword:text>`)
-            .option('quality', '-q <value:number> 音质因数')
-            .option('number', '-n <number:number> 歌曲序号')
-            .action(async ({ session, options }, keyword) => {
-                if (!keyword) return h.text(session.text(`.nokeyword`));
-
-                let kugou;
-                try {
-                    kugou = await searchKugou(ctx.http, keyword, options.quality || config.command4_kugouQuality);
-                } catch (e) {
-                    logger.error('获取酷狗音乐数据时发生错误', e);
-                    return h.text(session.text(`.songlisterror`));
-                }
-
-                const kugouData = kugou?.data;
-                if (!kugouData?.length) return h.text(session.text(`.songlisterror`));
-
-                const totalKugouSongs = kugouData.length;
-
-                // 检查是不是可用序号
-                let serialNumber = options.number;
-                if (serialNumber) {
-                    serialNumber = Number(serialNumber);
-                    if (Number.isNaN(serialNumber) || serialNumber < 1 || serialNumber > totalKugouSongs) {
-                        return h.text(session.text(`.invalidNumber`));
-                    }
-                } else {
-                    // 给用户选择序号
-                    const kugouListText = formatSongList(kugouData, '酷狗音乐', 0);
-                    const exitCommands = config.exitCommand.split(/[,，]/).map(cmd => cmd.trim());
-                    const exitCommandTip = config.menuExitCommandTip ? `退出选择请发[${exitCommands}]中的任意内容<br /><br />` : '';
-                    let quoteId = session.messageId;
-
-                    if (config.imageMode) {
-                        const imageBuffer = await generateSongListImage(ctx.puppeteer, kugouListText);
-                        const payload = [
-                            h.image(imageBuffer, 'image/png'),
-                            h.text(`${exitCommandTip.replaceAll('<br />', '\n')}${h.text(session.text(`.waitTime`, [config.waitTimeout]))}`),
-                        ];
-                        const msg = await session.send(payload);
-                        quoteId = msg.at(-1);
-                    } else {
-                        const msg = await session.send(`${kugouListText}<br /><br />${exitCommandTip}${h.text(session.text(`.waitTime`, [config.waitTimeout]))}`);
-                        quoteId = msg.at(-1);
-                    }
-
-                    const input = await session.prompt(config.waitTimeout * 1000);
-                    if (!input) {
-                        return `${quoteId ? h.quote(quoteId) : ''}输入超时，已取消点歌。`;
-                    }
-                    if (exitCommands.includes(input)) {
-                        return h.text(session.text(`.exitprompt`));
-                    }
-                    serialNumber = +input;
-                    if (Number.isNaN(serialNumber) || serialNumber < 1 || serialNumber > totalKugouSongs) {
-                        return h.text(session.text(`.invalidNumber`));
-                    }
-                }
-
-                //const selected = kugouData[serialNumber - 1];
-                //const songid = serialNumber;
-                //logInfo(songid);
-                const br = options.quality || config.command4_kugouQuality;
-
-                const song = await searchKugouSong(ctx.http, keyword, br, serialNumber);
-
-                if (song.code === 0) {
-                    const data = song.data;
-                    try {
-                        logInfo(song);
-                        logInfo(data);
-                        const songDetails = generateResponse(data, config.command4_return_data_Field, config.deleteTempTime, tempFiles, fs, tempDir);
-                        logInfo(songDetails);
-                        return songDetails;
-                    } catch (e) {
-                        logger.error(e);
-                        return h.text(session.text(`.somerror`));
-                    }
-                } else {
-                    logger.error(`获取歌曲失败：${JSON.stringify(song)}`);
-                    return '获取歌曲失败：' + song.msg;
-                }
-            });
-
-
-        ctx.command(`${name}/${config.command5} <keyword:text>`)
-            .option('platform', '-p <platform:string> 平台名称')
-            .option('number', '-n <number:number> 歌曲序号')
-            .example("歌曲搜索 -p QQ -n 1 蔚蓝档案")
-            .action(async ({ session, options }, keyword) => {
+        ctx.command(`${config.command} <help_text:text>`)
+            .option('backgroung', '-b <backgroung:string> 指定背景URL')
+            .example("帮助菜单 -b https://i0.hdslb.com/bfs/article/a6154de573f73246ea4355a614f0b7b94eff8f20.jpg   当前可用的指令有：\necho  发送消息\nstatus  查看运行状态\ntimer  定时器信息\nusage  调用次数信息\n输入“help 指令名”查看特定指令的语法和使用示例。")
+            .action(async ({ session, options }, help_text) => {
                 if (!ctx.puppeteer) {
                     await session.send(h.text(session.text(`.nopuppeteer`)));
                     return;
                 }
-                if (!keyword) return h.text(session.text(`.nokeyword`));
+
+
+                // 生成缓存Key
+                const generateCacheKey = (helpmode, helpContent, screenshotquality) => {
+                    return `${helpmode}-${helpContent}-${screenshotquality}`;
+                };
+
+
+                let currentHelpContent = '';
+                let currentBackgroundURL = '';
+                let useCache = false;
+
+                switch (config.helpmode) {
+                    case '2.1': {
+                        logInfo(`正在获取系统帮助内容...`);
+                        const koishihelptext = await session.execute("help", true);
+                        if (koishihelptext && Array.isArray(koishihelptext) && koishihelptext.length > 0) {
+                            currentHelpContent = help_text || koishihelptext[0].attrs.content; // 获取纯文本内容
+                        } else {
+                            currentHelpContent = help_text || ''; // 容错处理，防止 koishihelptext 为空或格式不正确
+                        }
+                        logInfo(`获取到帮助内容长度：${currentHelpContent?.length || 0}`);
+                        break;
+                    }
+                    case '2.2': {
+                        currentHelpContent = help_text || config.help_text;
+                        logInfo(`使用手动输入内容，长度：${currentHelpContent?.length || 0}`);
+                        break;
+                    }
+                    case '3': {
+
+                        let jsonFilePathToUse = jsonFilePath; // 默认路径
+
+                        if (config.help_text_json_path) {
+                            let inputPath = config.help_text_json_path.trim();
+                            if (inputPath.startsWith('file:///')) {
+                                inputPath = url.fileURLToPath(inputPath);
+                            }
+
+                            try {
+                                const pathStat = await stat(inputPath);
+                                if (pathStat.isDirectory()) {
+                                    const files = await readdir(inputPath);
+                                    const jsonFiles = files.filter(file => file.startsWith('menu-config (') && file.endsWith(').json'));
+                                    let latestNumberedJson = null;
+                                    let latestNumber = -1;
+
+                                    for (const file of jsonFiles) {
+                                        const match = file.match(/menu-config \((\d+)\)\.json/);
+                                        if (match) {
+                                            const number = parseInt(match[1], 10);
+                                            if (number > latestNumber) {
+                                                latestNumber = number;
+                                                latestNumberedJson = file;
+                                            }
+                                        }
+                                    }
+
+                                    if (latestNumberedJson) {
+                                        jsonFilePathToUse = path.join(inputPath, latestNumberedJson);
+                                    } else if (files.includes('menu-config.json')) {
+                                        jsonFilePathToUse = path.join(inputPath, 'menu-config.json');
+                                    } else {
+                                        await session.send(h.text(session.text('.jsonfile.notfound')));
+                                        return; // 找不到文件直接返回，使用默认的空json文件
+                                    }
+
+                                } else if (pathStat.isFile() && path.extname(inputPath) === '.json') {
+                                    jsonFilePathToUse = inputPath;
+                                } else {
+                                    await session.send(h.text(session.text('.path.invalid', [config.help_text_json_path])));
+                                    return; // 路径无效直接返回，使用默认的空json文件
+                                }
+                            } catch (e) {
+                                logger.warn(`路径检查失败: ${config.help_text_json_path}`, e);
+                                await session.send(h.text(session.text('.path.invalid', [config.help_text_json_path])));
+                                return; // 路径无效直接返回，使用默认的空json文件
+                            }
+                        }
+
+
+                        try {
+                            logInfo(`正在读取JSON配置...`);
+                            currentHelpContent = fs.readFileSync(jsonFilePathToUse, 'utf-8');
+                            logInfo(`从文件读取JSON成功，路径：${jsonFilePathToUse}，长度：${currentHelpContent?.length || 0}`);
+                        } catch (error) {
+                            logger.error(`文件读取失败：`, error);
+                            await session.send(h.text(session.text('.file.read.error')));
+                            return;
+                        }
+
+                        // 验证JSON格式
+                        try {
+                            JSON.parse(currentHelpContent);
+                        } catch (error) {
+                            logger.error(`JSON解析失败：`, error);
+                            await session.send(h.text(session.text('.json.parse.error')));
+                            return;
+                        }
+                        break;
+                    }
+                    case '3.2': {
+                        logInfo(`正在读取JSON配置...`);
+
+                        currentHelpContent = config.help_text_json;
+                        logInfo(`使用配置项JSON，长度：${currentHelpContent?.length || 0}`);
+
+                        // 验证JSON格式
+                        try {
+                            JSON.parse(currentHelpContent);
+                        } catch (error) {
+                            logger.error(`JSON解析失败：`, error);
+                            await session.send(h.text(session.text('.json.parse.error')));
+                            return;
+                        }
+                        break;
+                    }
+                }
+
+                // 随机背景图处理
+                if (config.background_URL) {
+                    const bgList = config.background_URL.split('\n').filter(url => url.trim());
+                    if (bgList.length > 0) {
+                        currentBackgroundURL = bgList[Math.floor(Math.random() * bgList.length)];
+                        logInfo(`选择随机背景图：${currentBackgroundURL}`);
+                    }
+                }
+
+                const cacheKey = generateCacheKey(config.helpmode, currentHelpContent, config.screenshotquality);
+
+
+                if (config.tempPNG && ['2.1', '2.2', '3', '3.2'].includes(config.helpmode)) { // 模式 3.2 也应该支持缓存
+                    if (lastCacheKey === cacheKey && fs.existsSync(temp_helpFilePath)) {
+                        useCache = true;
+                    }
+                }
+
+
+                if (useCache) {
+                    logInfo(session.text('.cache.hit'));
+                    try {
+                        const imageBuffer = fs.readFileSync(temp_helpFilePath);
+                        await session.send([
+                            h.image(imageBuffer, 'image/jpeg'),
+                        ]);
+                        return;
+                    } catch (e) {
+                        logger.warn(`读取缓存图片失败，重新渲染`, e);
+                        // 缓存图片读取失败， Fallback to render. And will overwrite cache.
+                    }
+                }
+
 
                 const page = await ctx.puppeteer.page();
                 try {
-                    // 打开目标网页
-                    await page.goto('https://music.gdstudio.xyz/', { waitUntil: 'networkidle2' });
+                    // 记录开始时间用于性能监控
+                    const startTime = Date.now();
+                    logInfo(`开始处理帮助请求，模式：${config.helpmode}`);
 
-                    // 关闭公告弹窗（如果存在）
-                    const announcement = await page.$('.layui-layer-btn0');
-                    if (announcement) await announcement.click();
+                    let helpContent = currentHelpContent;
+                    let backgroundURLForPuppeteer = currentBackgroundURL;
 
-                    // 点击【歌曲搜索】按钮
-                    const searchButton = await page.$('span[data-action="search"]');
-                    if (!searchButton) return '未找到搜索按钮，请检查页面结构。';
-                    await searchButton.click();
 
-                    // 等待搜索弹窗完全加载
-                    await page.waitForSelector('#search-area', { visible: true });
-
-                    // 输入搜索关键词
-                    await page.type('#search-wd', keyword);
-
-                    // 选择平台
-                    const platform = options.platform || config.command5_defaultPlatform;
-                    const platformValue = platformMap[platform]; // 获取对应的 value
-                    if (!platformValue) {
-                        return h.text(session.text(`.invalidplatform`, [platform]));
-                    }
-
-                    const platformSelector = `input[name="source"][value="${platformValue}"]`;
-                    const platformRadio = await page.$(platformSelector);
-                    if (platformRadio) {
-                        await platformRadio.click();
-                    } else {
-                        return h.text(session.text(`.invalidplatform`, [platform]));
-                    }
-                    logInfo(`已选择平台: ${platform}`);
-
-                    // 获取当前选中的平台（用于调试）
-                    const selectedPlatform = await page.$eval('input[name="source"]:checked', el => el.value);
-                    logInfo(`当前选中的平台: ${selectedPlatform}`);
-
-                    // 等待 500ms，确保选项生效
-                    await new Promise(resolve => setTimeout(resolve, 500));
-
-                    // 点击【搜索】按钮
-                    const submitButton = await page.$('.search-submit');
-                    if (!submitButton) return '未找到搜索提交按钮，请检查页面结构。';
-                    await submitButton.click();
-
-
-                    // 检查是否存在弹窗 (国内节点/QQ上限 弹窗)
-                    const alert = await page.$('.layui-layer-msg.layui-layer-hui');
-                    if (alert) {
-                        const alertText = await page.evaluate(() => {
-                            const alertContent = document.querySelector('.layui-layer-msg.layui-layer-hui .layui-layer-content');
-                            return alertContent ? alertContent.innerText : null;
-                        });
-
-                        if (alertText) {
-                            if (alertText.includes('关闭梯子')) {
-                                // 国内节点提示弹窗：直接删除或关闭
-                                await page.evaluate(() => {
-                                    const alertElement = document.querySelector('.layui-layer-msg.layui-layer-hui');
-                                    if (alertElement) alertElement.remove(); // 直接删除弹窗
-                                });
-                                logInfo('已删除国内节点提示弹窗');
-                            } else if (alertText.includes('QQ请求已达今日上限')) {
-                                // QQ请求上限提示弹窗：返回错误信息给用户
-                                return `错误：${alertText}`;
-                            }
-                        }
-                    }
-
-                    // 等待搜索结果出现 (增加超时时间)
-                    await page.waitForSelector('.list-item', { visible: true, timeout: 10000 });
-
-                    // 增加 500ms 延迟，确保页面元素加载和布局稳定
-                    await new Promise(resolve => setTimeout(resolve, 500)); // 增加等待
-
-                    // 确保搜索结果有效
-                    const listItems = await page.$('.list-item');
-                    if (!listItems || listItems.length === 0) { // 检查 listItems 是否为空或 null
-                        logger.error('未找到歌曲列表项 (.list-item)，可能搜索结果为空或页面结构异常'); // 添加日志
-                        return h.text(session.text(`.songlisterror`)); // 返回错误提示
-                    }
-
-                    // 静音
-                    const muteButton = await page.$('.btn-quiet');
-                    if (muteButton) {
-                        await muteButton.click(); // 点击静音按钮
-                        logInfo('已开启静音');
-                    } else {
-                        ctx.logger.error('未找到静音按钮');
-                    }
-
-                    // 将音量调至最低
-                    await page.evaluate(() => {
-                        const volumeSlider = document.querySelector('#volume-progress .mkpgb-dot');
-                        if (volumeSlider) {
-                            volumeSlider.style.left = '0%'; // 将音量滑块移动到最左侧
-                        }
-                    });
-
-                    logInfo('已将音量调至最低');
-                    // 等待 1500ms 确保页面完全加载 //config.command5_page_setTimeout
-                    await new Promise(resolve => setTimeout(resolve, config.command5_page_setTimeout));
-
-
-
-
-                    // 获取 .data-area 元素
-                    const centerElement = await page.$('.data-area');
-                    if (!centerElement) {
-                        return h.text(session.text(`.songlisterror`));
-                    }
-
-                    logger.info(`准备截图 centerElement`); // 修改日志信息
-                    let screenshot;
-                    try {
-                        screenshot = await centerElement.screenshot({
-                            //  移除 clip 参数，先截图整个 .center 区域，如果需要裁剪，可以后续再调整
-                            // clip: {
-                            //     x: 0,
-                            //     y: 0,
-                            //     width: 800, // 假设宽度为 800px，如果需要可以调整
-                            //     height: screenshotHeight, //  移除 height 参数
-                            // },
-                        });
-                        logger.info(`截图 centerElement 成功`); // 修改日志信息
-                    } catch (screenshotError) {
-                        logger.error('截图 centerElement 出错:', screenshotError); // 修改日志信息
-                        return h.text(session.text(`.somerror`));
-                    }
-                    // 返回图文消息
-                    const exitCommands = config.exitCommand.split(/[,，]/).map(cmd => cmd.trim());
-                    const exitCommandTip = config.menuExitCommandTip ? `退出选择请发[${exitCommands}]中的任意内容\n\n` : '';
-                    const promptText = `${exitCommandTip}${h.text(session.text(`.waitTime`, [config.waitTimeout]))}`;
-
-                    // 获取用户输入的序号
-                    let selectedIndex;
-                    if (options.number) {
-                        // 如果用户通过 -n 指定了序号，则直接使用
-                        selectedIndex = options.number;
-                    } else {
-                        await session.send([
-                            h.image(screenshot, 'image/png'),
-                            h.text(promptText),
-                        ]);
-
-                        // 否则等待用户输入
-                        const input = await session.prompt(config.waitTimeout * 1000); // 超时时间
-                        if (!input) return h.text(session.text(`.waitTimeout`));
-                        if (exitCommands.includes(input)) {
-                            return h.text(session.text(`.exitprompt`));
-                        }
-                        selectedIndex = parseInt(input, 10);
-                    }
-
-                    // 检查序号是否有效
-                    if (isNaN(selectedIndex) || selectedIndex < 1 || selectedIndex > config.command5_searchList) {
-                        return h.text(session.text(`.invalidNumber`));
-                    }
-
-                    // 点击选择的歌曲
-                    const songElement = await page.$(`.list-item[data-no="${selectedIndex - 1}"] .list-num`);
-                    if (!songElement) return '未找到歌曲元素，请检查页面结构。';
-
-                    // 模拟双击操作
-                    await page.evaluate((element) => {
-                        const dblclickEvent = new MouseEvent('dblclick', {
-                            bubbles: true, // 事件冒泡
-                            cancelable: true, // 事件可以取消
-                            view: window, // 事件视图
-                        });
-                        element.dispatchEvent(dblclickEvent);
-                    }, songElement);
-
-                    logInfo(`已双击歌曲序号: ${selectedIndex}`); // 调试日志
-
-                    // 检查是否存在弹窗 (可能在歌曲详情加载过程中出现)
-                    const alertDetail = await page.$('.layui-layer-msg.layui-layer-hui'); // 重新选择弹窗，因为可能页面结构有变化
-                    if (alertDetail) {
-                        const alertTextDetail = await page.evaluate(() => {
-                            const alertContent = document.querySelector('.layui-layer-msg.layui-layer-hui .layui-layer-content');
-                            return alertContent ? alertContent.innerText : null;
-                        });
-
-                        if (alertTextDetail) {
-                            logger.error(`歌曲详情加载过程中出现弹窗: ${alertTextDetail}`); // 记录弹窗信息
-                            // 可以根据弹窗内容进行特定处理，或者直接返回错误
-                            if (alertTextDetail.includes('某些错误提示')) { // 示例：根据弹窗内容判断错误类型
-                                return `错误：${alertTextDetail}`;
-                            }
-                        }
-                    }
-
-
-                    // 等待播放加载完成
-                    await page.waitForSelector('.layui-layer-msg', { visible: true });
-                    await page.waitForSelector('.layui-layer-msg', { hidden: true });
-
-                    // 获取歌曲信息
-                    const infoButton = await page.$('#music-info');
-                    if (!infoButton) return '未找到歌曲信息按钮，请检查页面结构。';
-                    await infoButton.click();
-
-                    // 点击【详情】按钮
-                    const detailButton = await page.$('.info-btn[onclick*="thisShare"]');
-                    if (!detailButton) return '未找到详情按钮，请检查页面结构。';
-                    await detailButton.click();
-
-                    // 等待【加载中】弹窗消失
-                    await page.waitForSelector('.layui-layer-msg', { visible: true });
-                    await page.waitForSelector('.layui-layer-msg', { hidden: true });
-
-                    // 等待详情加载完成
-                    await page.waitForSelector('.layui-layer-content', { visible: true });
-
-                    // 解析歌曲信息
-                    const songInfo = await page.evaluate(() => {
-                        const infoElement = document.querySelector('.layui-layer-content');
-                        if (!infoElement) return null;
-
-                        const infoText = infoElement.innerText;
-
-                        const extractInfo = (label, regex) => {
-                            const match = infoText.match(new RegExp(`${label}${regex}`));
-                            return match ? match[1] : null;
-                        };
-
-                        const info = {
-                            歌名: extractInfo("歌名：", "(.+)"),
-                            歌手: extractInfo("歌手：", "(.+)"),
-                            专辑: extractInfo("专辑：", "(.+)"),
-                            时长: extractInfo("时长：", "(.+)"),
-                            来源: extractInfo("来源：", "(.+)"),
-                            歌曲ID: extractInfo("歌曲ID：", "(.+)"),
-                            文件大小: extractInfo("文件大小：", "(.+)"),
-                            播放音质: extractInfo("播放音质：", "(.+)"),
-                            歌词链接: extractInfo("歌词链接：", "(https?:\\/\\/.+)"), // 匹配链接
-                            封面链接: extractInfo("封面链接：", "(https?:\\/\\/.+)"), // 匹配链接
-                            歌曲链接: extractInfo("歌曲链接：", "(https?:\\/\\/.+)"), // 匹配链接
-                        };
-                        return info;
-                    });
-
-                    if (!songInfo) {
-                        return h.text(session.text(`.noplatform`));
-                    }
-                    logInfo(songInfo)
-                    // 返回自定义字段
-                    const response = generateResponse(songInfo, config.command5_return_data_Field, config.deleteTempTime, tempFiles, fs, tempDir);
-                    //logInfo(response)
-                    return response;
-                } catch (error) {
-                    ctx.logger.error('音乐搜索插件出错:', error);
-                    return h.text(session.text(`.somerror`));
-                } finally {
-                    await page.close(); //  注释掉 page.close() 可以方便调试
-                }
-            });
-
-
-
-        ctx.command(`${name}/${config.command6} <keyword:text>`)
-            .example("网易单曲id点歌 2608813264")
-            .action(async ({ session, options }, keyword) => {
-                if (!keyword) return h.text(session.text(`.nokeyword`));
-
-                try {
-                    // 请求 API 获取单曲数据
-                    const apiBase = `https://api.injahow.cn/meting/?id=${keyword}&type=song`;
-                    logInfo("请求 API:", apiBase);
-                    const apiResponse = await ctx.http.get(apiBase);
-                    logInfo("API 请求完成");
-
-                    // Check if apiResponse is valid
-                    if (!apiResponse) {
-                        logInfo("apiResponse 为空或 undefined");
-                        return h.text(session.text(`.songlisterror`));
-                    }
-
-                    logInfo("原始 apiResponse (typeof):", typeof apiResponse); // 打印 apiResponse 的类型
-                    logInfo("原始 apiResponse:", apiResponse); // 打印原始 apiResponse
-
-                    let parsedApiResponse;
-                    try {
-                        parsedApiResponse = JSON.parse(apiResponse); // 尝试解析 JSON
-                        logInfo("JSON 解析成功");
-                    } catch (e) {
-                        ctx.logger.error("JSON 解析失败:", e);
-                        logInfo("JSON 解析失败错误:", e);
-                        logInfo("解析失败的 apiResponse:", apiResponse); // 打印解析失败的 apiResponse 内容
-                        return h.text(session.text(`.songlisterror`)); // 返回错误提示
-                    }
-
-                    if (!parsedApiResponse || parsedApiResponse.length === 0) { // 使用解析后的数据
-                        logInfo("parsedApiResponse 为空或长度为 0");
-                        return h.text(session.text(`.songlisterror`));
-                    }
-
-                    logInfo("完整的 parsedApiResponse (JSON):", JSON.stringify(parsedApiResponse, null, 2));
-
-                    // 获取单曲数据
-                    const songData = parsedApiResponse[0]; // 使用解析后的数据
-                    //  logInfo("songData 对象 (JSON):", JSON.stringify(songData, null, 2));
-                    if (!songData || songData?.includes("unknown song")) {
-                        ctx.logger.error('网易单曲点歌插件出错， unknown song');
-                        // return h.text(session.text(`.somerror`));
-                    }
-                    // 处理歌词
-                    if (songData?.lrc) {
-                        try {
-                            const lrcResponse = await ctx.http.get(songData?.lrc);
-                            songData.lrc = `\n${lrcResponse}`;
-                        } catch (error) {
-                            ctx.logger.error(`获取歌词失败: ${songData?.lrc}`, error);
-                            songData.lrc = `歌词获取失败: ${songData?.lrc}`;
-                        }
-                    }
-                    logInfo("songData.url:", songData?.url);
-
-                    const response = generateResponse(songData, config.command6_return_data_Field, config.deleteTempTime, tempFiles, fs, tempDir);
-                    return response;
-                } catch (error) {
-                    ctx.logger.error('网易单曲点歌插件出错:', error);
-                    logInfo("错误对象:", error); // 打印完整的 error 对象
-                    return h.text(session.text(`.somerror`));
-                }
-            });
-
-
-        ctx.command(`${name}/${config.command7} <keyword:text>`)
-            .option('number', '-n <number:number> 歌曲序号')
-            .example("音乐搜索器 -n 1 蔚蓝档案")
-            .action(async ({ session, options }, keyword) => {
-                if (!ctx.puppeteer) {
-                    await session.send(h.text(session.text(`.nopuppeteer`)));
-                    return;
-                }
-                if (!keyword) return h.text(session.text(`.nokeyword`));
-
-                let kugouPage = null;
-                let neteasePage = null;
-                let kugouResponseData = [];
-                let neteaseResponseData = [];
-                let resolveKugouDataFetch, resolveNetEaseDataFetch;
-                let kugouDataFetched = false;
-                let neteaseDataFetched = false;
-
-                const kugouDataFetchPromise = new Promise(resolve => resolveKugouDataFetch = resolve);
-                const neteaseDataFetchPromise = new Promise(resolve => resolveNetEaseDataFetch = resolve);
-                // const allDataFetchPromise = Promise.all([kugouDataFetchPromise, neteaseDataFetchPromise]);
-
-                // 添加一个超时 Promise，如果在指定时间内没有获取到数据，则 reject
-                const timeoutPromise = new Promise((resolve, reject) => {
-                    setTimeout(() => {
-                        reject(new Error('超时未获取到足够的数据'));
-                    }, 30000); // 设置超时时间为 30 秒
-                });
-
-
-                try {
-                    kugouPage = await ctx.puppeteer.page();
-                    neteasePage = await ctx.puppeteer.page();
-
-
-                    neteasePage.on('response', async response => {
-                        const url = response.url();
-                        if (url === 'https://dev.iw233.cn/Music1/') {
-                            const contentType = response.headers()['content-type'];
-                            if (contentType && contentType.includes('json')) {
-                                try {
-                                    const json = await response.json();
-                                    if (json && json.data) {
-                                        neteaseResponseData.push(...json.data);
-                                    }
-                                } catch (error) {
-                                    ctx.logger.error('网易云 - 解析网络响应 JSON 失败', error);
-                                } finally {
-                                    neteaseDataFetched = true;
-                                    resolveNetEaseDataFetch();
-                                    // if (neteaseResponseData.length >= config.command7_searchList / 2) { // 每个平台获取一半数量
-                                    //     resolveNetEaseDataFetch();
-                                    // }
-                                }
-                            }
-                        }
-                    });
-
-                    kugouPage.on('response', async response => {
-                        const url = response.url();
-                        logInfo(url)
-                        if (url === 'https://dev.iw233.cn/Music1/') {
-
-                            const contentType = response.headers()['content-type'];
-                            logInfo(contentType)
-                            if (contentType && contentType.includes('json')) {
-                                try {
-                                    const json = await response.json();
-                                    if (json && json.data) {
-                                        kugouResponseData.push(...json.data);
-                                    }
-                                } catch (error) {
-                                    ctx.logger.error('酷狗 - 解析网络响应 JSON 失败', error);
-                                } finally {
-                                    kugouDataFetched = true;
-                                    resolveKugouDataFetch();
-                                    // if (kugouResponseData.length >= config.command7_searchList / 2) { // 每个平台获取一半数量
-                                    //     resolveKugouDataFetch();
-                                    // }
-                                }
-                            }
-                        }
-                    });
-
-
-
-                    // 同时打开两个平台的搜索页面
-                    await Promise.all([
-                        kugouPage.goto(`https://dev.iw233.cn/Music1/?name=${keyword}&type=kugou`, { waitUntil: 'networkidle2' }),
-                        neteasePage.goto(`https://dev.iw233.cn/Music1/?name=${keyword}&type=netease`, { waitUntil: 'networkidle2' })
-                    ]);
-
-
-                    // await allDataFetchPromise; // 等待两个平台的数据都获取完成
-                    await Promise.race([Promise.all([kugouDataFetchPromise, neteaseDataFetchPromise]), timeoutPromise]); // 竞速等待
-
-                    const combinedData = [...neteaseResponseData, ...kugouResponseData];
-                    if (combinedData.length !== 0) {
-                        if (kugouPage && !kugouPage.isClosed()) {
-                            await kugouPage.close();
-                        }
-                        if (neteasePage && !neteasePage.isClosed()) {
-                            await neteasePage.close();
-                        }
-                    } else {
-                        return h.text(session.text(`.songlisterror`));
-                    }
-
-
-                    // 根据 config.command7_searchList 截取总数，防止超出预期
-                    const finalCombinedData = combinedData.slice(0, config.command7_searchList);
-
-                    // 分别筛选酷狗和网易云音乐数据，并限制数量
-                    const displayedKugouData = kugouResponseData.filter(item => item.type === 'kugou').slice(0, config.command7_searchList / 2);
-                    const displayedNeteaseData = neteaseResponseData.filter(item => item.type === 'netease').slice(0, config.command7_searchList / 2);
-
-                    // 生成分平台的歌单文本
-                    const neteaseListText = formatSongList(displayedNeteaseData, '网易云音乐', 0);
-                    const kugouListText = formatSongList(displayedKugouData, '酷狗音乐', displayedNeteaseData.length);
-                    const listText = `${neteaseListText}<br /><br />${kugouListText}`; // 网易云 酷狗 
-
-                    const screenshot = await generateSongListImage(ctx.puppeteer, listText);
-
-                    // 返回图文消息
-                    const exitCommands = config.exitCommand.split(/[,，]/).map(cmd => cmd.trim());
-                    const exitCommandTip = config.menuExitCommandTip ? `退出选择请发[${exitCommands}]中的任意内容\n\n` : '';
-                    const promptText = `${exitCommandTip}${h.text(session.text(`.waitTime`, [config.waitTimeout]))}`;
-
-                    // 获取用户输入的序号
-                    let selectedIndex;
-                    if (options.number) {
-                        // 如果用户通过 -n 指定了序号，则直接使用
-                        selectedIndex = options.number;
-                    } else {
-                        await session.send([
-                            h.image(screenshot, 'image/png'),
-                            h.text(promptText),
-                        ]);
-
-                        // 否则等待用户输入
-                        const input = await session.prompt(config.waitTimeout * 1000); // 超时时间
-                        if (!input) return h.text(session.text(`.waitTimeout`));
-                        if (exitCommands.includes(input)) {
-                            return h.text(session.text(`.exitprompt`));
-                        }
-                        selectedIndex = parseInt(input, 10);
-                    }
-
-                    // 检查序号是否有效 (针对合并后的数据)
-                    if (isNaN(selectedIndex) || selectedIndex < 1 || selectedIndex > finalCombinedData.length) {
-                        return h.text(session.text(`.invalidNumber`));
-                    }
-
-                    // 获取用户选择的歌曲 (从合并后的数据中获取)
-                    const selectedSong = finalCombinedData[selectedIndex - 1];
-                    if (!selectedSong) {
-                        return h.text(session.text(`.noplatform`));
-                    }
-                    // 返回自定义字段
-                    const response = generateResponse(selectedSong, config.command7_return_data_Field, config.deleteTempTime, tempFiles, fs, tempDir);
-
-                    logInfo(response)
-                    return response;
-
-                } catch (error) {
-                    ctx.logger.error('音乐搜索器插件出错:', error);
-                    return h.text(session.text(`.somerror`));
-                } finally {
-                    if (kugouPage && !kugouPage.isClosed()) {
-                        await kugouPage.close();
-                    }
-                    if (neteasePage && !neteasePage.isClosed()) {
-                        await neteasePage.close();
-                    }
-                }
-            });
-
-        /*
-                ctx.command(`${name}/${config.command8} <keyword:text>`)
-                    .option('quality', '-q <value:number> 品质因数')
-                    .option('number', '-n <number:number> 歌曲序号')
-                    .action(async ({ session, options, args }) => {
-                        const keyword = args.join(' ');
-                        if (!keyword) {
-                            await session.send('请输入歌曲名称。');
+                    switch (config.helpmode) {
+                        case '1.1': {
+                            logInfo(config.help_text);
+                            await session.send(h.text(config.help_text));
                             return;
                         }
-        
-                        let qqSongs = []; // 初始化为空数组
-                        let wySongs = [];  // 初始化为空数组
-        
-                        // 获取QQ音乐歌曲列表 (原 searchLongZhuQQ 函数逻辑)
-                        try {
-                            // const qqUrl = `https://www.hhlqilongzhu.cn/api/dg_qqmusic.php?gm=${encodeURIComponent(keyword)}&type=json&num=10`;
-                            // https://www.hhlqilongzhu.cn/api/dg_shenmiMusic_SQ.php?type=json&msg=蔚蓝档案&n=3
-        
-                            const qqUrl = `https://www.hhlqilongzhu.cn/api/dg_shenmiMusic_SQ.php?type=json&msg=${encodeURIComponent(keyword)}&num=10`;
-                            logInfo(qqUrl);
-                            const qqResponse = await fetch(qqUrl);
-                            logInfo(JSON.stringify(qqResponse));
-        
-                            if (!qqResponse.ok) {
-                                throw new Error(`Failed to fetch QQ song list: ${qqResponse.statusText}`);
-                            }
-                            const qqData = await qqResponse.json();
-                            if (qqData.code !== 200) {
-                                throw new Error(`QQ API error: ${qqData.code}`);
-                            }
-                            logInfo(JSON.stringify(qqData));
-                            qqSongs = qqData.data || []; // 赋值歌曲数据，如果 data 为空，则赋值空数组
-                        } catch (error) {
-                            logger.error('获取龙珠QQ歌曲列表时发生错误', error);
-                            return '无法获取QQ音乐歌曲列表，请稍后再试。';
-                        }
-        
-                        // 获取网易云音乐歌曲列表 (原 searchLongZhuWY 函数逻辑)
-                        try {
-                            const wyUrl = `https://www.hhlqilongzhu.cn/api/dg_wyymusic.php?gm=${encodeURIComponent(keyword)}&type=json&num=10`;
-                            const wyResponse = await fetch(wyUrl);
-                            logInfo(JSON.stringify(wyUrl));
-        
-                            if (!wyResponse.ok) {
-                                throw new Error(`Failed to fetch WY song list: ${wyResponse.statusText}`);
-                            }
-                            const wyData = await wyResponse.json();
-                            if (wyData.code !== 200) {
-                                throw new Error(`WY API error: ${wyData.code}`);
-                            }
-                            logInfo(JSON.stringify(wyData));
-                            wySongs = wyData.data || []; // 赋值歌曲数据，如果 data 为空，则赋值空数组
-                        } catch (error) {
-                            logger.error('获取龙珠网易云歌曲列表时发生错误', error);
-                            return '无法获取网易云音乐歌曲列表，请稍后再试。';
-                        }
-        
-                        // 确保歌曲列表非空
-                        if (qqSongs.length === 0 && wySongs.length === 0) {
-                            return '没有找到相关歌曲。';
-                        }
-        
-                        const totalSongs = qqSongs.length + wySongs.length;
-        
-                        // 检查是 可用序号
-                        let index = options.number;
-                        if (index) {
-                            index = Number(index);
-                            if (Number.isNaN(index) || index < 1 || index > totalSongs) {
-                                return '输入的序号无效。若要点歌请重新发起。';
-                            }
-                        } else {
-                            // 格式化QQ音乐歌曲列表
-                            const qqSongList = qqSongs.map((song, idx) => {
-                                const title = song.song_title || song.title;
-                                const singer = song.song_singer || song.singer;
-                                return `${idx + 1}. ${title} -- ${singer}`;
-                            });
-        
-                            // 格式化网易云音乐歌曲列表
-                            const wySongList = wySongs.map((song, idx) => {
-                                const title = song.song_title || song.title;
-                                const singer = song.song_singer || song.singer;
-                                return `${idx + 1 + qqSongs.length}. ${title} -- ${singer}`;
-                            });
-        
-                            // 合并歌曲列表并添加小标题
-                            const songListMessage = [
-                                'QQ Music',
-                                ...qqSongList,
-                                '',
-                                'NetEase Music',
-                                ...wySongList
-                            ].join('\n');
-        
-                            // 判断是否使用图片模式
-                            if (config.imageMode) {
-                                const listText = songListMessage.replace(/\n/g, '<br />');
-                                const imageBuffer = await generateSongListImage(ctx.puppeteer, listText);
-                                await session.send(h.image(imageBuffer, 'image/png') + `${exitCommandTip}请在${waitTimeInSeconds}秒内，<br />输入歌曲对应的序号`);
-                            } else {
-                                await session.send(`以下是搜索结果：\n${songListMessage}\n${exitCommandTip}请在${waitTimeInSeconds}秒内，<br />输入歌曲对应的序号`);
-                            }
-        
-                            // 用户回复序号
-                            const songChoice = await session.prompt(config.waitTimeout);
-                            if (!songChoice) {
-                                return '输入超时，已取消点歌。';
-                            }
-        
-                            index = parseInt(songChoice, 10);
-                            if (isNaN(index) || index < 1 || index > totalSongs) {
-                                return '输入的序号无效。若要点歌请重新发起。';
-                            }
-                        }
-        
-                        const quality = options.quality || config.command3_wyyQuality;
-        
-                        let details = null; // 初始化 details 为 null
-                        let songDetails3 = null; // 初始化 songDetails3 为 null
-        
-                        // 获取用户选择的歌曲详细信息 (原 fetchLongZhuQQDetails 和 fetchLongZhuWYDetails 函数逻辑)
-                        if (index <= qqSongs.length) {
-                            // QQ 音乐详情
+                        case '1.2': {
+                            logInfo(config.help_URL);
                             try {
-        
-                                // https://www.hhlqilongzhu.cn/api/dg_shenmiMusic_SQ.php?type=json&msg=蔚蓝档案&n=3
-                                // const qqDetailsUrl = `https://www.hhlqilongzhu.cn/api/dg_qqmusic.php?gm=${encodeURIComponent(keyword)}&type=json&num=10&n=${index}`;
-                                const qqDetailsUrl = `https://www.hhlqilongzhu.cn/api/dg_shenmiMusic_SQ.php?type=json&msg=${encodeURIComponent(keyword)}&n=${index}&num=10&br=${config.command8_qqQuality}`;
-                                const qqDetailsResponse = await fetch(qqDetailsUrl);
-                                if (!qqDetailsResponse.ok) {
-                                    throw new Error(`Failed to fetch QQ song details: ${qqDetailsResponse.statusText}`);
-                                }
-                                logInfo(JSON.stringify(qqDetailsUrl));
-        
-                                const qqDetailsData = await qqDetailsResponse.json();
-                                if (qqDetailsData.code !== 200) {
-                                    throw new Error(`QQ API error: ${qqDetailsData.code}`);
-                                }
-                                logInfo(JSON.stringify(qqDetailsData));
-                                details = qqDetailsData.data; // 赋值歌曲详细信息
-                                songDetails3 = generateResponse(details, config.command8_return_qqdata_Field);
-                            } catch (error) {
-                                logger.error('获取龙珠QQ歌曲详情时发生错误', error);
-                                return '无法获取QQ音乐歌曲下载链接。'; // 针对详情获取错误返回更具体的提示
+                                await session.send(h.image(config.help_URL));
+                            } catch (e) {
+                                logger.error(`图片菜单加载失败: ${config.help_URL}`, e);
+                                await session.send(h.text(session.text('.image.load.error', [config.help_URL])));
+                                return;
                             }
-                        } else {
-                            // 网易云音乐详情
+                            return;
+                        }
+                        case '2.1':
+                        case '2.2':
+                        case '3':
+                        case '3.2': // 模式 3.2 也应该进入渲染流程
+                            break; // These modes will be handled below after cache check
+                        default:
+                            await session.send(h.text(session.text('.mode.notsupport')));
+                            return;
+                    }
+
+
+                    // 设置 Puppeteer 页面背景
+                    if (backgroundURLForPuppeteer) {
+                        await page.evaluate((url) => {
+                            document.documentElement.style.setProperty('--background-image', `url(${url})`);
+                        }, backgroundURLForPuppeteer);
+
+                        // 等待背景图片加载完成
+                        await page.waitForFunction(() => {
+                            return new Promise(resolve => {
+                                const backgroundImage = getComputedStyle(document.documentElement).getPropertyValue('--background-image');
+                                if (backgroundImage && backgroundImage !== 'none') { // 检查是否设置了背景图且不为 'none'
+                                    const imageUrl = backgroundImage.replace(/^url\("?/, '').replace(/"?\)$/, ''); // 提取 URL
+                                    if (imageUrl) {
+                                        const img = new Image();
+                                        img.onload = resolve;
+                                        img.onerror = resolve; // 图片加载失败也 resolve，避免无限等待
+                                        img.src = imageUrl;
+                                        if (img.complete) { // 检查图片是否已在缓存中加载完成
+                                            resolve();
+                                        }
+                                    } else {
+                                        resolve(); // 没有图片 URL 也 resolve
+                                    }
+                                } else {
+                                    resolve(); // 没有设置背景图也 resolve
+                                }
+                            });
+                        }, { timeout: 30000 }); // 设置超时时间，单位毫秒，可以根据网络情况调整
+                    }
+
+
+                    // 添加渲染状态提示
+                    if (config.rendering) {
+                        await session.send(h.text(config.rendering));
+                    }
+
+                    try {
+                        const helpHTMLUrl = url.pathToFileURL(htmlPath).href
+                        logInfo(`正在加载本地HTML文件：${helpHTMLUrl}`);
+                        await page.goto(helpHTMLUrl, {
+                            waitUntil: 'networkidle2',
+                            timeout: 30000
+                        });
+
+                        // 元素操作增强日志
+                        const logElementAction = async (selector, action) => {
+                            const element = await page.$(selector);
+                            if (!element) {
+                                const errorMsg = session.text('.element.notfound', [selector]);
+                                logInfo(`${errorMsg}`);
+                                throw new Error(errorMsg);
+                            }
+                            logInfo(`正在${action}：${selector}`);
+                            return element;
+                        }
+
+                        // 处理导入配置
+                        const importButton = await logElementAction('.btn-group button:nth-child(2)', '点击导入配置按钮');
+                        await importButton.click();
+
+                        if (config.fontEnabled && config.fontURL) {
+                            logInfo(session.text('.font.load.start', [config.fontURL]));
                             try {
-                                const wyDetailsUrl = `https://www.hhlqilongzhu.cn/api/dg_wyymusic.php?gm=${encodeURIComponent(keyword)}&type=json&br=${quality}&num=10&n=${index - qqSongs.length}`;
-                                const wyDetailsResponse = await fetch(wyDetailsUrl);
-                                if (!wyDetailsResponse.ok) {
-                                    throw new Error(`Failed to fetch WY song details: ${wyDetailsResponse.statusText}`);
-                                }
-                                logInfo(JSON.stringify(wyDetailsUrl));
-        
-                                const wyDetailsData = await wyDetailsResponse.json();
-                                if (wyDetailsData.code !== 200) {
-                                    throw new Error(`WY API error: ${wyDetailsData.code}`);
-                                }
-                                logInfo(JSON.stringify(wyDetailsData));
-                                details = wyDetailsData; // 赋值歌曲详细信息
-                                songDetails3 = generateResponse(details, config.command8_return_wyydata_Field);
-                            } catch (error) {
-                                logger.error('获取龙珠网易云歌曲详情时发生错误', error);
-                                return '无法获取网易云音乐歌曲下载链接。'; // 针对详情获取错误返回更具体的提示
+
+                                const fontURLInput = await logElementAction('.image-upload-content input[placeholder="绝对路径的 URL编码 (.ttf)"]', '查找字体URL输入框');
+
+                                await page.evaluate((inputElement, fontURL) => {
+                                    inputElement.value = fontURL;
+                                    inputElement.dispatchEvent(new Event('input', { bubbles: true })); // 触发输入事件
+                                }, fontURLInput, config.fontURL);
+                                await page.evaluate(() => {
+                                    document.querySelector('.image-upload-content button').click();
+                                });
+
+                                logInfo(session.text('.font.load.success', [config.fontURL]));
+
+                                // 等待字体加载完成，这里可能需要更精确的判断方式，例如监听字体加载事件
+                                await new Promise(resolve => setTimeout(resolve, 1000)); // 简单等待 1 秒
+                            } catch (fontError) {
+                                logger.warn(`字体加载失败: ${config.fontURL}`, fontError);
+                                logInfo(session.text('.font.load.fail', [config.fontURL]));
                             }
                         }
-        
-                        if (!details) {
-                            return '无法获取歌曲下载链接。';
+
+
+                        if (config.helpmode === '3' || config.helpmode === '3.2') { // 模式 3.2 同样使用 JSON 导入
+                            // JSON模式处理
+                            const textarea = await logElementAction('.popup-content textarea', '输入JSON内容');
+                            await page.evaluate((element, content) => {
+                                element.value = content; // 直接设置输入框的值
+                                element.dispatchEvent(new Event('input', { bubbles: true })); // 触发输入事件
+                            }, textarea, helpContent);
+                            const confirmButton = await logElementAction('.popup-buttons button:nth-child(1)', '确认导入');
+                            await confirmButton.click();
+                        } else {
+                            // 快速导入模式处理
+                            const tab = await logElementAction('.popup-tab:nth-child(3)', '切换至快速导入标签');
+                            await tab.click();
+
+                            const textarea = await logElementAction('.popup-content textarea', '输入帮助内容');
+                            await page.evaluate((element, content) => {
+                                element.value = content; // 直接设置输入框的值
+                                element.dispatchEvent(new Event('input', { bubbles: true })); // 触发输入事件
+                            }, textarea, helpContent);
+                            const replaceButton = await logElementAction('.popup-buttons button:nth-child(1)', '执行替换导入');
+                            await replaceButton.click();
                         }
-                        return songDetails3;
-                    });
-        */
 
 
-        async function ensureTempDir() {
-            if (!isTempDirInitialized) {
-                await fs.mkdir(tempDir, { recursive: true });
-                isTempDirInitialized = true;
-            }
-        }
+                        // 等待渲染完成
+                        logInfo(`等待渲染完成...`);
+                        await page.waitForSelector('.preview-container-wrapper', {
+                            visible: true,
+                            timeout: 30000
+                        });
 
-        async function downloadFile(url) {
-            await ensureTempDir();
 
-            try {
-                // 获取文件内容
-                const response = await ctx.http.get(url, { responseType: 'arraybuffer' });
-                const buffer = Buffer.from(response);
+                        // 截图处理
+                        logInfo(`正在执行截图...`);
+                        // 等待 1000ms 确保页面完全加载 // 不然背景图加载好了 也会截图到空白背景
+                        await new Promise(resolve => setTimeout(resolve, 1000));
+                        const previewContainer = await logElementAction('.preview-container-wrapper', '执行截图');
+                        const imageBuffer = await previewContainer.screenshot({
+                            type: "jpeg",
+                            encoding: "binary",
+                            quality: config.screenshotquality,
+                            captureBeyondViewport: true // 确保截取完整内容
+                        });
 
-                // 生成随机文件名并保留扩展名
-                const ext = path.extname(new URL(url).pathname).split('?')[0] || '.dat';
-                const filename = crypto.randomBytes(8).toString('hex') + ext;
-                const filePath = path.join(tempDir, filename);
+                        // 保存缓存
+                        if (config.tempPNG && ['2.1', '2.2', '3', '3.2'].includes(config.helpmode)) { // 模式 3.2 也应该支持缓存
+                            try {
+                                fs.writeFileSync(temp_helpFilePath, imageBuffer);
+                                lastCacheKey = cacheKey; // 存储缓存Key
+                                logInfo(`缓存图片成功，key: ${cacheKey}`);
+                            } catch (e) {
+                                logger.warn(`保存缓存图片失败`, e);
+                            }
+                        }
 
-                // 写入文件
-                await fs.writeFile(filePath, buffer);
-                // url.pathToFileURL(filePath).href
-                return filePath; //  返回本地文件路径，而不是 file URL
-            } catch (error) {
-                logger.error('文件下载失败:', error);
-                return null;
-            }
-        }
-        async function safeUnlink(filePath, maxRetries = 5, interval = 1000) {
-            let retries = 0;
-            while (retries < maxRetries) {
-                try {
-                    await fs.access(filePath); // 先检查文件是否存在
-                    await fs.unlink(filePath);
-                    return;
+
+                        // 性能统计
+                        const costTime = ((Date.now() - startTime) / 1000).toFixed(2);
+                        logInfo(`截图完成，耗时${costTime}秒，图片大小：${(imageBuffer.length / 1024).toFixed(2)}KB`);
+
+                        await session.send([
+                            h.image(imageBuffer, 'image/jpeg'),
+                            // h.text(session.text('.success')) // 移除成功文字
+                        ]);
+
+                    } catch (error) {
+                        logger.error(`渲染过程出错：`, error);
+                        await session.send(h.text(session.text('.somerror')));
+                    } finally {
+                        await page.close().catch(error => {
+                            logger.warn(`页面关闭失败：`, error);
+                        });
+                    }
+
                 } catch (error) {
-                    if (error.code === 'ENOENT') return; // 文件不存在直接返回
-                    if (error.code === 'EBUSY') {
-                        retries++;
-                        await new Promise(resolve => setTimeout(resolve, interval));
-                    } else {
-                        throw error;
-                    }
-                }
-            }
-            throw new Error(`Failed to delete ${filePath} after ${maxRetries} retries`);
-        }
-
-
-        /**
-         * 重构后的 generateResponse 函数，严格遵循消息顺序规范
-         * 文本(text) -> 图片(image) -> 音频(audio)/视频(video) -> 文件(file)
-         */
-        async function generateResponse(data, platformconfig, deleteTempTime, tempFiles, fs, tempDir) {
-            // 按类型分类存储
-            const textElements = [];
-            const imageElements = [];
-            const mediaElements = [];
-            const fileElements = [];
-
-            // 第一遍处理非文件类型
-            for (const field of platformconfig) {
-                if (!field.enable) continue;
-
-                const value = data[field.data];
-                if (!value) continue;
-
-                switch (field.type) {
-                    case 'text':
-                        textElements.push(h.text(`${field.describe}：${value}`));
-                        break;
-                    case 'image':
-                        imageElements.push(h.image(value));
-                        break;
-                    case 'audio':
-                    case 'video':
-                        mediaElements.push(field.type === 'audio' ? h.audio(value) : h.video(value));
-                        break;
-                }
-            }
-
-            // 第二遍单独处理文件类型（需要异步操作）
-            for (const field of platformconfig) {
-                if (!field.enable || field.type !== 'file' || !data[field.data]) continue;
-
-                try {
-                    const localFilePath = await downloadFile(data[field.data]);
-                    if (!localFilePath) continue;
-
-                    fileElements.push(h.file(url.pathToFileURL(localFilePath).href));
-                    tempFiles.add(localFilePath);
-
-                    // 定时删除逻辑
-                    if (deleteTempTime > 0) {
-                        ctx.setTimeout(async () => {
-                            await safeUnlink(localFilePath).catch(() => { });
-                            logInfo(`正在执行： tempFiles.delete(${localFilePath})`)
-                            tempFiles.delete(localFilePath);
-                        }, deleteTempTime * 1000);
-                    }
-                } catch (error) {
-                    logger.error('文件处理失败:', error);
-                }
-            }
-
-            // 按规范顺序合并所有元素
-            return [...textElements, ...imageElements, ...mediaElements, ...fileElements].join('\n');
-        }
-
-        async function searchKugou(http, query, br) {
-            const apiBase = 'https://api.xingzhige.com/API/Kugou_GN_new/';
-            const params = {
-                name: query,
-                pagesize: 20,
-                br: br,
-                key: config.xingzhigeAPIkey
-            };
-            return await http.get(apiBase, { params });
-        }
-
-        async function searchKugouSong(http, query, br, serialNumber) {
-            const apiBase = 'https://api.xingzhige.com/API/Kugou_GN_new/';
-            const params = {
-                name: query,
-                n: serialNumber,
-                pagesize: 20,
-                br: br,
-                key: config.xingzhigeAPIkey
-            };
-            return await http.get(apiBase, { params });
-        }
-
-        async function searchXZG(http, platform, params) {
-            logInfo(params);
-            let apiBase = 'https://api.xingzhige.com/API/QQmusicVIP/';
-            if (platform === 'NetEase Music') {
-                apiBase = 'https://api.xingzhige.com/API/NetEase_CloudMusic_new/';
-            }
-            // 构建完整的请求 URL
-            const requestUrl = `${apiBase}?${new URLSearchParams(params).toString()}`;
-            logInfo(requestUrl);
-            return await http.get(apiBase, { params });
-        }
-
-        function formatSongList(data, platform, startIndex) {
-            if (!data || data.length === 0) {
-                return `<b>${platform}</b>: 无法获取歌曲列表`; //  处理无数据的情况
-            }
-            const formattedList = data.map((song, index) => `${index + startIndex + 1}. ${song.songname || song.title} -- ${song.name || song.author}`).join('<br />');
-            return `<b>${platform}</b>:<br />${formattedList}`;
-        }
-
-        async function searchQQ(http, query) {
-            return await http.post('https://u.y.qq.com/cgi-bin/musicu.fcg', {
-                comm: {
-                    ct: 11,
-                    cv: '1929'
-                },
-                request: {
-                    module: 'music.search.SearchCgiService',
-                    method: 'DoSearchForQQMusicLite',
-                    param: {
-                        search_id: '83397431192690042',
-                        remoteplace: 'search.android.keyboard',
-                        query,
-                        search_type: 0,
-                        num_per_page: 10,
-                        page_num: 1,
-                        highlight: 1,
-                        nqc_flag: 0,
-                        page_id: 1,
-                        grp: 1
-                    }
+                    logger.error(`全局错误：`, error);
+                    await session.send(h.text(session.text('.somerror')));
                 }
             });
-        }
-        async function generateSongListImage(pptr, listText) {
-            const textBrightness = config.darkMode ? 255 : 0;
-            const backgroundBrightness = config.darkMode ? 0 : 255;
-            const page = await pptr.browser.newPage();
-            const textColor = `rgb(${textBrightness},${textBrightness},${textBrightness})`;
-            const backgroundColor = `rgb(${backgroundBrightness},${backgroundBrightness},${backgroundBrightness})`;
-            const htmlContent = `
-<!DOCTYPE html>
-<html lang="zh">
-<head>
-<title>music</title>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<style>
-body {
-margin: 0;
-font-family: PingFang SC, Hiragino Sans GB, Microsoft YaHei, SimSun, sans-serif;
-font-size: 16px;
-background: ${backgroundColor};
-color: ${textColor};
-min-height: 100vh;
-}
-#song-list {
-padding: 20px;
-display: inline-block; /* 使div适应内容宽度 */
-max-width: 100%; /* 防止内容溢出 */
-white-space: nowrap; /* 防止歌曲名称换行 */
-transform: scale(0.77);
-}
-</style>
-</head>
-<body>
-<div id="song-list">${listText}</div>
-</body>
-</html>
-`;
-            await page.setContent(htmlContent);
-            const clipRect = await page.evaluate(() => {
-                const songList = document.getElementById('song-list');
-                const rect = songList.getBoundingClientRect();
-                return { x: rect.left, y: rect.top, width: rect.width, height: rect.height };
-            });
-            const screenshot = await page.screenshot({
-                clip: clipRect,
-                encoding: 'binary'
-            });
-            await page.close();
-            return screenshot;
-        }
-
-        function logInfo(message, message2) {
-            if (config.loggerinfo) {
-                if (message2) {
-                    logger.info(`${message}${message2}`)
-                } else {
-                    logger.info(message);
-                }
-            }
-        }
-
-
     });
-
 
 
 }
