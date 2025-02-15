@@ -1537,13 +1537,17 @@ https://i0.hdslb.com/bfs/new_dyn/79aee60d45ff2e4940b4b7fe3dc0edb01767947324.jpg
                 selectIcon(icon) {
                     if (this.popupVisible) {
                         this.popupData.iconId = icon.id;
-                        this.popupData.icon = icon.url; // Keep icon URL for input display, but use iconId for config
+                        // 移除下面这行
+                        // this.popupData.icon = icon.url;
                     }
                 },
+
                 selectPopupIcon(icon) {
                     this.popupData.iconId = icon.id;
-                    this.popupData.icon = icon.url; // Keep icon URL for input display, but use iconId for config
+                    // 移除下面这行
+                    // this.popupData.icon = icon.url;
                 },
+
                 addSiblingMenuItem(index) {  // 新增 addSiblingMenuItem 方法，添加同级菜单
                     const newItem = {
                         title: '### 新菜单',
@@ -1785,30 +1789,10 @@ https://i0.hdslb.com/bfs/new_dyn/79aee60d45ff2e4940b4b7fe3dc0edb01767947324.jpg
                 confirmPopup() {
                     if (this.popupType === 'menuItem') {
                         const updatedItem = { ...this.popupData };
-                        if (updatedItem.icon) {
-                            const existingIcon = this.icons.find(icon => icon.url === updatedItem.icon);
-                            if (existingIcon) {
-                                updatedItem.iconId = existingIcon.id; // Use existing iconId if URL matches
-                            } else {
-                                const newIcon = { id: iconIdCounter++, url: updatedItem.icon, name: 'user-icon' };
-                                this.icons.push(newIcon);
-                                updatedItem.iconId = newIcon.id; // Assign new iconId and add to library
-                            }
-                        }
                         Vue.set(this.config.menuItems, this.selectedIndex, updatedItem);
 
                     } else if (this.popupType === 'subItem') {
                         const updatedSubItem = { ...this.popupData };
-                        if (updatedSubItem.icon) {
-                            const existingIcon = this.icons.find(icon => icon.url === updatedSubItem.icon);
-                            if (existingIcon) {
-                                updatedSubItem.iconId = existingIcon.id; // Use existingIconId if URL matches
-                            } else {
-                                const newIcon = { id: iconIdCounter++, url: updatedSubItem.icon, name: 'user-sub-icon' };
-                                this.icons.push(newIcon);
-                                updatedSubItem.iconId = newIcon.id; // Assign new iconId and add to library
-                            }
-                        }
                         Vue.set(this.config.menuItems[this.selectedIndex].subItems, this.selectedSubIndex, updatedSubItem);
                     } else if (this.popupType === 'title') {
                         if (this.popupData.type === 'helpTitle') {
@@ -1829,6 +1813,7 @@ https://i0.hdslb.com/bfs/new_dyn/79aee60d45ff2e4940b4b7fe3dc0edb01767947324.jpg
                     }
                     this.closePopup();
                 },
+
 
                 closePopup() {
                     this.popupVisible = false;

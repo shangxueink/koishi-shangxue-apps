@@ -11,7 +11,7 @@ exports.reusable = true; // 声明此插件可重用
 const name = 'preview-help';
 const inject = {
     required: ['http', "i18n"],
-    optional: ['console', "puppeteer", 'server'] // 增加 server
+    optional: ['console', "puppeteer", 'server'] 
 };
 const logger = new Logger('preview-help');
 
