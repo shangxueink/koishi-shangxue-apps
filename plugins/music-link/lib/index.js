@@ -409,6 +409,89 @@ const command7_return_data_Field_default = [
         "type": "image"
     }
 ];
+
+
+const command8_return_qqdata_Field_default = [
+    {
+        "data": "song_name",
+        "type": "text",
+        "describe": "歌曲名称"
+    },
+    {
+        "data": "song_singer",
+        "describe": "歌手",
+        "type": "text"
+    },
+    {
+        "data": "quality",
+        "describe": "音质",
+        "type": "text"
+    },
+    {
+        "data": "cover",
+        "describe": "封面",
+        "type": "image"
+    },
+    {
+        "data": "link",
+        "describe": "歌曲链接",
+        "type": "text",
+        "enable": false
+    },
+    {
+        "data": "music_url",
+        "describe": "下载链接",
+        "type": "text"
+    },
+    {
+        "data": "lyric",
+        "describe": "歌词",
+        "type": "text",
+        "enable": false
+    }
+];
+const command8_return_wyydata_Field_default = [
+    {
+        "data": "title",
+        "describe": "歌曲名称",
+        "type": "text"
+    },
+    {
+        "data": "singer",
+        "describe": "歌手",
+        "type": "text"
+    },
+    {
+        "data": "id",
+        "describe": "音质",
+        "type": "text",
+        "enable": null
+    },
+    {
+        "data": "cover",
+        "describe": "封面",
+        "type": "image"
+    },
+    {
+        "data": "link",
+        "describe": "歌曲链接",
+        "type": "text",
+        "enable": false
+    },
+    {
+        "data": "music_url",
+        "describe": "下载链接",
+        "type": "text"
+    },
+    {
+        "data": "lrc",
+        "describe": "歌词",
+        "type": "text",
+        "enable": false
+    }
+];
+
+
 const platformMap = {
     '网易云': 'netease',
     'QQ': 'tencent',
@@ -441,9 +524,19 @@ const Config = Schema.intersect([
     Schema.object({
         enablemiddleware: Schema.boolean().description("是否自动解析JSON音乐卡片").default(false),
         middleware: Schema.boolean().description("`enablemiddleware`是否使用前置中间件监听<br>`中间件无法接受到消息可以考虑开启`").default(false),
-        used_command: Schema.union(['command1', 'command4', 'command5', 'command6', 'command7']).description("自动解析使用的指令<br>解析内容与下面对应的指令返回设置一致").default("command1"), // , 'command2'
+        // used_command: Schema.union(['command1', 'command4', 'command5', 'command6', 'command7'])        .description("自动解析使用的指令<br>解析内容与下面对应的指令返回设置一致").default("command1"), // , 'command2'
+        used_command: Schema.union([
+            Schema.const('command1').description('command1（星之阁API）'),
+            Schema.const('command4').description('command4（星之阁-酷狗API）'),
+            Schema.const('command5').description('command5（`music.gdstudio.xyz`）'),
+            Schema.const('command6').description('command6（`网易单曲id点歌`）'),
+            Schema.const('command7').description('command7（`dev.iw233.cn`）'),
+            Schema.const('command8').description('command8（龙珠API）'),
+        ]).description("自动解析使用的指令<br>解析内容与下面对应的指令返回设置一致").default("command1"),
         used_id: Schema.number().default(1).min(0).max(10).description("在歌单里默认选择的序号<br>范围`0-10`，无需考虑11-20，会自动根据JSON卡片的平台选择。若音乐平台不匹配 则在搜索项前十个进行选择。"),
     }).description('JSON卡片解析设置'),
+
+
     Schema.object({
         command1: Schema.string().default('下载音乐').description('星之阁API的指令名称'),
         command1_wyy_Quality: Schema.number().default(2).description('网易云音乐默认下载音质。默认2，其余自己试 `不建议更改，可能会导致无音源`'),
@@ -460,7 +553,7 @@ const Config = Schema.intersect([
                 Schema.const('audio').description('语音（audio）'),
                 Schema.const('video').description('视频（video）'),
                 Schema.const('file').description('文件（file）'),
-            ]).role('radio').description('字段发送类型'),
+            ]).description('字段发送类型'),
             enable: Schema.boolean().default(true).description('是否启用')
         })).role('table').default(command1_return_qqdata_Field_default).description('歌曲返回信息的字段选择<br>[➣ 点我查看该API返回内容示例](https://api.xingzhige.com/API/QQmusicVIP/?songid=499449053&br=2&uin=2&skey=2&key=)'),
 
@@ -473,13 +566,11 @@ const Config = Schema.intersect([
                 Schema.const('audio').description('语音（audio）'),
                 Schema.const('video').description('视频（video）'),
                 Schema.const('file').description('文件（file）'),
-            ]).role('radio').description('字段发送类型'),
+            ]).description('字段发送类型'),
             enable: Schema.boolean().default(true).description('是否启用')
         })).role('table').default(command1_return_wyydata_Field_default).description('歌曲返回信息的字段选择<br>[➣ 点我查看该API返回内容示例](https://api.xingzhige.com/API/NetEase_CloudMusic_new/?name=%E8%94%9A%E8%93%9D%E6%A1%88&n=1&key=)'),
 
     }).description('星之阁API返回设置'),
-
-
 
     Schema.object({
         command4: Schema.string().default('酷狗音乐').description('酷狗-星之阁API的指令名称'),
@@ -493,11 +584,10 @@ const Config = Schema.intersect([
                 Schema.const('audio').description('语音（audio）'),
                 Schema.const('video').description('视频（video）'),
                 Schema.const('file').description('文件（file）'),
-            ]).role('radio').description('字段发送类型'),
+            ]).description('字段发送类型'),
             enable: Schema.boolean().default(true).description('是否启用')
         })).role('table').default(command4_return_data_Field_default).description('歌曲返回信息的字段选择<br>[➣ 点我查看该API返回内容示例](https://api.xingzhige.com/API/Kugou_GN_new/?name=蔚蓝档案&pagesize=20&br=2&key=)'),
     }).description('酷狗-星之阁API返回设置'),
-
 
     Schema.object({
         command5: Schema.string().default('歌曲搜索').description('`music.gdstudio.xyz`的指令名称'),
@@ -532,7 +622,7 @@ const Config = Schema.intersect([
                 Schema.const('audio').description('语音（audio）'),
                 Schema.const('video').description('视频（video）'),
                 Schema.const('file').description('文件（file）'),
-            ]).role('radio').description('字段发送类型'),
+            ]).description('字段发送类型'),
             enable: Schema.boolean().default(true).description('是否启用'),
         })).role('table').description('歌曲返回信息的字段选择<br>').default(command5_return_data_Field_default),
     }).description('`music.gdstudio.xyz`返回设置'),
@@ -549,7 +639,7 @@ const Config = Schema.intersect([
                 Schema.const('audio').description('语音（audio）'),
                 Schema.const('video').description('视频（video）'),
                 Schema.const('file').description('文件（file）'),
-            ]).role('radio').description('字段发送类型'),
+            ]).description('字段发送类型'),
             enable: Schema.boolean().default(true).description('是否启用'),
         })).role('table').description('歌曲返回信息的字段选择<br>[➣ 点我查看该API返回内容示例](https://api.injahow.cn/meting/?id=2608813264&type=song)').default(command6_return_data_Field_default),
     }).description('`网易单曲id点歌`返回设置'),
@@ -566,10 +656,45 @@ const Config = Schema.intersect([
                 Schema.const('audio').description('语音（audio）'),
                 Schema.const('video').description('视频（video）'),
                 Schema.const('file').description('文件（file）'),
-            ]).role('radio').description('字段发送类型'),
+            ]).description('字段发送类型'),
             enable: Schema.boolean().default(true).description('是否启用'),
         })).role('table').description('歌曲返回信息的字段选择<br>[➣ 点我查看该API返回内容示例](https://dev.iw233.cn/Music1/?name=%E8%94%9A%E8%93%9D%E6%A1%A3%E6%A1%88&type=netease) 需F12 网络标签页 预览响应 `Music1/`').default(command7_return_data_Field_default),
     }).description('`dev.iw233.cn`返回设置'),
+
+    /*
+    Schema.object({
+        command8: Schema.string().default('龙珠搜索').description('龙珠API的指令名称'),
+        command8_qqQuality: Schema.number().default(1).description('QQ音乐默认下载音质。<br>1=(默认SQ无损,从高到低),2=HQ高品MP3'),
+
+        command8_wyyQuality: Schema.number().default(1).description('网易云音乐默认下载音质。`找不到对应音质，会自动使用标准音质`<br>1(标准音质)/2(极高音质)/3(无损音质)/4(Hi-Res音质)/5(高清环绕声)/6(沉浸环绕声)/7(超清母带)'),
+
+        command8_return_qqdata_Field: Schema.array(Schema.object({
+            data: Schema.string().description('返回的字段').disabled(),
+            describe: Schema.string().description('对该字段的中文描述'),
+            type: Schema.union([
+                Schema.const('text').description('文本（text）'),
+                Schema.const('image').description('图片（image）'),
+                Schema.const('audio').description('语音（audio）'),
+                Schema.const('video').description('视频（video）'),
+                Schema.const('file').description('文件（file）'),
+            ]).description('字段发送类型'),
+            enable: Schema.boolean().default(true).description('是否启用')
+        })).role('table').default(command8_return_qqdata_Field_default).description('QQ歌曲  返回信息的字段选择<br>[➣ 点我查看该API返回内容示例](https://www.hhlqilongzhu.cn/api/dg_shenmiMusic_SQ.php?msg=蔚蓝档案&n=3&type=json)'),
+
+        command8_return_wyydata_Field: Schema.array(Schema.object({
+            data: Schema.string().description('返回的字段').disabled(),
+            describe: Schema.string().description('对该字段的中文描述'),
+            type: Schema.union([
+                Schema.const('text').description('文本（text）'),
+                Schema.const('image').description('图片（image）'),
+                Schema.const('audio').description('语音（audio）'),
+                Schema.const('video').description('视频（video）'),
+                Schema.const('file').description('文件（file）'),
+            ]).description('字段发送类型'),
+            enable: Schema.boolean().default(true).description('是否启用')
+        })).role('table').default(command8_return_wyydata_Field_default).description('网易云歌曲  返回信息的字段选择<br>[➣ 点我查看该API返回内容示例](https://www.hhlqilongzhu.cn/api/dg_wyymusic.php?gm=蔚蓝档案&type=json&num=10&n=1)'),
+    }).description('龙珠API返回设置'),
+*/
 
     Schema.object({
         deleteTempTime: Schema.number().default(20).description('对于`file`类型的Tmep临时文件的删除时间<br>若干`秒`后 删除下载的本地临时文件').experimental(),
@@ -680,9 +805,9 @@ function apply(ctx, config) {
 
                             // 检查是否存在 musicMeta 和 tag
                             const musicMeta = jsonData?.meta?.music || jsonData?.meta?.news; // 尝试兼容两种结构
+                            const tag = musicMeta?.tag;
+                            if (musicMeta && tag.includes("音乐")) {
 
-                            if (musicMeta) {
-                                const tag = musicMeta.tag;
                                 const title = musicMeta.title;
                                 const desc = musicMeta.desc;
                                 logInfo("---------");
@@ -1489,8 +1614,182 @@ function apply(ctx, config) {
                 }
             });
 
-
-
+        /*
+                ctx.command(`${name}/${config.command8} <keyword:text>`)
+                    .option('quality', '-q <value:number> 品质因数')
+                    .option('number', '-n <number:number> 歌曲序号')
+                    .action(async ({ session, options, args }) => {
+                        const keyword = args.join(' ');
+                        if (!keyword) {
+                            await session.send('请输入歌曲名称。');
+                            return;
+                        }
+        
+                        let qqSongs = []; // 初始化为空数组
+                        let wySongs = [];  // 初始化为空数组
+        
+                        // 获取QQ音乐歌曲列表 (原 searchLongZhuQQ 函数逻辑)
+                        try {
+                            // const qqUrl = `https://www.hhlqilongzhu.cn/api/dg_qqmusic.php?gm=${encodeURIComponent(keyword)}&type=json&num=10`;
+                            // https://www.hhlqilongzhu.cn/api/dg_shenmiMusic_SQ.php?type=json&msg=蔚蓝档案&n=3
+        
+                            const qqUrl = `https://www.hhlqilongzhu.cn/api/dg_shenmiMusic_SQ.php?type=json&msg=${encodeURIComponent(keyword)}&num=10`;
+                            logInfo(qqUrl);
+                            const qqResponse = await fetch(qqUrl);
+                            logInfo(JSON.stringify(qqResponse));
+        
+                            if (!qqResponse.ok) {
+                                throw new Error(`Failed to fetch QQ song list: ${qqResponse.statusText}`);
+                            }
+                            const qqData = await qqResponse.json();
+                            if (qqData.code !== 200) {
+                                throw new Error(`QQ API error: ${qqData.code}`);
+                            }
+                            logInfo(JSON.stringify(qqData));
+                            qqSongs = qqData.data || []; // 赋值歌曲数据，如果 data 为空，则赋值空数组
+                        } catch (error) {
+                            logger.error('获取龙珠QQ歌曲列表时发生错误', error);
+                            return '无法获取QQ音乐歌曲列表，请稍后再试。';
+                        }
+        
+                        // 获取网易云音乐歌曲列表 (原 searchLongZhuWY 函数逻辑)
+                        try {
+                            const wyUrl = `https://www.hhlqilongzhu.cn/api/dg_wyymusic.php?gm=${encodeURIComponent(keyword)}&type=json&num=10`;
+                            const wyResponse = await fetch(wyUrl);
+                            logInfo(JSON.stringify(wyUrl));
+        
+                            if (!wyResponse.ok) {
+                                throw new Error(`Failed to fetch WY song list: ${wyResponse.statusText}`);
+                            }
+                            const wyData = await wyResponse.json();
+                            if (wyData.code !== 200) {
+                                throw new Error(`WY API error: ${wyData.code}`);
+                            }
+                            logInfo(JSON.stringify(wyData));
+                            wySongs = wyData.data || []; // 赋值歌曲数据，如果 data 为空，则赋值空数组
+                        } catch (error) {
+                            logger.error('获取龙珠网易云歌曲列表时发生错误', error);
+                            return '无法获取网易云音乐歌曲列表，请稍后再试。';
+                        }
+        
+                        // 确保歌曲列表非空
+                        if (qqSongs.length === 0 && wySongs.length === 0) {
+                            return '没有找到相关歌曲。';
+                        }
+        
+                        const totalSongs = qqSongs.length + wySongs.length;
+        
+                        // 检查是 可用序号
+                        let index = options.number;
+                        if (index) {
+                            index = Number(index);
+                            if (Number.isNaN(index) || index < 1 || index > totalSongs) {
+                                return '输入的序号无效。若要点歌请重新发起。';
+                            }
+                        } else {
+                            // 格式化QQ音乐歌曲列表
+                            const qqSongList = qqSongs.map((song, idx) => {
+                                const title = song.song_title || song.title;
+                                const singer = song.song_singer || song.singer;
+                                return `${idx + 1}. ${title} -- ${singer}`;
+                            });
+        
+                            // 格式化网易云音乐歌曲列表
+                            const wySongList = wySongs.map((song, idx) => {
+                                const title = song.song_title || song.title;
+                                const singer = song.song_singer || song.singer;
+                                return `${idx + 1 + qqSongs.length}. ${title} -- ${singer}`;
+                            });
+        
+                            // 合并歌曲列表并添加小标题
+                            const songListMessage = [
+                                'QQ Music',
+                                ...qqSongList,
+                                '',
+                                'NetEase Music',
+                                ...wySongList
+                            ].join('\n');
+        
+                            // 判断是否使用图片模式
+                            if (config.imageMode) {
+                                const listText = songListMessage.replace(/\n/g, '<br />');
+                                const imageBuffer = await generateSongListImage(ctx.puppeteer, listText);
+                                await session.send(h.image(imageBuffer, 'image/png') + `${exitCommandTip}请在${waitTimeInSeconds}秒内，<br />输入歌曲对应的序号`);
+                            } else {
+                                await session.send(`以下是搜索结果：\n${songListMessage}\n${exitCommandTip}请在${waitTimeInSeconds}秒内，<br />输入歌曲对应的序号`);
+                            }
+        
+                            // 用户回复序号
+                            const songChoice = await session.prompt(config.waitTimeout);
+                            if (!songChoice) {
+                                return '输入超时，已取消点歌。';
+                            }
+        
+                            index = parseInt(songChoice, 10);
+                            if (isNaN(index) || index < 1 || index > totalSongs) {
+                                return '输入的序号无效。若要点歌请重新发起。';
+                            }
+                        }
+        
+                        const quality = options.quality || config.command3_wyyQuality;
+        
+                        let details = null; // 初始化 details 为 null
+                        let songDetails3 = null; // 初始化 songDetails3 为 null
+        
+                        // 获取用户选择的歌曲详细信息 (原 fetchLongZhuQQDetails 和 fetchLongZhuWYDetails 函数逻辑)
+                        if (index <= qqSongs.length) {
+                            // QQ 音乐详情
+                            try {
+        
+                                // https://www.hhlqilongzhu.cn/api/dg_shenmiMusic_SQ.php?type=json&msg=蔚蓝档案&n=3
+                                // const qqDetailsUrl = `https://www.hhlqilongzhu.cn/api/dg_qqmusic.php?gm=${encodeURIComponent(keyword)}&type=json&num=10&n=${index}`;
+                                const qqDetailsUrl = `https://www.hhlqilongzhu.cn/api/dg_shenmiMusic_SQ.php?type=json&msg=${encodeURIComponent(keyword)}&n=${index}&num=10&br=${config.command8_qqQuality}`;
+                                const qqDetailsResponse = await fetch(qqDetailsUrl);
+                                if (!qqDetailsResponse.ok) {
+                                    throw new Error(`Failed to fetch QQ song details: ${qqDetailsResponse.statusText}`);
+                                }
+                                logInfo(JSON.stringify(qqDetailsUrl));
+        
+                                const qqDetailsData = await qqDetailsResponse.json();
+                                if (qqDetailsData.code !== 200) {
+                                    throw new Error(`QQ API error: ${qqDetailsData.code}`);
+                                }
+                                logInfo(JSON.stringify(qqDetailsData));
+                                details = qqDetailsData.data; // 赋值歌曲详细信息
+                                songDetails3 = generateResponse(details, config.command8_return_qqdata_Field);
+                            } catch (error) {
+                                logger.error('获取龙珠QQ歌曲详情时发生错误', error);
+                                return '无法获取QQ音乐歌曲下载链接。'; // 针对详情获取错误返回更具体的提示
+                            }
+                        } else {
+                            // 网易云音乐详情
+                            try {
+                                const wyDetailsUrl = `https://www.hhlqilongzhu.cn/api/dg_wyymusic.php?gm=${encodeURIComponent(keyword)}&type=json&br=${quality}&num=10&n=${index - qqSongs.length}`;
+                                const wyDetailsResponse = await fetch(wyDetailsUrl);
+                                if (!wyDetailsResponse.ok) {
+                                    throw new Error(`Failed to fetch WY song details: ${wyDetailsResponse.statusText}`);
+                                }
+                                logInfo(JSON.stringify(wyDetailsUrl));
+        
+                                const wyDetailsData = await wyDetailsResponse.json();
+                                if (wyDetailsData.code !== 200) {
+                                    throw new Error(`WY API error: ${wyDetailsData.code}`);
+                                }
+                                logInfo(JSON.stringify(wyDetailsData));
+                                details = wyDetailsData; // 赋值歌曲详细信息
+                                songDetails3 = generateResponse(details, config.command8_return_wyydata_Field);
+                            } catch (error) {
+                                logger.error('获取龙珠网易云歌曲详情时发生错误', error);
+                                return '无法获取网易云音乐歌曲下载链接。'; // 针对详情获取错误返回更具体的提示
+                            }
+                        }
+        
+                        if (!details) {
+                            return '无法获取歌曲下载链接。';
+                        }
+                        return songDetails3;
+                    });
+        */
 
 
         async function ensureTempDir() {
