@@ -39,7 +39,7 @@ const usage = `
 
 <h3>使用api.injahow.cn网站搜索网易云音乐</h3>
 <pre><code>网易点歌 [歌曲名称/歌曲ID]</code></pre>
-<p><b>(强烈推荐)</b> api.injahow.cn 网站，API请求快速且稳定，无需 puppeteer 服务。<b>仅支持网易云音乐</b>，可以通过歌曲名称或歌曲ID进行搜索。</p>
+<p><b>(比较推荐)</b> api.injahow.cn 网站，API请求快速且稳定，无需 puppeteer 服务，但是VIP歌曲只能听45秒。<b>仅支持网易云音乐</b>，可以通过歌曲名称或歌曲ID进行搜索。</p>
 <hr>
 
 <h3>使用dev.iw233.cn网站搜索网易云 + 酷狗音乐</h3>
@@ -81,13 +81,13 @@ const usage = `
 
 ### 目前 星之阁API的key已经失效，如需使用请自行前往注册
 
-### 目前 推荐使用新指令<code>歌曲搜索</code>，请确保<code>puppeteer</code>服务可用
+### 目前 推荐使用<code>music.gdstudio.xyz</code>的服务，请确保<code>puppeteer</code>服务可用
 
 ---
 
 ## 后端推荐度：
 
-ⅰ . <code>api.injahow.cn (网易点歌)</code> >
+ⅰ . <code>music.gdstudio.xyz (歌曲搜索)</code> >
 
  - ⅱ . <code>dev.iw233.cn (音乐搜索器)</code> >=
 
@@ -567,12 +567,12 @@ const Config = Schema.intersect([
         serverSelect: Schema.union([
             Schema.const('command1').description('command1：星之阁API（需加群申请APIkey）（QQ + 网易云）'),
             Schema.const('command4').description('command4：星之阁-酷狗API（需加群申请APIkey）'),
-            Schema.const('command5').description('command5：`music.gdstudio.xyz`  网站 （需puppeteer爬取 较慢）（默认使用网易云点歌）'),
+            Schema.const('command5').description('command5：`music.gdstudio.xyz`  网站 （需puppeteer爬取，访问性好）（多平台支持）'),
             Schema.const('command6').description('command6：`api.injahow.cn`网站   （ API 请求快 + 稳定）（网易云点歌）'),
             Schema.const('command7').description('command7：`dev.iw233.cn` 网站（需puppeteer爬取 较慢）（网易云 + 酷狗）'),
             Schema.const('command8').description('command8（`www.hhlqilongzhu.cn` 龙珠API）（API，江苏可能访问不了）（网易云 + QQ点歌）'),
-        ]).role('radio').default("command6")
-            .description('选择使用的后端<br>➣ 推荐度：`api.injahow.cn` > `dev.iw233.cn` >= `music.gdstudio.xyz` > `星之阁API`'),
+        ]).role('radio').default("command5")
+            .description('选择使用的后端<br>➣ 推荐度：`music.gdstudio.xyz`  > `dev.iw233.cn` >= `api.injahow.cn` = `www.hhlqilongzhu.cn` > `星之阁API`'),
     }).description('后端选择'),
     Schema.union([
         Schema.object({
@@ -630,7 +630,7 @@ const Config = Schema.intersect([
             })).role('table').default(command4_return_data_Field_default).description('歌曲返回信息的字段选择<br>[➣ 点我查看该API返回内容示例](https://api.xingzhige.com/API/Kugou_GN_new/?name=蔚蓝档案&pagesize=20&br=2&key=)'),
         }).description('酷狗-星之阁API返回设置'),
         Schema.object({
-            serverSelect: Schema.const('command5').required(),
+            serverSelect: Schema.const('command5'),
             command5: Schema.string().default('歌曲搜索').description('`music.gdstudio.xyz`的指令名称'),
             command5_defaultPlatform: Schema.union([
                 Schema.const('网易云').description('网易云'),
@@ -668,7 +668,7 @@ const Config = Schema.intersect([
             })).role('table').description('歌曲返回信息的字段选择<br>').default(command5_return_data_Field_default),
         }).description('`music.gdstudio.xyz`返回设置'),
         Schema.object({
-            serverSelect: Schema.const('command6'),
+            serverSelect: Schema.const('command6').required(),
             command6: Schema.string().default('网易点歌').description('`网易点歌`的指令名称<br>输入歌曲ID，返回歌曲'),
             command6_searchList: Schema.number().default(20).min(1).max(50).description('歌曲搜索的列表长度。返回的候选项个数。'),
             command6_return_data_Field: Schema.array(Schema.object({
