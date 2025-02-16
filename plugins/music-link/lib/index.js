@@ -82,7 +82,9 @@ const usage = `
 
      - ⅲ . <code>music.gdstudio.xyz (歌曲搜索)</code> >
 
-        - ⅳ . <code>星之阁API (下载音乐/酷狗音乐)</code>
+        ... ...others
+
+            - ⅳ . <code>星之阁API (下载音乐/酷狗音乐)</code>
 `;
 
 
@@ -565,7 +567,7 @@ const Config = Schema.intersect([
             Schema.const('command5').description('command5：`music.gdstudio.xyz`  网站 （需puppeteer爬取 较慢）（默认使用网易云点歌）'),
             Schema.const('command6').description('command6：`api.injahow.cn`网站   （ API 请求快 + 稳定）（网易云点歌）'),
             Schema.const('command7').description('command7：`dev.iw233.cn` 网站（需puppeteer爬取 较慢）（网易云 + 酷狗）'),
-            Schema.const('command8').description('command8（龙珠API）（ API，江苏可能访问不了）（网易云 + QQ点歌）'),
+            Schema.const('command8').description('command8（`www.hhlqilongzhu.cn` 龙珠API）（API，江苏可能访问不了）（网易云 + QQ点歌）'),
         ]).role('radio').default("command6")
             .description('选择使用的后端<br>➣ 推荐度：`api.injahow.cn` > `dev.iw233.cn` >= `music.gdstudio.xyz` > `星之阁API`'),
     }).description('后端选择'),
@@ -816,6 +818,20 @@ function apply(ctx, config) {
                 },
                 [config.command7]: {
                     description: `音乐搜索器`,
+                    messages: {
+                        "nopuppeteer": "没有开启puppeteer服务",
+                        "nokeyword": "请输入歌曲相关信息。\n➣示例：/音乐搜索器 蔚蓝档案",
+                        "invalidNumber": "序号输入错误，已退出歌曲选择。",
+                        "waitTime": "请在{0}秒内，\n输入歌曲对应的序号:\n➣示例：@机器人 1",
+                        "waitTimeout": "输入超时，已取消点歌。",
+                        "exitprompt": "已退出歌曲选择。",
+                        "noplatform": "获取歌曲失败。",
+                        "somerror": "解析歌曲详情时发生错误",
+                        "songlisterror": "无法获取歌曲列表，请稍后再试。",
+                    }
+                },
+                [config.command8]: {
+                    description: `龙珠音乐`,
                     messages: {
                         "nopuppeteer": "没有开启puppeteer服务",
                         "nokeyword": "请输入歌曲相关信息。\n➣示例：/音乐搜索器 蔚蓝档案",
@@ -1738,6 +1754,8 @@ function apply(ctx, config) {
                     }
                 });
         }
+
+
         if (config.serverSelect === "command8") {
             ctx.command(`${config.command8} <keyword:text>`)
                 .option('quality', '-q <value:number> 品质因数')
@@ -1752,7 +1770,7 @@ function apply(ctx, config) {
                     let qqSongs = []; // 初始化为空数组
                     let wySongs = [];  // 初始化为空数组
 
-                    // 获取QQ音乐歌曲列表 (原 searchLongZhuQQ 函数逻辑)
+                    // 获取QQ音乐歌曲列表 
                     try {
                         // const qqUrl = `https://www.hhlqilongzhu.cn/api/dg_qqmusic.php?gm=${encodeURIComponent(keyword)}&type=json&num=10`;
                         // https://www.hhlqilongzhu.cn/api/dg_shenmiMusic_SQ.php?type=json&msg=蔚蓝档案&n=3
@@ -1760,37 +1778,32 @@ function apply(ctx, config) {
                         const qqUrl = `https://www.hhlqilongzhu.cn/api/dg_shenmiMusic_SQ.php?type=json&msg=${encodeURIComponent(keyword)}&num=10`;
                         logInfo(qqUrl);
                         const qqResponse = await ctx.http.get(qqUrl);
-                        //const qqResponse = { "code": 200, "data": [{ "n": 1, "title": "准备出发！", "singer": "安雪璃/小敢/MACE/曹雅雯/Z君", "songid": 2608813264 }, { "n": 2, "title": "RE Aoharu", "singer": "Aice room", "songid": 2098478355 }, { "n": 3, "title": "Unwelcome school", "singer": "ミツキヨ", "songid": 2002662300 }, { "n": 4, "title": "Constant Moderato", "singer": "ミツキヨ", "songid": 2093257373 }, { "n": 5, "title": "Clear Morning", "singer": "小倉唯", "songid": 1822700915 }, { "n": 6, "title": "Usagi Flap", "singer": "Aice room", "songid": 2059973927 }, { "n": 7, "title": "青春のアーカイブ", "singer": "アビドス高等学校対策委員会/花守ゆみり/小倉唯/三浦千幸/大橋彩香/原田彩楓", "songid": 2600877270 }, { "n": 8, "title": "Memories of Kindness", "singer": "鹿乃", "songid": 2064724623 }, { "n": 9, "title": "Aoharu Band Arrange", "singer": "ミツキヨ", "songid": 2099310789 }, { "n": 10, "title": "可爱补习法", "singer": "泠鸢yousa", "songid": 2115483560 }] }
+
                         logInfo(JSON.stringify(qqResponse));
 
                         if (!qqResponse) {
-                            throw new Error(`Failed to fetch QQ song list`);
+                            throw new Error(`Failed to get QQ song list`);
                         }
                         const qqData = await qqResponse;
-                        if (qqData.code !== 200) {
-                            throw new Error(`QQ API error: ${qqData.code}`);
-                        }
-                        logInfo(JSON.stringify(qqData));
+
+                        // logInfo(JSON.stringify(qqData));
                         qqSongs = qqData.data || []; // 赋值歌曲数据，如果 data 为空，则赋值空数组
                     } catch (error) {
                         logger.error('获取龙珠QQ歌曲列表时发生错误', error);
                         return '无法获取QQ音乐歌曲列表，请稍后再试。';
                     }
 
-                    // 获取网易云音乐歌曲列表 (原 searchLongZhuWY 函数逻辑)
+                    // 获取网易云音乐歌曲列表 
                     try {
                         const wyUrl = `https://www.hhlqilongzhu.cn/api/dg_wyymusic.php?gm=${encodeURIComponent(keyword)}&type=json&num=10`;
                         const wyResponse = await ctx.http.get(wyUrl);
-                        //const wyResponse = { "code": 200, "data": [{ "n": 1, "song_title": "准备出发！", "song_singer": "砂狼白子/早濑优香/黑馆晴奈/伊落玛丽/久田泉奈" }, { "n": 2, "song_title": "Unwelcome School", "song_singer": "Mitsukiyo" }, { "n": 3, "song_title": "Constant Moderato", "song_singer": "Mitsukiyo" }, { "n": 4, "song_title": "RE Aoharu", "song_singer": "Nor" }, { "n": 5, "song_title": "優しさの記憶 (温情的回忆)", "song_singer": "鹿乃" }, { "n": 6, "song_title": "青春のアーカイブ (青春档案) (feat. ホシノ (CV:花守ゆみり), シロコ (CV:小倉唯), ノノミ (CV:三浦千幸), セリカ (CV:大橋彩香) & アヤネ (CV:原田彩楓))", "song_singer": "アビドス高等学校対策委員会/花守ゆみり/小仓唯/三浦千幸/大桥彩香/原田彩楓" }, { "n": 7, "song_title": "Aoharu Band Arrange", "song_singer": "Mitsukiyo" }, { "n": 8, "song_title": "Alkaline Tears", "song_singer": "Mitsukiyo" }, { "n": 9, "song_title": "Shady Girls", "song_singer": "Mitsukiyo" }, { "n": 10, "song_title": "JUMP！BEAT！PLAY！", "song_singer": "苏枕袖/阎么么/皛四白/宅在家里什么都不会" }] };
+
                         logInfo(JSON.stringify(wyUrl));
 
                         if (!wyResponse) {
-                            throw new Error(`Failed to fetch WY song list`);
+                            throw new Error(`Failed to get WY song list`);
                         }
                         const wyData = await wyResponse;
-                        if (wyData.code !== 200) {
-                            throw new Error(`WY API error: ${wyData.code}`);
-                        }
                         logInfo(JSON.stringify(wyData));
                         wySongs = wyData.data || []; // 赋值歌曲数据，如果 data 为空，则赋值空数组
                     } catch (error) {
@@ -1862,32 +1875,30 @@ function apply(ctx, config) {
                         }
                     }
 
-                    const quality = options.quality || config.command3_wyyQuality;
-
+                    const wyyquality = options.quality || config.command8_wyyQuality;
+                    const qqquality = options.quality || config.command8_qqQuality;
                     let details = null; // 初始化 details 为 null
-                    let songDetails3 = null; // 初始化 songDetails3 为 null
+                    let songDetails8 = null; // 初始化 songDetails8 为 null
 
-                    // 获取用户选择的歌曲详细信息 (原 fetchLongZhuQQDetails 和 fetchLongZhuWYDetails 函数逻辑)
+                    // 获取用户选择的歌曲详细信息 
                     if (index <= qqSongs.length) {
                         // QQ 音乐详情
                         try {
 
                             // https://www.hhlqilongzhu.cn/api/dg_shenmiMusic_SQ.php?type=json&msg=蔚蓝档案&n=3
                             // const qqDetailsUrl = `https://www.hhlqilongzhu.cn/api/dg_qqmusic.php?gm=${encodeURIComponent(keyword)}&type=json&num=10&n=${index}`;
-                            const qqDetailsUrl = `https://www.hhlqilongzhu.cn/api/dg_shenmiMusic_SQ.php?type=json&msg=${encodeURIComponent(keyword)}&n=${index}&num=10&br=${config.command8_qqQuality}`;
-                            const qqDetailsResponse = await fetch(qqDetailsUrl);
-                            if (!qqDetailsResponse.ok) {
-                                throw new Error(`Failed to fetch QQ song details: ${qqDetailsResponse.statusText}`);
+                            const qqDetailsUrl = `https://www.hhlqilongzhu.cn/api/dg_shenmiMusic_SQ.php?type=json&msg=${encodeURIComponent(keyword)}&n=${index}&num=10&br=${qqquality}`;
+                            const qqDetailsResponse = await ctx.http.get(qqDetailsUrl);
+                            if (!qqDetailsResponse) {
+                                throw new Error(`Failed to get QQ song details`);
                             }
                             logInfo(JSON.stringify(qqDetailsUrl));
 
-                            const qqDetailsData = await qqDetailsResponse.json();
-                            if (qqDetailsData.code !== 200) {
-                                throw new Error(`QQ API error: ${qqDetailsData.code}`);
-                            }
+                            const qqDetailsData = await qqDetailsResponse;
+
                             logInfo(JSON.stringify(qqDetailsData));
                             details = qqDetailsData.data; // 赋值歌曲详细信息
-                            songDetails3 = generateResponse(details, config.command8_return_qqdata_Field);
+                            songDetails8 = generateResponse(details, config.command8_return_qqdata_Field);
                         } catch (error) {
                             logger.error('获取龙珠QQ歌曲详情时发生错误', error);
                             return '无法获取QQ音乐歌曲下载链接。'; // 针对详情获取错误返回更具体的提示
@@ -1895,20 +1906,18 @@ function apply(ctx, config) {
                     } else {
                         // 网易云音乐详情
                         try {
-                            const wyDetailsUrl = `https://www.hhlqilongzhu.cn/api/dg_wyymusic.php?gm=${encodeURIComponent(keyword)}&type=json&br=${quality}&num=10&n=${index - qqSongs.length}`;
-                            const wyDetailsResponse = await fetch(wyDetailsUrl);
-                            if (!wyDetailsResponse.ok) {
-                                throw new Error(`Failed to fetch WY song details: ${wyDetailsResponse.statusText}`);
+                            const wyDetailsUrl = `https://www.hhlqilongzhu.cn/api/dg_wyymusic.php?gm=${encodeURIComponent(keyword)}&type=json&br=${wyyquality}&num=10&n=${index - qqSongs.length}`;
+                            const wyDetailsResponse = await ctx.http.get(wyDetailsUrl);
+                            if (!wyDetailsResponse) {
+                                throw new Error(`Failed to get WY song details`);
                             }
                             logInfo(JSON.stringify(wyDetailsUrl));
 
-                            const wyDetailsData = await wyDetailsResponse.json();
-                            if (wyDetailsData.code !== 200) {
-                                throw new Error(`WY API error: ${wyDetailsData.code}`);
-                            }
+                            const wyDetailsData = await wyDetailsResponse;
+
                             logInfo(JSON.stringify(wyDetailsData));
                             details = wyDetailsData; // 赋值歌曲详细信息
-                            songDetails3 = generateResponse(details, config.command8_return_wyydata_Field);
+                            songDetails8 = generateResponse(details, config.command8_return_wyydata_Field);
                         } catch (error) {
                             logger.error('获取龙珠网易云歌曲详情时发生错误', error);
                             return '无法获取网易云音乐歌曲下载链接。'; // 针对详情获取错误返回更具体的提示
@@ -1918,7 +1927,7 @@ function apply(ctx, config) {
                     if (!details) {
                         return '无法获取歌曲下载链接。';
                     }
-                    return songDetails3;
+                    return songDetails8;
                 });
         }
 
