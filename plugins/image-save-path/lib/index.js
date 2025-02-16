@@ -180,7 +180,7 @@ exports.Config = Schema.intersect([
 
 
   Schema.object({
-    commandName: Schema.string().description('指令名称').default('保存图片'),
+    commandName: Schema.string().description('注册的指令名称').default('保存图片'),
     showSavePath: Schema.boolean().description("保存成功后，告知具体文件保存路径，关闭后只会回复`图片已成功保存。`").default(false),
     checkDuplicate: Schema.boolean().description("开启后将检查重名文件，避免覆盖，若同名，则在文件名后加`(1)`,`(2)`... ...").default(true),
     imageSaveMode: Schema.boolean().description("开启后，默认选择了第一行的文件夹，可以缺省路径参数<br>当然也支持输入路径参数<br>[此配置项效果图](https://i0.hdslb.com/bfs/article/1d34ae45de7e3c875eec0caee5444149312276085.png)").default(false),
@@ -195,9 +195,9 @@ exports.Config = Schema.intersect([
     ImageExtension: Schema.array(
       Schema.object(
         {
-        prefix: Schema.string().description('前缀'),
-        suffix: Schema.string().description('后缀'),
-        extension: Schema.union(['.jpg', '.png', '.gif', '.jpeg', '.webp', '.bmp']).description('扩展名'),
+          prefix: Schema.string().description('前缀'),
+          suffix: Schema.string().description('后缀'),
+          extension: Schema.union(['.jpg', '.png', '.gif', '.jpeg', '.webp', '.bmp']).description('扩展名'),
         }
       )
     ).experimental().role('table').default([{ "extension": ".png" }])
@@ -220,8 +220,8 @@ exports.Config = Schema.intersect([
       }))
         .role('table')
         .description('各群组自动保存的路径映射 `注意不要多空格什么的（私信有private:的前缀）`')
-        .default([
-          {
+        .default(
+          [{
             "enable": true,
             "groupList": "114514",
             "defaultsavepath": "C:\\Program Files"
@@ -230,8 +230,8 @@ exports.Config = Schema.intersect([
             "groupList": "private:1919810",
             "enable": true,
             "defaultsavepath": "C:\\Program Files"
-          }
-        ]),
+          }]
+        ),
     }),
     Schema.object({}),
   ]),
@@ -245,13 +245,18 @@ exports.Config = Schema.intersect([
 
 
 function apply(ctx, config) {
-  const loggerinfo = (message) => {
+  function loggerinfo(message, message2) {
     if (config.consoleinfo) {
-      ctx.logger.info(message);
+      if (message2) {
+        ctx.logger.info(`${message}${message2}`)
+      } else {
+        ctx.logger.info(message);
+      }
     }
-  };
+  }
+
   // 本地化支持
-  const applyI18nresult = {
+  ctx.i18n.define("zh-CN", {
     commands: {
       // "保存图片": {
       [config.commandName]: {
@@ -287,8 +292,7 @@ function apply(ctx, config) {
         }
       }
     }
-  };
-  ctx.i18n.define("zh-CN", applyI18nresult);
+  });
 
   const interactionMode = config.Interaction_mode || '1';
   // 提取 URL 的函数
@@ -353,14 +357,12 @@ function apply(ctx, config) {
     // 如果 withoutimageExtension 为 true，则不添加扩展名
     const finalExtension = withoutimageExtension ? '' : (extension || defaultExtension);
 
-    loggerinfo(`applyImageExtension输出文件名：${finalFilename}${finalExtension}`);
+    loggerinfo(`applyImageExtension 输出文件名：${finalFilename}${finalExtension}`);
     return `${finalFilename}${finalExtension}`;
   };
 
 
 
-
-  // ctx.command('保存图片 [参数...]')
   ctx.command(`${config.commandName} [参数...]`)
     .option('ext', '-e <ext:string> 指定图片后缀名')
     .option('name', '-n <name:string> 严格指定图片重命名')
@@ -389,8 +391,7 @@ function apply(ctx, config) {
 
       const quotemessage = session.quote?.content;
       let urlhselect;
-      loggerinfo('session.content： ');
-      loggerinfo(session.content);
+      loggerinfo('session.content： ', session.content);
       // 处理图片源
       if (quotemessage) {
         // 回复保存图片
@@ -399,8 +400,7 @@ function apply(ctx, config) {
           await session.send(session.text(".image_save_notfound_image"))
           return;
         }
-        loggerinfo('触发回复的目标消息内容： ');
-        loggerinfo(quotemessage);
+        loggerinfo('触发回复的目标消息内容： ', quotemessage);
       } else if (图片) {
         // 用户直接输入图片
         urlhselect = extractUrl(图片);
@@ -408,8 +408,7 @@ function apply(ctx, config) {
           await session.send(session.text(".image_save_notfound_image"))
           return;
         }
-        loggerinfo('用户直接输入的图片内容为： ');
-        loggerinfo(urlhselect);
+        loggerinfo('用户直接输入的图片内容为： ', urlhselect);
       } else {
         // 交互保存图片
         await session.send(session.text(".image_save_waitinput"))
@@ -420,8 +419,7 @@ function apply(ctx, config) {
           await session.send(session.text(".image_save_invalidimage"))
           return;
         }
-        loggerinfo('用户输入： ');
-        loggerinfo(image);
+        loggerinfo('用户输入： ', image);
       }
 
       let imageExtension = options.ext || config.ImageExtension[0]?.extension || '.png';
@@ -443,8 +441,7 @@ function apply(ctx, config) {
           // 如果长度小于等于 1，认为路径名称无效
           文件名 = undefined;
         } else {
-          loggerinfo('文件名： ');
-          loggerinfo(文件名);
+          loggerinfo('文件名： ', 文件名);
         }
       }
       if (路径名称) {
@@ -455,8 +452,7 @@ function apply(ctx, config) {
           // 如果长度小于等于 1，认为路径名称无效
           路径名称 = undefined;
         } else {
-          loggerinfo('路径名称： ');
-          loggerinfo(路径名称);
+          loggerinfo('路径名称： ', 路径名称);
         }
       }
 
@@ -531,8 +527,7 @@ function apply(ctx, config) {
         if (quotemessage) {
           urlhselect = extractUrl(quotemessage);
 
-          loggerinfo('触发回复的目标消息内容： ');
-          loggerinfo(quotemessage);
+          loggerinfo('触发回复的目标消息内容： ', quotemessage);
           if (!urlhselect) {
             await session.send(session.text(".image_save_notfound_image"));
             return;
@@ -543,8 +538,7 @@ function apply(ctx, config) {
         } else if (图片) {
           urlhselect = extractUrl(图片);
 
-          loggerinfo('用户直接输入的图片内容为： ');
-          loggerinfo(urlhselect);
+          loggerinfo('用户直接输入的图片内容为： ', urlhselect);
           if (!urlhselect) {
             await session.send(session.text(".image_save_notfound_image"));
             return;
@@ -557,8 +551,7 @@ function apply(ctx, config) {
           const image = await session.prompt(30000);
           urlhselect = extractUrl(image);
 
-          loggerinfo('用户输入： ');
-          loggerinfo(image);
+          loggerinfo('用户输入： ', image);
           if (!urlhselect) {
             await session.send(session.text(".image_save_invalidimage"));
             return;
@@ -583,8 +576,7 @@ function apply(ctx, config) {
       let targetPath = `${fileRoot}${fileExt}`;
       let index = 0;
 
-      loggerinfo('提取到的图片链接：');
-      loggerinfo(url);
+      loggerinfo('提取到的图片链接：', url);
       if (config.checkDuplicate) {
         while (fs.existsSync(targetPath)) {
           index++;
