@@ -816,6 +816,7 @@ function apply(ctx, config) {
 
   function command_list_markdown(session) {
     let markdownMessage = {
+      msg_id: "",
       msg_type: 2,
       markdown: {},
       keyboard: {},
@@ -825,11 +826,20 @@ function apply(ctx, config) {
       markdownMessage.msg_id = session.messageId;
     }
 
-    if (config.markdown_button_mode === "json") {
-      markdownMessage = {
-        msg_type: 2,
-        // markdown: {}, // json情况里不允许传入这个字段，但是其他情况都有。
-        keyboard: {},
+    if (config.markdown_button_mode === "json" && !config.markdown_button_mode_initiative) {
+      if (!config.markdown_button_mode_initiative) {
+        markdownMessage = {
+          msg_id: session.messageId, // 被动消息
+          msg_type: 2,
+          // markdown: {}, // json情况里不允许传入这个字段，但是其他情况都有。
+          keyboard: {},
+        }
+      } else {
+        markdownMessage = { // 主动消息
+          msg_type: 2,
+          // markdown: {}, // json情况里不允许传入这个字段，但是其他情况都有。
+          keyboard: {},
+        }
       }
       const keyboardId = config.nestedlist.json_button_template_id;
       if (config.markdown_button_mode_keyboard) {
@@ -837,7 +847,8 @@ function apply(ctx, config) {
           id: keyboardId,
         };
       }
-    } else if (config.markdown_button_mode === "markdown") {
+    }
+    else if (config.markdown_button_mode === "markdown") {
       const templateId = config.nestedlist.markdown_button_template_id;
       const keyboardId = config.nestedlist.markdown_button_keyboard_id;
       const contentTable = config.nestedlist.markdown_button_content_table;
@@ -913,6 +924,7 @@ function apply(ctx, config) {
 
   async function markdown(session, command, imageUrl) {
     const markdownMessage = {
+      msg_id: "",
       msg_type: 2,
       markdown: {},
       keyboard: {},
@@ -999,18 +1011,12 @@ function apply(ctx, config) {
   }
   // 提取消息发送逻辑为函数
   async function sendmarkdownMessage(session, message) {
+    logInfo("正在调用sendmarkdownMessage发送md")
+    logInfo(message)
     if (session.qqguild) {
-      if (session.isDirect) {
-        await session.qqguild.sendPrivateMessage(session.channelId, message);
-      } else {
-        await session.qqguild.sendMessage(session.channelId, message);
-      }
+      await session.qqguild.sendMessage(session.channelId, message);
     } else if (session.qq) {
-      if (session.isDirect) {
-        await session.qq.sendPrivateMessage(session.channelId, message);
-      } else {
-        await session.qq.sendMessage(session.channelId, message);
-      }
+      await session.qq.sendMessage(session.channelId, message);
     }
   }
 
@@ -1105,7 +1111,7 @@ function apply(ctx, config) {
               if (config.markdown_button_mode === "json") {
                 const keyboardId = config.nested.json_button_template_id;
                 let markdownMessage = {
-                  msg_id: session.event.message.id,
+                  msg_id: session.messageId,
                   msg_type: 2,
                   content: "",
                   keyboard: {
