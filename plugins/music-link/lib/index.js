@@ -1230,7 +1230,6 @@ function apply(ctx, config) {
                                 }
 
                                 if (Array.isArray(jsonData)) {
-                                    // 假设第一个API是搜索结果
                                     if (searchResults.length === 0 && jsonData.length > 0 && jsonData[0] && jsonData[0].hasOwnProperty('artist')) {
                                         searchResults = jsonData;
                                         // logInfo("捕获到搜索结果 API 响应:", JSON.stringify(searchResults, null, 2));
