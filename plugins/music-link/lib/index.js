@@ -47,15 +47,26 @@ const usage = `
 <p><b>(推荐)</b> dev.iw233.cn 网站，无需API Key，但需要 <b>puppeteer</b> 服务支持进行网页爬取，速度较慢，资源占用较高。支持网易云音乐和酷狗音乐双平台搜索。</p>
 <hr>
 
+<h3>使用www.hhlqilongzhu.cn网站API搜索QQ + 网易云音乐</h3>
+<pre><code>龙珠搜索 [keywords]</code></pre>
+<p><b>(一般推荐)</b> www.hhlqilongzhu.cn 网站的点歌API，江苏的确可能访问性较差（江苏反诈）。支持网易云音乐和QQ音乐双平台搜索。</p>
+<hr>
+
 </details>
 
 ---
 
-<h3>如果需要让歌曲链接返回为语音消息/视频消息</h3>
-<p>可以修改对应指令的返回字段表中的下载链接对应的 <code>type</code> 字段，把 <code>text</code> 更改为 <code>audio</code> 就是返回语音，改为 <code>video</code> 就是返回视频消息。</p>
+<h3>如何返回语音/视频/群文件消息</h3>
+<p>可以修改对应指令的<code>返回字段表</code>中的 <code>下载链接</code> 对应的 <code>字段发送类型</code> 字段，
+
+把 <code>text</code> 更改为 <code>audio</code> 就是返回 语音，
+
+改为 <code>video</code> 就是返回 视频消息，
+
+改为 <code>file</code> 就是返回 群文件。</p>
 <hr>
 
-<p>需要注意的是，当配置返回格式为音频/视频的时候，请自行检查是否安装了 <code>silk</code>、<code>ffmpeg</code> 等服务。</p>
+<p>⚠️需要注意的是，当配置返回格式为音频/视频的时候，请自行检查是否安装了 <code>silk</code>、<code>ffmpeg</code> 等服务。</p>
 <hr>
 
 <h3>使用 <code>-n 1</code> 直接返回内容</h3>
@@ -80,11 +91,9 @@ const usage = `
 
  - ⅱ . <code>dev.iw233.cn (音乐搜索器)</code> >=
 
-     - ⅲ . <code>music.gdstudio.xyz (歌曲搜索)</code> >
+    - 其他... ...
 
-        ... ...others
-
-            - ⅳ . <code>星之阁API (下载音乐/酷狗音乐)</code>
+        - ⅳ . <code>星之阁API (下载音乐/酷狗音乐)</code>
 `;
 
 
@@ -901,7 +910,7 @@ function apply(ctx, config) {
                                     // 其他情况，按照原逻辑处理
                                     let usedId = config.used_id;
                                     if (tag === '网易云音乐') {
-                                        if (config.serverSelect === "command1") { // 仅 1  的网易云音乐是后 10 个
+                                        if (config.serverSelect === "command1" || config.serverSelect === "command8") { // command1 command8 的网易云音乐是后 10 个
                                             usedId += 10;
                                         }
                                     }
