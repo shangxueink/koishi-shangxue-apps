@@ -1178,7 +1178,7 @@ function apply(ctx, config) {
                         musicSize: undefined,
                         musicBr: undefined
                     };
-                    let timeoutId;
+                    // let timeoutId; // 移除 timeoutId
                     const exitCommands = config.exitCommand.split(/[,，]/).map(cmd => cmd.trim()); // 定义在action函数内
 
                     // 错误处理函数，用于处理 API 响应解析错误
@@ -1208,6 +1208,8 @@ function apply(ctx, config) {
                     const exitCommandTip = config.menuExitCommandTip ? `退出选择请发[${exitCommands}]中的任意内容\n\n` : '';
                     const promptText = `${exitCommandTip}${h.text(session.text(`.waitTime`, [config.waitTimeout]))}`;
                     const waitTimeout = session.text(`.waitTimeout`)
+                    const exitprompt = session.text(`.exitprompt`)
+                    const invalidNumber = session.text(`.invalidNumber`)
 
                     page.on('response', async response => {
                         const url = response.url();
@@ -1238,30 +1240,73 @@ function apply(ctx, config) {
                                                 });
                                             }
                                         }
-                                        const listText = formatSongList(extractedSearchResults, options.platform || config.command5_defaultPlatform, 0, config.command5_searchList);
-                                        const screenshotPage = await ctx.puppeteer.browser.newPage();
-                                        try {
-                                            const screenshot = await generateSongListImage(ctx.puppeteer, listText, screenshotPage);
-                                            await session.send([
-                                                h.image(screenshot, 'image/png'),
-                                                h.text(promptText),
-                                            ]);
-                                        } finally {
-                                            await screenshotPage.close();
+
+                                        // 移动到这里，在搜索结果返回后处理用户输入和歌曲选择
+                                        if (!options.number) {
+                                            const listText = formatSongList(extractedSearchResults, options.platform || config.command5_defaultPlatform, 0, config.command5_searchList);
+                                            const screenshotPage = await ctx.puppeteer.browser.newPage();
+                                            try {
+                                                const screenshot = await generateSongListImage(ctx.puppeteer, listText, screenshotPage);
+                                                await session.send([
+                                                    h.image(screenshot, 'image/png'),
+                                                    h.text(promptText),
+                                                ]);
+                                            } finally {
+                                                await screenshotPage.close();
+                                            }
+
+                                            // 等待用户输入
+                                            const input = await session.prompt(config.waitTimeout * 1000);
+
+                                            if (!input) {
+                                                await session.send(h.text(waitTimeout));
+                                                await page.close();
+                                                return;
+                                            }
+
+                                            if (exitCommands.includes(input)) {
+                                                await session.send(h.text(exitprompt));
+                                                await page.close();
+                                                return;
+                                            }
+                                            options.number = parseInt(input, 10);
                                         }
 
-                                        // 在获取到搜索结果后，启动计时器
-                                        timeoutId = ctx.setTimeout(async () => {
-                                            logInfo('等待用户选择超时');
-                                            await session.send(h.text(waitTimeout)); // 提示超时
+                                        if (isNaN(options.number) || options.number < 1 || options.number > config.command5_searchList || options.number > searchResults.length) {
+                                            await session.send(h.text(invalidNumber));
                                             await page.close();
-                                        }, config.waitTimeout * 1000); // 使用配置的 waitTimeout
+                                            return;
+                                        }
+                                        // 用户输入选择后，清除计时器 (实际上已经移除了)
+                                        // clearTimeout(timeoutId);
+
+
+                                        // 已经获取到搜索结果，并且用户选择了歌曲序号，则开始双击播放
+                                        const selectedIndex = options.number - 1;
+                                        const songElement = await page.$(`.list-item[data-no="${selectedIndex}"] .list-num`);
+                                        if (!songElement) {
+                                            await session.send('未找到歌曲元素，请检查页面结构。');
+                                            await page.close();
+                                            return;
+                                        }
+                                        // 模拟双击操作
+                                        await page.evaluate((element) => {
+                                            const dblclickEvent = new MouseEvent('dblclick', {
+                                                bubbles: true,
+                                                cancelable: true,
+                                                view: window,
+                                            });
+                                            element.dispatchEvent(dblclickEvent);
+                                        }, songElement);
+                                        logInfo(`已双击歌曲序号: ${options.number}`);
+
+
                                     }
                                 } else if (jsonData && jsonData.url && !(jsonData.url && /\.(jpg|png|gif)/i.test(jsonData.url))) {
                                     // 下载链接
                                     if (!songDetails.musicUrl) {
                                         songDetails.musicUrl = jsonData.url;
-                                        songDetails.musicSize = jsonData.size;
+                                        songDetails.musicSize = `${(jsonData.size / 1024 / 1024).toFixed(2)}MB`;
                                         songDetails.musicBr = jsonData.br;
                                         logInfo("捕获到音乐下载链接 API 响应");
                                         logInfo(`下载链接: ${jsonData.url}`);
@@ -1286,7 +1331,8 @@ function apply(ctx, config) {
                                 // 检查是否所有信息都已获取
                                 if (songDetails.musicUrl && songDetails.coverUrl && songDetails.lyric) {
                                     logInfo("已获取所有必要信息，准备关闭 Puppeteer");
-                                    await clearTimeout(timeoutId); // 清除超时定时器
+                                    logInfo("-----------------------------------------------------------");
+                                    // await clearTimeout(timeoutId); // 清除超时定时器 (实际上已经移除了)
                                     await page.close(); // 提前关闭页面
 
                                     // 整理响应数据
@@ -1302,6 +1348,7 @@ function apply(ctx, config) {
                                         fileSize: songDetails.musicSize,
                                         br: songDetails.musicBr
                                     };
+                                    // .map((song, index) => `${index + startIndex + 1}. ${song.songname || song.title} -- ${song.name || song.author}`)
                                     const response = await generateResponse(responseData, config.command5_return_data_Field, config.deleteTempTime, tempFiles, fs, tempDir);
                                     await session.send(response); // 发送响应数据
                                 }
@@ -1336,7 +1383,7 @@ function apply(ctx, config) {
                         logInfo(`已选择平台: ${platform}`);
                         const selectedPlatform = await page.$eval('input[name="source"]:checked', el => el.value);
                         logInfo(`当前选中的平台: ${selectedPlatform}`);
-                        await new Promise(resolve => setTimeout(resolve, 500));
+
                         const submitButton = await page.$('.search-submit');
                         if (!submitButton) return '未找到搜索提交按钮，请检查页面结构。';
                         await submitButton.click();
@@ -1358,65 +1405,18 @@ function apply(ctx, config) {
                                 }
                             }
                         }
-                        await page.waitForSelector('.list-item', { visible: true, timeout: 10000 });
-                        await new Promise(resolve => setTimeout(resolve, 500));
-                        const listItems = await page.$('.list-item'); // 使用 $ 获取所有匹配的元素
-                        if (!listItems || listItems.length === 0) {
-                            ctx.logger.error('未找到歌曲列表项 (.list-item)，可能搜索结果为空或页面结构异常');
-                            return h.text(session.text(`.songlisterror`));
-                        }
-
-                        // 在 page.on 之外等待用户输入
-                        // 等待用户输入
-                        const input = await session.prompt(config.waitTimeout * 1000);
-                        if (!input) {
-                            await session.send(h.text(waitTimeout));
-                            await page.close();
-                            return;
-                        }
-                        if (exitCommands.includes(input)) {
-                            await session.send(h.text(session.text(`.exitprompt`)));
-                            await page.close();
-                            return;
-                        }
-                        options.number = parseInt(input, 10);
-                        if (isNaN(options.number) || options.number < 1 || options.number > config.command5_searchList || options.number > searchResults.length) {
-                            await session.send(h.text(session.text(`.invalidNumber`)));
-                            await page.close();
-                            return;
-                        }
-
-                        // 用户输入选择后，清除计时器
-                        clearTimeout(timeoutId);
-
-                        // 已经获取到搜索结果，并且用户选择了歌曲序号，则开始双击播放
-                        const selectedIndex = options.number - 1;
-                        const songElement = await page.$(`.list-item[data-no="${selectedIndex}"] .list-num`);
-                        if (!songElement) {
-                            await session.send('未找到歌曲元素，请检查页面结构。');
-                            await page.close();
-                            return;
-                        }
-                        // 模拟双击操作
-                        await page.evaluate((element) => {
-                            const dblclickEvent = new MouseEvent('dblclick', {
-                                bubbles: true,
-                                cancelable: true,
-                                view: window,
-                            });
-                            element.dispatchEvent(dblclickEvent);
-                        }, songElement);
-                        logInfo(`已双击歌曲序号: ${options.number}`);
 
                     } catch (error) {
                         ctx.logger.error('音乐搜索插件出错:', error);
                         if (page && !page.isClosed()) {
-                            await page.close(); // 确保在错误时关闭页面
+                            await page.close();
                         }
                         return h.text(session.text(`.somerror`));
                     }
                 });
         }
+
+
 
 
 
