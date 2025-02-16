@@ -84,16 +84,15 @@ const usage = `
 ### 目前 推荐使用<code>music.gdstudio.xyz</code>的服务，请确保<code>puppeteer</code>服务可用
 
 ---
+| 后端推荐度 |              名称                 | 备注                         |
+| :--------: | :--------------------------------: | :---------------------------: |
+|   **ⅰ**    | \`music.gdstudio.xyz\` (歌曲搜索) | 较高                   |
+|   **ⅱ**    | \`dev.iw233.cn\` (音乐搜索器)     | 中等                   |
+|   *......*    | 其他     | 中等                   |
+|   **ⅳ**    | \`星之阁API\` (下载音乐/酷狗音乐) | 较低|
 
-## 后端推荐度：
+---
 
-ⅰ . <code>music.gdstudio.xyz (歌曲搜索)</code> >
-
- - ⅱ . <code>dev.iw233.cn (音乐搜索器)</code> >=
-
-    - 其他... ...
-
-        - ⅳ . <code>星之阁API (下载音乐/酷狗音乐)</code>
 `;
 
 
@@ -550,6 +549,7 @@ const platformMap = {
     '油管': 'ytmusic',
     'Spotify': 'spotify',
 };
+const recommend = "<details><summary>后端选择详细比较 (点击展开/折叠)</summary>\n<table>\n  <thead>\n    <tr>\n      <th>后端命令</th>\n      <th>描述</th>\n      <th>平台</th>\n      <th>推荐度</th>\n      <th>特点</th>\n    </tr>\n  </thead>\n  <tbody>\n    <tr>\n      <td>command1</td>\n      <td>星之阁API</td>\n      <td>QQ + 网易云</td>\n      <td>较低</td>\n      <td>需加群申请APIkey</td>\n    </tr>\n    <tr>\n      <td>command4</td>\n      <td>星之阁-酷狗API</td>\n      <td>酷狗</td>\n      <td>较低</td>\n      <td>需加群申请APIkey</td>\n    </tr>\n    <tr>\n      <td>command5</td>\n      <td>music.gdstudio.xyz</td>\n      <td>多平台</td>\n      <td>最高</td>\n      <td>访问性好，需puppeteer爬取</td>\n    </tr>\n    <tr>\n      <td>command6</td>\n      <td>api.injahow.cn</td>\n      <td>网易云</td>\n      <td>中等</td>\n      <td>API请求快+稳定，VIP歌曲45秒限制</td>\n    </tr>\n    <tr>\n      <td>command7</td>\n      <td>dev.iw233.cn</td>\n      <td>网易云 + 酷狗</td>\n      <td>中等</td>\n      <td>需puppeteer爬取，速度较慢</td>\n    </tr>\n    <tr>\n      <td>command8</td>\n      <td>www.hhlqilongzhu.cn</td>\n      <td>网易云 + QQ</td>\n      <td>中等</td>\n      <td>龙珠API，API形式，江苏可能无法访问</td>\n    </tr>\n  </tbody>\n</table>\n</details>\n<br>➣ 推荐度：`music.gdstudio.xyz`  > `dev.iw233.cn` >= `api.injahow.cn` = `www.hhlqilongzhu.cn` > `星之阁API`";
 const Config = Schema.intersect([
 
     Schema.object({
@@ -565,14 +565,13 @@ const Config = Schema.intersect([
 
     Schema.object({
         serverSelect: Schema.union([
-            Schema.const('command1').description('command1：星之阁API（需加群申请APIkey）（QQ + 网易云）'),
-            Schema.const('command4').description('command4：星之阁-酷狗API（需加群申请APIkey）'),
-            Schema.const('command5').description('command5：`music.gdstudio.xyz`  网站 （需puppeteer爬取，访问性好）（多平台支持）'),
-            Schema.const('command6').description('command6：`api.injahow.cn`网站   （ API 请求快 + 稳定）（网易云点歌）'),
-            Schema.const('command7').description('command7：`dev.iw233.cn` 网站（需puppeteer爬取 较慢）（网易云 + 酷狗）'),
-            Schema.const('command8').description('command8（`www.hhlqilongzhu.cn` 龙珠API）（API，江苏可能访问不了）（网易云 + QQ点歌）'),
-        ]).role('radio').default("command5")
-            .description('选择使用的后端<br>➣ 推荐度：`music.gdstudio.xyz`  > `dev.iw233.cn` >= `api.injahow.cn` = `www.hhlqilongzhu.cn` > `星之阁API`'),
+            Schema.const('command1').description('command1：星之阁API                 （需加群申请APIkey）          （QQ + 网易云）'),
+            Schema.const('command4').description('command4：星之阁-酷狗API             （需加群申请APIkey）          （酷狗）'),
+            Schema.const('command5').description('command5：`music.gdstudio.xyz`  网站   （需puppeteer爬取，访问性好）    （多平台支持）'),
+            Schema.const('command6').description('command6：`api.injahow.cn`网站       （API 请求快 + 稳定）            （网易云点歌）'),
+            Schema.const('command7').description('command7：`dev.iw233.cn` 网站         （需puppeteer爬取 较慢）          （网易云 + 酷狗）'),
+            Schema.const('command8').description('command8：`www.hhlqilongzhu.cn` 龙珠API  （API，江苏可能访问不了）        （网易云 + QQ点歌）'),
+        ]).role('radio').default("command5").description('选择使用的后端<br>➣ 推荐度：`music.gdstudio.xyz`  > `dev.iw233.cn` >= `api.injahow.cn` = `www.hhlqilongzhu.cn` > `星之阁API`'),
     }).description('后端选择'),
     Schema.union([
         Schema.object({
