@@ -836,9 +836,19 @@ ${dJson.unsignText}
       markdownMessage.msg_id = session.messageId;
     }
 
-    const canvasimage = await ctx.canvas.loadImage(imageUrl);
-    let originalWidth = canvasimage.naturalWidth || canvasimage.width;
-    let originalHeight = canvasimage.naturalHeight || canvasimage.height;
+    let canvasimage;
+    let originalWidth;
+    let originalHeight;
+
+    try {
+      canvasimage = await ctx.canvas.loadImage(imageUrl);
+      originalWidth = canvasimage.naturalWidth || canvasimage.width;
+      originalHeight = canvasimage.naturalHeight || canvasimage.height;
+    } catch (loadImageError) {
+      ctx.logger.error(`ctx.canvas.loadImage 加载图片失败:`, loadImageError);
+      ctx.logger.error(`失败的图片 URL: ${imageUrl}`); // 记录失败的图片 URL
+    }
+
 
     // 获取 dJson
     const dJson = await getJrys(session);
