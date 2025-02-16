@@ -645,19 +645,7 @@ ${dJson.unsignText}
           if ((config.markdown_button_mode === "markdown" || config.markdown_button_mode === "raw" || config.markdown_button_mode === "markdown_raw_json" || config.markdown_button_mode === "raw_jrys") && session.platform === 'qq') {
             const uploadedImageURL = await uploadImageToChannel(imageBuffer, session.bot.config.id, session.bot.config.secret, config.QQchannelId);
             const qqmarkdownmessage = await markdown(session, encodedMessageTime, uploadedImageURL.url);
-            if (session.platform === "qqguild") {
-              if (session.isDirect) {
-                await session.qqguild.sendPrivateMessage(session.channelId, qqmarkdownmessage);
-              } else {
-                await session.qqguild.sendMessage(session.channelId, qqmarkdownmessage);
-              }
-            } else if (session.platform === "qq") {
-              if (session.isDirect) {
-                await session.qq.sendPrivateMessage(session.channelId, qqmarkdownmessage);
-              } else {
-                await session.qq.sendMessage(session.channelId, qqmarkdownmessage);
-              }
-            }
+            await sendmarkdownMessage(session, qqmarkdownmessage)
 
           } else {
             // 根据不同的配置发送不同类型的消息
@@ -708,19 +696,7 @@ ${dJson.unsignText}
                 id: config.nested.json_button_template_id
               },
             }
-            if (session.platform === "qqguild") {
-              if (session.isDirect) {
-                await session.qqguild.sendPrivateMessage(session.channelId, markdownMessage);
-              } else {
-                await session.qqguild.sendMessage(session.channelId, markdownMessage);
-              }
-            } else if (session.platform === "qq") {
-              if (session.isDirect) {
-                await session.qq.sendPrivateMessage(session.channelId, markdownMessage);
-              } else {
-                await session.qq.sendMessage(session.channelId, markdownMessage);
-              }
-            }
+            await sendmarkdownMessage(session, markdownMessage)
           }
           if (config.markdown_button_mode !== "raw_jrys") {
             // 记录日志
@@ -775,7 +751,9 @@ ${dJson.unsignText}
         ctx.logger.error(`状态渲染失败 [${errorTime}]: `, e); // 记录错误信息并包含时间戳
         return "渲染失败" + e.message;
       } finally {
-        page?.close();
+        if (page && !page.isClosed()) {
+          page.close();
+        }
       }
     });
 
@@ -898,7 +876,7 @@ ${dJson.unsignText}
         const rawMarkdownContent = config.nested.raw_markdown_button_content;
         const rawMarkdownKeyboard = config.nested.raw_markdown_button_keyboard;
         // 将 atUserString 插入到原始字符串中
-        const qqbotatuser = session.isDirect ? "\n" : `<qqbot-at-user id=${session.userId}>`;
+        const qqbotatuser = session.isDirect ? "\n" : `<qqbot-at-user id="${session.userId}" />`;
         const replacedMarkdownContent = replacePlaceholders(rawMarkdownContent, { session, qqbotatuser, config, img_pxpx: `img#${originalWidth}px #${originalHeight}px`, img_url: imageUrl, encodedMessageTime, dJson }, true);
         const replacedMarkdownKeyboard = replacePlaceholders(rawMarkdownKeyboard, { session, qqbotatuser, config, encodedMessageTime, dJson }, true)
           .replace(/^[\s\S]*?"keyboard":\s*/, '')
@@ -926,7 +904,7 @@ ${dJson.unsignText}
         const raw_jrysMarkdownKeyboard = config.nested.raw_jrys_markdown_button_keyboard;
 
         // 将 atUserString 插入到原始字符串中
-        const qqbotatuser = session.isDirect ? "\n" : `<qqbot-at-user id=${session.userId}>`;
+        const qqbotatuser = session.isDirect ? "\n" : `<qqbot-at-user id="${session.userId}" />`;
 
         const replacedMarkdownContent = replacePlaceholders(raw_jrysMarkdownContent, { session, qqbotatuser, dJson, config, img_pxpx: `img#${originalWidth}px #${originalHeight}px`, img_url: imageUrl, encodedMessageTime }, true);
         const replacedMarkdownKeyboard = replacePlaceholders(raw_jrysMarkdownKeyboard, { session, qqbotatuser, config, encodedMessageTime, dJson }, true)

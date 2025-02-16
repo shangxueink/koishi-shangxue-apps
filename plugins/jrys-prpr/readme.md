@@ -384,9 +384,11 @@ ${dJson.luckyStar}
 <details>
 <summary>点击此处————查看更新日志</summary>
 
-- **1.3.3**
+- **1.3.4**
     - `https://github.com/shangxueink/koishi-shangxue-apps/issues/89`
     - 我草怎么三个版本了，我更新了什么？
+    - 优化page.close处理
+    - 优化发送markdownMessage函数的使用
 
 - **1.3.0**
     -   适配qqmarkdown
