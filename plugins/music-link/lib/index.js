@@ -1209,8 +1209,6 @@ function apply(ctx, config) {
                     const exitCommandTip = config.menuExitCommandTip ? `退出选择请发[${exitCommands}]中的任意内容\n\n` : '';
                     const promptText = `${exitCommandTip}${h.text(session.text(`.waitTime`, [config.waitTimeout]))}`;
                     const waitTimeout = session.text(`.waitTimeout`)
-                    const exitprompt = session.text(`.exitprompt`)
-                    const invalidNumber = session.text(`.invalidNumber`)
 
                     page.on('response', async response => {
                         const url = response.url();
@@ -1232,9 +1230,6 @@ function apply(ctx, config) {
                                 if (Array.isArray(jsonData)) {
                                     if (searchResults.length === 0 && jsonData.length > 0 && jsonData[0] && jsonData[0].hasOwnProperty('artist')) {
                                         searchResults = jsonData;
-                                        // logInfo("捕获到搜索结果 API 响应:", JSON.stringify(searchResults, null, 2));
-                                        // JSON太长了 暂时不打印
-                                        // 渲染菜单
                                         const extractedSearchResults = [];
                                         for (const item of searchResults) {
                                             if (item && item.name && item.artist) {
@@ -1245,60 +1240,27 @@ function apply(ctx, config) {
                                             }
                                         }
                                         const listText = formatSongList(extractedSearchResults, options.platform || config.command5_defaultPlatform, 0, config.command5_searchList);
-                                        const screenshotPage = await ctx.puppeteer.browser.newPage(); // 新建页面渲染菜单
+                                        const screenshotPage = await ctx.puppeteer.browser.newPage();
                                         try {
-                                            const screenshot = await generateSongListImage(ctx.puppeteer, listText, screenshotPage); // 使用新页面生成截图
-
+                                            const screenshot = await generateSongListImage(ctx.puppeteer, listText, screenshotPage);
                                             await session.send([
                                                 h.image(screenshot, 'image/png'),
                                                 h.text(promptText),
                                             ]);
                                         } finally {
-                                            await screenshotPage.close(); // 关闭截图页面
+                                            await screenshotPage.close();
                                         }
 
-
-                                        // 等待用户输入
-                                        const input = await session.prompt(config.waitTimeout * 1000);
-                                        if (!input) {
-                                            await session.send(h.text(waitTimeout));
+                                        // 在获取到搜索结果后，启动计时器
+                                        timeoutId = ctx.setTimeout(async () => {
+                                            logInfo('等待用户选择超时');
+                                            await session.send(h.text(waitTimeout)); // 提示超时
                                             await page.close();
-                                            return;
-                                        }
-                                        if (exitCommands.includes(input)) {
-                                            await session.send(h.text(exitprompt));
-                                            await page.close();
-                                            return;
-                                        }
-                                        options.number = parseInt(input, 10);
-                                        if (isNaN(options.number) || options.number < 1 || options.number > config.command5_searchList || options.number > searchResults.length) {
-                                            await session.send(h.text(invalidNumber));
-                                            await page.close();
-                                            return;
-                                        }
-
-                                        // 已经获取到搜索结果，并且用户选择了歌曲序号，则开始双击播放
-                                        const selectedIndex = options.number - 1;
-                                        const songElement = await page.$(`.list-item[data-no="${selectedIndex}"] .list-num`);
-                                        if (!songElement) {
-                                            await session.send('未找到歌曲元素，请检查页面结构。');
-                                            await page.close();
-                                            return;
-                                        }
-                                        // 模拟双击操作
-                                        await page.evaluate((element) => {
-                                            const dblclickEvent = new MouseEvent('dblclick', {
-                                                bubbles: true, // 事件冒泡
-                                                cancelable: true, // 事件可以取消
-                                                view: window, // 事件视图
-                                            });
-                                            element.dispatchEvent(dblclickEvent);
-                                        }, songElement);
-                                        logInfo(`已双击歌曲序号: ${options.number}`);
+                                        }, config.waitTimeout * 1000); // 使用配置的 waitTimeout
                                     }
                                 } else if (jsonData && jsonData.url && !(jsonData.url && /\.(jpg|png|gif)/i.test(jsonData.url))) {
                                     // 下载链接
-                                    if (!songDetails.musicUrl) { // 确保只设置一次
+                                    if (!songDetails.musicUrl) {
                                         songDetails.musicUrl = jsonData.url;
                                         songDetails.musicSize = jsonData.size;
                                         songDetails.musicBr = jsonData.br;
@@ -1309,23 +1271,19 @@ function apply(ctx, config) {
                                     }
                                 } else if (jsonData && jsonData.lyric) {
                                     // 歌词
-                                    if (!songDetails.lyric) { // 确保只设置一次
+                                    if (!songDetails.lyric) {
                                         songDetails.lyric = jsonData.lyric;
                                         logInfo("捕获到歌词 API 响应");
-                                        logInfo(`歌词: ${jsonData.lyric ? jsonData.lyric.substring(0, 50) + '...' : '无'}`); // 截取部分歌词
-
+                                        logInfo(`歌词: ${jsonData.lyric ? jsonData.lyric.substring(0, 50) + '...' : '无'}`);
                                     }
                                 } else if (jsonData && (jsonData.url || (jsonData.url && /\.(jpg|png|gif)/i.test(jsonData.url)))) {
                                     // 封面
-                                    if (!songDetails.coverUrl) { // 确保只设置一次
+                                    if (!songDetails.coverUrl) {
                                         songDetails.coverUrl = jsonData.url;
                                         logInfo("捕获到封面 API 响应");
                                         logInfo(`封面链接: ${songDetails.coverUrl}`);
                                     }
                                 }
-                                // logInfo(`打印出来看看songDetails.musicUrl: ` + songDetails.musicUrl); // 打印出来看看
-                                // logInfo(`打印出来看看songDetails.coverUrl: ` + songDetails.coverUrl); // 打印出来看看
-
                                 // 检查是否所有信息都已获取
                                 if (songDetails.musicUrl && songDetails.coverUrl && songDetails.lyric) {
                                     logInfo("已获取所有必要信息，准备关闭 Puppeteer");
@@ -1345,7 +1303,6 @@ function apply(ctx, config) {
                                         fileSize: songDetails.musicSize,
                                         br: songDetails.musicBr
                                     };
-                                    // logInfo(responseData)
                                     const response = await generateResponse(responseData, config.command5_return_data_Field, config.deleteTempTime, tempFiles, fs, tempDir);
                                     await session.send(response); // 发送响应数据
                                 }
@@ -1410,14 +1367,47 @@ function apply(ctx, config) {
                             return h.text(session.text(`.songlisterror`));
                         }
 
-                        // 设置超时定时器
-                        timeoutId = ctx.setTimeout(async () => {
-                            logInfo('等待歌曲详情 API 超时');
-                            if (!songDetails.musicUrl || !songDetails.coverUrl || !songDetails.lyric) {
-                                await page.close(); // 超时时关闭页面
-                            }
-                        }, 30000);
+                        // 在 page.on 之外等待用户输入
+                        // 等待用户输入
+                        const input = await session.prompt(config.waitTimeout * 1000);
+                        if (!input) {
+                            await session.send(h.text(waitTimeout));
+                            await page.close();
+                            return;
+                        }
+                        if (exitCommands.includes(input)) {
+                            await session.send(h.text(session.text(`.exitprompt`)));
+                            await page.close();
+                            return;
+                        }
+                        options.number = parseInt(input, 10);
+                        if (isNaN(options.number) || options.number < 1 || options.number > config.command5_searchList || options.number > searchResults.length) {
+                            await session.send(h.text(session.text(`.invalidNumber`)));
+                            await page.close();
+                            return;
+                        }
 
+                        // 用户输入选择后，清除计时器
+                        clearTimeout(timeoutId);
+
+                        // 已经获取到搜索结果，并且用户选择了歌曲序号，则开始双击播放
+                        const selectedIndex = options.number - 1;
+                        const songElement = await page.$(`.list-item[data-no="${selectedIndex}"] .list-num`);
+                        if (!songElement) {
+                            await session.send('未找到歌曲元素，请检查页面结构。');
+                            await page.close();
+                            return;
+                        }
+                        // 模拟双击操作
+                        await page.evaluate((element) => {
+                            const dblclickEvent = new MouseEvent('dblclick', {
+                                bubbles: true,
+                                cancelable: true,
+                                view: window,
+                            });
+                            element.dispatchEvent(dblclickEvent);
+                        }, songElement);
+                        logInfo(`已双击歌曲序号: ${options.number}`);
 
                     } catch (error) {
                         ctx.logger.error('音乐搜索插件出错:', error);
@@ -1428,6 +1418,7 @@ function apply(ctx, config) {
                     }
                 });
         }
+
 
 
 
