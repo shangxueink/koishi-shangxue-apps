@@ -565,7 +565,7 @@ const Config = Schema.intersect([
             Schema.const('command5').description('command5：`music.gdstudio.xyz`  网站 （需puppeteer爬取 较慢）（默认使用网易云点歌）'),
             Schema.const('command6').description('command6：`api.injahow.cn`网站   （ API 请求快 + 稳定）（网易云点歌）'),
             Schema.const('command7').description('command7：`dev.iw233.cn` 网站（需puppeteer爬取 较慢）（网易云 + 酷狗）'),
-            // Schema.const('command8').description('command8（龙珠API）'),
+            Schema.const('command8').description('command8（龙珠API）（ API，江苏可能访问不了）（网易云 + QQ点歌）'),
         ]).role('radio').default("command6")
             .description('选择使用的后端<br>➣ 推荐度：`api.injahow.cn` > `dev.iw233.cn` >= `music.gdstudio.xyz` > `星之阁API`'),
     }).description('后端选择'),
@@ -1759,8 +1759,8 @@ function apply(ctx, config) {
 
                         const qqUrl = `https://www.hhlqilongzhu.cn/api/dg_shenmiMusic_SQ.php?type=json&msg=${encodeURIComponent(keyword)}&num=10`;
                         logInfo(qqUrl);
-                        // const qqResponse = await fetch(qqUrl);
-                        const qqResponse = { "code": 200, "data": [{ "n": 1, "title": "准备出发！", "singer": "安雪璃/小敢/MACE/曹雅雯/Z君", "songid": 2608813264 }, { "n": 2, "title": "RE Aoharu", "singer": "Aice room", "songid": 2098478355 }, { "n": 3, "title": "Unwelcome school", "singer": "ミツキヨ", "songid": 2002662300 }, { "n": 4, "title": "Constant Moderato", "singer": "ミツキヨ", "songid": 2093257373 }, { "n": 5, "title": "Clear Morning", "singer": "小倉唯", "songid": 1822700915 }, { "n": 6, "title": "Usagi Flap", "singer": "Aice room", "songid": 2059973927 }, { "n": 7, "title": "青春のアーカイブ", "singer": "アビドス高等学校対策委員会/花守ゆみり/小倉唯/三浦千幸/大橋彩香/原田彩楓", "songid": 2600877270 }, { "n": 8, "title": "Memories of Kindness", "singer": "鹿乃", "songid": 2064724623 }, { "n": 9, "title": "Aoharu Band Arrange", "singer": "ミツキヨ", "songid": 2099310789 }, { "n": 10, "title": "可爱补习法", "singer": "泠鸢yousa", "songid": 2115483560 }] }
+                        const qqResponse = await ctx.http.get(qqUrl);
+                        //const qqResponse = { "code": 200, "data": [{ "n": 1, "title": "准备出发！", "singer": "安雪璃/小敢/MACE/曹雅雯/Z君", "songid": 2608813264 }, { "n": 2, "title": "RE Aoharu", "singer": "Aice room", "songid": 2098478355 }, { "n": 3, "title": "Unwelcome school", "singer": "ミツキヨ", "songid": 2002662300 }, { "n": 4, "title": "Constant Moderato", "singer": "ミツキヨ", "songid": 2093257373 }, { "n": 5, "title": "Clear Morning", "singer": "小倉唯", "songid": 1822700915 }, { "n": 6, "title": "Usagi Flap", "singer": "Aice room", "songid": 2059973927 }, { "n": 7, "title": "青春のアーカイブ", "singer": "アビドス高等学校対策委員会/花守ゆみり/小倉唯/三浦千幸/大橋彩香/原田彩楓", "songid": 2600877270 }, { "n": 8, "title": "Memories of Kindness", "singer": "鹿乃", "songid": 2064724623 }, { "n": 9, "title": "Aoharu Band Arrange", "singer": "ミツキヨ", "songid": 2099310789 }, { "n": 10, "title": "可爱补习法", "singer": "泠鸢yousa", "songid": 2115483560 }] }
                         logInfo(JSON.stringify(qqResponse));
 
                         if (!qqResponse) {
@@ -1780,8 +1780,8 @@ function apply(ctx, config) {
                     // 获取网易云音乐歌曲列表 (原 searchLongZhuWY 函数逻辑)
                     try {
                         const wyUrl = `https://www.hhlqilongzhu.cn/api/dg_wyymusic.php?gm=${encodeURIComponent(keyword)}&type=json&num=10`;
-                        // const wyResponse = await fetch(wyUrl);
-                        const wyResponse = { "code": 200, "data": [{ "n": 1, "song_title": "准备出发！", "song_singer": "砂狼白子/早濑优香/黑馆晴奈/伊落玛丽/久田泉奈" }, { "n": 2, "song_title": "Unwelcome School", "song_singer": "Mitsukiyo" }, { "n": 3, "song_title": "Constant Moderato", "song_singer": "Mitsukiyo" }, { "n": 4, "song_title": "RE Aoharu", "song_singer": "Nor" }, { "n": 5, "song_title": "優しさの記憶 (温情的回忆)", "song_singer": "鹿乃" }, { "n": 6, "song_title": "青春のアーカイブ (青春档案) (feat. ホシノ (CV:花守ゆみり), シロコ (CV:小倉唯), ノノミ (CV:三浦千幸), セリカ (CV:大橋彩香) & アヤネ (CV:原田彩楓))", "song_singer": "アビドス高等学校対策委員会/花守ゆみり/小仓唯/三浦千幸/大桥彩香/原田彩楓" }, { "n": 7, "song_title": "Aoharu Band Arrange", "song_singer": "Mitsukiyo" }, { "n": 8, "song_title": "Alkaline Tears", "song_singer": "Mitsukiyo" }, { "n": 9, "song_title": "Shady Girls", "song_singer": "Mitsukiyo" }, { "n": 10, "song_title": "JUMP！BEAT！PLAY！", "song_singer": "苏枕袖/阎么么/皛四白/宅在家里什么都不会" }] };
+                        const wyResponse = await ctx.http.get(wyUrl);
+                        //const wyResponse = { "code": 200, "data": [{ "n": 1, "song_title": "准备出发！", "song_singer": "砂狼白子/早濑优香/黑馆晴奈/伊落玛丽/久田泉奈" }, { "n": 2, "song_title": "Unwelcome School", "song_singer": "Mitsukiyo" }, { "n": 3, "song_title": "Constant Moderato", "song_singer": "Mitsukiyo" }, { "n": 4, "song_title": "RE Aoharu", "song_singer": "Nor" }, { "n": 5, "song_title": "優しさの記憶 (温情的回忆)", "song_singer": "鹿乃" }, { "n": 6, "song_title": "青春のアーカイブ (青春档案) (feat. ホシノ (CV:花守ゆみり), シロコ (CV:小倉唯), ノノミ (CV:三浦千幸), セリカ (CV:大橋彩香) & アヤネ (CV:原田彩楓))", "song_singer": "アビドス高等学校対策委員会/花守ゆみり/小仓唯/三浦千幸/大桥彩香/原田彩楓" }, { "n": 7, "song_title": "Aoharu Band Arrange", "song_singer": "Mitsukiyo" }, { "n": 8, "song_title": "Alkaline Tears", "song_singer": "Mitsukiyo" }, { "n": 9, "song_title": "Shady Girls", "song_singer": "Mitsukiyo" }, { "n": 10, "song_title": "JUMP！BEAT！PLAY！", "song_singer": "苏枕袖/阎么么/皛四白/宅在家里什么都不会" }] };
                         logInfo(JSON.stringify(wyUrl));
 
                         if (!wyResponse) {
