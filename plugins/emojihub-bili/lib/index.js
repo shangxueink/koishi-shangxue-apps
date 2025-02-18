@@ -1076,12 +1076,19 @@ function apply(ctx, config) {
               if (imageResult.isLocal && config.localPicToBase64) {// 本地图片 + base64发出
                 const format = config.localPictureToName;
                 logInfo(imageResult.imageUrl)
+                // 格式化文件大小
+                const fileSizeKB = (imageResult.imageSize / 1024).toFixed(2);
+                const fileSizeMB = (imageResult.imageSize / (1024 * 1024)).toFixed(2);
+                const formattedSize = imageResult.imageSize < 1024 * 1024 ? `${fileSizeKB} KB` : `${fileSizeMB} MB`;
+                // 格式化时间
+                const formattedTime = imageResult.imageTime.toLocaleString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }).replace(/\//g, '-');
+
                 let imagebase64 = await getImageAsBase64(imageResult.imageUrl);
                 const context = {
                   IMAGE: h('image', { url: 'data:image/png;base64,' + imagebase64 }),
                   NAME: imageResult.imageName,
-                  TIME: imageResult.imageTime,
-                  SIZE: imageResult.imageSize,
+                  TIME: formattedTime,
+                  SIZE: formattedSize,
                   PATH: imageResult.imagePath,
                 };
                 const messageContent = replacePlaceholders(format, context);
@@ -1092,11 +1099,18 @@ function apply(ctx, config) {
               } else if (imageResult.isLocal) {// 本地图片 + 绝对路径
                 const format = config.localPictureToName;
                 logInfo(imageResult.imageUrl)
+                // 格式化文件大小
+                const fileSizeKB = (imageResult.imageSize / 1024).toFixed(2);
+                const fileSizeMB = (imageResult.imageSize / (1024 * 1024)).toFixed(2);
+                const formattedSize = imageResult.imageSize < 1024 * 1024 ? `${fileSizeKB} KB` : `${fileSizeMB} MB`;
+                // 格式化时间
+                const formattedTime = imageResult.imageTime.toLocaleString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }).replace(/\//g, '-');
+
                 const context = {
                   IMAGE: h.image(imageResult.imageUrl),
                   NAME: imageResult.imageName,
-                  TIME: imageResult.imageTime,
-                  SIZE: imageResult.imageSize,
+                  TIME: formattedTime,
+                  SIZE: formattedSize,
                   PATH: imageResult.imagePath,
                 };
                 const messageContent = replacePlaceholders(format, context);

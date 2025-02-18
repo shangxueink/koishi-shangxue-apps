@@ -904,12 +904,13 @@ markdown的按钮参数，需要填入按钮模板ID，
 <details>
 <summary>点击此处————查看更新日志</summary>
 
-- **1.3.18**
+- **1.3.19**
     - 新增本地发图的变量替换
     - 移除杂乱图片一张
     - 更新readme说明有关变量替换的内容
     - 修复本地+base64发图在变量替换的情况下的bug
     - 修复markdown_button_mode_initiative模式下对应json菜单的msgId的添加问题
+    - 优化本地数据的打印格式 可读性更强
 
 - **1.3.14**
     - 修复json按钮的按钮列表失效的情况
