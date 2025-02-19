@@ -314,6 +314,12 @@ async function apply(ctx, config) {
                 const finalShape = shapeMap[useshape] || useshape; // 应用 shapeMap 映射，如果找不到则使用原始输入
                 const finalStyle = fuzzyMatchStyle(style); // 使用 fuzzyMatchStyle 处理风格
 
+                loggerinfo("指定的返回数量：",number);
+                loggerinfo("指定违禁词：",anti);
+                // loggerinfo("指定风格：",style);
+                // loggerinfo("：",useshape);
+                loggerinfo("指定画布：",finalShape);
+                loggerinfo("指定风格：",finalStyle);
                 if (!keyword) {
                     await session.send(session.text(`.notags`));
                     return;
@@ -325,7 +331,7 @@ async function apply(ctx, config) {
                     await session.send(session.text(`.nopuppeteer`));
                     return;
                 }
-
+                loggerinfo("即将操作puppeteer ... ");
                 let page;
                 let imageBase64s = [];
                 let downloadUrlFound = false;
@@ -460,7 +466,7 @@ async function apply(ctx, config) {
 
                     // Wait for images to be generated (adjust timeout as needed)
                     await new Promise(resolve => {
-                        const checkInterval = setInterval(() => {
+                        const checkInterval = ctx.setInterval(() => {
                             if (imageBase64s.length >= number) {
                                 clearInterval(checkInterval);
                                 resolve();
