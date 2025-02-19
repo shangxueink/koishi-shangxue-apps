@@ -150,6 +150,8 @@ exports.Config = Schema.intersect([
 
     Schema.object({
         // proloadPuppeteer: Schema.boolean().default(false).description("预加载网页：在启动插件后直接打开网页等待交互。<br>关闭后，只会在每次触发指令后才打开网页 进行交互").experimental(),
+        // 目前还没打算写那么好
+        // 合并转发也没写
         waitTimeout: Schema.number().description("绘图返回的最大等待时间<br>单位 `秒`").default(45),
     }).description('进阶功能设置'),
 
@@ -171,38 +173,146 @@ async function apply(ctx, config) {
                     messages: {
                         "notags": "请输入关键词。\n➣示例：/perchance lovely girl",
                         "waitTime": "正在处理中，请稍后...",
-                        "nopuppeteer": "没有开启puppeteer服务，请检查puppeteer插件是否已安装并启用。",
+                        "nopuppeteer": "没有开启puppeteer服务",
                         "processError": "处理图像时出错，请重试。",
-                        "noImages": "没有生成任何图像，请重试。",
-                        "invalidShape": "无效的图片形状，请选择 '竖', '横', 或 '正'。",
-                        "invalidStyle": "无效的绘画风格，请检查输入是否正确。",
-                        "styleNotFound": "未找到匹配的绘画风格：{style}。",
+                        "noImages": "没有生成任何图像，请重试。"
                     }
                 },
             }
         });
-
         function loggerinfo(message, message2) {
             if (config.loggerinfo) {
                 if (message2) {
-                    ctx.logger.info(`[Perchance] ${message} ${message2}`);
+                    ctx.logger.info(`${message}${message2}`)
                 } else {
-                    ctx.logger.info(`[Perchance] ${message}`);
+                    ctx.logger.info(message);
                 }
             }
+        }
+        // Shape 映射表
+        const shapeMap = {
+            '竖': '512x768',
+            '竖版': '512x768',
+            'portrait': '512x768',
+            '横': '768x512',
+            '横版': '768x512',
+            'landscape': '768x512',
+            '正': '512x512',
+            '正方形': '512x512',
+            'square': '512x512',
+        };
+
+        // Art Style 映射表 (包含中文描述和英文名称)
+        const artStyleMap = {
+            'Cinematic': ['Cinematic', '电影感'],
+            'Furry - Cinematic': ['Furry - Cinematic', '兽人 - 电影感'],
+            'Painted Anime': ['Painted Anime', '手绘动漫'],
+            'Casual Photo': ['Casual Photo', '日常照片'],
+            'Digital Painting': ['Digital Painting', '数字绘画'],
+            'No style': ['No style', '无风格'],
+            'Concept Art': ['Concept Art', '概念艺术'],
+            '3D Disney Character': ['3D Disney Character', '3D 迪士尼角色'],
+            '2D Disney Character': ['2D Disney Character', '2D 迪士尼角色'],
+            'Disney Sketch': ['Disney Sketch', '迪士尼草图'],
+            'Concept Sketch': ['Concept Sketch', '概念草图'],
+            'Painterly': ['Painterly', '绘画风格'],
+            'Oil Painting': ['Oil Painting', '油画'],
+            'Oil Painting - Realism': ['Oil Painting - Realism', '油画 - 现实主义'],
+            'Oil Painting - Old': ['Oil Painting - Old', '油画 - 古旧风格'],
+            'Professional Photo': ['Professional Photo', '专业照片'],
+            'Anime': ['Anime', '动漫'],
+            'Drawn Anime': ['Drawn Anime', '手绘动漫'],
+            'Cute Anime': ['Cute Anime', '可爱动漫'],
+            'Soft Anime': ['Soft Anime', '柔和动漫'],
+            'Fantasy Painting': ['Fantasy Painting', '奇幻绘画'],
+            'Fantasy Landscape': ['Fantasy Landscape', '奇幻风景'],
+            'Fantasy Portrait': ['Fantasy Portrait', '奇幻肖像'],
+            'Studio Ghibli': ['Studio Ghibli', '吉卜力工作室风格'],
+            '50s Enamel Sign': ['50s Enamel Sign', '50年代搪瓷招牌'],
+            'Vintage Comic': ['Vintage Comic', '复古漫画'],
+            'Franco-Belgian Comic': ['Franco-Belgian Comic', '法比漫画'],
+            'Tintin Comic': ['Tintin Comic', '丁丁历险记漫画风格'],
+            'Medieval': ['Medieval', '中世纪风格'],
+            'Pixel Art': ['Pixel Art', '像素艺术'],
+            'Furry - Oil': ['Furry - Oil', '兽人 - 油画'],
+            'Furry - Painted': ['Furry - Painted', '兽人 - 手绘'],
+            'Furry - Drawn': ['Furry - Drawn', '兽人 - 素描'],
+            'Cute Figurine': ['Cute Figurine', '可爱手办'],
+            '3D Emoji': ['3D Emoji', '3D 表情符号'],
+            'Illustration': ['Illustration', '插画'],
+            'Flat Illustration': ['Flat Illustration', '扁平插画'],
+            'Watercolor': ['Watercolor', '水彩'],
+            '1990s Photo': ['1990s Photo', '90年代照片'],
+            '1980s Photo': ['1980s Photo', '80年代照片'],
+            '1970s Photo': ['1970s Photo', '70年代照片'],
+            '1960s Photo': ['1960s Photo', '1960年代照片'],
+            '1950s Photo': ['1950s Photo', '1950年代照片'],
+            '1940s Photo': ['1940s Photo', '1940年代照片'],
+            '1930s Photo': ['1930s Photo', '1930年代照片'],
+            '1920s Photo': ['1920s Photo', '1920年代照片'],
+            'Vintage Pulp Art': ['Vintage Pulp Art', '复古通俗艺术'],
+            '50s Infomercial Anime': ['50s Infomercial Anime', '50年代电视购物动漫'],
+            '3D Pokemon': ['3D Pokemon', '3D 宝可梦'],
+            'Painted Pokemon': ['Painted Pokemon', '手绘宝可梦'],
+            '2D Pokemon': ['2D Pokemon', '2D 宝可梦'],
+            'Vintage Anime': ['Vintage Anime', '复古动漫'],
+            'Neon Vintage Anime': ['Neon Vintage Anime', '霓虹复古动漫'],
+            'Manga': ['Manga', '漫画'],
+            'Fantasy World Map': ['Fantasy World Map', '奇幻世界地图'],
+            'Fantasy City Map': ['Fantasy City Map', '奇幻城市地图'],
+            'Old World Map': ['Old World Map', '旧世界地图'],
+            '3D Isometric Icon': ['3D Isometric Icon', '3D 等距图标'],
+            'Flat Style Icon': ['Flat Style Icon', '扁平风格图标'],
+            'Flat Style Logo': ['Flat Style Logo', '扁平风格 Logo'],
+            'Game Art Icon': ['Game Art Icon', '游戏美术图标'],
+            'Digital Painting Icon': ['Digital Painting Icon', '数字绘画图标'],
+            'Concept Art Icon': ['Concept Art Icon', '概念艺术图标'],
+            'Cute 3D Icon': ['Cute 3D Icon', '可爱 3D 图标'],
+            'Cute 3D Icon Set': ['Cute 3D Icon Set', '可爱 3D 图标集'],
+            'Crayon Drawing': ['Crayon Drawing', '蜡笔画'],
+            'Pencil': ['Pencil', '铅笔画'],
+            'Tattoo Design': ['Tattoo Design', '纹身设计'],
+            'Waifu': ['Waifu', '老婆/二次元美少女'],
+            'YuGiOh Art': ['YuGiOh Art', '游戏王卡牌风格'],
+            'Traditional Japanese': ['Traditional Japanese', '传统日式风格'],
+            'Nihonga Painting': ['Nihonga Painting', '日本画'],
+            'Claymation': ['Claymation', '黏土动画'],
+            'Cartoon': ['Cartoon', '卡通'],
+            'Cursed Photo': ['Cursed Photo', '诅咒照片'],
+            'MTG Card': ['MTG Card', '万智牌卡牌风格'],
+        };
+
+        function fuzzyMatchStyle(inputStyle) {
+            inputStyle = inputStyle || ''; // 确保 inputStyle 不是 undefined 或 null
+            if (!inputStyle) return config.ArtStyle; // 默认风格
+
+            const lowerInput = inputStyle.toLowerCase();
+            for (const styleKey in artStyleMap) {
+                const [englishName, chineseName] = artStyleMap[styleKey];
+                if (englishName.toLowerCase() === lowerInput || chineseName.toLowerCase() === lowerInput) {
+                    return styleKey; // 精确匹配英文或中文
+                }
+                if (englishName.toLowerCase().includes(lowerInput) || chineseName.toLowerCase().includes(lowerInput)) {
+                    return styleKey; // 模糊匹配英文或中文
+                }
+            }
+            return inputStyle; // 没有匹配到，返回用户输入 // 这里应该返回提示“不存在的风格”
         }
 
         ctx.command(`${config.command} <keyword:text>`)
             .option('number', '-n <number:number> 返回的绘画数量')
             .option('anti', '-a <anti:string> 不希望出现在绘画中的物品的tag')
             .option('style', '-s <style:string> 绘画风格')
-            .option('useshape', '-u <useshape:string> 画布大小 (竖, 横, 正)')
-            .example("perchance -u 横 -s Waifu -a nsfw -n 1  intergalactic spy with a sentient gadget")
+            .option('useshape', '-u <useshape:string> 画布大小')
+            .example("perchance -n 1 -u 横 -s 动漫 intergalactic spy with a sentient gadget")
+            .example("perchance -n 3 -u landscape -s Waifu camouflaged vigilante lurking in the mist")
             .action(async ({ session, options }, keyword) => {
                 const number = options.number !== undefined ? options.number : config.HowMany; // 使用配置中的默认值
                 const anti = options.anti !== undefined ? options.anti : config.AntiDescription;
-                let style = options.style !== undefined ? options.style : config.ArtStyle;
-                let useshape = options.useshape !== undefined ? options.useshape : config.Shape;
+                const style = options.style !== undefined ? options.style : config.ArtStyle;
+                const useshape = options.useshape !== undefined ? options.useshape : config.Shape;
+                const finalShape = shapeMap[useshape] || useshape; // 应用 shapeMap 映射，如果找不到则使用原始输入
+                const finalStyle = fuzzyMatchStyle(style); // 使用 fuzzyMatchStyle 处理风格
 
                 if (!keyword) {
                     await session.send(session.text(`.notags`));
@@ -316,47 +426,6 @@ async function apply(ctx, config) {
                         el.value = antiDescription;
                     }, antiDescription);
 
-                    // Shape 转换
-                    if (options.useshape) {
-                        const shapeMap = {
-                            '竖': '512x768',
-                            '横': '768x512',
-                            '正': '512x512',
-                        };
-                        if (shapeMap[options.useshape]) {
-                            useshape = shapeMap[options.useshape];
-                        } else {
-                            await session.send(session.text(`.invalidShape`));
-                            return;
-                        }
-                    }
-
-                    // Art Style 转换
-                    if (options.style) {
-                        let foundStyle = null;
-
-                        // 尝试精确匹配
-                        foundStyle = Object.values(config.Config.dict.ArtStyle.elements).find(s => s.value === options.style);
-
-                        // 尝试中文模糊匹配
-                        if (!foundStyle) {
-                            foundStyle = Object.values(config.Config.dict.ArtStyle.elements).find(s => ctx.i18n.render(`perchance.config.ArtStyle.${s.value}`)?.includes(options.style));
-                        }
-
-                        //尝试英文模糊匹配
-                        if (!foundStyle) {
-                            foundStyle = Object.values(config.Config.dict.ArtStyle.elements).find(s => s.value.toLowerCase().includes(options.style.toLowerCase()));
-                        }
-
-                        if (foundStyle) {
-                            style = foundStyle.value;
-                        } else {
-                            await session.send(session.text(`.styleNotFound`, { style: options.style }));
-                            return;
-                        }
-                    }
-
-
                     // 选择 Art Style
                     await contentFrame.$eval('select[data-name="artStyle"]', (el, artStyle) => {
                         // 特殊处理 "No style" 的情况
@@ -366,13 +435,13 @@ async function apply(ctx, config) {
                             el.value = option.value;
                             el.dispatchEvent(new Event('change', { bubbles: true })); // 触发 change 事件
                         }
-                    }, style);
+                    }, finalStyle);
 
                     // 选择 Shape
                     await contentFrame.$eval('select[data-name="shape"]', (el, shape) => {
                         el.value = shape;
                         el.dispatchEvent(new Event('change', { bubbles: true })); // 触发 change 事件
-                    }, useshape);
+                    }, finalShape);
 
                     // 选择 How many? (如果需要调整数量)
                     const howManyOptions = [3, 6, 9];
@@ -441,8 +510,6 @@ async function apply(ctx, config) {
 
     });
 }
-
-
 
 
 

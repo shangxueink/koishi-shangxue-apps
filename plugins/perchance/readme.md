@@ -1,5 +1,6 @@
 # koishi-plugin-perchance
 
+[![npm](https://img.shields.io/npm/v/koishi-plugin-perchance?style=flat-square)](https://www.npmjs.com/package/koishi-plugin-perchance)
 
 <h1>Perchance AI 绘画插件</h1>
 
