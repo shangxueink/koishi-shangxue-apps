@@ -12,7 +12,7 @@ exports.inject = {
     required: ['puppeteer']
 };
 exports.usage = `
-<h1>Perchance AI 绘画插件</h1>
+<h1>Perchance Generator 绘画插件</h1>
 
 <section>
 <h2>简介</h2>
@@ -24,14 +24,14 @@ exports.usage = `
 <p>使用 <code>perchance</code> 命令，并添加关键词来生成图像。</p>
 
 <h3>示例</h3>
-<pre><code>/perchance -r -n 1 -u 768x512 -s Waifu  intergalactic spy with a sentient gadget</code></pre>
+<pre><code>/perchance -n 1 -u 横 -s 动漫 intergalactic spy with a sentient gadget</code></pre>
+<pre><code>/perchance -n 3 -u landscape -s Waifu camouflaged vigilante lurking in the mist</code></pre>
 <p><strong>参数说明：</strong></p>
 <ul>
-<li><code>-r</code>: 随机 tag</li>
 <li><code>-n</code>: 返回的绘画数量 (这里是 1)</li>
-<li><code>-u</code>: 指定图片尺寸 (这里是 768x512)</li>
-<li><code>-s</code>: 绘画的风格 (这里是 "Waifu")</li>
-<li><code>keyword</code>: 绘画的tag (这里是 "intergalactic spy with a sentient gadget")</li>
+<li><code>-u</code>: 指定图片尺寸 (可以填中文关键词，也可以填英文名称，与配置项可选内容的名称一致)</li>
+<li><code>-s</code>: 绘画的风格 (可以填中文关键词，也可以填英文名称，与配置项可选内容的名称一致)</li>
+<li><code>keyword</code>: 绘画的tag (这里是 "intergalactic spy with a sentient gadget"，尽可能使用英文tag)</li>
 </ul>
 </section>
 
@@ -43,6 +43,10 @@ exports.usage = `
 <p><strong>重要提示：</strong> 本插件需要你的网络环境可以访问外网，否则将无法正常使用。</p>
 </div>
 </section>
+
+---
+
+相关网址 -> https://perchance.org/stable-diffusion-ai
 `;
 
 exports.Config = Schema.intersect([
@@ -98,14 +102,14 @@ exports.Config = Schema.intersect([
             Schema.const('Illustration').description('Illustration (插画)'),
             Schema.const('Flat Illustration').description('Flat Illustration (扁平插画)'),
             Schema.const('Watercolor').description('Watercolor (水彩)'),
-            Schema.const('1990s Photo').description('1990s Photo (90年代照片)'),
-            Schema.const('1980s Photo').description('1980s Photo (80年代照片)'),
-            Schema.const('1970s Photo').description('1970s Photo (70年代照片)'),
-            Schema.const('1960s Photo').description('1960年代照片)'),
-            Schema.const('1950s Photo').description('1950年代照片)'),
-            Schema.const('1940s Photo').description('1940年代照片)'),
-            Schema.const('1930s Photo').description('1930年代照片)'),
-            Schema.const('1920s Photo').description('1920年代照片)'),
+            Schema.const('1990s Photo').description('1990s Photo (1990年代照片)'),
+            Schema.const('1980s Photo').description('1980s Photo (1980年代照片)'),
+            Schema.const('1970s Photo').description('1970s Photo (1970年代照片)'),
+            Schema.const('1960s Photo').description('1960s Photo (1960年代照片)'),
+            Schema.const('1950s Photo').description('1950s Photo (1950年代照片)'),
+            Schema.const('1940s Photo').description('1940s Photo (1940年代照片)'),
+            Schema.const('1930s Photo').description('1930s Photo (1930年代照片)'),
+            Schema.const('1920s Photo').description('1920s Photo (1920年代照片)'),
             Schema.const('Vintage Pulp Art').description('Vintage Pulp Art (复古通俗艺术)'),
             Schema.const('50s Infomercial Anime').description('50s Infomercial Anime (50年代电视购物动漫)'),
             Schema.const('3D Pokemon').description('3D Pokemon (3D 宝可梦)'),
@@ -314,12 +318,12 @@ async function apply(ctx, config) {
                 const finalShape = shapeMap[useshape] || useshape; // 应用 shapeMap 映射，如果找不到则使用原始输入
                 const finalStyle = fuzzyMatchStyle(style); // 使用 fuzzyMatchStyle 处理风格
 
-                loggerinfo("指定的返回数量：",number);
-                loggerinfo("指定违禁词：",anti);
+                loggerinfo("指定的返回数量：", number);
+                loggerinfo("指定违禁词：", anti);
                 // loggerinfo("指定风格：",style);
                 // loggerinfo("：",useshape);
-                loggerinfo("指定画布：",finalShape);
-                loggerinfo("指定风格：",finalStyle);
+                loggerinfo("指定画布：", finalShape);
+                loggerinfo("指定风格：", finalStyle);
                 if (!keyword) {
                     await session.send(session.text(`.notags`));
                     return;
@@ -517,18 +521,4 @@ async function apply(ctx, config) {
     });
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
 exports.apply = apply;
-
-
