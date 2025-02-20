@@ -802,6 +802,8 @@ function apply(ctx, config) {
                         "exitprompt": "已退出歌曲选择。",
                         "noplatform": "获取歌曲失败。",
                         "somerror": "解析歌曲详情时发生错误",
+                        "noSearchResults": "没有找到相关的歌曲，请尝试更换关键词或平台。",
+
                     }
                 },
                 [config.command6]: {
@@ -1387,6 +1389,19 @@ function apply(ctx, config) {
                         const submitButton = await page.$('.search-submit');
                         if (!submitButton) return '未找到搜索提交按钮，请检查页面结构。';
                         await submitButton.click();
+                        try {
+                            logInfo(`正在检查“没有数据”的提示语...`);
+                            await new Promise(resolve => ctx.setTimeout(resolve, config.command5_page_setTimeout * 1000));
+                            const pageContent = await page.content();
+                            if (pageContent.includes('没有数据，前往其它播放列表或搜索歌曲吧')) {
+                                await session.send(h.text(session.text(".noSearchResults"))); // 发送没有搜索结果的提示
+                                await page.close();
+                                return; // 提前返回
+                            }
+                        } catch (error) {
+                            ctx.logger.warn('检查 "没有数据" 提示时发生错误或超时，继续正常流程', error);
+                        }
+
                         const alert = await page.$('.layui-layer-msg.layui-layer-hui');
                         if (alert) {
                             const alertText = await page.evaluate(() => {
@@ -1415,12 +1430,6 @@ function apply(ctx, config) {
                     }
                 });
         }
-
-
-
-
-
-
 
 
 
@@ -1575,7 +1584,6 @@ function apply(ctx, config) {
                     }
                 });
         }
-
 
 
 
