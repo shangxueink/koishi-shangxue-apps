@@ -39,7 +39,7 @@ const usage = `
 
 <h3>使用api.injahow.cn网站搜索网易云音乐</h3>
 <pre><code>网易点歌 [歌曲名称/歌曲ID]</code></pre>
-<p><b>(比较推荐)</b> api.injahow.cn 网站，API请求快速且稳定，无需 puppeteer 服务，但是VIP歌曲只能听45秒。<b>仅支持网易云音乐</b>，可以通过歌曲名称或歌曲ID进行搜索。</p>
+<p><b>(比较推荐)</b> api.injahow.cn 网站，API请求快速且稳定，无需 puppeteer 服务，推荐QQ官方机器人使用此后端，但是VIP歌曲只能听45秒。<b>仅支持网易云音乐</b>，可以通过歌曲名称或歌曲ID进行搜索。</p>
 <hr>
 
 <h3>使用dev.iw233.cn网站搜索网易云 + 酷狗音乐</h3>
@@ -67,6 +67,7 @@ const usage = `
 <hr>
 
 <p>⚠️需要注意的是，当配置返回格式为音频/视频的时候，请自行检查是否安装了 <code>silk</code>、<code>ffmpeg</code> 等服务。</p>
+<p>⚠️如果你选择了 <code>file</code> 类型，请确保平台支持！目前仅实测了 <code>onebot</code> 平台的部分协议端支持！</p>
 <hr>
 
 <h3>使用 <code>-n 1</code> 直接返回内容</h3>
@@ -84,15 +85,14 @@ const usage = `
 ### 目前 推荐使用<code>music.gdstudio.xyz</code>的服务，请确保<code>puppeteer</code>服务可用
 
 ---
-| 后端推荐度 |              名称                 | 备注                         |
-| :--------: | :--------------------------------: | :---------------------------: |
-|   **ⅰ**    | \`music.gdstudio.xyz\` (歌曲搜索) | 较高                   |
-|   **ⅱ**    | \`dev.iw233.cn\` (音乐搜索器)     | 中等                   |
-|   *......*    | 其他     | 中等                   |
-|   **ⅳ**    | \`星之阁API\` (下载音乐/酷狗音乐) | 较低|
+| 后端推荐度 |               名称                | 备注  |
+| :--------: | :-------------------------------: | :---: |
+|   **ⅰ**    | \`music.gdstudio.xyz\` (歌曲搜索) | 较高  |
+|   **ⅱ**    |   \`dev.iw233.cn\` (音乐搜索器)   | 中等  |
+|  *......*  |               其他                | 中等  |
+|   **ⅳ**    | \`星之阁API\` (下载音乐/酷狗音乐) | 较低  |
 
 ---
-
 `;
 
 
@@ -384,6 +384,11 @@ const command6_return_data_Field_default = [
         "type": "text"
     },
     {
+        "data": "id",
+        "describe": "歌曲ID",
+        "type": "text"
+    },
+    {
         "data": "artist",
         "describe": "歌手",
         "type": "text"
@@ -549,7 +554,7 @@ const platformMap = {
     '油管': 'ytmusic',
     'Spotify': 'spotify',
 };
-const recommend = "<details><summary>后端选择详细比较 (点击展开/折叠)</summary>\n<table>\n  <thead>\n    <tr>\n      <th>后端命令</th>\n      <th>描述</th>\n      <th>平台</th>\n      <th>推荐度</th>\n      <th>特点</th>\n    </tr>\n  </thead>\n  <tbody>\n    <tr>\n      <td>command1</td>\n      <td>星之阁API</td>\n      <td>QQ + 网易云</td>\n      <td>较低</td>\n      <td>需加群申请APIkey</td>\n    </tr>\n    <tr>\n      <td>command4</td>\n      <td>星之阁-酷狗API</td>\n      <td>酷狗</td>\n      <td>较低</td>\n      <td>需加群申请APIkey</td>\n    </tr>\n    <tr>\n      <td>command5</td>\n      <td>music.gdstudio.xyz</td>\n      <td>多平台</td>\n      <td>最高</td>\n      <td>访问性好，需puppeteer爬取</td>\n    </tr>\n    <tr>\n      <td>command6</td>\n      <td>api.injahow.cn</td>\n      <td>网易云</td>\n      <td>中等</td>\n      <td>API请求快+稳定，VIP歌曲45秒限制</td>\n    </tr>\n    <tr>\n      <td>command7</td>\n      <td>dev.iw233.cn</td>\n      <td>网易云 + 酷狗</td>\n      <td>中等</td>\n      <td>需puppeteer爬取，速度较慢</td>\n    </tr>\n    <tr>\n      <td>command8</td>\n      <td>www.hhlqilongzhu.cn</td>\n      <td>网易云 + QQ</td>\n      <td>中等</td>\n      <td>龙珠API，API形式，江苏可能无法访问</td>\n    </tr>\n  </tbody>\n</table>\n</details>\n<br>➣ 推荐度：`music.gdstudio.xyz`  > `dev.iw233.cn` >= `api.injahow.cn` = `www.hhlqilongzhu.cn` > `星之阁API`";
+
 const Config = Schema.intersect([
 
     Schema.object({
@@ -567,8 +572,8 @@ const Config = Schema.intersect([
         serverSelect: Schema.union([
             Schema.const('command1').description('command1：星之阁API                 （需加群申请APIkey）          （QQ + 网易云）'),
             Schema.const('command4').description('command4：星之阁-酷狗API             （需加群申请APIkey）          （酷狗）'),
-            Schema.const('command5').description('command5：`music.gdstudio.xyz`  网站   （需puppeteer爬取，访问性好）    （多平台支持）'),
-            Schema.const('command6').description('command6：`api.injahow.cn`网站       （API 请求快 + 稳定）            （网易云点歌）'),
+            Schema.const('command5').description('command5：`music.gdstudio.xyz`  网站   （需puppeteer爬取 较慢，但访问性好）    （多平台支持）'),
+            Schema.const('command6').description('command6：`api.injahow.cn`网站       （API 请求快 + 稳定 推荐QQ官方机器人使用）      （非VIP网易云点歌）'),
             Schema.const('command7').description('command7：`dev.iw233.cn` 网站         （需puppeteer爬取 较慢）          （网易云 + 酷狗）'),
             Schema.const('command8').description('command8：`www.hhlqilongzhu.cn` 龙珠API  （API，江苏可能访问不了）        （网易云 + QQ点歌）'),
         ]).role('radio').default("command5").description('选择使用的后端<br>➣ 推荐度：`music.gdstudio.xyz`  > `dev.iw233.cn` >= `api.injahow.cn` = `www.hhlqilongzhu.cn` > `星之阁API`'),
@@ -766,7 +771,7 @@ function apply(ctx, config) {
                 [config.command1]: {
                     description: `搜索歌曲`,
                     messages: {
-                        "nokeyword": "请输入歌曲相关信息。\n➣示例：/music 蔚蓝档案",
+                        "nokeyword": `请输入歌曲相关信息。\n➣示例：/${config.command1} 蔚蓝档案`,
                         "songlisterror": "无法获取歌曲列表，请稍后再试。",
                         "invalidNumber": "序号输入错误，已退出歌曲选择。",
                         "waitTime": "请在{0}秒内，\n输入歌曲对应的序号:\n➣示例：@机器人 1",
@@ -779,7 +784,7 @@ function apply(ctx, config) {
                 [config.command4]: {
                     description: `搜索酷狗音乐`,
                     messages: {
-                        "nokeyword": "请输入歌曲相关信息。\n➣示例：/music 蔚蓝档案",
+                        "nokeyword": `请输入歌曲相关信息。\n➣示例：/${config.command4} 蔚蓝档案`,
                         "songlisterror": "获取酷狗音乐数据时发生错误，请稍后再试。",
                         "invalidNumber": "序号输入错误，已退出歌曲选择。",
                         "waitTime": "请在{0}秒内，\n输入歌曲对应的序号:\n➣示例：@机器人 1",
@@ -793,7 +798,7 @@ function apply(ctx, config) {
                     description: `歌曲搜索`,
                     messages: {
                         "nopuppeteer": "没有开启puppeteer服务",
-                        "nokeyword": "请输入歌曲相关信息。\n➣示例：/music 蔚蓝档案",
+                        "nokeyword": `请输入歌曲相关信息。\n➣示例：/${config.command5} 蔚蓝档案`,
                         "invalidplatform": "`不支持的平台: {0}`;",
                         "songlisterror": "无法获取歌曲列表，请稍后再试。",
                         "invalidNumber": "序号输入错误，已退出歌曲选择。",
@@ -810,7 +815,7 @@ function apply(ctx, config) {
                     description: `网易云点歌`,
                     messages: {
                         "nopuppeteer": "没有开启puppeteer服务",
-                        "nokeyword": "请输入网易云歌曲的 名称 或 ID。\n➣示例：/网易点歌 蔚蓝档案\n➣示例：/网易点歌 2608813264",
+                        "nokeyword": `请输入网易云歌曲的 名称 或 ID。\n➣示例：/${config.command6} 蔚蓝档案\n➣示例：/${config.command6} 2608813264`,
                         "invalidNumber": "序号输入错误，已退出歌曲选择。",
                         "waitTime": "请在{0}秒内，\n输入歌曲对应的序号:\n➣示例：@机器人 1",
                         "waitTimeout": "输入超时，已取消点歌。",
@@ -824,7 +829,7 @@ function apply(ctx, config) {
                     description: `音乐搜索器`,
                     messages: {
                         "nopuppeteer": "没有开启puppeteer服务",
-                        "nokeyword": "请输入歌曲相关信息。\n➣示例：/音乐搜索器 蔚蓝档案",
+                        "nokeyword": `请输入歌曲相关信息。\n➣示例：/${config.command7} 蔚蓝档案`,
                         "invalidNumber": "序号输入错误，已退出歌曲选择。",
                         "waitTime": "请在{0}秒内，\n输入歌曲对应的序号:\n➣示例：@机器人 1",
                         "waitTimeout": "输入超时，已取消点歌。",
@@ -838,7 +843,7 @@ function apply(ctx, config) {
                     description: `龙珠音乐`,
                     messages: {
                         "nopuppeteer": "没有开启puppeteer服务",
-                        "nokeyword": "请输入歌曲相关信息。\n➣示例：/音乐搜索器 蔚蓝档案",
+                        "nokeyword": `请输入歌曲相关信息。\n➣示例：/${config.command8} 蔚蓝档案`,
                         "invalidNumber": "序号输入错误，已退出歌曲选择。",
                         "waitTime": "请在{0}秒内，\n输入歌曲对应的序号:\n➣示例：@机器人 1",
                         "waitTimeout": "输入超时，已取消点歌。",
@@ -1444,11 +1449,11 @@ function apply(ctx, config) {
                     // 尝试判断输入是否为歌曲ID (纯数字)
                     const isSongId = /^\d+$/.test(keyword.trim());
 
-                    if (isSongId && !options.number) { // 指定了 -n 当然是因为有列表啦 
+                    if (isSongId && !options.number) { // 指定了 -n 当然是因为有列表啦
                         // 如果是歌曲ID，则直接使用原有的ID点歌逻辑
                         try {
                             // 请求 API 获取单曲数据
-                            const apiBase = `https://api.injahow.cn/meting/?id=${keyword}&type=song`;
+                            const apiBase = `http://music.163.com/api/song/detail/?id=${keyword}&ids=[${keyword}]`;
                             logInfo("请求 API (ID点歌):", apiBase);
                             const apiResponse = await ctx.http.get(apiBase);
 
@@ -1460,26 +1465,45 @@ function apply(ctx, config) {
                                 return h.text(session.text(`.songlisterror`));
                             }
 
-                            if (!parsedApiResponse || parsedApiResponse.length === 0) {
+                            if (!parsedApiResponse || parsedApiResponse.code !== 200 || !parsedApiResponse.songs || parsedApiResponse.songs.length === 0) {
                                 return h.text(session.text(`.songlisterror`));
                             }
 
-                            const songData = parsedApiResponse[0];
-                            if (!songData || `${songData}`?.includes("unknown song")) {
-                                ctx.logger.error('网易单曲点歌插件出错， unknown song');
-                            }
-                            // 处理歌词
-                            if (songData?.lrc) {
-                                try {
-                                    const lrcResponse = await ctx.http.get(songData?.lrc);
-                                    songData.lrc = `\n${lrcResponse}`;
-                                } catch (error) {
-                                    ctx.logger.error(`获取歌词失败: ${songData?.lrc}`, error);
-                                    songData.lrc = `歌词获取失败: ${songData?.lrc}`;
-                                }
+                            const songData = parsedApiResponse.songs[0];
+                            if (!songData) {
+                                ctx.logger.error('网易单曲点歌插件出错， 获取歌曲信息失败');
+                                return h.text(session.text(`.songlisterror`));
                             }
 
-                            const response = generateResponse(songData, config.command6_return_data_Field, config.deleteTempTime, tempFiles, fs, tempDir);
+                            // 获取歌曲直链
+                            const songUrl = `https://api.injahow.cn/meting/?id=${keyword}&type=url`;
+                            // const apiBase = `https://api.injahow.cn/meting/?id=${keyword}&type=song`;
+
+                            // 处理歌词
+                            let lyric = '歌词获取失败';
+                            try {
+                                const lyricApiUrl = `https://music.163.com/api/song/lyric?id=${keyword}&lv=1&kv=1&tv=-1`;
+                                const lyricResponse = await ctx.http.get(lyricApiUrl);
+                                const parsedLyricResponse = JSON.parse(lyricResponse);
+                                if (parsedLyricResponse.code === 200 && parsedLyricResponse.lrc && parsedLyricResponse.lrc.lyric) {
+                                    lyric = `\n${parsedLyricResponse.lrc.lyric}`;
+                                } else {
+                                    ctx.logger.error(`获取歌词失败: ${lyricApiUrl}，返回代码: ${parsedLyricResponse.code}`);
+                                }
+                            } catch (error) {
+                                ctx.logger.error(`获取歌词失败:`, error);
+                            }
+
+                            const processedSongData = {
+                                name: songData.name,
+                                artist: songData.artists.map(artist => artist.name).join('/'),
+                                url: songUrl,
+                                lrc: lyric,
+                                pic: songData.album.picUrl,
+                                id: songData.id,
+                            };
+                            logInfo(processedSongData);
+                            const response = generateResponse(processedSongData, config.command6_return_data_Field, config.deleteTempTime, tempFiles, fs, tempDir);
                             return response;
                         } catch (error) {
                             ctx.logger.error('网易单曲点歌插件出错 (ID点歌):', error);
@@ -1488,7 +1512,7 @@ function apply(ctx, config) {
                     } else {
                         // 如果不是歌曲ID，则进行歌名搜索
                         try {
-                            const searchApiUrl = `https://music.163.com/api/search/get/web?csrf_token=hlpretag=&hlposttag=&s=${encodeURIComponent(keyword)}&type=1&offset=0&total=true&limit=${config.command6_searchList}`;
+                            const searchApiUrl = `http://music.163.com/api/search/get/web?csrf_token=hlpretag=&hlposttag=&s=${encodeURIComponent(keyword)}&type=1&offset=0&total=true&limit=${config.command6_searchList}`;
                             logInfo("请求搜索 API:", searchApiUrl);
                             const searchApiResponse = await ctx.http.get(searchApiUrl);
 
@@ -1503,7 +1527,7 @@ function apply(ctx, config) {
                             const searchData = parsedSearchApiResponse.result;
 
                             // logInfo(searchApiResponse);// 是一个很长的json，需要的时候再打印确认吧
-                            // logInfo(searchData); // 打印 searchData 
+                            // logInfo(searchData); // 打印 searchData
 
                             if (!searchData || !searchData.songs || searchData.songs.length === 0) {
                                 return h.text(session.text(`.songlisterror`)); //  使用 songlisterror 提示搜索失败
@@ -1555,25 +1579,50 @@ function apply(ctx, config) {
 
                             const selectedSongId = songList[serialNumber - 1].id;
 
-                            // 使用选定的歌曲ID调用原始API获取歌曲详情
-                            const detailApiUrl = `https://api.injahow.cn/meting/?id=${selectedSongId}&type=song`;
+                            // 使用选定的歌曲ID调用官方API获取歌曲详情
+                            const detailApiUrl = `http://music.163.com/api/song/detail/?id=${selectedSongId}&ids=[${selectedSongId}]`;
                             logInfo("请求歌曲详情 API:", detailApiUrl);
                             const detailApiResponse = await ctx.http.get(detailApiUrl);
                             const detailParsedApiResponse = JSON.parse(detailApiResponse);
-                            const songData = detailParsedApiResponse[0];
+
+                            if (!detailParsedApiResponse || detailParsedApiResponse.code !== 200 || !detailParsedApiResponse.songs || detailParsedApiResponse.songs.length === 0) {
+                                return h.text(session.text(`.songlisterror`));
+                            }
+                            const songData = detailParsedApiResponse.songs[0];
+
+
+                            // 获取歌曲直链
+                            const songUrl = `https://api.injahow.cn/meting/?id=${selectedSongId}&type=url`;
+                            // const songUrl = `https://music.163.com/song/media/outer/url?id=${selectedSongId}`;
+                            // const songUrl = `https://api.injahow.cn/meting/?id=${keyword}&type=song`;
 
                             // 处理歌词
-                            if (songData?.lrc) {
-                                try {
-                                    const lrcResponse = await ctx.http.get(songData?.lrc);
-                                    songData.lrc = `\n${lrcResponse}`;
-                                } catch (error) {
-                                    ctx.logger.error(`获取歌词失败: ${songData?.lrc}`, error);
-                                    songData.lrc = `歌词获取失败: ${songData?.lrc}`;
+                            let lyric = '歌词获取失败';
+                            try {
+                                const lyricApiUrl = `https://music.163.com/api/song/lyric?id=${selectedSongId}&lv=1&kv=1&tv=-1`;
+                                const lyricResponse = await ctx.http.get(lyricApiUrl);
+                                const parsedLyricResponse = JSON.parse(lyricResponse);
+                                if (parsedLyricResponse.code === 200 && parsedLyricResponse.lrc && parsedLyricResponse.lrc.lyric) {
+                                    lyric = `\n${parsedLyricResponse.lrc.lyric}`;
+                                } else {
+                                    ctx.logger.error(`获取歌词失败: ${lyricApiUrl}，返回代码: ${parsedLyricResponse.code}`);
                                 }
+                            } catch (error) {
+                                ctx.logger.error(`获取歌词失败:`, error);
                             }
 
-                            const response = generateResponse(songData, config.command6_return_data_Field, config.deleteTempTime, tempFiles, fs, tempDir);
+                            // logInfo(JSON.stringify(songData));
+                            const processedSongData = {
+                                name: songData.name,
+                                artist: songData.artists.map(artist => artist.name).join('/'),
+                                url: songUrl,
+                                lrc: lyric,
+                                pic: songData.album.picUrl,
+                                id: songData.id,
+                            };
+                            logInfo(processedSongData)
+
+                            const response = generateResponse(processedSongData, config.command6_return_data_Field, config.deleteTempTime, tempFiles, fs, tempDir);
                             return response;
 
 
