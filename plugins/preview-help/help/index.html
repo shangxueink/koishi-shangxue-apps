@@ -49,7 +49,6 @@
         }
 
         .preview-panel {
-            flex: 1;
             /* Preview takes remaining space */
             min-width: 320px;
             /* Minimum width for preview - adjusted for vertical */
@@ -86,10 +85,6 @@
             border: 2px solid purple;
         }
 
-
-        .menu-item-row {
-            /* No specific style for menu item row if needed */
-        }
 
         .sub-item-row {
             margin-left: 15px;
@@ -190,6 +185,12 @@
             margin: 0 auto;
             /* Center preview in panel if needed */
             /* width and height are now dynamic via vue style binding */
+            display: flex;
+            /* ADDED: flex display for blurred background */
+            justify-content: center;
+            /* ADDED: center content horizontally */
+            align-items: center;
+            /* ADDED: center content vertically */
         }
 
         .background-image {
@@ -213,10 +214,14 @@
             /* Stack menu items vertically */
             padding: 20px;
             /* Add padding around the menu */
-            height: 100%;
-            /* Occupy full height of wrapper */
+            /*height: 100%;*/
+            /* Remove fixed height, will be dynamic */
             font-family: var(--preview-font, inherit);
             /* 应用预览字体 */
+            z-index: 1;
+            /* Ensure menu content is above blurred background */
+            background-color: rgba(255, 255, 255, 0.0);
+            /* Make preview container background transparent */
         }
 
         .menu-item-preview {
@@ -621,6 +626,8 @@
             padding: 8px 15px;
             border: none;
             border-radius: 4px;
+            margin: 0 5px;
+            /* Added margin for button spacing */
             cursor: pointer;
             color: white;
             background-color: var(--primary-color);
@@ -629,9 +636,14 @@
 
         .popup-button:hover {
             background-color: #3a8ee6;
+            opacity: 0.8;
             /* Darker shade on hover */
         }
 
+        .popup-button.sibling-button {
+            background-color: #3a8ee6;
+            /* Darker shade on hover */
+        }
 
         .popup-tabs {
             display: flex;
@@ -872,6 +884,83 @@
             /* Apply margin to the second and subsequent btn-group */
             margin-top: 15px;
         }
+
+        .preview-container-wrapper.bg-repeat-y .blurred-background,
+        .preview-container-wrapper.bg-repeat-x .blurred-background {
+            opacity: 1;
+            /* Ensure blurred background is visible when repeating */
+        }
+
+        .preview-container-wrapper.bg-repeat-y .blurred-background {
+            background-repeat: repeat-y;
+            background-size: 100% auto;
+            /* Width 100%, auto height to repeat vertically */
+        }
+
+        .preview-container-wrapper.bg-repeat-x .blurred-background {
+            background-repeat: repeat-x;
+            background-size: auto 100%;
+            /* Height 100%, auto width to repeat horizontally */
+        }
+
+        .preview-container-wrapper.bg-contain .blurred-background {
+            opacity: 0;
+            /* Hide blurred background when contain is used */
+        }
+
+        /* Dynamic Background Styles - Removed individual positioning, using default center */
+        .preview-container-wrapper.bg-repeat-y {
+            background-repeat: no-repeat;
+            /* Important: Disable background image repeat on wrapper */
+            background-size: cover;
+            /* Ensure background image covers the wrapper */
+            background-position: center top;
+            /* Align background image to top center */
+            overflow-y: auto;
+            /* Enable vertical scroll if content is taller than wrapper */
+        }
+
+        .preview-container-wrapper.bg-repeat-x {
+            background-repeat: no-repeat;
+            /* Important: Disable background image repeat on wrapper */
+            background-size: cover;
+            /* Ensure background image covers the wrapper */
+            background-position: left center;
+            /* Align background image to left center */
+            overflow-x: auto;
+            /* Enable horizontal scroll if content is wider than wrapper */
+        }
+
+        .preview-container-wrapper.bg-contain {
+            background-repeat: no-repeat;
+            background-size: contain;
+            /* Contain background image within wrapper */
+            background-position: center;
+            /* Center the contained image */
+        }
+
+        .blurred-background::before {
+            content: '';
+            position: absolute;
+            /* ... rest of blurred-background styles ... */
+        }
+
+        .blurred-background {
+            /* ADDED: Blurred background styles */
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-size: cover;
+            background-position: center;
+            z-index: 0;
+            /* Behind the content */
+            opacity: 0.8;
+            /* Adjust opacity as needed */
+            pointer-events: none;
+            /* Make it non-interactive */
+        }
     </style>
 </head>
 
@@ -892,14 +981,14 @@
                         <label>副标题</label>
                         <input v-model="config.subtitleContent" placeholder="例如：指令列表">
                     </div>
-                    <div class="form-item">
+                    <!--div class="form-item">
                         <label>预览宽度 (px)</label>
                         <input type="number" v-model.number="config.previewWidth">
                     </div>
                     <div class="form-item">
                         <label>预览高度 (px)</label>
                         <input type="number" v-model.number="config.previewHeight">
-                    </div>
+                    </div-->
                     <div class="form-item">
                         <label>背景图片</label>
                         <!-- 背景图片上传 Tabs -->
@@ -1091,7 +1180,7 @@
             </div>
 
             <!-- 中间预览面板 -->
-            <div class="preview-panel panel">
+            <div class="preview-panel panel" style="width: fit-content; min-width: 320px;">
                 <h5>点击预览元素即可编辑。编辑完成请点击【导出配置】</h5>
                 <h5>菜单添加按钮 在左侧最下方</h5>
                 <h5>内容文字均支持markdown标记</h5>
@@ -1107,10 +1196,15 @@
                     </div>
                 </div>
 
-                <div class="preview-container-wrapper" ref="screenshotArea"
-                    :style="{width: config.previewWidth + 'px', height: config.previewHeight + 'px'}">
+                <div class="preview-container-wrapper" ref="previewWrapper"
+                    :style="{width: calculatedPreviewWidth + 'px', height: calculatedPreviewHeight + 'px'}"
+                    :class="backgroundWrapperClasses">
                     <img class="background-image" :src="config.backgroundImage"
                         :referrerpolicy="config.backgroundImage && config.backgroundImage.includes('hdslb.com') ? 'no-referrer' : undefined">
+                    <div v-if="isBackgroundRepeat" class="blurred-background" :style="{
+                                                      backgroundImage: `url(${config.backgroundImage})`,
+                                                    filter: `blur(20px) brightness(${config.backgroundBrightness})` }">
+                    </div>
                     <div class="preview-container" :style="previewStyles">
                         <h1 v-if="config.helpTitleContent" class="editable-title" @click="editTitle('helpTitle')"
                             :style="{fontSize: config.helpTitleFontSize + 'px', color: config.helpTitleColor, fontWeight: config.helpTitleBold ? 'bold' : 'normal'}">
@@ -1265,6 +1359,10 @@
 
 
                     <div class="popup-buttons">
+                        <button v-if="popupType === 'menuItem'" class="popup-button sibling-button"
+                            @click="addSiblingMenuItemFromPopup">添加同级菜单</button>
+                        <button v-if="popupType === 'subItem'" class="popup-button sibling-button"
+                            @click="addSiblingSubItemFromPopup">添加同级子项</button>
                         <button class="popup-button" @click="confirmPopup">确认</button> <!-- Added popup-button class -->
                         <button class="popup-button" @click="closePopup">取消</button> <!-- Added popup-button class -->
                     </div>
@@ -1408,7 +1506,7 @@ https://i0.hdslb.com/bfs/new_dyn/79aee60d45ff2e4940b4b7fe3dc0edb01767947324.jpg
                     previewHeight: 1440, // 默认预览高度 改为1440
                     backgroundImage: '',
                     backgroundBrightness: 1,
-                    footerTextContent: '## *Bot of Kosihi & koishi-plugin-preview-help*', // 默认角标文字, 支持Markdown
+                    footerTextContent: '### *Bot of Kosihi & koishi-plugin-preview-help*', // 默认角标文字, 支持Markdown
                     footerPosition: 'center', // 默认居中
                     footerTextColor: '#909399',
                     footerTextBold: false,
@@ -1452,6 +1550,20 @@ https://i0.hdslb.com/bfs/new_dyn/79aee60d45ff2e4940b4b7fe3dc0edb01767947324.jpg
                 // fontFile: null  // MODIFIED: 移除 fontFile
             },
             computed: {
+                backgroundWrapperClasses() {
+                    // Placeholder logic - refine based on actual menu and background dimensions
+                    const menuIsWide = this.config.previewWidth > this.config.previewHeight; // Example condition
+                    const backgroundIsLandscape = true; // Assume landscape for now, make dynamic if needed
+
+                    if (menuIsWide && backgroundIsLandscape) {
+                        return 'bg-repeat-y'; // Repeat vertically for wide menu and landscape bg
+                    } else {
+                        return 'bg-contain'; // Default to contain for other cases
+                    }
+                    // In real scenario, you'd compare menu dimensions to background aspect ratio
+                    // and decide on bg-repeat-y, bg-repeat-x, or bg-contain.
+                    // You might also need to dynamically set background-size for more control.
+                },
                 previewStyles() {
                     let fontStyle = {};
                     if (this.config.customFont) {
@@ -1787,6 +1899,19 @@ https://i0.hdslb.com/bfs/new_dyn/79aee60d45ff2e4940b4b7fe3dc0edb01767947324.jpg
                     this.popupTab = 'basic'; // Reset tab
                 },
                 confirmPopup() {
+                    // 添加同级菜单项的逻辑
+                    if (this.popupType === 'menuItem' && this.siblingOperation === 'addSiblingMenuItem') {
+                        this.addSiblingMenuItem(this.selectedIndex); // 调用添加同级菜单项的方法
+                        this.siblingOperation = null; // 重置操作类型
+                        return; // 提前返回，不执行后续的确认逻辑
+                    }
+
+                    // 添加同级子菜单项的逻辑
+                    if (this.popupType === 'subItem' && this.siblingOperation === 'addSiblingSubItem') {
+                        this.addSiblingSubItem(this.selectedIndex, this.selectedSubIndex); // 调用添加同级子菜单项的方法
+                        this.siblingOperation = null; // 重置操作类型
+                        return; // 提前返回，不执行后续的确认逻辑
+                    }
                     if (this.popupType === 'menuItem') {
                         const updatedItem = { ...this.popupData };
                         Vue.set(this.config.menuItems, this.selectedIndex, updatedItem);
@@ -1813,7 +1938,17 @@ https://i0.hdslb.com/bfs/new_dyn/79aee60d45ff2e4940b4b7fe3dc0edb01767947324.jpg
                     }
                     this.closePopup();
                 },
+                siblingOperation: null, // 用于存储同级操作的类型
 
+                addSiblingMenuItemFromPopup() {
+                    this.siblingOperation = 'addSiblingMenuItem';
+                    this.confirmPopup(); // 直接调用 confirmPopup，在 confirmPopup 中判断 siblingOperation
+                },
+
+                addSiblingSubItemFromPopup() {
+                    this.siblingOperation = 'addSiblingSubItem';
+                    this.confirmPopup(); // 直接调用 confirmPopup，在 confirmPopup 中判断 siblingOperation
+                },
 
                 closePopup() {
                     this.popupVisible = false;

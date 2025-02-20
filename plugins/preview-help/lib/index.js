@@ -221,21 +221,28 @@ function apply(ctx, config) {
                 let currentHelpContent = '';
                 let currentBackgroundURL = '';
                 let useCache = false;
-
+                // 随机背景图处理
+                if (config.background_URL) {
+                    const bgList = config.background_URL.split('\n').filter(url => url.trim());
+                    if (bgList.length > 0) {
+                        currentBackgroundURL = bgList[Math.floor(Math.random() * bgList.length)];
+                        logInfo(`选择随机背景图：${currentBackgroundURL}`);
+                    }
+                }
                 switch (config.helpmode) {
                     case '2.1': {
                         logInfo(`正在获取系统帮助内容...`);
                         const koishihelptext = await session.execute("help", true);
                         if (koishihelptext && Array.isArray(koishihelptext) && koishihelptext.length > 0) {
-                            currentHelpContent = help_text || koishihelptext[0].attrs.content; // 获取纯文本内容
+                            currentHelpContent = `${help_text || koishihelptext[0].attrs.content}\n${currentBackgroundURL}`; // 获取纯文本内容
                         } else {
-                            currentHelpContent = help_text || ''; // 容错处理，防止 koishihelptext 为空或格式不正确
+                            currentHelpContent = `${help_text || ''}\n${currentBackgroundURL}`; // 容错处理，防止 koishihelptext 为空或格式不正确
                         }
                         logInfo(`获取到帮助内容长度：${currentHelpContent?.length || 0}`);
                         break;
                     }
                     case '2.2': {
-                        currentHelpContent = help_text || config.help_text;
+                        currentHelpContent = `${help_text || config.help_text}\n${currentBackgroundURL}`;
                         logInfo(`使用手动输入内容，长度：${currentHelpContent?.length || 0}`);
                         break;
                     }
@@ -329,14 +336,6 @@ function apply(ctx, config) {
                     }
                 }
 
-                // 随机背景图处理
-                if (config.background_URL) {
-                    const bgList = config.background_URL.split('\n').filter(url => url.trim());
-                    if (bgList.length > 0) {
-                        currentBackgroundURL = bgList[Math.floor(Math.random() * bgList.length)];
-                        logInfo(`选择随机背景图：${currentBackgroundURL}`);
-                    }
-                }
 
                 const cacheKey = generateCacheKey(config.helpmode, currentHelpContent, config.screenshotquality);
 
@@ -464,7 +463,7 @@ function apply(ctx, config) {
                         if (config.fontEnabled && config.fontURL) {
                             logInfo(session.text('.font.load.start', [config.fontURL]));
                             try {
-                                
+
                                 const fontURLInput = await logElementAction('.image-upload-content input[placeholder="绝对路径的 URL编码 (.ttf)"]', '查找字体URL输入框');
 
                                 await page.evaluate((inputElement, fontURL) => {
@@ -555,9 +554,9 @@ function apply(ctx, config) {
                         logger.error(`渲染过程出错：`, error);
                         await session.send(h.text(session.text('.somerror')));
                     } finally {
-                        // await page.close().catch(error => {
-                        //    logger.warn(`页面关闭失败：`, error);
-                        // });
+                        await page.close().catch(error => {
+                            logger.warn(`页面关闭失败：`, error);
+                        });
                     }
 
                 } catch (error) {
