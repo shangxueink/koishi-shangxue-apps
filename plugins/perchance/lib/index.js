@@ -3,10 +3,6 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.apply = exports.Config = exports.inject = exports.name = void 0;
 const { Schema, Logger, h } = require("koishi");
 
-const fs = require('node:fs');
-const path = require('node:path');
-
-
 exports.name = "perchance";
 exports.inject = {
     required: ['puppeteer']
@@ -353,13 +349,6 @@ async function apply(ctx, config) {
                         waitUntil: 'networkidle2',
                     });
 
-                    // Intercept network requests.
-                    //await page.setRequestInterception(true);
-
-                    //page.on('request', (request) => {
-                    //     request.continue();
-                    //});
-
                     page.on('response', async (response) => {
                         const url = response.url();
 
@@ -430,7 +419,7 @@ async function apply(ctx, config) {
                         el.value = ''; // 先清空 textarea
                         for (let i = 0; i < description.length; i++) {
                             el.value += description[i];
-                            await new Promise(resolve => setTimeout(resolve, 50)); // 模拟输入间隔 (50ms)
+                            //  await new Promise(resolve => ctx.setTimeout(resolve, 50)); // 模拟输入间隔 (50ms)
                         }
                         el.dispatchEvent(new Event('input', { bubbles: true })); // 触发 input 事件 (更通用)
                         el.dispatchEvent(new Event('change', { bubbles: true })); // 触发 change 事件 (保险起见)
@@ -461,7 +450,7 @@ async function apply(ctx, config) {
                         el.dispatchEvent(new Event('change', { bubbles: true })); // 触发 change 事件
                     }, finalShape);
 
-                    // 选择 How many? (如果需要调整数量)
+                    // 选择 How many? (调整数量)
                     const howManyOptions = [3, 6, 9];
                     const closestHowMany = howManyOptions.reduce((prev, curr) =>
                         (Math.abs(curr - number) < Math.abs(prev - number) ? curr : prev)
@@ -476,7 +465,7 @@ async function apply(ctx, config) {
                     // 点击 Generate 按钮
                     await contentFrame.click('#generateButtonEl');
 
-                    // Wait for images to be generated (adjust timeout as needed)
+
                     await new Promise(resolve => {
                         const checkInterval = ctx.setInterval(() => {
                             if (imageBase64s.length >= number) {
@@ -486,8 +475,8 @@ async function apply(ctx, config) {
                         }, 1000); // Check every 1000 ms
                         ctx.setTimeout(() => {
                             clearInterval(checkInterval);
-                            resolve(); // Resolve even if not all images are found within the timeout
-                        }, config.waitTimeout * 1000); // Timeout after config.waitTimeout seconds
+                            resolve();
+                        }, config.waitTimeout * 1000);
                     });
 
 
@@ -519,9 +508,6 @@ async function apply(ctx, config) {
                 } finally {
                     if (page && config.puppeteerclose && !page.isClosed()) {
                         await page.close();
-                    }
-                    if (page) {
-                        // await page.setRequestInterception(false); // 确保在出错时也停止拦截
                     }
                 }
             });
