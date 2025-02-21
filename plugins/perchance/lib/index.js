@@ -155,9 +155,9 @@ exports.Config = Schema.intersect([
     Schema.object({
         // proloadPuppeteer: Schema.boolean().default(false).description("预加载网页：在启动插件后直接打开网页等待交互。<br>关闭后，只会在每次触发指令后才打开网页 进行交互").experimental(),
         // 目前还没打算写那么好
-        // 合并转发也没写
         pagegowaitTimeout: Schema.number().description("访问绘图网站的最大等待时间<br>单位 `秒`").default(60),
         waitTimeout: Schema.number().description("开始绘图后，等待图片返回的最大等待时间<br>单位 `秒`").default(45),
+        isfigure: Schema.boolean().default(true).description("使用合并转发，返回图片<br>`可能仅支持部分适配器`").experimental(),
     }).description('进阶功能设置'),
 
     Schema.object({
@@ -348,7 +348,7 @@ async function apply(ctx, config) {
                 let firstDownloadUrlFound = false;
                 let canListenBase64 = false; // 标志变量，控制是否监听 base64 数据
                 const sentBase64s = new Set(); // 用于存储已发送的 base64 数据，实现去重
-
+                let figureContent = h('figure'); // 存储合并转发的内容
 
                 try {
                     page = await ctx.puppeteer.page();
@@ -384,11 +384,35 @@ async function apply(ctx, config) {
                                 loggerinfo(`已找到base64图片数据！`);
 
                                 downloadImageCounter++;
-                                loggerinfo(`即将发送base64图片！`);
-                                await session.send(h.image(url))
-                                loggerinfo(`--------------------------------`);
+
+                                if (config.isfigure) {
+                                    loggerinfo(`使用合并转发，正在收集图片。`);
+                                    // 如果启用合并转发，则收集图片和文字信息      
+                                    /*
+                                    多图片。多条消息合并转发
+                                    const attrs = {
+                                    userId: session.userId,
+                                    nickname: session.author?.nickname || session.username,
+                                    }
+                                    figureContent.children.push(h('message', attrs, h('image', { url: url })))
+                                    */
+                                    /*
+                                    多图片为一条消息，合并转发
+                                    figureContent.children.push(h('image', { url: url }));
+                                    */
+                                    const attrs = {
+                                        userId: session.userId,
+                                        nickname: session.author?.nickname || session.username,
+                                    }
+                                    figureContent.children.push(h('message', attrs, h('image', { url: url })))
+                                    loggerinfo(`--------------------------------`);
+                                } else {
+                                    // 否则，仍然逐张发送图片
+                                    loggerinfo(`即将发送base64图片！`);
+                                    await session.send(h.image(url));
+                                    loggerinfo(`--------------------------------`);
+                                }
                                 if (downloadImageCounter >= number) {
-                                    //page.setRequestInterception(false); // Stop intercepting after getting enough images
                                     canListenBase64 = false; // 停止监听 base64
 
                                     // 关闭 page
@@ -504,22 +528,12 @@ async function apply(ctx, config) {
                         return;
                     }
 
-                    // 如果在response里没有直接返回，就走这里的逻辑兜底
-                    // 随机选择图片
-                    let numToReturn = Math.min(number, imageBase64s.length); // 确保不会超出实际生成的图片数量
-                    let selectedImages = [];
-
-                    for (let i = 0; i < numToReturn; i++) {
-                        const randomIndex = Math.floor(Math.random() * imageBase64s.length);
-                        selectedImages.push(imageBase64s[randomIndex]);
-                        imageBase64s.splice(randomIndex, 1); // 避免重复选择
+                    if (config.isfigure) {
+                        // 如果启用合并转发，一次性发送所有 figure 内容
+                        loggerinfo(`即将发送合并转发消息！`);
+                        await session.send(figureContent); // 直接发送 figureContent 数组
+                        loggerinfo(`合并转发消息已发送！`);
                     }
-
-                    // 发送图片
-                    for (const base64 of selectedImages) {
-                        // await session.send(h.image(base64)); // 这里已经发送过了
-                    }
-
 
                 } catch (error) {
                     ctx.logger.error('处理图像时出错:', error);
