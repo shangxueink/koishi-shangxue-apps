@@ -34,15 +34,21 @@ exports.usage = `
 <section>
 <h2>注意事项</h2>
 <div class="note">
-<p><strong>重要提示：</strong> 注意尽量使用英文tag输入</p>
-<p><strong>重要提示：</strong> 注意确保puppeteer服务可以用</p>
-<p><strong>重要提示：</strong> 本插件需要你的网络环境可以访问外网，否则将无法正常使用。</p>
+<p><strong>⚠️重要提示：</strong> 注意尽量使用英文tag输入</p>
+<p><strong>⚠️重要提示：</strong> 注意确保puppeteer服务可以用</p>
+<p><strong>⚠️重要提示：</strong> 本插件需要你的网络环境可以访问外网，否则将无法正常使用。</p>
+<p><strong>⚠️重要提示：</strong> VPN 可能导致你无法使用此网站。如果出现<code>Anti-bot verification failed.</code> 请使用puppeteer插件调用一致的浏览器，手动打开网页，直至可以交互！</p>
 </div>
 </section>
 
 ---
 
-相关网址 -> https://perchance.org/stable-diffusion-ai
+
+相关网址： 
+
+<a target="_blank" href="https://perchance.org/stable-diffusion-ai">➤ https://perchance.org/stable-diffusion-ai</a>
+
+<a target="_blank" href="https://forum.koishi.xyz/t/topic/10422">➤ https://forum.koishi.xyz/t/topic/10422</a>
 `;
 
 exports.Config = Schema.intersect([
@@ -156,9 +162,9 @@ exports.Config = Schema.intersect([
     }).description('进阶功能设置'),
 
     Schema.object({
-        loggerinfo: Schema.boolean().default(false).description("日志调试模式"),
-        puppeteerclose: Schema.boolean().default(true).description("自动关闭puppeteer（有头调试时可关闭观察）"),
-    }).description('调试设置'),
+        loggerinfo: Schema.boolean().default(false).description("日志调试模式<br>`请不要随意开启`"),
+        puppeteerclose: Schema.boolean().default(true).description("自动关闭puppeteer（有头调试时可关闭，便于观察）<br>`请不要随意开启`"),
+    }).description('开发者设置'),
 ]);
 
 
@@ -429,10 +435,15 @@ async function apply(ctx, config) {
                     const antiDescription = anti ? `${config.AntiDescription}, ${anti}` : config.AntiDescription;
 
                     // 填入 Anti-Description
-                    await contentFrame.$eval('input[data-name="negative"]', (el, antiDescription) => {
-                        el.value = antiDescription;
+                    await contentFrame.$eval('input[data-name="negative"]', async (el, antiDescription) => {
+                        el.value = ''; // 先清空 input
+                        for (let i = 0; i < antiDescription.length; i++) {
+                            el.value += antiDescription[i];
+                            // await new Promise(resolve => ctx.setTimeout(resolve, 50)); // 模拟输入间隔 (50ms)
+                        }
+                        el.dispatchEvent(new Event('input', { bubbles: true })); // 触发 input 事件 (更通用)
+                        el.dispatchEvent(new Event('change', { bubbles: true })); // 触发 change 事件 (保险起见)
                     }, antiDescription);
-
                     // 选择 Art Style
                     await contentFrame.$eval('select[data-name="artStyle"]', (el, artStyle) => {
                         // 特殊处理 "No style" 的情况
