@@ -156,14 +156,15 @@ exports.Config = Schema.intersect([
         // proloadPuppeteer: Schema.boolean().default(false).description("预加载网页：在启动插件后直接打开网页等待交互。<br>关闭后，只会在每次触发指令后才打开网页 进行交互").experimental(),
         // 目前还没打算写那么好
         // 合并转发也没写
-        waitTimeout: Schema.number().description("绘图返回的最大等待时间<br>单位 `秒`").default(45),
+        pagegowaitTimeout: Schema.number().description("访问绘图网站的最大等待时间<br>单位 `秒`").default(60),
+        waitTimeout: Schema.number().description("开始绘图后，等待图片返回的最大等待时间<br>单位 `秒`").default(45),
     }).description('进阶功能设置'),
 
     Schema.object({
         loggerinfo: Schema.boolean().default(false).description("日志调试模式<br>`请不要随意开启`").experimental(),
         puppeteerclose: Schema.boolean().default(true).description("自动关闭puppeteer（有头调试时可关闭，便于观察）<br>`请不要随意开启`").experimental(),
         PerchanceGenerator_link: Schema.string().role('link').default('https://perchance.org/stable-diffusion-ai').experimental() // 暂时不兼容别的网站
-            .description("前往的`Perchance Generator`网址。（暂不支持更换网站）<br>注意必须是结构一样的网址<br>比如反代地址？"), // 类似的网站还有: `https://perchance.org/vf39q568fb`
+            .description("`Perchance Generator`网址。<br>注意必须是结构一样的网址。比如默认网址的反代地址。<br>暂不兼容其他网页"), // <br>类似的网站还有: `https://perchance.org/vf39q568fb`
     }).description('开发者设置'),
 ]);
 
@@ -353,6 +354,7 @@ async function apply(ctx, config) {
                     page = await ctx.puppeteer.page();
                     await page.goto(config.PerchanceGenerator_link, {
                         waitUntil: 'networkidle2',
+                        timeout: config.pagegowaitTimeout * 1000,
                     });
 
                     page.on('response', async (response) => {
