@@ -54,8 +54,6 @@ exports.usage = `
 exports.Config = Schema.intersect([
     Schema.object({
         command: Schema.string().default("perchance").description("注册的指令名称"),
-        PerchanceGenerator_link: Schema.string().role('link').default('https://perchance.org/stable-diffusion-ai').disabled().hidden() // 暂时不兼容别的网站
-            .description("前往的`Perchance Generator`网址。（暂不支持更换网站）<br>注意必须是结构一样的网址<br>类似的网站还有: `https://perchance.org/vf39q568fb`"),
     }).description('插件设置'),
 
     Schema.object({
@@ -162,8 +160,10 @@ exports.Config = Schema.intersect([
     }).description('进阶功能设置'),
 
     Schema.object({
-        loggerinfo: Schema.boolean().default(false).description("日志调试模式<br>`请不要随意开启`"),
-        puppeteerclose: Schema.boolean().default(true).description("自动关闭puppeteer（有头调试时可关闭，便于观察）<br>`请不要随意开启`"),
+        loggerinfo: Schema.boolean().default(false).description("日志调试模式<br>`请不要随意开启`").experimental(),
+        puppeteerclose: Schema.boolean().default(true).description("自动关闭puppeteer（有头调试时可关闭，便于观察）<br>`请不要随意开启`").experimental(),
+        PerchanceGenerator_link: Schema.string().role('link').default('https://perchance.org/stable-diffusion-ai').experimental() // 暂时不兼容别的网站
+            .description("前往的`Perchance Generator`网址。（暂不支持更换网站）<br>注意必须是结构一样的网址<br>比如反代地址？"), // 类似的网站还有: `https://perchance.org/vf39q568fb`
     }).description('开发者设置'),
 ]);
 
