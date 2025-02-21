@@ -161,6 +161,7 @@ exports.Config = Schema.intersect([
 
     Schema.object({
         loggerinfo: Schema.boolean().default(false).description("日志调试模式"),
+        puppeteerclose: Schema.boolean().default(true).description("自动关闭puppeteer（有头调试时可关闭观察）"),
     }).description('调试设置'),
 ]);
 
@@ -353,11 +354,11 @@ async function apply(ctx, config) {
                     });
 
                     // Intercept network requests.
-                    await page.setRequestInterception(true);
+                    //await page.setRequestInterception(true);
 
-                    page.on('request', (request) => {
-                        request.continue();
-                    });
+                    //page.on('request', (request) => {
+                    //     request.continue();
+                    //});
 
                     page.on('response', async (response) => {
                         const url = response.url();
@@ -390,11 +391,11 @@ async function apply(ctx, config) {
                                 await session.send(h.image(url))
                                 loggerinfo(`--------------------------------`);
                                 if (downloadImageCounter >= number) {
-                                    page.setRequestInterception(false); // Stop intercepting after getting enough images
+                                    //page.setRequestInterception(false); // Stop intercepting after getting enough images
                                     canListenBase64 = false; // 停止监听 base64
 
                                     // 关闭 page
-                                    if (page && !page.isClosed()) {
+                                    if (page && config.puppeteerclose && !page.isClosed()) {
                                         await page.close();
                                     }
 
@@ -423,9 +424,16 @@ async function apply(ctx, config) {
                     // 拼接 Description
                     const description = config.Description ? `${config.Description}, ${keyword}` : keyword;
 
-                    // 填入 Description
-                    await contentFrame.$eval('textarea[data-name="description"]', (el, description) => {
-                        el.value = description;
+
+                    // 填入 Description (逐字符输入)
+                    await contentFrame.$eval('textarea[data-name="description"]', async (el, description) => {
+                        el.value = ''; // 先清空 textarea
+                        for (let i = 0; i < description.length; i++) {
+                            el.value += description[i];
+                            await new Promise(resolve => setTimeout(resolve, 50)); // 模拟输入间隔 (50ms)
+                        }
+                        el.dispatchEvent(new Event('input', { bubbles: true })); // 触发 input 事件 (更通用)
+                        el.dispatchEvent(new Event('change', { bubbles: true })); // 触发 change 事件 (保险起见)
                     }, description);
 
                     // 拼接 Anti-Description
@@ -509,11 +517,11 @@ async function apply(ctx, config) {
                     ctx.logger.error('处理图像时出错:', error);
                     await session.send(session.text(`.processError`));
                 } finally {
-                    if (page && !page.isClosed()) {
+                    if (page && config.puppeteerclose && !page.isClosed()) {
                         await page.close();
                     }
                     if (page) {
-                        await page.setRequestInterception(false); // 确保在出错时也停止拦截
+                        // await page.setRequestInterception(false); // 确保在出错时也停止拦截
                     }
                 }
             });
