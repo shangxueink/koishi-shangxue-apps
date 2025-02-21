@@ -484,11 +484,17 @@ async function apply(ctx, config) {
                             if (imageBase64s.length >= number) {
                                 clearInterval(checkInterval);
                                 resolve();
+                                if (page && config.puppeteerclose && !page.isClosed()) {
+                                    page.close().catch(e => ctx.logger.error('页面关闭时发生错误:', e)); // 增加错误处理，避免关闭失败影响后续
+                                }
                             }
                         }, 1000); // Check every 1000 ms
                         ctx.setTimeout(() => {
                             clearInterval(checkInterval);
                             resolve();
+                            if (page && config.puppeteerclose && !page.isClosed()) {
+                                page.close().catch(e => ctx.logger.error('超时后页面关闭时发生错误:', e));
+                            }
                         }, config.waitTimeout * 1000);
                     });
 
@@ -518,10 +524,6 @@ async function apply(ctx, config) {
                 } catch (error) {
                     ctx.logger.error('处理图像时出错:', error);
                     await session.send(session.text(`.processError`));
-                } finally {
-                    if (page && config.puppeteerclose && !page.isClosed()) {
-                        await page.close();
-                    }
                 }
             });
 
