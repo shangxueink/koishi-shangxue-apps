@@ -42,9 +42,9 @@ const usage = `
 <p><b>(比较推荐)</b> api.injahow.cn 网站，API请求快速且稳定，无需 puppeteer 服务，推荐QQ官方机器人使用此后端，但是VIP歌曲只能听45秒。<b>仅支持网易云音乐</b>，可以通过歌曲名称或歌曲ID进行搜索。</p>
 <hr>
 
-<h3>使用dev.iw233.cn网站搜索网易云 + 酷狗音乐</h3>
+<h3>使用dev.iw233.cn网站搜索网易云音乐</h3>
 <pre><code>音乐搜索器 [keywords]</code></pre>
-<p><b>(推荐)</b> dev.iw233.cn 网站，无需API Key，但需要 <b>puppeteer</b> 服务支持进行网页爬取，速度较慢。支持网易云音乐和酷狗音乐双平台搜索。</p>
+<p><b>(推荐)</b> dev.iw233.cn 网站，无需API Key，但需要 <b>puppeteer</b> 服务支持进行网页爬取，速度较慢。支持网易云音乐搜索。</p>
 <hr>
 
 <h3>使用www.hhlqilongzhu.cn网站API搜索QQ + 网易云音乐</h3>
@@ -93,9 +93,9 @@ const usage = `
 |   **ⅳ**    | \`星之阁API\` (下载音乐/酷狗音乐) | 较低  |
 
 ---
+
+目前基本QQ音乐都死翘翘了 （腾讯太小气了
 `;
-
-
 
 const command1_return_qqdata_Field_default = [
     {
@@ -269,6 +269,7 @@ const command1_return_wyydata_Field_default = [
         "type": "text"
     }
 ];
+
 const command4_return_data_Field_default = [
     {
         "data": "songname",
@@ -325,6 +326,7 @@ const command4_return_data_Field_default = [
         "enable": false
     }
 ];
+
 const command5_return_data_Field_default = [
     {
         "data": "name",
@@ -411,7 +413,6 @@ const command6_return_data_Field_default = [
     }
 ];
 
-
 const command7_return_data_Field_default = [
     {
         "type": "text",
@@ -459,7 +460,6 @@ const command7_return_data_Field_default = [
         "type": "image"
     }
 ];
-
 
 const command8_return_qqdata_Field_default = [
     {
@@ -541,7 +541,6 @@ const command8_return_wyydata_Field_default = [
     }
 ];
 
-
 const platformMap = {
     '网易云': 'netease',
     'QQ': 'tencent',
@@ -562,19 +561,19 @@ const Config = Schema.intersect([
         exitCommand: Schema.string().default('0, 不听了').description('退出选择指令，多个指令间请用逗号分隔开'), // 兼容中文逗号、英文逗号
         menuExitCommandTip: Schema.boolean().default(false).description('是否在歌单内容的后面，加上退出选择指令的文字提示'),
     }).description('基础设置'),
+
     Schema.object({
         imageMode: Schema.boolean().default(true).description('开启后返回图片歌单（需要puppeteer服务），关闭后返回文本歌单（部分不支持）'),
         darkMode: Schema.boolean().default(true).description('是否开启暗黑模式（黑底菜单）')
     }).description('图片歌单设置'),
 
-
     Schema.object({
         serverSelect: Schema.union([
             Schema.const('command1').description('command1：星之阁API                 （需加群申请APIkey）          （QQ + 网易云）'),
             Schema.const('command4').description('command4：星之阁-酷狗API             （需加群申请APIkey）          （酷狗）'),
-            Schema.const('command5').description('command5：`music.gdstudio.xyz`  网站   （需puppeteer爬取 较慢，但访问性好）    （多平台支持）'),
-            Schema.const('command6').description('command6：`api.injahow.cn`网站       （API 请求快 + 稳定 推荐QQ官方机器人使用）      （非VIP网易云点歌）'),
-            Schema.const('command7').description('command7：`dev.iw233.cn` 网站         （需puppeteer爬取 较慢）          （网易云 + 酷狗）'),
+            Schema.const('command5').description('command5：`music.gdstudio.xyz`  网站   （需puppeteer爬取 较慢，但访问性好）    （多平台）'),
+            Schema.const('command6').description('command6：`api.injahow.cn`网站       （API 请求快 + 稳定 推荐QQ官方机器人使用）      （非VIP网易云）'),
+            Schema.const('command7').description('command7：`dev.iw233.cn` 网站         （需puppeteer爬取 较慢）          （网易云）'),
             Schema.const('command8').description('command8：`www.hhlqilongzhu.cn` 龙珠API  （API，江苏可能访问不了）        （网易云 + QQ点歌）'),
         ]).role('radio').default("command5").description('选择使用的后端<br>➣ 推荐度：`music.gdstudio.xyz`  > `dev.iw233.cn` >= `api.injahow.cn` = `www.hhlqilongzhu.cn` > `星之阁API`'),
     }).description('后端选择'),
@@ -590,7 +589,7 @@ const Config = Schema.intersect([
             command1_qq_skey: Schema.string().description('QQ音乐搜索：提供开通有绿钻特权的skey可获取vip歌曲(当站长提供的cookie失效时必填，届时生效)为空默认获取站长提供的skey'),
 
             command1_return_qqdata_Field: Schema.array(Schema.object({
-                data: Schema.string().description('返回的字段').disabled(),
+                data: Schema.string().description('返回的字段'),
                 describe: Schema.string().description('对该字段的中文描述'),
                 type: Schema.union([
                     Schema.const('text').description('文本（text）'),
@@ -603,7 +602,7 @@ const Config = Schema.intersect([
             })).role('table').default(command1_return_qqdata_Field_default).description('歌曲返回信息的字段选择<br>[➣ 点我查看该API返回内容示例](https://api.xingzhige.com/API/QQmusicVIP/?songid=499449053&br=2&uin=2&skey=2&key=)'),
 
             command1_return_wyydata_Field: Schema.array(Schema.object({
-                data: Schema.string().description('返回的字段').disabled(),
+                data: Schema.string().description('返回的字段'),
                 describe: Schema.string().description('对该字段的中文描述'),
                 type: Schema.union([
                     Schema.const('text').description('文本（text）'),
@@ -616,12 +615,15 @@ const Config = Schema.intersect([
             })).role('table').default(command1_return_wyydata_Field_default).description('歌曲返回信息的字段选择<br>[➣ 点我查看该API返回内容示例](https://api.xingzhige.com/API/NetEase_CloudMusic_new/?name=%E8%94%9A%E8%93%9D%E6%A1%88&n=1&key=)'),
 
         }).description('星之阁API返回设置'),
+
         Schema.object({
             serverSelect: Schema.const('command4').required(),
+            xingzhigeAPIkey: Schema.string().role('secret').description('星之阁的音乐API的请求key<br>（默认值是作者自己的哦，如果失效了请你自己获取一个）<br>请前往 QQ群 905188643 <br>添加QQ好友 3556898686 <br>私聊发送 `/getapikey` 获得你的APIkey以填入此处 ')
+                .default("xhsP7Q4MulpzDU6BVwHSKB-j-NfvBxaqiT37hx8djyE="),
             command4: Schema.string().default('酷狗音乐').description('酷狗-星之阁API的指令名称'),
             command4_kugouQuality: Schema.number().default(1).description('音乐默认下载音质。音质，默认为1'),
             command4_return_data_Field: Schema.array(Schema.object({
-                data: Schema.string().description('返回的字段').disabled(),
+                data: Schema.string().description('返回的字段'),
                 describe: Schema.string().description('对该字段的中文描述'),
                 type: Schema.union([
                     Schema.const('text').description('文本（text）'),
@@ -633,6 +635,7 @@ const Config = Schema.intersect([
                 enable: Schema.boolean().default(true).description('是否启用')
             })).role('table').default(command4_return_data_Field_default).description('歌曲返回信息的字段选择<br>[➣ 点我查看该API返回内容示例](https://api.xingzhige.com/API/Kugou_GN_new/?name=蔚蓝档案&pagesize=20&br=2&key=)'),
         }).description('酷狗-星之阁API返回设置'),
+
         Schema.object({
             serverSelect: Schema.const('command5'),
             command5: Schema.string().default('歌曲搜索').description('`music.gdstudio.xyz`的指令名称'),
@@ -657,9 +660,9 @@ const Config = Schema.intersect([
             ]).role('radio').description('音乐 **默认**下载音质。').default('320K'),
             */
             command5_searchList: Schema.number().default(20).min(1).max(20).description('歌曲搜索的列表长度。返回的候选项个数。'),
-            command5_page_setTimeout: Schema.number().default(1500).min(1).description('等待页面完全加载的等待时间（ms）'),
+            command5_page_setTimeout: Schema.number().default(15).min(1).description('等待页面完全加载的等待时间（秒）'),
             command5_return_data_Field: Schema.array(Schema.object({
-                data: Schema.string().description('返回的字段').disabled(),
+                data: Schema.string().description('返回的字段'),
                 describe: Schema.string().description('对该字段的中文描述'),
                 type: Schema.union([
                     Schema.const('text').description('文本（text）'),
@@ -671,12 +674,13 @@ const Config = Schema.intersect([
                 enable: Schema.boolean().default(true).description('是否启用'),
             })).role('table').description('歌曲返回信息的字段选择<br>').default(command5_return_data_Field_default),
         }).description('`music.gdstudio.xyz`返回设置'),
+
         Schema.object({
             serverSelect: Schema.const('command6').required(),
             command6: Schema.string().default('网易点歌').description('`网易点歌`的指令名称<br>输入歌曲ID，返回歌曲'),
             command6_searchList: Schema.number().default(20).min(1).max(50).description('歌曲搜索的列表长度。返回的候选项个数。'),
             command6_return_data_Field: Schema.array(Schema.object({
-                data: Schema.string().description('返回的字段').disabled(),
+                data: Schema.string().description('返回的字段'),
                 describe: Schema.string().description('对该字段的中文描述'),
                 type: Schema.union([
                     Schema.const('text').description('文本（text）'),
@@ -688,12 +692,13 @@ const Config = Schema.intersect([
                 enable: Schema.boolean().default(true).description('是否启用'),
             })).role('table').description('歌曲返回信息的字段选择<br>[➣ 点我查看该API返回内容示例](https://api.injahow.cn/meting/?id=2608813264&type=song)').default(command6_return_data_Field_default),
         }).description('`网易点歌`返回设置'),
+
         Schema.object({
             serverSelect: Schema.const('command7').required(),
             command7: Schema.string().default('音乐搜索器').description('`音乐搜索器`的指令名称<br>使用 dev.iw233.cn 提供的网站'),
-            command7_searchList: Schema.number().default(20).min(2).step(2).max(20).description('歌曲搜索的列表长度。返回的候选项个数。<br>为`网易云 + 酷狗音乐`的组合，默认20即代表各平台为10首<br>`因为该网页的两个平台返回字段相同，所以就只需要一个字段映射表了`'),
+            command7_searchList: Schema.number().default(10).min(1).step(1).max(10).description('歌曲搜索的列表长度。返回的候选项个数。<br>为`网易云音乐`的组合'),
             command7_return_data_Field: Schema.array(Schema.object({
-                data: Schema.string().description('返回的字段').disabled(),
+                data: Schema.string().description('返回的字段'),
                 describe: Schema.string().description('对该字段的中文描述'),
                 type: Schema.union([
                     Schema.const('text').description('文本（text）'),
@@ -714,7 +719,7 @@ const Config = Schema.intersect([
             command8_wyyQuality: Schema.number().default(1).description('网易云音乐默认下载音质。`找不到对应音质，会自动使用标准音质`<br>1(标准音质)/2(极高音质)/3(无损音质)/4(Hi-Res音质)/5(高清环绕声)/6(沉浸环绕声)/7(超清母带)'),
 
             command8_return_qqdata_Field: Schema.array(Schema.object({
-                data: Schema.string().description('返回的字段').disabled(),
+                data: Schema.string().description('返回的字段'),
                 describe: Schema.string().description('对该字段的中文描述'),
                 type: Schema.union([
                     Schema.const('text').description('文本（text）'),
@@ -727,7 +732,7 @@ const Config = Schema.intersect([
             })).role('table').default(command8_return_qqdata_Field_default).description('QQ歌曲  返回信息的字段选择<br>[➣ 点我查看该API返回内容示例](https://www.hhlqilongzhu.cn/api/dg_shenmiMusic_SQ.php?msg=蔚蓝档案&n=3&type=json)'),
 
             command8_return_wyydata_Field: Schema.array(Schema.object({
-                data: Schema.string().description('返回的字段').disabled(),
+                data: Schema.string().description('返回的字段'),
                 describe: Schema.string().description('对该字段的中文描述'),
                 type: Schema.union([
                     Schema.const('text').description('文本（text）'),
@@ -739,12 +744,10 @@ const Config = Schema.intersect([
                 enable: Schema.boolean().default(true).description('是否启用')
             })).role('table').default(command8_return_wyydata_Field_default).description('网易云歌曲  返回信息的字段选择<br>[➣ 点我查看该API返回内容示例](https://www.hhlqilongzhu.cn/api/dg_wyymusic.php?gm=蔚蓝档案&type=json&num=10&n=1)'),
         }).description('龙珠API返回设置'),
+
         Schema.object({
         }).description('↑ 请选择后端服务 ↑'),
-
     ]),
-
-
 
     Schema.object({
         enablemiddleware: Schema.boolean().description("是否自动解析JSON音乐卡片").default(false),
@@ -753,14 +756,23 @@ const Config = Schema.intersect([
     }).description('JSON卡片解析设置'),
 
     Schema.object({
+        data_Field_Mode: Schema.union([
+            Schema.const('text').description('富媒体置底：文字 > 图片 ≥ 语音 ≥ 视频 ≥ 文件 （默认）'),
+            Schema.const('image').description('仅图片置顶的 富媒体置底：图片 > 文字 ≥ 语音 ≥ 视频 ≥ 文件 （仅官方机器人考虑使用）'),
+            Schema.const('raw').description('严格按照 `command_return_data_Field` 表格的顺序 （严格按照配置项表格的上下顺序）'),
+        ]).role('radio').default("text").description('对 `command*_return_data_Field`配置项 排序的控制<br>优先级越高，顺序越靠前<br>[➣点我查看此配置项 效果预览图](https://i0.hdslb.com/bfs/article/6e8b901f9b9daa57f082bf0cece36102312276085.png)'),
         deleteTempTime: Schema.number().default(20).description('对于`file`类型的`Temp`临时文件的删除时间<br>若干`秒`后 删除下载的本地临时文件').experimental(),
+    }).description('高级进阶设置'),
+
+    Schema.object({
         loggerinfo: Schema.boolean().default(false).description('日志调试开关'),
     }).description('调试模式'),
+
 ]);
 
 function apply(ctx, config) {
-    // h.file的临时存储
-    const tempDir = path.join(__dirname, 'temp');
+
+    const tempDir = path.join(__dirname, 'temp'); // h.file的临时存储 用于解决部分协议端必须上传本地URL
     let isTempDirInitialized = false;
     const tempFiles = new Set(); // 用于跟踪临时文件路径
 
@@ -989,8 +1001,8 @@ function apply(ctx, config) {
                         }
                     } else {
                         // 给用户选择序号
-                        const qqListText = qqData?.length ? formatSongList(qqData, 'QQ Music', 0) : '<b>QQ Music</b>: 无法获取歌曲列表';
-                        const neteaseListText = neteaseData?.length ? formatSongList(neteaseData, 'NetEase Music', qqData?.length ?? 0) : '<b>NetEase Music</b>: 无法获取歌曲列表';
+                        const qqListText = qqData?.length ? formatSongList(qqData, 'QQ Music', 0, 10) : '<b>QQ Music</b>: 无法获取歌曲列表';
+                        const neteaseListText = neteaseData?.length ? formatSongList(neteaseData, 'NetEase Music', qqData?.length ? 0 : 10, 20) : '<b>NetEase Music</b>: 无法获取歌曲列表';
                         const listText = `${qqListText}<br /><br />${neteaseListText}`;
                         const exitCommands = config.exitCommand.split(/[,，]/).map(cmd => cmd.trim());
                         const exitCommandTip = config.menuExitCommandTip ? `退出选择请发[${exitCommands}]中的任意内容<br /><br />` : '';
@@ -1086,6 +1098,10 @@ function apply(ctx, config) {
                     let kugou;
                     try {
                         kugou = await searchKugou(ctx.http, keyword, options.quality || config.command4_kugouQuality);
+                        if (kugou.code !== 200) {
+                            logger.error(kugou);
+                            return h.text(`获取酷狗音乐数据时发生错误`);
+                        }
                     } catch (e) {
                         logger.error('获取酷狗音乐数据时发生错误', e);
                         return h.text(session.text(`.songlisterror`));
@@ -1105,7 +1121,7 @@ function apply(ctx, config) {
                         }
                     } else {
                         // 给用户选择序号
-                        const kugouListText = formatSongList(kugouData, '酷狗音乐', 0);
+                        const kugouListText = formatSongList(kugouData, '酷狗音乐', 0, 20);
                         const exitCommands = config.exitCommand.split(/[,，]/).map(cmd => cmd.trim());
                         const exitCommandTip = config.menuExitCommandTip ? `退出选择请发[${exitCommands}]中的任意内容<br /><br />` : '';
                         let quoteId = session.messageId;
@@ -1162,8 +1178,6 @@ function apply(ctx, config) {
                 });
         }
 
-
-
         if (config.serverSelect === "command5") {
             ctx.command(`${config.command5} <keyword:text>`)
                 .option('platform', '-p <platform:string> 平台名称')
@@ -1217,19 +1231,70 @@ function apply(ctx, config) {
                     const waitTimeout = session.text(`.waitTimeout`)
                     const exitprompt = session.text(`.exitprompt`)
                     const invalidNumber = session.text(`.invalidNumber`)
+                    let popupError;
+
+                    async function checkAndHandlePopup(page) {
+                        const alert = await page.$('.layui-layer.layui-layer-msg.layui-layer-hui, .layui-layer-dialog.layui-layer-msg');
+                        if (alert) {
+                            // 修改 page.evaluate，从 alert 元素本身查找 .layui-layer-content
+                            const alertText = await page.evaluate(alertElement => {
+                                // 直接在 alertElement 中查询 .layui-layer-content
+                                const alertContent = alertElement.querySelector('.layui-layer-content');
+                                return alertContent ? alertContent.innerText : null;
+                            }, alert);
+
+                            if (alertText) {
+                                if (alertText.includes('使用国内节点')) {
+                                    logInfo('检测到国内节点提示弹窗');
+                                    await page.evaluate(alertElement => {
+                                        if (alertElement) alertElement.remove();
+                                    }, alert);
+                                    logInfo('已删除国内节点提示弹窗');
+
+                                    // 使用 setTimeout 结合 Promise 实现等待 1 秒 以应对依次出现的弹窗
+                                    await new Promise(resolve => ctx.setTimeout(resolve, 1000)); // 等待 1 秒
+
+                                    logInfo('等待1秒后再次检查弹窗');
+                                    const secondAlert = await page.$('.layui-layer.layui-layer-msg.layui-layer-hui, .layui-layer-dialog.layui-layer-msg');
+                                    if (secondAlert) {
+                                        logInfo('开始检测到第二个弹窗');
+                                        const secondAlertText = await page.evaluate(alertElement => {
+                                            const alertContent = alertElement.querySelector('.layui-layer-content');
+                                            return alertContent ? alertContent.innerText : null;
+                                        }, secondAlert);
+                                        if (secondAlertText) {
+                                            await page.close();
+                                            logInfo(`${secondAlertText}`);
+                                            return `${secondAlertText}`;
+                                        }
+                                    }
+                                    return null; // 如果只处理了国内节点弹窗，没有其他错误弹窗，返回 null
+                                }
+                                if (alertText.includes('已达今日上限')) {
+                                    await page.close();
+                                    logInfo('该平台请求已达今日上限。');
+                                    return `该平台请求已达今日上限。`;
+                                }
+                                if (alertText.includes('没有找到相关歌曲')) {
+                                    await page.close();
+                                    logInfo('没有找到相关歌曲，请切换其它音乐源。');
+                                    return `没有找到相关歌曲，请切换其它音乐源。`;
+                                }
+                            }
+                        }
+                        return null; // 没有弹窗，返回 null
+                    }
+
+
+
 
                     page.on('response', async response => {
                         const url = response.url();
-                        if (url.startsWith('https://music.gdstudio.xyz/api.php')) { // 确保匹配正确的 API 域名
+                        if (url.includes('api.php?callback=jQuery')) { // 确保匹配正确的 API 请求
+                            logInfo(url);
                             try {
                                 const text = await response.text();
-                                let jsonData;
-
-                                if (url.includes('api.php?callback=jQuery')) {
-                                    jsonData = handleApiResponse(text, 'jQuery');
-                                } else {
-                                    jsonData = handleApiResponse(text, '普通'); // 尝试直接解析
-                                }
+                                let jsonData = handleApiResponse(text, 'jQuery');
 
                                 if (!jsonData) {
                                     return; // 如果解析失败，直接返回
@@ -1306,8 +1371,12 @@ function apply(ctx, config) {
                                             element.dispatchEvent(dblclickEvent);
                                         }, songElement);
                                         logInfo(`已双击歌曲序号: ${options.number}`);
-
-
+                                        //  检查弹窗
+                                        popupError = await checkAndHandlePopup(page);
+                                        if (popupError) {
+                                            await session.send(h.text(popupError));
+                                            return;
+                                        }
                                     }
                                 } else if (jsonData && jsonData.url && !(jsonData.url && /\.(jpg|png|gif)/i.test(jsonData.url))) {
                                     // 下载链接
@@ -1356,7 +1425,7 @@ function apply(ctx, config) {
                                         br: songDetails.musicBr
                                     };
                                     // .map((song, index) => `${index + startIndex + 1}. ${song.songname || song.title} -- ${song.name || song.author}`)
-                                    const response = await generateResponse(responseData, config.command5_return_data_Field, config.deleteTempTime, tempFiles, fs, tempDir);
+                                    const response = await generateResponse(responseData, config.command5_return_data_Field, config.deleteTempTime, tempFiles, fs, tempDir, config);
                                     await session.send(response); // 发送响应数据
                                 }
 
@@ -1394,36 +1463,12 @@ function apply(ctx, config) {
                         const submitButton = await page.$('.search-submit');
                         if (!submitButton) return '未找到搜索提交按钮，请检查页面结构。';
                         await submitButton.click();
-                        try {
-                            logInfo(`正在检查“没有数据”的提示语...`);
-                            await new Promise(resolve => ctx.setTimeout(resolve, config.command5_page_setTimeout * 1000));
-                            const pageContent = await page.content();
-                            if (pageContent.includes('没有数据，前往其它播放列表或搜索歌曲吧')) {
-                                await session.send(h.text(session.text(".noSearchResults"))); // 发送没有搜索结果的提示
-                                await page.close();
-                                return; // 提前返回
-                            }
-                        } catch (error) {
-                            ctx.logger.warn('检查 "没有数据" 提示时发生错误或超时，继续正常流程', error);
-                        }
 
-                        const alert = await page.$('.layui-layer-msg.layui-layer-hui');
-                        if (alert) {
-                            const alertText = await page.evaluate(() => {
-                                const alertContent = document.querySelector('.layui-layer-msg.layui-layer-hui .layui-layer-content');
-                                return alertContent ? alertContent.innerText : null;
-                            });
-                            if (alertText) {
-                                if (alertText.includes('关闭梯子')) {
-                                    await page.evaluate(() => {
-                                        const alertElement = document.querySelector('.layui-layer-msg.layui-layer-hui');
-                                        if (alertElement) alertElement.remove();
-                                    });
-                                    logInfo('已删除国内节点提示弹窗');
-                                } else if (alertText.includes('QQ请求已达今日上限')) {
-                                    return `错误：${alertText}`;
-                                }
-                            }
+                        //  检查弹窗
+                        popupError = await checkAndHandlePopup(page);
+                        if (popupError) {
+                            await session.send(h.text(popupError));
+                            return;
                         }
 
                     } catch (error) {
@@ -1435,8 +1480,6 @@ function apply(ctx, config) {
                     }
                 });
         }
-
-
 
         if (config.serverSelect === "command6") {
             ctx.command(`${config.command6} <keyword:text>`)
@@ -1489,6 +1532,7 @@ function apply(ctx, config) {
                                     lyric = `\n${parsedLyricResponse.lrc.lyric}`;
                                 } else {
                                     ctx.logger.error(`获取歌词失败: ${lyricApiUrl}，返回代码: ${parsedLyricResponse.code}`);
+                                    ctx.logger.error(lyricResponse);
                                 }
                             } catch (error) {
                                 ctx.logger.error(`获取歌词失败:`, error);
@@ -1634,8 +1678,6 @@ function apply(ctx, config) {
                 });
         }
 
-
-
         if (config.serverSelect === "command7") {
             ctx.command(`${config.command7} <keyword:text>`)
                 .option('number', '-n <number:number> 歌曲序号')
@@ -1647,28 +1689,22 @@ function apply(ctx, config) {
                     }
                     if (!keyword) return h.text(session.text(`.nokeyword`));
 
-                    let kugouPage = null;
                     let neteasePage = null;
-                    let kugouResponseData = [];
                     let neteaseResponseData = [];
-                    let resolveKugouDataFetch, resolveNetEaseDataFetch;
-                    let kugouDataFetched = false;
+                    let resolveNetEaseDataFetch;
                     let neteaseDataFetched = false;
 
-                    const kugouDataFetchPromise = new Promise(resolve => resolveKugouDataFetch = resolve);
                     const neteaseDataFetchPromise = new Promise(resolve => resolveNetEaseDataFetch = resolve);
-                    // const allDataFetchPromise = Promise.all([kugouDataFetchPromise, neteaseDataFetchPromise]);
 
                     // 添加一个超时 Promise，如果在指定时间内没有获取到数据，则 reject
                     const timeoutPromise = new Promise((resolve, reject) => {
-                        setTimeout(() => {
+                        ctx.setTimeout(() => {
                             reject(new Error('超时未获取到足够的数据'));
                         }, 30000); // 设置超时时间为 30 秒
                     });
 
 
                     try {
-                        kugouPage = await ctx.puppeteer.page();
                         neteasePage = await ctx.puppeteer.page();
 
 
@@ -1687,76 +1723,29 @@ function apply(ctx, config) {
                                     } finally {
                                         neteaseDataFetched = true;
                                         resolveNetEaseDataFetch();
-                                        // if (neteaseResponseData.length >= config.command7_searchList / 2) { // 每个平台获取一半数量
-                                        //     resolveNetEaseDataFetch();
-                                        // }
-                                    }
-                                }
-                            }
-                        });
-
-                        kugouPage.on('response', async response => {
-                            const url = response.url();
-                            logInfo(url)
-                            if (url === 'https://dev.iw233.cn/Music1/') {
-
-                                const contentType = response.headers()['content-type'];
-                                logInfo(contentType)
-                                if (contentType && contentType.includes('json')) {
-                                    try {
-                                        const json = await response.json();
-                                        if (json && json.data) {
-                                            kugouResponseData.push(...json.data);
-                                        }
-                                    } catch (error) {
-                                        ctx.logger.error('酷狗 - 解析网络响应 JSON 失败', error);
-                                    } finally {
-                                        kugouDataFetched = true;
-                                        resolveKugouDataFetch();
-                                        // if (kugouResponseData.length >= config.command7_searchList / 2) { // 每个平台获取一半数量
-                                        //     resolveKugouDataFetch();
-                                        // }
                                     }
                                 }
                             }
                         });
 
 
-
-                        // 同时打开两个平台的搜索页面
-                        await Promise.all([
-                            kugouPage.goto(`https://dev.iw233.cn/Music1/?name=${keyword}&type=kugou`, { waitUntil: 'networkidle2' }),
-                            neteasePage.goto(`https://dev.iw233.cn/Music1/?name=${keyword}&type=netease`, { waitUntil: 'networkidle2' })
-                        ]);
+                        // 打开网易云音乐搜索页面
+                        await neteasePage.goto(`https://dev.iw233.cn/Music1/?name=${keyword}&type=netease`, { waitUntil: 'networkidle2' });
 
 
-                        // await allDataFetchPromise; // 等待两个平台的数据都获取完成
-                        await Promise.race([Promise.all([kugouDataFetchPromise, neteaseDataFetchPromise]), timeoutPromise]); // 竞速等待
+                        await Promise.race([neteaseDataFetchPromise, timeoutPromise]); // 竞速等待
 
-                        const combinedData = [...neteaseResponseData, ...kugouResponseData];
-                        if (combinedData.length !== 0) {
-                            if (kugouPage && !kugouPage.isClosed()) {
-                                await kugouPage.close();
-                            }
-                            if (neteasePage && !neteasePage.isClosed()) {
-                                await neteasePage.close();
-                            }
-                        } else {
+                        const combinedData = [...neteaseResponseData]; // 仅使用网易云音乐数据
+                        if (combinedData.length === 0) {
                             return h.text(session.text(`.songlisterror`));
                         }
 
-
-                        // 根据 config.command7_searchList 截取总数，防止超出预期
+                        // 根据 config.command7 searchList 截取总数，防止超出预期
                         const finalCombinedData = combinedData.slice(0, config.command7_searchList);
 
-                        // 分别筛选酷狗和网易云音乐数据，并限制数量
-                        const displayedKugouData = kugouResponseData.filter(item => item.type === 'kugou').slice(0, config.command7_searchList / 2);
-                        const displayedNeteaseData = neteaseResponseData.filter(item => item.type === 'netease').slice(0, config.command7_searchList / 2);
-
-                        // 生成分平台的歌单文本
-                        const neteaseListText = formatSongList(displayedNeteaseData, '网易云音乐', 0);
-                        const kugouListText = formatSongList(displayedKugouData, '酷狗音乐', displayedNeteaseData.length);
-                        const listText = `${neteaseListText}<br /><br />${kugouListText}`; // 网易云 酷狗 
+                        // 直接使用网易云音乐数据  生成网易云音乐歌单文本
+                        const neteaseListText = formatSongList(finalCombinedData, '网易云音乐', 0, config.command7_searchList);
+                        const listText = `${neteaseListText}`; // 仅网易云音乐歌单
 
                         const screenshot = await generateSongListImage(ctx.puppeteer, listText);
 
@@ -1805,16 +1794,12 @@ function apply(ctx, config) {
                         ctx.logger.error('音乐搜索器插件出错:', error);
                         return h.text(session.text(`.somerror`));
                     } finally {
-                        if (kugouPage && !kugouPage.isClosed()) {
-                            await kugouPage.close();
-                        }
                         if (neteasePage && !neteasePage.isClosed()) {
                             await neteasePage.close();
                         }
                     }
                 });
         }
-
 
         if (config.serverSelect === "command8") {
             ctx.command(`${config.command8} <keyword:text>`)
@@ -2020,6 +2005,7 @@ function apply(ctx, config) {
                 return null;
             }
         }
+
         async function safeUnlink(filePath, maxRetries = 5, interval = 1000) {
             let retries = 0;
             while (retries < maxRetries) {
@@ -2031,7 +2017,7 @@ function apply(ctx, config) {
                     if (error.code === 'ENOENT') return; // 文件不存在直接返回
                     if (error.code === 'EBUSY') {
                         retries++;
-                        await new Promise(resolve => setTimeout(resolve, interval));
+                        await new Promise(resolve => ctx.setTimeout(resolve, interval));
                     } else {
                         throw error;
                     }
@@ -2040,65 +2026,83 @@ function apply(ctx, config) {
             throw new Error(`Failed to delete ${filePath} after ${maxRetries} retries`);
         }
 
-
-        /**
-         * 重构后的 generateResponse 函数，严格遵循消息顺序规范
-         * 文本(text) -> 图片(image) -> 音频(audio)/视频(video) -> 文件(file)
-         */
         async function generateResponse(data, platformconfig, deleteTempTime, tempFiles, fs, tempDir) {
             // 按类型分类存储
             const textElements = [];
             const imageElements = [];
             const mediaElements = [];
             const fileElements = [];
+            const rawElements = [];
 
-            // 第一遍处理非文件类型
+            // 遍历配置项，根据类型收集元素
             for (const field of platformconfig) {
                 if (!field.enable) continue;
 
                 const value = data[field.data];
                 if (!value) continue;
 
+                let element = null;
                 switch (field.type) {
                     case 'text':
-                        textElements.push(h.text(`${field.describe}：${value}`));
+                        element = h.text(`${field.describe}：${value}`);
+                        textElements.push(element);
                         break;
                     case 'image':
-                        imageElements.push(h.image(value));
+                        element = h.image(value);
+                        imageElements.push(element);
                         break;
                     case 'audio':
+                        element = h.audio(value);
+                        mediaElements.push(element);
+                        break;
                     case 'video':
-                        mediaElements.push(field.type === 'audio' ? h.audio(value) : h.video(value));
+                        element = h.video(value);
+                        mediaElements.push(element);
+                        break;
+                    case 'file':
+                        try {
+                            const localFilePath = await downloadFile(value);
+                            if (localFilePath) {
+                                element = h.file(url.pathToFileURL(localFilePath).href);
+                                fileElements.push(element);
+                                tempFiles.add(localFilePath);
+
+                                // 定时删除逻辑
+                                if (deleteTempTime > 0) {
+                                    ctx.setTimeout(async () => {
+                                        await safeUnlink(localFilePath).catch(() => { });
+                                        logInfo(`正在执行： tempFiles.delete(${localFilePath})`)
+                                        tempFiles.delete(localFilePath);
+                                    }, deleteTempTime * 1000);
+                                }
+                            }
+                        } catch (error) {
+                            logger.error('文件处理失败:', error);
+                        }
                         break;
                 }
-            }
-
-            // 第二遍单独处理文件类型（需要异步操作）
-            for (const field of platformconfig) {
-                if (!field.enable || field.type !== 'file' || !data[field.data]) continue;
-
-                try {
-                    const localFilePath = await downloadFile(data[field.data]);
-                    if (!localFilePath) continue;
-
-                    fileElements.push(h.file(url.pathToFileURL(localFilePath).href));
-                    tempFiles.add(localFilePath);
-
-                    // 定时删除逻辑
-                    if (deleteTempTime > 0) {
-                        ctx.setTimeout(async () => {
-                            await safeUnlink(localFilePath).catch(() => { });
-                            logInfo(`正在执行： tempFiles.delete(${localFilePath})`)
-                            tempFiles.delete(localFilePath);
-                        }, deleteTempTime * 1000);
-                    }
-                } catch (error) {
-                    logger.error('文件处理失败:', error);
+                if (config.data_Field_Mode === 'raw' && element) {
+                    rawElements.push(element); // 'raw' 模式下，按配置顺序添加元素
                 }
             }
 
-            // 按规范顺序合并所有元素
-            return [...textElements, ...imageElements, ...mediaElements, ...fileElements].join('\n');
+            let responseElements = [];
+
+            switch (config.data_Field_Mode) {
+                case 'image':
+                    responseElements = [...imageElements, ...textElements, ...mediaElements, ...fileElements];
+                    break;
+                case 'raw':
+                    responseElements = rawElements; // 严格按照配置顺序
+                    break;
+                case 'text': // 默认模式
+                default:
+                    responseElements = [...textElements, ...imageElements, ...mediaElements, ...fileElements];
+                    break;
+            }
+
+            // 按最终顺序合并所有元素
+            return responseElements.join('\n');
         }
 
         async function searchKugou(http, query, br) {
@@ -2135,6 +2139,7 @@ function apply(ctx, config) {
             logInfo(requestUrl);
             return await http.get(apiBase, { params });
         }
+
         function formatSongList(data, platform, startIndex, endIndex) {
             if (!data || data.length === 0) {
                 return `<b>${platform}</b>: 无法获取歌曲列表`; //  处理无数据的情况
@@ -2146,7 +2151,6 @@ function apply(ctx, config) {
                 .join('<br />');
             return `<b>${platform}</b>:<br />${formattedList}`;
         }
-
 
         async function searchQQ(http, query) {
             return await http.post('https://u.y.qq.com/cgi-bin/musicu.fcg', {
@@ -2172,6 +2176,7 @@ function apply(ctx, config) {
                 }
             });
         }
+
         async function generateSongListImage(pptr, listText) {
             const textBrightness = config.darkMode ? 255 : 0;
             const backgroundBrightness = config.darkMode ? 0 : 255;
@@ -2232,7 +2237,6 @@ transform: scale(0.77);
             }
         }
 
-
     });
 
 
@@ -2243,3 +2247,4 @@ exports.Config = Config;
 exports.name = name;
 exports.usage = usage;
 exports.inject = inject;
+exports.reusable = true; // 声明可重用
