@@ -1011,17 +1011,22 @@ function apply(ctx, config) {
   }
   // 提取消息发送逻辑为函数
   async function sendmarkdownMessage(session, message) {
+    logInfo("正在调用sendmarkdownMessage发送md")
     try {
-      logInfo("正在调用sendmarkdownMessage发送md")
-      logInfo(message)
-      if (session.qqguild) {
-        await session.qqguild.sendMessage(session.channelId, message);
-      } else if (session.qq) {
-        await session.qq.sendMessage(session.channelId, message);
+      const { guild, user } = session.event;
+      const { qq, qqguild, channelId } = session;
+
+      if (guild?.id) {
+        if (qq) {
+          await qq.sendMessage(channelId, message);
+        } else if (qqguild) {
+          await qqguild.sendMessage(channelId, message);
+        }
+      } else if (user?.id && qq) {
+        await qq.sendPrivateMessage(user.id, message);
       }
     } catch (error) {
-      ctx.logger.error(error)
-      ctx.logger.error(error.message)
+      ctx.logger.error(`发送消息时出错: ${error}`);
     }
   }
 
