@@ -1026,7 +1026,7 @@ function apply(ctx, config) {
         await qq.sendPrivateMessage(user.id, message);
       }
     } catch (error) {
-      ctx.logger.error(`发送消息时出错: ${error}`);
+      ctx.logger.error(`发送markdown消息时出错:`, error);
     }
   }
 
