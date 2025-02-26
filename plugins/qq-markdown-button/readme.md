@@ -3,19 +3,95 @@
 
 [![npm](https://img.shields.io/npm/v/@shangxueink/koishi-plugin-qq-markdown-button?style=flat-square)](https://www.npmjs.com/package/@shangxueink/koishi-plugin-qq-markdown-button)
 
-
-
-
 ---
 
+**让你的 Koishi 机器人拥有强大的 QQ Markdown 按钮菜单功能！**
 
-### 默认JSON按钮模板示例
+本插件允许你为 QQ 官方机器人自定义各种类型的交互式菜单，包括 JSON 按钮、被动模板 Markdown 和原生 Markdown，并支持**主动消息广播**功能，助你打造更丰富、更强大的机器人服务。
 
-此外，以下是一个默认的JSON按钮的指令按钮模板示例，可供参考：
+### 功能特性
+
+*   **三种菜单类型支持：**
+    *   **JSON 按钮：** 发送带有标准 JSON 格式交互按钮的消息，灵活定义按钮样式和动作。
+    *   **被动模板 Markdown：**  结合 JSON 配置文件和 Markdown 模板，快速生成结构化的 Markdown 消息，适用于需要参数化配置的场景。
+    *   **原生 Markdown：**  发送更自由、更复杂的原生 Markdown 消息，同时支持 JSON 按钮，满足高级定制需求。
+*   **灵活的配置方式：**  通过简单的配置文件（`.json` 和 `.md`），即可轻松定制菜单内容和样式，无需编写代码。
+*   **变量替换：**  配置文件中支持动态变量，如 `${session.messageId}`、`${markdown}` 等，运行时自动替换为实际值，实现更强大的动态内容生成。
+*   **主动消息广播 (实验性)：**  支持遍历数据库中的 QQ 群组，实现主动消息广播推送，用于发送公告、活动通知等重要信息。（**请谨慎使用！**）
+*   **自动回调处理：** 可配置自动执行按钮回调内容，简化交互逻辑。
+*   **多实例支持：**  插件可重用，支持创建多个插件实例，配置不同的指令名称和菜单配置，轻松管理多个独立的菜单功能。
+
+
+### 使用方法
+
+1.  **配置目录：**
+    *   安装插件后，在 Koishi 的 `data` 目录下会自动创建 `qq-markdown-button` 文件夹，以及默认的 `按钮菜单配置1` 文件夹（文件夹名称可在插件配置中自定义）。
+    *   插件会自动在配置的文件夹下创建 `json`、`markdown` 和 `raw` 三个子目录，分别用于存放不同类型的菜单配置文件。
+    *   你可以在 `Koishi控制台` -> `资源管理器` -> `data` -> `qq-markdown-button` -> `按钮菜单配置1`  目录下找到这些文件夹和示例文件。
+
+2.  **编辑配置文件：**
+    *   根据你选择的菜单类型（`json`、`markdown` 或 `raw`），编辑对应目录下的 `.json` 和 `.md` 文件。
+    *   **JSON 配置文件 (`.json`)：**  定义消息类型、按钮、Markdown 模板参数等。
+    *   **Markdown 文件 (`.md`)：**  （仅 `raw` 类型需要）编写原生 Markdown 内容。
+
+3.  **配置插件：**
+    *   在 Koishi 配置文件中，配置 `qq-markdown-button` 插件，设置指令名称、菜单类型、文件路径等。
+    *   **重要配置项：**
+        *   `command_name`:  自定义触发菜单的指令名称，例如 `按钮菜单`。
+        *   `file_name`:  配置存储文件的文件夹路径，默认为 `["data", "qq-markdown-button", "按钮菜单配置1"]`。
+        *   `type_switch`:  选择菜单发送方式，可选 `json`、`markdown` 或 `raw`。
+        *   `Allow_INTERACTION_CREATE`:  是否自动执行按钮回调指令。
+        *   `broadcast`:  是否启用广播功能（**谨慎开启！**）。
+        *   `consoleinfo`:  是否开启日志调试模式。
+
+4.  **使用指令：**
+    *   在 QQ 群或私聊中，使用配置的指令名称（例如 `/按钮菜单`）即可触发菜单。
+
+### 配置文件详解
+
+#### `msg_id` 和 `event_id` 字段
+
+在 JSON 配置文件中，你可能会看到 `msg_id` 和 `event_id` 这两个字段，例如：
+
+```json
+{
+    "msg_id": "${session.messageId}",
+    "event_id": "${INTERACTION_CREATE}",
+    // ... 其他配置 ...
+}
+```
+
+*   **`msg_id`**:  用于**被动消息**，通常在用户发送指令后，机器人回复的消息中需要包含 `msg_id`。`${session.messageId}` 变量会在运行时被替换为**当前会话的消息 ID**。
+*   **`event_id` (或 `INTERACTION_CREATE`)**: 用于**主动消息**，例如广播消息。在主动推送消息时，不需要 `msg_id`，但某些场景下可能需要 `event_id` (或 `INTERACTION_CREATE`，插件内部变量名)。 `${INTERACTION_CREATE}` 变量用于在某些特定情况下（例如使用 `acknowledgeInteraction`）需要传递的交互事件 ID。
+
+**重要说明：**
+
+*   **`msg_id` 和 `event_id` (或 `INTERACTION_CREATE`) 这两个字段在实际使用中是互斥的，不能同时出现在一个 JSON 配置中。**
+*   本插件的代码内部已经处理了这种情况，会根据 `session.messageId` 是否存在来动态删除 JSON 对象中不需要的字段，以确保发送的消息格式正确。
+*   **被动消息 (使用 `msg_id`)**:  指用户发送指令后，机器人根据指令回复的消息。
+*   **主动消息 (不带 `msg_id` 或使用 `event_id`)**: 指机器人主动推送的消息，例如广播消息。
+
+#### 变量替换
+
+配置文件中支持以下变量占位符，插件会在运行时自动替换：
+
+*   `${session.messageId}`: 当前会话的消息 ID。
+*   `${markdown}`:  （仅 `raw` 类型）从对应的 `.md` 文件读取的 Markdown 内容。
+*   `${config.xxx}`:  插件配置项的值，例如 `${config.markdown_id}`、`${config.json_button_id}` 等。
+*   `${INTERACTION_CREATE}`:  内部使用的交互事件 ID 变量。
+
+### 示例配置
+
+#### 默认 JSON 按钮模板示例
+
+以下是一个默认的 JSON 按钮指令按钮模板示例：
+
+用于申请QQ开放平台的json按钮模板或者用于原生markdown按钮
+
 <details>
 <summary>点击此处————查看源码</summary>
 
-```
+```json
 {
   "rows": [
     {
@@ -30,8 +106,8 @@
             "permission": {
               "type": 2
             },
-            "data": "/emojihub ",
-            "enter": false
+            "data": "/再来一张",
+            "enter": true
           }
         },
         {
@@ -47,7 +123,11 @@
             "data": "/随机表情包",
             "enter": true
           }
-        },
+        }
+      ]
+    },
+    {
+      "buttons": [
         {
           "render_data": {
             "label": "返回列表😸",
@@ -66,19 +146,18 @@
     }
   ]
 }
-
 ```
 
+以下是本插件的 JSON 按钮类型配置文件 (`json/json.json`) 示例：
 
-此外，以下是一个默认的JSON按钮的本插件的json配置文件，可供参考：
-
-```
+```json
 {
     "msg_id": "${session.messageId}",
+    "event_id": "${INTERACTION_CREATE}",
     "msg_type": 2,
     "content": "",
     "keyboard": {
-        "id": "${config.json_setting.json_button_id}"
+        "id": "${config.json_button_id}"
     }
 }
 ```
@@ -86,36 +165,45 @@
 
 ---
 
-### 默认Markdown模板示例
-此外，以下是一个默认的Markdown模板示例，可供参考：
+#### 默认 Markdown 模板示例
 
+以下是一个默认的 Markdown 模板示例：
+
+用于申请QQ开放平台的被动markdown模板。
 <details>
 <summary>点击此处————查看源码</summary>
 
-
-```
+```markdown
 {{.text1}}
 {{.text2}}
 {{.img}}{{.url}}
 ```
-#### 配置模板参数示例
-当然，上方的md模版，还有`配置模版参数`的示例参数值
 
-参数        示例值
-```
-text1       这是第一段文字
-text2       这是第二段文字
-img         ![img]
-url         (https://koishi.chat/logo.png)
-```
-    
-此外，以下是一个相对应的本插件的json使用示例
-```
+**配置模板参数示例：**
+
+| 参数    | 示例值                           |
+| ------- | -------------------------------- |
+| `text1` | 这是第一段文字                   |
+| `text2` | 这是第二段文字                   |
+| `img`   | `![img]`                         |
+| `url`   | `(https://koishi.chat/logo.png)` |
+
+
+</details>
+
+
+以下是本插件的 Markdown 模板类型配置文件 (`markdown/markdown.json`) 示例：
+
+<details>
+<summary>点击此处————查看源码</summary>
+
+```json
 {
     "msg_type": 2,
     "msg_id": "${session.messageId}",
+    "event_id": "${INTERACTION_CREATE}",
     "markdown": {
-        "custom_template_id": "${config.markdown_setting.markdown_id}",
+        "custom_template_id": "${config.markdown_id}",
         "params": [
             {
                 "key": "text1",
@@ -143,27 +231,29 @@ url         (https://koishi.chat/logo.png)
             }
         ],
         "keyboard": {
-            "id": "${config.markdown_setting.json_button_id}"
+            "id": "${config.json_button_id}"
         }
     }
 }
 ```
 </details>
 
-
 ---
 
-### 默认原生markdown的json文件写法示例
-此外，以下是一个默认的原生markdown的json文件模板示例，可供参考：
+#### 默认原生 Markdown 示例
+
+以下是一个默认的原生 Markdown 类型示例：
 
 <details>
 <summary>点击此处————查看源码</summary>
 
-#### JSON 源码
-```
+**JSON 配置文件 (`raw/raw_markdown.json`)：**
+
+```json
 {
     "msg_type": 2,
     "msg_id": "${session.messageId}",
+    "event_id": "${INTERACTION_CREATE}",
     "markdown": {
         "content": "${markdown}"
     },
@@ -182,7 +272,7 @@ url         (https://koishi.chat/logo.png)
                                 "permission": {
                                     "type": 2
                                 },
-                                "data": "/表情包",
+                                "data": "${config.command_name}",
                                 "enter": true
                             }
                         }
@@ -194,18 +284,49 @@ url         (https://koishi.chat/logo.png)
 }
 ```
 
-#### markdown 源码
-```
-# 你好啊 
+**Markdown 文件 (`raw/raw_markdown.md`)：**
 
-这是一个markdown消息哦~
+```markdown
+# 你好啊
 
+这是一个 markdown 消息哦~
 ```
-    
+
 </details>
 
-## 许可证
+---
 
-本项目采用 MIT 许可证。
+### 主动消息广播功能 (谨慎使用)
+
+本插件支持**主动消息广播**功能，可以将消息推送给机器人所连接的所有 QQ 群组。
+
+**适用场景：**
+
+*   **公告通知：**  发布服务器维护公告、版本更新通知等。
+*   **活动推广：**  推广群活动、节日活动等。
+*   **重要信息推送：**  发送紧急通知、重要提醒等。
+
+**配置方法：**
+
+1.  **启用广播：**  在插件配置中，将 `broadcast` 项设置为 `true`。
+2.  **触发广播：**  使用配置的指令名称触发菜单，插件会自动遍历数据库中的 QQ 群组，并发送消息。
+
+**重要注意事项：**
+
+*   **谨慎开启！**  广播功能会向所有 QQ 群组发送消息，请务必谨慎使用，避免滥用造成用户打扰。
+*   **频率限制：**  QQ 平台对机器人发送消息的频率有限制，广播消息可能会触发频率限制，导致部分消息发送失败或机器人被限制。建议控制广播频率，并添加适当的延迟（插件代码已包含默认延迟）。
+*   **资源消耗：**  广播功能会消耗一定的服务器资源，特别是当群组数量庞大时。
+*   **日志量：**  开启广播功能并启用调试日志模式 (`consoleinfo: true`) 时，日志量会非常庞大，可能会影响控制台性能。建议在单独的 Koishi 实例中进行广播操作，避免影响生产环境。
+*   **测试建议：**  在正式广播前，请务必在一个或少量群组中进行充分测试，确保消息内容和格式正确，并评估广播效果和可能带来的影响。
+
+**广播示例配置：**
+
+*   **插件配置：**  确保 `broadcast: true` 已启用。
+*   **JSON 配置 (`json/json.json` 或其他类型配置)：**  根据需要配置消息内容和样式，**无需包含 `msg_id` 字段**，因为广播消息是主动消息。
+*   **触发指令：**  在任意 QQ 群组或私聊中，使用配置的指令名称触发菜单，即可开始广播。
+
+### 许可证
+
+本项目采用 [MIT 许可证](LICENSE.txt)。
 
 ---
