@@ -256,7 +256,7 @@ exports.Config = Schema.intersect([
       markdown_button_mode_without_emojilist_keyboard: Schema.boolean().description("开启后，表情包列表使用下方`nestedlist`配置的表情包列表按钮。关闭后，仅发送普通的文字列表").default(true).experimental(),
 
       nested: Schema.object({
-        markdown_raw_json_button_template_id: Schema.string().description("md模板ID<br>形如 `123456789_1234567890` 的ID编号，发送markdown").pattern(/^\d+_\d+$/),
+        markdown_raw_json_button_template_id: Schema.string().description("markdown模板ID。**注意不是按钮模板ID**<br>形如 `123456789_1234567890` 的ID编号，发送markdown").pattern(/^\d+_\d+$/),
         markdown_raw_json_button_content_table: Schema.array(Schema.object({
           raw_parameters: Schema.string().description("原始参数名称"),
           replace_parameters: Schema.string().description("替换参数名称"),
@@ -283,7 +283,7 @@ exports.Config = Schema.intersect([
           .description('实现QQ官方bot的按钮效果<br>在这里填入你的按钮内容，注意保持json格式，推荐在编辑器中编辑好后粘贴进来'),
       }).collapse().description('➢表情包--按钮设置<br>更多说明，详见[➩项目README](https://github.com/shangxueink/koishi-shangxue-apps/tree/main/plugins/emojihub-bili)<hr style="border: 2px solid red;"><hr style="border: 2px solid red;">'),
       nestedlist: Schema.object({
-        markdown_raw_json_button_template_id: Schema.string().description("md模板ID<br>形如 `123456789_1234567890` 的ID编号，发送markdown").pattern(/^\d+_\d+$/),
+        markdown_raw_json_button_template_id: Schema.string().description("markdown模板ID。**注意不是按钮模板ID**<br>形如 `123456789_1234567890` 的ID编号，发送markdown").pattern(/^\d+_\d+$/),
         markdown_raw_json_button_content_table: Schema.array(Schema.object({
           raw_parameters: Schema.string().description("原始参数名称"),
           replace_parameters: Schema.string().description("替换参数名称"),
@@ -1011,12 +1011,17 @@ function apply(ctx, config) {
   }
   // 提取消息发送逻辑为函数
   async function sendmarkdownMessage(session, message) {
-    logInfo("正在调用sendmarkdownMessage发送md")
-    logInfo(message)
-    if (session.qqguild) {
-      await session.qqguild.sendMessage(session.channelId, message);
-    } else if (session.qq) {
-      await session.qq.sendMessage(session.channelId, message);
+    try {
+      logInfo("正在调用sendmarkdownMessage发送md")
+      logInfo(message)
+      if (session.qqguild) {
+        await session.qqguild.sendMessage(session.channelId, message);
+      } else if (session.qq) {
+        await session.qq.sendMessage(session.channelId, message);
+      }
+    } catch (error) {
+      ctx.logger.error(error)
+      ctx.logger.error(error.message)
     }
   }
 
@@ -1052,14 +1057,14 @@ function apply(ctx, config) {
 
           try {
             let message;
-            if (config.markdown_button_mode === "markdown" || config.markdown_button_mode === "raw" || config.markdown_button_mode === "markdown_raw_json") {
+            if ((session.platform === "qq" || session.platform === "qqguild") && (config.markdown_button_mode === "markdown" || config.markdown_button_mode === "raw" || config.markdown_button_mode === "markdown_raw_json")) {
               if (imageResult.isLocal) {
                 if (config.localPicToBase64) {
                   let imagebase64 = await getImageAsBase64(imageResult.imageUrl);
                   let MDimagebase64 = 'data:image/png;base64,' + imagebase64;
                   message = await markdown(session, command, MDimagebase64);
                   await sendmarkdownMessage(session, message);
-                } else if (config.QQPicToChannelUrl) {
+                } else if ((session.platform === "qq" || session.platform === "qqguild") && config.QQPicToChannelUrl) {
                   const uploadedImageURL = await uploadImageToChannel(ctx, config.consoleinfo, url.pathToFileURL(imageResult.imageUrl).href, session.bot.config.id, session.bot.config.secret, config.QQchannelId);
                   message = await markdown(session, command, uploadedImageURL.url);
                   await sendmarkdownMessage(session, message);
@@ -1122,7 +1127,7 @@ function apply(ctx, config) {
                 message = await session.send(h.image(imageResult.imageUrl));
               }
 
-              if (config.markdown_button_mode === "json") {
+              if ((session.platform === "qq" || session.platform === "qqguild") && config.markdown_button_mode === "json") {
                 const keyboardId = config.nested.json_button_template_id;
                 let markdownMessage = {
                   msg_id: session.messageId,
@@ -1143,11 +1148,13 @@ function apply(ctx, config) {
                   await session.bot.deleteMessage(session.channelId, message);
                 } catch (error) {
                   logError(`撤回消息失败: ${error}`);
+                  logError(error);
                 }
               }, config.deleteMsgtime * 1000);
             }
           } catch (error) {
             logError(`Error sending image:  ${error}`);
+            logError(error)
           }
         });
     })
