@@ -1104,8 +1104,12 @@ function apply(ctx, config) {
                 const messageContent = replacePlaceholders(format, context);
                 logInfo("变量替换本地文件名称，messageContent： base64太长了不打印了")
                 // logInfo(messageContent)
-                message = await session.send(h.unescape(`${messageContent}`.replace(/\\n/g, '\n')));
 
+                try {
+                  message = await session.send(h.unescape(`${messageContent}`.replace(/\\n/g, '\n')));
+                } catch (error) {
+                  ctx.logger.error("发送本地图片失败：", error)
+                }
               } else if (imageResult.isLocal) {// 本地图片 + 绝对路径
                 const format = config.localPictureToName;
                 logInfo(imageResult.imageUrl)
@@ -1126,10 +1130,18 @@ function apply(ctx, config) {
                 const messageContent = replacePlaceholders(format, context);
                 logInfo("变量替换本地文件名称，messageContent：")
                 logInfo(messageContent)
-                message = await session.send(h.unescape(`${messageContent}`.replace(/\\n/g, '\n')));
+                try {
+                  message = await session.send(h.unescape(`${messageContent}`.replace(/\\n/g, '\n')));
+                } catch (error) {
+                  ctx.logger.error("发送本地图片失败：", error)
+                }
 
               } else { // 网络图片
-                message = await session.send(h.image(imageResult.imageUrl));
+                try {
+                  message = await session.send(h.image(imageResult.imageUrl));
+                } catch (error) {
+                  ctx.logger.error("发送网络图片失败：", error)
+                }
               }
 
               if ((session.platform === "qq" || session.platform === "qqguild") && config.markdown_button_mode === "json") {
