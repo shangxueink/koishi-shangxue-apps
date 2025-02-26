@@ -12,34 +12,44 @@ exports.inject = {
     optional: ["database"]
 };
 exports.usage = `
----
-本插件可帮助你自定义QQ官方机器人按钮菜单，支持以下三种类型的菜单配置：
-1. **JSON 按钮**：可以发送带有交互按钮的JSON消息。
-2. **被动模板 Markdown**：适用于发送自定义的Markdown模板消息。
-3. **原生 Markdown**：支持发送更复杂的原生Markdown消息。
+<div>
+  <p>本插件可帮助你自定义QQ官方机器人按钮菜单，支持以下三种类型的菜单配置：</p>
+  <ol>
+    <li><strong>JSON 按钮</strong>：可以发送带有交互按钮的JSON消息。</li>
+    <li><strong>被动模板 Markdown</strong>：适用于发送自定义的Markdown模板消息。</li>
+    <li><strong>原生 Markdown</strong>：支持发送更复杂的原生Markdown消息。</li>
+  </ol>
 
-### 如何配置
-- 在左侧活动栏找到【资源管理器】->【data】->【qq-markdown-button】->【按钮菜单配置1】目录，在该目录下，你会看到对应的文件夹下有\`.md\` 和 \`.json\` 文件。
-- 根据你选择的菜单类型，编辑对应的 \`.md\` 和 \`.json\` 文件，修改你的菜单配置。
+  <h3>如何配置</h3>
+  <ul>
+    <li>在左侧活动栏找到【资源管理器】->【data】->【qq-markdown-button】->【按钮菜单配置1】目录，在该目录下，你会看到对应的文件夹下有<code>.md</code> 和 <code>.json</code> 文件。</li>
+    <li>根据你选择的菜单类型，编辑对应的 <code>.md</code> 和 <code>.json</code> 文件，修改你的菜单配置。</li>
+  </ul>
 
-### 关于变量替换
-在配置文件（例如 \`.json\`）中，你可能会看到一些变量占位符，如：
-- \`\${session.messageId}\`：运行时会替换为当前会话的消息ID。
-- \`\${markdown}\`：会被替换为从对应 \`.md\` 文件读取的Markdown内容。
+  <h3>关于变量替换</h3>
+  <p>在配置文件（例如 <code>.json</code>）中，你可能会看到一些变量占位符，如：</p>
+  <ul>
+    <li><code>\${session.messageId}</code>：运行时会替换为当前会话的消息ID。</li>
+    <li><code>\${INTERACTION_CREATE}</code>：运行时会替换为当前回调按钮的interaction_id。</li>
+    <li><code>\${markdown}</code>：会被替换为从对应 <code>.md</code> 文件读取的Markdown内容。</li>
+  </ul>
+  <p>无需手动修改这些变量，它们将在运行时自动替换为相应的真实值。</p>
 
-无需手动修改这些变量，它们将在运行时自动替换为相应的真实值。
+  <p>支持重用，你可以开多个这个插件，然后改成不同的指令名称/文件夹名称，以注册多个按钮菜单功能</p>
+  <p>本插件会自动使用对应的文件夹下的 json / markdown 文件来发送消息<br>使用多重配置时，你通常只需要修改 <code>按钮菜单配置1</code> 那一行</p>
+  <p>不要手动重命名 json/md文件！</p>
+  <hr>
+  <p>赶快选择你需要的配置，开始自定义你的菜单吧！</p>
+  <p>更多说明 <a href="https://github.com/shangxueink/koishi-shangxue-apps/tree/main/plugins/qq-markdown-button" target="_blank">详见➩项目README</a></p>
 
-支持重用，你可以开多个这个插件，然后改成不同的指令名称/文件夹名称，以注册多个按钮菜单功能
-
-本插件会自动使用对应的文件夹下的 json / markdown 文件来发送消息<br>使用多重配置时，你通常只需要修改 \`按钮菜单配置1\` 那一行
-
-不要手动重命名 json/md文件！
-
----
-
-赶快选择你需要的配置，开始自定义你的菜单吧！
-
+  <p>相关链接：</p>
+  <ul>
+    <li><a href="https://github.com/shangxueink/koishi-shangxue-apps/tree/main/plugins/qq-markdown-button" target="_blank">https://github.com/shangxueink/koishi-shangxue-apps/tree/main/plugins/qq-markdown-button</a></li>
+    <li><a href="https://forum.koishi.xyz/t/topic/10439" target="_blank">https://forum.koishi.xyz/t/topic/10439</a></li>
+  </ul>
+</div>
 `;
+
 
 exports.Config = Schema.intersect([
     Schema.object({
