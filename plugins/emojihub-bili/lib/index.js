@@ -327,15 +327,13 @@ exports.Config = Schema.intersect([
     Schema.object({}),
   ]),
 
-
   Schema.object({
     LocalSendNetworkPicturesList: Schema.string().role('textarea', { rows: [2, 4] }).description('将`下列指令`对应的内容下载至本地，作为本地图片发送<br>请使用逗号分隔指令').default().experimental(),
     deletePictime: Schema.number().default(10).description('若干`秒`后 删除下载的本地临时文件').experimental(),
-    localPicToBase64: Schema.boolean().description("`开启后`本地图片以base64发出 `日常使用无需开启，且不建议官方bot使用`").experimental().default(false),
-    QQPicToChannelUrl: Schema.boolean().description("`开启后`， `img_url`会先上传QQ频道，拿到频道URL，用于发送markdown<br>被动md需要URL白名单，用这个也没效果。<br>仅对原生发本地文件夹的图有意义。").experimental().default(false),
+    localPicToBase64: Schema.boolean().description("`开启后`本地图片以base64发出 `日常使用无需开启，且不建议发送markdown的时候使用（直接发图还是可以考虑的）`").experimental().default(false),
+    QQPicToChannelUrl: Schema.boolean().description("`开启后`， `img_url`会先上传QQ频道，拿到频道URL，用于发送markdown<br>被动md需要URL白名单，仅对原生发本地文件夹的图有意义。").experimental().default(false),
     QQchannelId: Schema.string().description('`填入QQ频道的频道ID`，将该ID的频道作为中转频道 <br> 频道ID可以用[inspect插件来查看](/market?keyword=inspect) `频道ID应为纯数字`').experimental().pattern(/^\S+$/),
   }).description('调试选项'),
-
 
   Schema.object({
     consoleinfo: Schema.boolean().default(false).description("日志调试模式`日常使用无需开启`"),
