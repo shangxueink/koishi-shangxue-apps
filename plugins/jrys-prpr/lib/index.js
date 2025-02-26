@@ -759,18 +759,20 @@ ${dJson.unsignText}
 
   // 提取消息发送逻辑为函数
   async function sendmarkdownMessage(session, message) {
-    if (session.platform === "qqguild") {
-      if (session.isDirect) {
-        await session.qqguild.sendPrivateMessage(session.channelId, message);
-      } else {
-        await session.qqguild.sendMessage(session.channelId, message);
+    try {
+      const { guild, user } = session.event;
+      const { qq, qqguild, channelId } = session;
+      if (guild?.id) {
+        if (qq) {
+          await qq.sendMessage(channelId, message);
+        } else if (qqguild) {
+          await qqguild.sendMessage(channelId, message);
+        }
+      } else if (user?.id && qq) {
+        await qq.sendPrivateMessage(user.id, message);
       }
-    } else if (session.platform === "qq") {
-      if (session.isDirect) {
-        await session.qq.sendPrivateMessage(session.channelId, message);
-      } else {
-        await session.qq.sendMessage(session.channelId, message);
-      }
+    } catch (error) {
+      ctx.logger.error(`发送消息时出错: ${error}`);
     }
   }
 
