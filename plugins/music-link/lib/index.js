@@ -3,9 +3,9 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.apply = exports.Config = exports.usage = exports.inject = exports.name = void 0;
 const { Schema, Logger, h } = require("koishi");
 const fs = require('node:fs/promises');
+const crypto = require('node:crypto');
 const path = require('node:path');
 const url = require('node:url');
-const crypto = require('node:crypto');
 const name = 'music-link';
 const inject = {
     required: ['http', "i18n"],
@@ -13,7 +13,6 @@ const inject = {
 };
 const logger = new Logger('music-link');
 const usage = `
-<h2>插件说明 - Music Link</h2>
 <hr>
 
 <details>
@@ -49,7 +48,7 @@ const usage = `
 
 <h3>使用www.hhlqilongzhu.cn网站API搜索QQ + 网易云音乐</h3>
 <pre><code>龙珠搜索 [keywords]</code></pre>
-<p><b>(一般推荐)</b> www.hhlqilongzhu.cn 网站的点歌API，江苏的确可能访问性较差（江苏反诈）。支持网易云音乐和QQ音乐双平台搜索。</p>
+<p><b>(一般推荐)</b> www.hhlqilongzhu.cn 网站的点歌API，江苏的确可能访问性较差（江苏反诈）。支持网易云音乐平台搜索。</p>
 <hr>
 
 </details>
@@ -461,45 +460,6 @@ const command7_return_data_Field_default = [
     }
 ];
 
-const command8_return_qqdata_Field_default = [
-    {
-        "data": "song_name",
-        "type": "text",
-        "describe": "歌曲名称"
-    },
-    {
-        "data": "song_singer",
-        "describe": "歌手",
-        "type": "text"
-    },
-    {
-        "data": "quality",
-        "describe": "音质",
-        "type": "text"
-    },
-    {
-        "data": "cover",
-        "describe": "封面",
-        "type": "image"
-    },
-    {
-        "data": "link",
-        "describe": "歌曲链接",
-        "type": "text",
-        "enable": false
-    },
-    {
-        "data": "music_url",
-        "describe": "下载链接",
-        "type": "text"
-    },
-    {
-        "data": "lyric",
-        "describe": "歌词",
-        "type": "text",
-        "enable": false
-    }
-];
 const command8_return_wyydata_Field_default = [
     {
         "data": "title",
@@ -555,7 +515,6 @@ const platformMap = {
 };
 
 const Config = Schema.intersect([
-
     Schema.object({
         waitTimeout: Schema.natural().role('s').description('允许用户返回选择序号的等待时间').default(45),
         exitCommand: Schema.string().default('0, 不听了').description('退出选择指令，多个指令间请用逗号分隔开'), // 兼容中文逗号、英文逗号
@@ -563,7 +522,7 @@ const Config = Schema.intersect([
     }).description('基础设置'),
 
     Schema.object({
-        imageMode: Schema.boolean().default(true).description('开启后返回图片歌单（需要puppeteer服务），关闭后返回文本歌单（部分不支持）'),
+        imageMode: Schema.boolean().default(true).description('开启后返回图片歌单（需要puppeteer服务），关闭后返回文本歌单（部分指令必须使用puppeteer）'),
         darkMode: Schema.boolean().default(true).description('是否开启暗黑模式（黑底菜单）')
     }).description('图片歌单设置'),
 
@@ -575,7 +534,7 @@ const Config = Schema.intersect([
             Schema.const('command6').description('command6：`api.injahow.cn`网站       （API 请求快 + 稳定 推荐QQ官方机器人使用）      （非VIP网易云）'),
             Schema.const('command7').description('command7：`dev.iw233.cn` 网站         （需puppeteer爬取 较慢）          （网易云）'),
             Schema.const('command8').description('command8：`www.hhlqilongzhu.cn` 龙珠API  （API，江苏可能访问不了）        （网易云 + QQ点歌）'),
-        ]).role('radio').default("command5").description('选择使用的后端<br>➣ 推荐度：`music.gdstudio.xyz`  > `dev.iw233.cn` >= `api.injahow.cn` = `www.hhlqilongzhu.cn` > `星之阁API`'),
+        ]).role('radio').default("command5").description('选择使用的后端<br>➣ 推荐度：`music.gdstudio.xyz`  > `dev.iw233.cn` ≥ `api.injahow.cn` ≥ `www.hhlqilongzhu.cn` > `星之阁API`'),
     }).description('后端选择'),
     Schema.union([
         Schema.object({
@@ -714,22 +673,8 @@ const Config = Schema.intersect([
         Schema.object({
             serverSelect: Schema.const('command8').required(),
             command8: Schema.string().default('龙珠搜索').description('龙珠API的指令名称'),
-            command8_qqQuality: Schema.number().default(1).description('QQ音乐默认下载音质。<br>1=(默认SQ无损,从高到低),2=HQ高品MP3'),
-
             command8_wyyQuality: Schema.number().default(1).description('网易云音乐默认下载音质。`找不到对应音质，会自动使用标准音质`<br>1(标准音质)/2(极高音质)/3(无损音质)/4(Hi-Res音质)/5(高清环绕声)/6(沉浸环绕声)/7(超清母带)'),
-
-            command8_return_qqdata_Field: Schema.array(Schema.object({
-                data: Schema.string().description('返回的字段'),
-                describe: Schema.string().description('对该字段的中文描述'),
-                type: Schema.union([
-                    Schema.const('text').description('文本（text）'),
-                    Schema.const('image').description('图片（image）'),
-                    Schema.const('audio').description('语音（audio）'),
-                    Schema.const('video').description('视频（video）'),
-                    Schema.const('file').description('文件（file）'),
-                ]).description('字段发送类型'),
-                enable: Schema.boolean().default(true).description('是否启用')
-            })).role('table').default(command8_return_qqdata_Field_default).description('QQ歌曲  返回信息的字段选择<br>[➣ 点我查看该API返回内容示例](https://www.hhlqilongzhu.cn/api/dg_shenmiMusic_SQ.php?msg=蔚蓝档案&n=3&type=json)'),
+            command8_searchList: Schema.number().default(20).min(1).max(50).description('歌曲搜索的列表长度。返回的候选项个数。'),
 
             command8_return_wyydata_Field: Schema.array(Schema.object({
                 data: Schema.string().description('返回的字段'),
@@ -757,7 +702,7 @@ const Config = Schema.intersect([
 
     Schema.object({
         data_Field_Mode: Schema.union([
-            Schema.const('text').description('富媒体置底：文字 > 图片 ≥ 语音 ≥ 视频 ≥ 文件 （默认）'),
+            Schema.const('text').description('富媒体置底：文字 > 图片 > 语音 ≥ 视频 ≥ 文件 （默认）'),
             Schema.const('image').description('仅图片置顶的 富媒体置底：图片 > 文字 ≥ 语音 ≥ 视频 ≥ 文件 （仅官方机器人考虑使用）'),
             Schema.const('raw').description('严格按照 `command_return_data_Field` 表格的顺序 （严格按照配置项表格的上下顺序）'),
         ]).role('radio').default("text").description('对 `command*_return_data_Field`配置项 排序的控制<br>优先级越高，顺序越靠前<br>[➣点我查看此配置项 效果预览图](https://i0.hdslb.com/bfs/article/6e8b901f9b9daa57f082bf0cece36102312276085.png)'),
@@ -767,7 +712,6 @@ const Config = Schema.intersect([
     Schema.object({
         loggerinfo: Schema.boolean().default(false).description('日志调试开关'),
     }).description('调试模式'),
-
 ]);
 
 function apply(ctx, config) {
@@ -922,7 +866,7 @@ function apply(ctx, config) {
                                     // 其他情况，按照原逻辑处理
                                     let usedId = config.used_id;
                                     if (tag === '网易云音乐') {
-                                        if (config.serverSelect === "command1" || config.serverSelect === "command8") { // command1 command8 的网易云音乐是后 10 个
+                                        if (config.serverSelect === "command1") { // command1 的网易云音乐是后 10 个
                                             usedId += 10;
                                         }
                                     }
@@ -1805,48 +1749,22 @@ function apply(ctx, config) {
             ctx.command(`${config.command8} <keyword:text>`)
                 .option('quality', '-q <value:number> 品质因数')
                 .option('number', '-n <number:number> 歌曲序号')
-                .action(async ({ session, options, args }) => {
-                    const keyword = args.join(' ');
+                .action(async ({ session, options }, keyword) => {
                     if (!keyword) {
-                        await session.send('请输入歌曲名称。');
+                        await session.send(h.text(session.text(".nokeyword")));
                         return;
                     }
 
-                    let qqSongs = []; // 初始化为空数组
-                    let wySongs = [];  // 初始化为空数组
+                    let wySongs = [];  // 初始化网易云歌曲列表
 
-                    // 获取QQ音乐歌曲列表 
+                    // 获取网易云音乐歌曲列表
                     try {
-                        // const qqUrl = `https://www.hhlqilongzhu.cn/api/dg_qqmusic.php?gm=${encodeURIComponent(keyword)}&type=json&num=10`;
-                        // https://www.hhlqilongzhu.cn/api/dg_shenmiMusic_SQ.php?type=json&msg=蔚蓝档案&n=3
-
-                        const qqUrl = `https://www.hhlqilongzhu.cn/api/dg_shenmiMusic_SQ.php?type=json&msg=${encodeURIComponent(keyword)}&num=10`;
-                        logInfo(qqUrl);
-                        const qqResponse = await ctx.http.get(qqUrl);
-
-                        logInfo(JSON.stringify(qqResponse));
-
-                        if (!qqResponse) {
-                            throw new Error(`Failed to get QQ song list`);
-                        }
-                        const qqData = await qqResponse;
-
-                        // logInfo(JSON.stringify(qqData));
-                        qqSongs = qqData.data || []; // 赋值歌曲数据，如果 data 为空，则赋值空数组
-                    } catch (error) {
-                        logger.error('获取龙珠QQ歌曲列表时发生错误', error);
-                        return '无法获取QQ音乐歌曲列表，请稍后再试。';
-                    }
-
-                    // 获取网易云音乐歌曲列表 
-                    try {
-                        const wyUrl = `https://www.hhlqilongzhu.cn/api/dg_wyymusic.php?gm=${encodeURIComponent(keyword)}&type=json&num=10`;
+                        const wyUrl = `https://www.hhlqilongzhu.cn/api/dg_wyymusic.php?gm=${encodeURIComponent(keyword)}&type=json&num=${config.command8_searchList}`;
+                        logInfo(wyUrl);
                         const wyResponse = await ctx.http.get(wyUrl);
 
-                        logInfo(JSON.stringify(wyUrl));
-
                         if (!wyResponse) {
-                            throw new Error(`Failed to get WY song list`);
+                            throw new Error(`Failed to get NetEase song list`);
                         }
                         const wyData = await wyResponse;
                         logInfo(JSON.stringify(wyData));
@@ -1857,11 +1775,11 @@ function apply(ctx, config) {
                     }
 
                     // 确保歌曲列表非空
-                    if (qqSongs.length === 0 && wySongs.length === 0) {
+                    if (wySongs.length === 0) {
                         return '没有找到相关歌曲。';
                     }
 
-                    const totalSongs = qqSongs.length + wySongs.length;
+                    const totalSongs = wySongs.length;
 
                     // 检查是 可用序号
                     let index = options.number;
@@ -1871,33 +1789,20 @@ function apply(ctx, config) {
                             return '输入的序号无效。若要点歌请重新发起。';
                         }
                     } else {
-                        // 格式化QQ音乐歌曲列表
-                        const qqSongList = qqSongs.map((song, idx) => {
-                            const title = song.song_title || song.title;
-                            const singer = song.song_singer || song.singer;
-                            return `${idx + 1}. ${title} -- ${singer}`;
-                        });
-
                         // 格式化网易云音乐歌曲列表
                         const wySongList = wySongs.map((song, idx) => {
-                            const title = song.song_title || song.title;
-                            const singer = song.song_singer || song.singer;
-                            return `${idx + 1 + qqSongs.length}. ${title} -- ${singer}`;
+                            const title = song.title; // 简化，直接使用 song.title
+                            const singer = song.singer; // 简化，直接使用 song.singer
+                            return `${idx + 1}. ${title} -- ${singer}`;
                         });
-
 
                         const exitCommands = config.exitCommand.split(/[,，]/).map(cmd => cmd.trim());
                         const exitCommandTip = config.menuExitCommandTip ? `退出选择请发[${exitCommands}]中的任意内容\n\n` : '';
                         const promptText = `${exitCommandTip}${h.text(session.text(`.waitTime`, [config.waitTimeout]))}`;
 
-                        // 合并歌曲列表并添加小标题
-                        const songListMessage = [
-                            'QQ Music',
-                            ...qqSongList,
-                            '',
-                            'NetEase Music',
-                            ...wySongList
-                        ].join('\n');
+                        // 歌曲列表消息
+                        const songListMessage = wySongList.join('\n');
+
 
                         // 判断是否使用图片模式
                         if (config.imageMode) {
@@ -1921,53 +1826,29 @@ function apply(ctx, config) {
                     }
 
                     const wyyquality = options.quality || config.command8_wyyQuality;
-                    const qqquality = options.quality || config.command8_qqQuality;
                     let details = null; // 初始化 details 为 null
                     let songDetails8 = null; // 初始化 songDetails8 为 null
 
-                    // 获取用户选择的歌曲详细信息 
-                    if (index <= qqSongs.length) {
-                        // QQ 音乐详情
-                        try {
 
-                            // https://www.hhlqilongzhu.cn/api/dg_shenmiMusic_SQ.php?type=json&msg=蔚蓝档案&n=3
-                            // const qqDetailsUrl = `https://www.hhlqilongzhu.cn/api/dg_qqmusic.php?gm=${encodeURIComponent(keyword)}&type=json&num=10&n=${index}`;
-                            const qqDetailsUrl = `https://www.hhlqilongzhu.cn/api/dg_shenmiMusic_SQ.php?type=json&msg=${encodeURIComponent(keyword)}&n=${index}&num=10&br=${qqquality}`;
-                            const qqDetailsResponse = await ctx.http.get(qqDetailsUrl);
-                            if (!qqDetailsResponse) {
-                                throw new Error(`Failed to get QQ song details`);
-                            }
-                            logInfo(JSON.stringify(qqDetailsUrl));
-
-                            const qqDetailsData = await qqDetailsResponse;
-
-                            logInfo(JSON.stringify(qqDetailsData));
-                            details = qqDetailsData.data; // 赋值歌曲详细信息
-                            songDetails8 = generateResponse(details, config.command8_return_qqdata_Field);
-                        } catch (error) {
-                            logger.error('获取龙珠QQ歌曲详情时发生错误', error);
-                            return '无法获取QQ音乐歌曲下载链接。'; // 针对详情获取错误返回更具体的提示
+                    // 获取用户选择的歌曲详细信息 - 仅网易云音乐
+                    try {
+                        const wyDetailsUrl = `https://www.hhlqilongzhu.cn/api/dg_wyymusic.php?gm=${encodeURIComponent(keyword)}&type=json&br=${wyyquality}&num=${config.command8_searchList}&n=${index}`;
+                        const wyDetailsResponse = await ctx.http.get(wyDetailsUrl);
+                        if (!wyDetailsResponse) {
+                            throw new Error(`Failed to get NetEase song details`);
                         }
-                    } else {
-                        // 网易云音乐详情
-                        try {
-                            const wyDetailsUrl = `https://www.hhlqilongzhu.cn/api/dg_wyymusic.php?gm=${encodeURIComponent(keyword)}&type=json&br=${wyyquality}&num=10&n=${index - qqSongs.length}`;
-                            const wyDetailsResponse = await ctx.http.get(wyDetailsUrl);
-                            if (!wyDetailsResponse) {
-                                throw new Error(`Failed to get WY song details`);
-                            }
-                            logInfo(JSON.stringify(wyDetailsUrl));
+                        logInfo(wyDetailsUrl);
 
-                            const wyDetailsData = await wyDetailsResponse;
+                        const wyDetailsData = await wyDetailsResponse;
 
-                            logInfo(JSON.stringify(wyDetailsData));
-                            details = wyDetailsData; // 赋值歌曲详细信息
-                            songDetails8 = generateResponse(details, config.command8_return_wyydata_Field);
-                        } catch (error) {
-                            logger.error('获取龙珠网易云歌曲详情时发生错误', error);
-                            return '无法获取网易云音乐歌曲下载链接。'; // 针对详情获取错误返回更具体的提示
-                        }
+                        logInfo(JSON.stringify(wyDetailsData));
+                        details = wyDetailsData; // 赋值歌曲详细信息
+                        songDetails8 = generateResponse(details, config.command8_return_wyydata_Field);
+                    } catch (error) {
+                        logger.error('获取龙珠网易云歌曲详情时发生错误', error);
+                        return '无法获取网易云音乐歌曲下载链接。'; // 针对详情获取错误返回更具体的提示
                     }
+
 
                     if (!details) {
                         return '无法获取歌曲下载链接。';
@@ -2238,8 +2119,6 @@ transform: scale(0.77);
         }
 
     });
-
-
 
 }
 exports.apply = apply;
