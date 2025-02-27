@@ -229,10 +229,10 @@
                     "(https://i0.hdslb.com/bfs/note/457c42064e08c44ffef1b047478671db3f06412f.jpg)"
                 ]
             }
-        ],
-        "keyboard": {
-            "id": "${config.json_button_id}"
-        }
+        ]
+    },
+    "keyboard": {
+        "id": "${config.json_button_id}"
     }
 }
 ```
