@@ -186,12 +186,15 @@ exports.Config = Schema.intersect([
 
     Schema.object({
         waittimeout: Schema.number().description("等待用户交互的超时时间").default(30),
+    }).description('进阶设置'),
+
+    Schema.object({
         bot: Schema.number().description('定时消息由第几个bot发出？`第一个是0，第二个是1，...`<br>▶ 如果你只接了一个机器人，那么`0`即可').default(0).min(0),
         subscribe: Schema.array(Schema.object({
             channelId: Schema.string().description("群组ID"),
             subscribetime: Schema.string().description("推送时间(cron表达式)"),
         })).role('table').description("在指定群组订阅课表 定时主动推送<br>例如：`10 16 * * *` 的意思是<br>**10**: 分钟 (10 分)<br>**16**: 小时 (16 点，即下午 4 点)<br> *: 日 (一个月中的每一天)<br> *: 月 (每个月)<br> *: 星期 (一周中的每一天)<br>"),
-    }).description('进阶设置'),
+    }).description('定时推送'),
 
     Schema.object({
         loggerinfo: Schema.boolean().default(false).description("日志调试模式"),
@@ -612,36 +615,50 @@ async function apply(ctx, config) {
 
             const now = new Date();
             const currentDate = now.toISOString().split('T')[0];
+
+            // 获取今天的星期几 (中文格式)
+            const dayOfWeekIndex = now.getDay(); // 0 (周日) 到 6 (周六)
+            const dayOfWeekNames = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+            const currentDayOfWeekName = dayOfWeekNames[dayOfWeekIndex];
+
+            // 修改 validCourses 过滤逻辑，添加星期几判断
             const validCourses = allCourses.filter(course => {
-                return currentDate >= course.startDate && currentDate <= course.endDate;
+                return currentDate >= course.startDate && currentDate <= course.endDate && course.curriculumndate.includes(currentDayOfWeekName);
             });
 
             if (validCourses.length === 0) {
-                loggerinfo(`群组 ${channelId} 在当前日期没有有效课程，无法渲染。`);
-                return null; // 没有有效课程
+                loggerinfo(`群组 ${channelId} 在今天（${currentDayOfWeekName}）没有有效课程，开始渲染无课程课表。`);
+                // 不需要提前返回 null，继续执行后续的渲染逻辑，以便处理 "无课程" 的情况
+                // return null; //  不要在这里返回 null，即使今天没课也要继续渲染，显示“无课程”
+            } else {
+                loggerinfo(`群组 ${channelId} 在今天（${currentDayOfWeekName}）有 ${validCourses.length} 门课程，开始渲染课表。`);
             }
 
-            // 课程数据处理和排序 
+
+            // 课程数据处理和排序
             const courseList = [];
             validCourses.forEach(course => {
                 course.curriculumndate.forEach(day => {
-                    const [startTime, endTime] = course.curriculumtime.split('-');
-                    const dayOfWeek = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'].indexOf(day);
-                    const [startHour, startMinute] = startTime.split(':').map(Number);
+                    if (day === currentDayOfWeekName) { // 只处理今天的课程
+                        const [startTime, endTime] = course.curriculumtime.split('-');
+                        const dayOfWeek = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'].indexOf(day);
+                        const [startHour, startMinute] = startTime.split(':').map(Number);
 
-                    courseList.push({
-                        type: 'start',
-                        timestamp: dayOfWeek * 24 * 60 + startHour * 60 + startMinute,
-                        day: day,
-                        time: startTime,
-                        endTime: endTime,
-                        courseName: course.curriculumname,
-                        username: course.username,
-                        useravatar: course.useravatar,
-                        userid: course.userid,
-                    });
+                        courseList.push({
+                            type: 'start',
+                            timestamp: dayOfWeek * 24 * 60 + startHour * 60 + startMinute,
+                            day: day,
+                            time: startTime,
+                            endTime: endTime,
+                            courseName: course.curriculumname,
+                            username: course.username,
+                            useravatar: course.useravatar,
+                            userid: course.userid,
+                        });
+                    }
                 });
             });
+
 
             courseList.sort((a, b) => a.timestamp - b.timestamp);
 
@@ -654,7 +671,7 @@ async function apply(ctx, config) {
             const noCourseMap = new Map();
             const usersWithCoursesToday = new Set();
 
-            for (const course of courseList) {
+            for (const course of courseList) { // 遍历的是今天过滤后的 courseList
                 let status = "nocourse";
                 const [endHour, endMinute] = course.endTime.split(':').map(Number);
                 const endTimestamp = course.timestamp + (endHour * 60 + endMinute) - (parseInt(course.time.split(':')[0]) * 60 + parseInt(course.time.split(':')[1]))
@@ -668,27 +685,56 @@ async function apply(ctx, config) {
                     usersWithCoursesToday.add(course.userid);
                     mergedCourseList.push(course);
                 } else {
-                    if (!noCourseMap.has(course.userid)) {
-                        noCourseMap.set(course.userid, {
-                            ...course,
-                            noCourseDetails: [],
-                        });
-                    }
-                    noCourseMap.get(course.userid).noCourseDetails.push(`${course.courseName} (${course.day} ${course.time})`);
+                    // 即使是过去的课程，也不应该在这里处理，因为我们只关心今天的课程
+                    // status = "past"; // 不需要这个状态
+                    // if (!noCourseMap.has(course.userid)) {
+                    //     noCourseMap.set(course.userid, {
+                    //         ...course,
+                    //         noCourseDetails: [],
+                    //     });
+                    // }
+                    // noCourseMap.get(course.userid).noCourseDetails.push(`${course.courseName} (${course.day} ${course.time})`);
                 }
             }
 
-            for (const [userid, noCourseInfo] of noCourseMap) {
+            // 获取所有在该群组有课表的用户
+            const allUsersInChannel = new Set(allCourses.map(course => course.userid));
+
+            // 遍历所有用户，检查今天是否有课
+            for (const userid of allUsersInChannel) {
                 if (!usersWithCoursesToday.has(userid)) {
-                    let truncatedDetails = noCourseInfo.noCourseDetails.join('; ').substring(0, 20);
-                    if (noCourseInfo.noCourseDetails.join('; ').length > 20) {
-                        truncatedDetails += '...';
+                    // 找到该用户的任意一门课程信息（用于获取头像、昵称等）
+                    const userCourseInfo = allCourses.find(course => course.userid === userid);
+
+                    if (userCourseInfo) {
+                        // 构造“无课程”信息
+                        noCourseMap.set(userid, {
+                            ...userCourseInfo, // 复制用户的基本信息
+                            noCourseDetails: [], // 今天无课程
+                            timestamp: Infinity, // 将无课程条目排在最后
+                        });
+
+                        // 获取该用户本周所有的课程
+                        const userAllCoursesThisWeek = allCourses.filter(c => c.userid === userid);
+                        userAllCoursesThisWeek.forEach(course => {
+                            noCourseMap.get(userid).noCourseDetails.push(`${course.curriculumname} (${course.curriculumndate.join(',')} ${course.curriculumtime})`);
+                        });
                     }
-                    mergedCourseList.push({
-                        ...noCourseInfo,
-                        noCourseDetails: truncatedDetails,
-                    });
                 }
+            }
+
+
+            for (const [userid, noCourseInfo] of noCourseMap) {
+                //if (!usersWithCoursesToday.has(userid)) { // 已经在外层循环处理了
+                let truncatedDetails = noCourseInfo.noCourseDetails.join('; ').substring(0, 20);
+                if (noCourseInfo.noCourseDetails.join('; ').length > 20) {
+                    truncatedDetails += '...';
+                }
+                mergedCourseList.push({
+                    ...noCourseInfo,
+                    noCourseDetails: truncatedDetails,
+                });
+                //}
             }
 
             mergedCourseList.sort((a, b) => {
@@ -698,271 +744,277 @@ async function apply(ctx, config) {
             });
 
 
-            // HTML 模板 
+            // HTML 模板
             const htmlTemplate = `
-<!DOCTYPE html>
-<html lang="zh">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>群友课表</title>
-    <style>
-        /* 嵌入式 CSS 样式 */
-        body {
-            font-family: '方正像素12', sans-serif; /* 优先使用自定义字体，如果加载失败则使用 sans-serif */
-            background-color: ${config.backgroundcolor};
-            color: #333;
-            margin: 0;
-            padding: 0; /* 移除body的padding */
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-        }
-
-        @font-face {
-            font-family: '方正像素12';
-            src: url('data:font/ttf;base64,${cachedFontBase64}') format('truetype');
-        }
-
-        #container {
-            width: 95%; /* 扩展宽度 */
-            max-width: 600px; /* 限制最大宽度 */
-            background-color: ${config.backgroundcolor}; /* 背景颜色 */
-            border: 2px solid #ddd;
-            border-radius: 8px;
-            overflow: hidden;
-            padding: 20px; /* 内部间距 */
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); /* 阴影效果 */
-        }
-
-
-        h1 {
-            font-family: '方正像素12', sans-serif; /* 优先使用自定义字体 */
-            font-size: 2.5em;
-            text-align: center;
-            margin-bottom: 30px;
-            position: relative;
-        }
-       h1::before, h1::after {
-            content: '';
-            position: absolute;
-            border-color: #ddd;
-        }
-
-        h1::before {
-            top: -10px;
-            left: -10px;
-            border-top: 20px solid;
-            border-left: 20px solid;
-        }
-
-        h1::after {
-            bottom: -10px;
-            right: -10px;
-            border-bottom: 20px solid;
-            border-right: 20px solid;
-        }
-
-        #course-container {
-            width: 100%; /* 扩展宽度 */
-            border-radius: 8px;    /* 圆角边框 */
-            overflow: hidden;     /* 隐藏溢出内容 */
-        }
-
-        .course-item {
-            background-color: ${config.backgroundcolor};
-            border-bottom: 1px solid #ddd; /* 使用边框作为分隔线 */
-            padding: 15px;
-            display: flex; /* Flex 布局 */
-            align-items: stretch; /* 垂直方向拉伸 */
-        }
-         .course-item:last-child {
-            border-bottom: none; /* 移除最后一个元素的下边框 */
-        }
-
-
-        .avatar-info {
-            display: flex;
-            flex-direction: column; /* 垂直排列头像和昵称 */
-            align-items: center; /* 水平居中头像和昵称 */
-            width: 70px; /* 固定头像昵称列宽度 */
-            margin-right: 15px; /* 与课程信息列间隔 */
-        }
-
-        .avatar {
-            width: 50px; /* 稍大的头像 */
-            height: 50px;
-            border-radius: 50%;
-            margin-bottom: 5px; /* 昵称间距 */
-            object-fit: cover;
-        }
-
-        .nickname {
-            font-weight: bold;
-            text-align: center; /* 确保昵称居中 */
-            word-break: normal; /* 不换行 */
-            white-space: nowrap; /* 不换行 */
-            overflow: hidden;
-            text-overflow: ellipsis;
-            font-size: 0.9em; /* 稍小字体 */
-        }
-
-
-        .course-separator {
-            width: 1px;
-            background-color: #ddd;
-            margin: 0 15px; /* 分隔线左右间距 */
-            align-self: stretch; /* 分隔线高度拉伸 */
-        }
-
-        .course-details {
-            flex-grow: 1; /* 课程详情占据剩余空间 */
-            display: flex;
-            flex-direction: column; /* 内部垂直排列 */
-        }
-
-
-        .status-and-course {
-            display: flex;
-            align-items: baseline; /* 状态和课程名基线对齐 */
-            margin-bottom: 5px;
-        }
-
-        .status {
-            font-size: 1.0em; /* 放大状态文字 */
-            color: #777;
-            margin-right: 10px; /* 状态和课程名间距 */
-        }
-
-       .status.ongoing {
-            color: #00a000; /* 进行中绿色 */
-        }
-
-        .status.next {
-            color: #007bff; /* 下一节蓝色 */
-        }
-
-        .status.nocourse {
-            color: #dc3545; /* 无课程红色 */
-        }
-
-        .course-name {
-            font-size: 1.2em; /* 稍大课程名 */
-            margin: 0;
-        }
-        .course-name-placeholder{
-             font-size: 1.2em;
-             visibility: hidden;
-             margin: 0;
-        }
-
-        .time-remaining {
-            font-size: 0.9em;
-            color: #555;
-            margin: 0;
-        }
-
-
-        .no-course-details {
-            flex-grow: 1; /* 无课程信息占据剩余空间 */
-            display: flex;
-            flex-direction: column;
-            justify-content: center; /* 垂直居中 */
-        }
-
-        .no-course-details .status.nocourse {
-            font-size: 1em;
-            margin-bottom: 5px;
-            text-align: left; /* 状态左对齐 */
-        }
-
-        .no-course-text {
-            font-size: 0.9em;
-            color: #777;
-            text-align: left; /* 文字左对齐 */
-        }
-
-
-       footer {
-            margin-top: 30px; /* 减小页脚边距 */
-            padding: 5px;    /* 减小页脚内边距 */
-            text-align: center;
-            color: #777;
-            font-size: 0.8em; /* 减小页脚字体大小 */
-            position: relative;
-        }
-
-        footer::before, footer::after {
-            content: '';
-            position: absolute;
-            border-color: #ddd;
-        }
-
-        footer::before {
-            top: -5px;  /* 减小页脚边框偏移 */
-            left: -5px; /* 减小页脚边框偏移 */
-            border-top: 10px solid; /* 减小页脚边框大小 */
-            border-left: 10px solid;/* 减小页脚边框大小 */
-        }
-
-        footer::after {
-            bottom: -5px;  /* 减小页脚边框偏移 */
-            right: -5px; /* 减小页脚边框偏移 */
-            border-bottom: 10px solid; /* 减小页脚边框大小 */
-            border-right: 10px solid;  /* 减小页脚边框大小 */
-        }
-
-
-        /* CSS 箭头样式 */
-        .status::before {
-            content: '';
-            display: inline-block;
-            width: 0;
-            height: 0;
-            border-left: 6px solid transparent;
-            border-right: 6px solid transparent;
-            border-bottom: 8px solid #777; /* 默认箭头颜色 */
-            margin-right: 5px;
-            vertical-align: middle; /* 与文字垂直居中 */
-            opacity: 0.7; /* 箭头透明度 */
-        }
-
-        .status.ongoing::before {
-            border-bottom-color: #00a000; /* 进行中绿色箭头 */
-        }
-
-        .status.next::before {
-            border-bottom-color: #007bff; /* 下一节蓝色箭头 */
-            border-top: 8px solid #007bff; /* 更改为向上箭头 */
-            border-bottom: none;
-        }
-
-        .status.nocourse::before {
-            border-bottom-color: #dc3545; /* 无课程红色箭头 */
-            border-left: 6px solid transparent;
-            border-right: 6px solid transparent;
-            border-top: 8px solid #dc3545; /* 更改为向上箭头 */
-            border-bottom: none;
-        }
-    </style>
-</head>
-<body>
-    <div id="container">
-        <header>
-            <h1>群友在上什么课？</h1>
-        </header>
-
-        <main id="course-container">
-            ${mergedCourseList.map(course => {
+    <!DOCTYPE html>
+    <html lang="zh">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>群友课表</title>
+        <style>
+            /* 嵌入式 CSS 样式 */
+            body {
+                font-family: '方正像素12', sans-serif; /* 优先使用自定义字体，如果加载失败则使用 sans-serif */
+                background-color: ${config.backgroundcolor};
+                color: #333;
+                margin: 0;
+                padding: 0; /* 移除body的padding */
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+            }
+    
+            @font-face {
+                font-family: '方正像素12';
+                src: url('data:font/ttf;base64,${cachedFontBase64}') format('truetype');
+            }
+    
+            #container {
+                width: 95%; /* 扩展宽度 */
+                max-width: 600px; /* 限制最大宽度 */
+                background-color: ${config.backgroundcolor}; /* 背景颜色 */
+                border: 2px solid #ddd;
+                border-radius: 8px;
+                overflow: hidden;
+                padding: 20px; /* 内部间距 */
+                box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); /* 阴影效果 */
+            }
+    
+    
+            h1 {
+                font-family: '方正像素12', sans-serif; /* 优先使用自定义字体 */
+                font-size: 2.5em;
+                text-align: center;
+                margin-bottom: 30px;
+                position: relative;
+            }
+           h1::before, h1::after {
+                content: '';
+                position: absolute;
+                border-color: #ddd;
+            }
+    
+            h1::before {
+                top: -10px;
+                left: -10px;
+                border-top: 20px solid;
+                border-left: 20px solid;
+            }
+    
+            h1::after {
+                bottom: -10px;
+                right: -10px;
+                border-bottom: 20px solid;
+                border-right: 20px solid;
+            }
+    
+            #course-container {
+                width: 100%; /* 扩展宽度 */
+                border-radius: 8px;    /* 圆角边框 */
+                overflow: hidden;     /* 隐藏溢出内容 */
+            }
+    
+            .course-item {
+                background-color: ${config.backgroundcolor};
+                border-bottom: 1px solid #ddd; /* 使用边框作为分隔线 */
+                padding: 15px;
+                display: flex; /* Flex 布局 */
+                align-items: stretch; /* 垂直方向拉伸 */
+            }
+             .course-item:last-child {
+                border-bottom: none; /* 移除最后一个元素的下边框 */
+            }
+    
+    
+            .avatar-info {
+                display: flex;
+                flex-direction: column; /* 垂直排列头像和昵称 */
+                align-items: center; /* 水平居中头像和昵称 */
+                width: 70px; /* 固定头像昵称列宽度 */
+                margin-right: 15px; /* 与课程信息列间隔 */
+            }
+    
+            .avatar {
+                width: 50px; /* 稍大的头像 */
+                height: 50px;
+                border-radius: 50%;
+                margin-bottom: 5px; /* 昵称间距 */
+                object-fit: cover;
+            }
+    
+            .nickname {
+                font-weight: bold;
+                text-align: center; /* 确保昵称居中 */
+                word-break: normal; /* 不换行 */
+                white-space: nowrap; /* 不换行 */
+                overflow: hidden;
+                text-overflow: ellipsis;
+                font-size: 0.9em; /* 稍小字体 */
+            }
+    
+    
+            .course-separator {
+                width: 1px;
+                background-color: #ddd;
+                margin: 0 15px; /* 分隔线左右间距 */
+                align-self: stretch; /* 分隔线高度拉伸 */
+            }
+    
+            .course-details {
+                flex-grow: 1; /* 课程详情占据剩余空间 */
+                display: flex;
+                flex-direction: column; /* 内部垂直排列 */
+            }
+    
+    
+            .status-and-course {
+                display: flex;
+                align-items: baseline; /* 状态和课程名基线对齐 */
+                margin-bottom: 5px;
+            }
+    
+            .status {
+                font-size: 1.0em; /* 放大状态文字 */
+                color: #777;
+                margin-right: 10px; /* 状态和课程名间距 */
+            }
+    
+           .status.ongoing {
+                color: #00a000; /* 进行中绿色 */
+            }
+    
+            .status.next {
+                color: #007bff; /* 下一节蓝色 */
+            }
+    
+            .status.nocourse {
+                color: #dc3545; /* 无课程红色 */
+            }
+    
+            .course-name {
+                font-size: 1.2em; /* 稍大课程名 */
+                margin: 0;
+            }
+            .course-name-placeholder{
+                 font-size: 1.2em;
+                 visibility: hidden;
+                 margin: 0;
+            }
+    
+            .time-remaining {
+                font-size: 0.9em;
+                color: #555;
+                margin: 0;
+            }
+    
+    
+            .no-course-details {
+                flex-grow: 1; /* 无课程信息占据剩余空间 */
+                display: flex;
+                flex-direction: column;
+                justify-content: center; /* 垂直居中 */
+            }
+    
+            .no-course-details .status.nocourse {
+                font-size: 1em;
+                margin-bottom: 5px;
+                text-align: left; /* 状态左对齐 */
+            }
+    
+            .no-course-text {
+                font-size: 0.9em;
+                color: #777;
+                text-align: left; /* 文字左对齐 */
+            }
+    
+    
+           footer {
+                margin-top: 30px; /* 减小页脚边距 */
+                padding: 5px;    /* 减小页脚内边距 */
+                text-align: center;
+                color: #777;
+                font-size: 0.8em; /* 减小页脚字体大小 */
+                position: relative;
+            }
+    
+            footer::before, footer::after {
+                content: '';
+                position: absolute;
+                border-color: #ddd;
+            }
+    
+            footer::before {
+                top: -5px;  /* 减小页脚边框偏移 */
+                left: -5px; /* 减小页脚边框偏移 */
+                border-top: 10px solid; /* 减小页脚边框大小 */
+                border-left: 10px solid;/* 减小页脚边框大小 */
+            }
+    
+            footer::after {
+                bottom: -5px;  /* 减小页脚边框偏移 */
+                right: -5px; /* 减小页脚边框偏移 */
+                border-bottom: 10px solid; /* 减小页脚边框大小 */
+                border-right: 10px solid;  /* 减小页脚边框大小 */
+            }
+    
+    
+            /* CSS 箭头样式 */
+            .status::before {
+                content: '';
+                display: inline-block;
+                width: 0;
+                height: 0;
+                border-left: 6px solid transparent;
+                border-right: 6px solid transparent;
+                border-bottom: 8px solid #777; /* 默认箭头颜色 */
+                margin-right: 5px;
+                vertical-align: middle; /* 与文字垂直居中 */
+                opacity: 0.7; /* 箭头透明度 */
+            }
+    
+            .status.ongoing::before {
+                border-bottom-color: #00a000; /* 进行中绿色箭头 */
+            }
+    
+            .status.next::before {
+                border-bottom-color: #007bff; /* 下一节蓝色箭头 */
+                border-top: 8px solid #007bff; /* 更改为向上箭头 */
+                border-bottom: none;
+            }
+    
+            .status.nocourse::before {
+                border-bottom-color: #dc3545; /* 无课程红色箭头 */
+                border-left: 6px solid transparent;
+                border-right: 6px solid transparent;
+                border-top: 8px solid #dc3545; /* 更改为向上箭头 */
+                border-bottom: none;
+            }
+        </style>
+    </head>
+    <body>
+        <div id="container">
+            <header>
+                <h1>群友在上什么课？</h1>
+            </header>
+    
+            <main id="course-container">
+                ${mergedCourseList.map(course => {
                 let status = "nocourse";
                 let statusText = "[无课程]";
                 // 计算结束时间
-                const [endHour, endMinute] = course.endTime.split(':').map(Number);
-                const endTimestamp = course.timestamp + (endHour * 60 + endMinute) - (parseInt(course.time.split(':')[0]) * 60 + parseInt(course.time.split(':')[1]));
+                // Add this check for course.endTime and course.time
+                const hasEndTime = course.endTime !== undefined && course.time !== undefined;
+                let endTimestamp;
+
+                if (hasEndTime) {
+                    const [endHour, endMinute] = course.endTime.split(':').map(Number);
+                    endTimestamp = course.timestamp + (endHour * 60 + endMinute) - (parseInt(course.time.split(':')[0]) * 60 + parseInt(course.time.split(':')[1]));
+                }
 
 
                 let timeRemainingText = '';
-                if (course.timestamp <= currentTimestamp && currentTimestamp <= endTimestamp) {
+                if (hasEndTime && course.timestamp <= currentTimestamp && currentTimestamp <= endTimestamp) {
                     status = "ongoing";
                     statusText = "[进行中]";
 
@@ -973,7 +1025,7 @@ async function apply(ctx, config) {
 
                     timeRemainingText = `距离下课还有 ${remainingHours > 0 ? remainingHours + '小时' : ''}${remainingMins}分钟`;
 
-                } else if (course.timestamp > currentTimestamp) {
+                } else if (hasEndTime && course.timestamp > currentTimestamp) {
                     status = "next";
                     statusText = "[下一节]";
 
@@ -983,38 +1035,38 @@ async function apply(ctx, config) {
                     const timeToStartMins = timeDiffMinutes % 60;
                     course.timeToStartText = `距离上课还有 ${timeToStartHours > 0 ? timeToStartHours + '小时' : ''}${timeToStartMins}分钟`;
 
-                    mergedCourseList.push(course);
+                    //mergedCourseList.push(course); // 已经在外层循环处理
                 }
 
 
                 return `
-                <li class="course-item">
-                    <div class="avatar-info">
-                        <img src="${course.useravatar}" alt="${course.username}" class="avatar">
-                        <div class="nickname">${course.username}</div>
-                    </div>
-                    <div class="course-separator"></div>
-                    <div class="course-details">
-                        <div class="status-and-course">
-                            <div class="status ${status}">${statusText}</div>
-                            ${status === 'nocourse' ? `<p class="no-course-text">${course.noCourseDetails}</p>` : `<h3 class="course-name">${course.courseName} (${course.day} ${course.time} - ${course.endTime})</h3>`}
+                    <li class="course-item">
+                        <div class="avatar-info">
+                            <img src="${course.useravatar}" alt="${course.username}" class="avatar">
+                            <div class="nickname">${course.username}</div>
                         </div>
-                        ${timeRemainingText ? `<p class="time-remaining">${timeRemainingText}</p>` : ''}
-${status === 'next' && course.timeToStartText ? `<p class="time-remaining">${course.timeToStartText}</p>` : ''}
-                    </div>
-                </li>
-                `;
+                        <div class="course-separator"></div>
+                        <div class="course-details">
+                            <div class="status-and-course">
+                                <div class="status ${status}">${statusText}</div>
+                                ${status === 'nocourse' ? `<p class="no-course-text">${course.noCourseDetails}</p>` : `<h3 class="course-name">${course.courseName} (${course.day} ${course.time} - ${course.endTime})</h3>`}
+                            </div>
+                            ${timeRemainingText ? `<p class="time-remaining">${timeRemainingText}</p>` : ''}
+    ${status === 'next' && course.timeToStartText ? `<p class="time-remaining">${course.timeToStartText}</p>` : ''}
+                        </div>
+                    </li>
+                    `;
             }).join('')}
-        </main>
-
-        <footer>
-            <p>更新/渲染时间：${now.toLocaleString()}</p>
-            <p>${config.footertext}</p>
-        </footer>
-    </div>
-</body>
-</html>
-`;
+            </main>
+    
+            <footer>
+                <p>更新/渲染时间：${now.toLocaleString()}</p>
+                <p>${config.footertext}</p>
+            </footer>
+        </div>
+    </body>
+    </html>
+    `;
 
             await page.setContent(htmlTemplate, { waitUntil: 'networkidle0' });
 
@@ -1039,6 +1091,7 @@ ${status === 'next' && course.timeToStartText ? `<p class="time-remaining">${cou
             return null; // 渲染失败
         }
     }
+
     // 读取 TTF 字体文件并转换为 Base64 编码
     function getFontBase64(fontPath) {
         const fontBuffer = fs.readFileSync(fontPath);
