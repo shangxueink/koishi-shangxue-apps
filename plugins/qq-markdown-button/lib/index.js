@@ -121,10 +121,16 @@ function apply(ctx, config) {
             ctx.on("interaction/button", async session => {
                 const buttoncontent = session?.event?.button['data'];
                 if (buttoncontent) {
-                    logInfo(`接收到回调按钮内容：---------------------------------------------------------------------------------------------------------------\n${buttoncontent}`)
-                    logInfo(session?.event)
-                    logInfo("----------------------------------------------------------------------------------------------------------------")
-                    await session.execute(`${buttoncontent}`)
+                    logInfo(`接收到回调按钮内容：\n${buttoncontent}`)
+                    try {
+                        session.qq.acknowledgeInteraction(session.event._data.id, { code: 0 }).catch(error => {     // 非阻塞执行 
+                            ctx.logger.error(`执行 acknowledgeInteraction 时出错 (后台任务):`, error);
+                            // 只记录错误
+                        });
+                        await session.execute(`${buttoncontent}`)
+                    } catch (error) {
+                        ctx.logger.error(`执行 acknowledgeInteraction 时出错:`, error);
+                    }
                     return
                 }
             })
@@ -132,7 +138,6 @@ function apply(ctx, config) {
 
         ctx.command(`${config.command_name}`, '发送按钮菜单')
             .action(async ({ session }) => {
-                logInfo(session.platform)
                 if (!(session.platform === "qq" || session.platform === "qqguild")) {
                     await session.send(`仅支持QQ官方平台使用本指令。`)
                     return;
@@ -156,32 +161,26 @@ function apply(ctx, config) {
 
                     Menu_message = await processMarkdownCommand(jsonFilePath, mdFilePath, session, config, { INTERACTION_CREATE: INTERACTION_CREATE });
 
-                    logInfo("完整的 Menu_message 内容为：");
-                    logInfo(Menu_message);
+                    logInfo("完整的 Menu_message 内容为：", Menu_message);
                     if (!config.broadcast) {
                         await sendsomeMessage(Menu_message, session);
                     } else {
                         await sendbroadcastMessage(Menu_message, session);
-                    }
-                    if (INTERACTION_CREATE && config.Allow_INTERACTION_CREATE) {
-                        logInfo(`正在执行 acknowledgeInteraction： ${INTERACTION_CREATE} `);
-                        try {
-                            await session.qq.acknowledgeInteraction(INTERACTION_CREATE);
-                        } catch (error) {
-                            ctx.logger.error(`执行 acknowledgeInteraction 时出错:`, error);
-                        }
                     }
                 } catch (error) {
                     ctx.logger.error(`处理命令时出错: ${error}`);
                 }
             });
 
-        function logInfo(message) {
+        function logInfo(message, message2) {
             if (config.consoleinfo) {
-                ctx.logger.info(message);
+                if (message2) {
+                    ctx.logger.info(message, message2)
+                } else {
+                    ctx.logger.info(message);
+                }
             }
         }
-
         async function sendbroadcastMessage(message, session) {
             try {
                 // 获取所有 QQ 平台的群组列表
