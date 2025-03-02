@@ -13,7 +13,11 @@
     "koishi",
     "插件市场镜像",
     "plugin"
-  ],
+  ],  
+  "homepage": "https://github.com/shangxueink/koishi-shangxue-apps/tree/main/plugins/storeluna",
+  "bugs": {
+    "url": "https://github.com/shangxueink/koishi-shangxue-apps/issues"
+  },
   "service": {
     "required": [
       "server"
