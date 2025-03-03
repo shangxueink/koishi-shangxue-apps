@@ -67,7 +67,7 @@
 5.  **以开发模式启动** 🚧
 
     ```shell
-    yarn
+    yarn install
     ```
     
     ```shell
