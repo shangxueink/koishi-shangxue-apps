@@ -92,6 +92,7 @@ exports.Config = Schema.intersect([
       .description('表情包指令映射表<br>▶ 若丢失了旧版本`MoreEmojiHub`配置 请先回退到 1.3.0 版本<br>▶ 若出现配置问题 请点击右方按钮 可以恢复到默认值<br>右列`文件地址`可以填入`txt绝对路径`、`文件夹绝对路径`、`图片直链`、`图片文件绝对路径`。支持格式 详见[➩项目README](https://github.com/shangxueink/koishi-shangxue-apps/tree/main/plugins/emojihub-bili)'),
 
     deleteMsg: Schema.boolean().description("`开启后`自动撤回表情").default(false),
+    maxexecutetime: Schema.number().description('`-n 选项`指定 允许单次返回的 表情包最大数<br>例如默认10 ：`ba表情包 -n 30`，可以返回10张').default(10),
   }).description('表情包设置'),
 
   Schema.union([
@@ -110,7 +111,7 @@ exports.Config = Schema.intersect([
 
     searchSubfolders: Schema.boolean().description("本地发图，输入提供文件名称参数时，是否递归搜索文件夹。<br>`开启后 对于本地文件夹地址 会搜索其子文件夹内全部的图片`").default(true),
     localPictureToName: Schema.string().role('textarea', { rows: [4, 4] })
-      .description("对于本地图片/文件，是否输出文件名<br>仅图片：`${IMAGE}`<br>图+文件名：`${IMAGE}\\n${NAME}`<br>文件名+图：`${NAME}\\n${IMAGE}`<br>文本+变量：`今天你的幸运神：${NAME}\\n${IMAGE}`<br>`\\n`就是换行，可以写字也可以直接回车。<br>可用替换变量有：IMAGE、 NAME、 SIZE、 TIME、 PATH<br>仅对指令发送本地图片有效。<br>更多说明，详见[➩项目README](https://github.com/shangxueink/koishi-shangxue-apps/tree/main/plugins/emojihub-bili)")
+      .description("对于本地图片/文件，是否输出文件名<br>仅图片：`${IMAGE}`<br>图+文件名：`${IMAGE}\\n${NAME}`<br>文件名+图：`${NAME}\\n${IMAGE}`<br>文本+变量：`今天你的幸运神：${NAME}\\n${IMAGE}`<br>全部变量示例：`${IMAGE}\\n文件名称：${NAME}\\n文件大小：${SIZE}\\n修改日期：${TIME}\\n文件路径：${PATH}`<br>其中`\\n`就是换行，可以写字也可以直接回车。<br>可用替换变量有：IMAGE、 NAME、 SIZE、 TIME、 PATH<br>仅对指令发送本地图片有效。<br>更多说明，详见[➩项目README](https://github.com/shangxueink/koishi-shangxue-apps/tree/main/plugins/emojihub-bili)")
       .default("${IMAGE}"),
   }).description('进阶设置'),
 
@@ -740,20 +741,21 @@ function apply(ctx, config) {
     {
       commands: {
         [emojihub_bili_codecommand]: {
-          description: `${emojihub_bili_codecommand}表情包功能`,
+          description: `表情包功能`,
           messages: {
             "notfound_txt": "ERROR！找不到文件或文件为空！指令：{0}",
-            "List_of_emojis": "表情包列表：",
+            "List_of_emojis": "可用的表情包指令：{0}",
+            "notallowednum": "{0}次超出单次返回最大值\n请使用指令：{1} -n {2}",
           }
         },
         '再来一张': {
-          description: `再来一张表情包`,
+          description: `触发上次的表情包`,
           messages: {
             "nocommand": "没有找到上一个命令，请先执行一个命令！\n➣例如： 随机表情包",
           }
         },
         '随机表情包': {
-          description: `从全部表情包里随机抽一张`,
+          description: `从全部表情包里随机抽`,
           messages: {
             "noemoji": "没有任何表情包配置，请检查插件配置项！",
           }
@@ -769,12 +771,15 @@ function apply(ctx, config) {
     logInfo('记录到command为： ' + command + ' 区别ID： ' + differentiationID);
   }
 
-  function logInfo(message) {
+  function logInfo(message, message2) {
     if (config.consoleinfo) {
-      logger.info(message);
+      if (message2) {
+        logger.info(`${message} ${message2}`)
+      } else {
+        logger.info(message);
+      }
     }
   }
-
 
   function replacePlaceholders(content, context, isRawMode = false) {
     // 如果 content 是字符串，直接替换占位符
@@ -1028,7 +1033,30 @@ function apply(ctx, config) {
     }
   }
 
-
+  async function sendMultipleEmojis(session, command, num) {
+    const maxAllowed = config.maxexecutetime || 10; // 使用配置中的最大数量，默认为10
+    if (num > maxAllowed) {
+      await session.send(h.text(session.text(`commands.${emojihub_bili_codecommand}.messages.notallowednum`, [num, command, maxAllowed])));
+      return; // 不继续执行
+    }
+    const numToSend = Math.min(num || 1, maxAllowed); // 确定要发送的数量，不超过最大值
+    for (let i = 0; i < numToSend; i++) {
+      // 如果是“再来一张”指令，则需要特殊处理
+      if (command === "再来一张") {
+        const identifier = config.repeatCommandDifferentiation === 'userId' ? session.userId : session.channelId;
+        const lastCommand = lastCommandByChannel[identifier];
+        if (lastCommand) {
+          await session.execute(lastCommand);
+        } else {
+          await session.send(session.text(".nocommand"));
+          return; // 如果没有上一个命令，则直接返回，不再继续循环
+        }
+      } else {
+        // 对于其他指令，直接执行
+        await session.execute(command);
+      }
+    }
+  }
 
   ctx.command(config.emojihub_bili_command)
     .action(async ({ session }) => {
@@ -1040,20 +1068,26 @@ function apply(ctx, config) {
         await sendmarkdownMessage(session, markdownMessage);
       } else {
         const commandText = txtCommandList.join('\n');
-        await session.send(h.text(session.text(`commands.${emojihub_bili_codecommand}.messages.List_of_emojis`) + `\n` + commandText));
+        await session.send(h.text(session.text(`commands.${emojihub_bili_codecommand}.messages.List_of_emojis`, [`\n${commandText}`])));
       }
     });
 
   ctx.on('ready', () => {
     config.MoreEmojiHubList.forEach(({ command, source_url }) => {
       ctx.command(`${config.emojihub_bili_command}/${command} <local_picture_name:text>`)
-        .action(async ({ session }, local_picture_name) => {
+        .option('num', '-n <num:number> 指定返回数量')
+        .action(async ({ session, options }, local_picture_name) => {
+          if (options?.num) {
+            await sendMultipleEmojis(session, `${command} ${local_picture_name || ''}`.trim(), options.num);
+            return;
+          }
           const imageResult = await determineImagePath(source_url, config, session.channelId, command, ctx, local_picture_name);
 
           if (!imageResult.imageUrl) {
             await session.send(h.text(session.text(`commands.${emojihub_bili_codecommand}.messages.notfound_txt`, [command])));
             return;
           }
+
           // 根据 config.repeatCommandDifferentiation 的值选择合适的 ID
           const identifier = config.repeatCommandDifferentiation === 'userId' ? session.userId : session.channelId;
           updateLastCommand(identifier, command);
@@ -1177,10 +1211,15 @@ function apply(ctx, config) {
 
 
   ctx.command(`${config.emojihub_bili_command}/再来一张`)
-    .action(async ({ session }) => {
+    .option('num', '-n <num:number> 指定返回数量')
+    .action(async ({ session, options }) => {
       // 根据 config.repeatCommandDifferentiation 的值选择合适的 ID
       const identifier = config.repeatCommandDifferentiation === 'userId' ? session.userId : session.channelId;
       const lastCommand = lastCommandByChannel[identifier];
+      if (options?.num) {
+        await sendMultipleEmojis(session, "再来一张", options.num);
+        return;
+      }
       logInfo('尝试在区分ID ' + identifier + ' 中执行最后一个命令： ' + lastCommand);
       if (lastCommand) {
         await session.execute(`${lastCommand}`);
@@ -1190,7 +1229,12 @@ function apply(ctx, config) {
     });
 
   ctx.command(`${config.emojihub_bili_command}/随机表情包`)
-    .action(async ({ session }) => {
+    .option('num', '-n <num:number> 指定返回数量')
+    .action(async ({ session, options }) => {
+      if (options?.num) {
+        await sendMultipleEmojis(session, `随机表情包`, options.num);
+        return;
+      }
       const randomEmojiHubCommand = getRandomEmojiHubCommand(config);
       if (randomEmojiHubCommand) {
         await session.execute(randomEmojiHubCommand);
