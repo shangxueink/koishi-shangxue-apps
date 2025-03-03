@@ -20,64 +20,47 @@ exports.usage = `
 `;
 
 exports.Config = Schema.intersect([
+
   Schema.object({
-    type: Schema.union([
-      Schema.const('URL').description('从上游镜像获取（挂载模式）'),
-      Schema.const('NPM').description('从npm平台爬取生成（爬取生成模式）').experimental(),
-    ]).default("URL").description('工作模式'),
-  }).description("工作模式设置"),
+    upstream: Schema.string().default("https://registry.koishi.chat/index.json").role('link').description("上游数据源地址，支持：<br>• HTTP URL （插件市场镜像）<br>• 本地文件路径 (file:// 协议)（插件市场镜像的JSON文件）"),
+    path: Schema.string().default("/storeluna/index.json").description("监听路径，默认：http://localhost:5140/storeluna/index.json<br>可以填入`market`插件以实现使用此镜像"),
+    syncInterval: Schema.number().default(60).min(10).description("数据 同步/请求 间隔（秒）<br>从`upstream`定时获取。若`upstream`为本地地址 则定时从npm爬取"),
+    reportInterval: Schema.number().default(600).min(60).description("统计数据——日志报告间隔（秒）"),
+    reportTemplate: Schema.string().role('textarea', { rows: [2, 4] }).default("访问量: {visits} 📈 | 同步次数: {syncs} 🔄 | 成功次数: {success} ✅ | 过滤插件: {filtered} 🛠️").description("统计日志报告——模板<br>效果：定时在日志打印"),
+    filterUnsafe: Schema.boolean().default(false).description("过滤不安全插件（过滤 insecure 标记的插件）"),
+    enableFilter: Schema.boolean().default(false).description("启用规则过滤功能"),
+  }).description("挂载设置"),
   Schema.union([
-    Schema.intersect([
-      Schema.object({
-        type: Schema.const('NPM').required(),
-        searchaddress: Schema.union([
-          Schema.const('https://registry.npmjs.org/').description('官方 NPM 镜像 (registry.npmjs.org)'),
-          Schema.const('https://registry.npmmirror.com/').description('淘宝 NPM 镜像 (registry.npmmirror.com)'),
-        ]).default('https://registry.npmmirror.com/').description("使用的 NPM 平台地址").role('radio'),
-        bundlePath: Schema.string().default('./bundle.json').description("分类文件（bundle.json）的相对路径。相对于本插件的index.js目录<br>存本地是为了解决网络问题，原地址：https://koishi-registry.github.io/categories/bundle.json"),
-        responsetimeout: Schema.number().default(25).min(10).description("请求数据的超时时间（秒）"),
-        retryDelay: Schema.number().default(1).min(0.1).description("请求失败时的重试间隔（秒）"),
-        maxRetries: Schema.number().default(3).min(1).description("最大重试次数"),
-      }).description("基础设置"),
-
-      Schema.object({
-        cacheJSONpath: Schema.string().default("./data/storeluna/index.json").description("从npm平台搜索整合的数据 缓存文件 保存地址。<br>相对路径，相对于koishi根目录"),
-        packagelinks: Schema.boolean().default(false).description("包地址是否根据`searchaddress`自动修改。<br>开启后，如果你使用`registry.npmmirror.com`则会生成的是`https://npmmirror.com/package/***`"),
-      }).description("JSON输出设置"),
-
-    ]),
-    Schema.intersect([
-      Schema.object({
-        type: Schema.const('URL'),
-        upstream: Schema.string().default("https://registry.koishi.chat/index.json").role('link').description("上游数据源地址，支持：<br>• HTTP URL （插件市场镜像）<br>• 本地文件路径 (file:// 协议)（插件市场镜像的JSON文件）"),
-
-        path: Schema.string().default("/storeluna/index.json").description("监听路径，默认：http://localhost:5140/storeluna/index.json<br>可以填入`market`插件以实现使用此镜像"),
-        syncInterval: Schema.number().default(60).min(10).description("数据 同步/请求 间隔（秒）<br>仅在工作模式为`从上游镜像获取`时生效"),
-        reportInterval: Schema.number().default(600).min(60).description("统计数据——日志报告间隔（秒）"),
-        reportTemplate: Schema.string().role('textarea', { rows: [2, 4] }).default("访问量: {visits} 📈 | 同步次数: {syncs} 🔄 | 成功次数: {success} ✅ | 过滤插件: {filtered} 🛠️").description("统计日志报告——模板<br>效果：定时在日志打印"),
-        filterUnsafe: Schema.boolean().default(false).description("过滤不安全插件（过滤 insecure 标记的插件）"),
-      }).description("基础设置"),
-
-      Schema.object({
-        enableFilter: Schema.boolean().default(false).description("启用规则过滤功能"),
-      }).description("过滤规则"),
-      Schema.union([
-        Schema.object({
-          enableFilter: Schema.const(false),
-        }),
-        Schema.object({
-          enableFilter: Schema.const(true),
-          blacklist: Schema.array(String).role('table').description("屏蔽插件关键词（支持正则）"),
-          whitelist: Schema.array(String).role('table').description("白名单关键词（优先级高于黑名单）"),
-        }),
-      ]),
-
-    ]),
+    Schema.object({
+      enableFilter: Schema.const(false),
+    }),
+    Schema.object({
+      enableFilter: Schema.const(true),
+      blacklist: Schema.array(String).role('table').description("屏蔽插件关键词（支持正则）"),
+      whitelist: Schema.array(String).role('table').description("白名单关键词（优先级高于黑名单）"),
+    }),
   ]),
 
   Schema.object({
+    searchaddress: Schema.union([
+      Schema.const('https://registry.npmjs.org/').description('官方 NPM 镜像 (registry.npmjs.org)'),
+      Schema.const('https://registry.npmmirror.com/').description('淘宝 NPM 镜像 (registry.npmmirror.com)'),
+    ]).default('https://registry.npmmirror.com/').description("使用的 NPM 平台地址").role('radio'),
+    bundlePath: Schema.string().default('./bundle.json').description("分类文件（bundle.json）的相对路径。相对于本插件的index.js目录<br>存本地是为了解决网络问题，原地址：https://koishi-registry.github.io/categories/bundle.json"),
+    responsetimeout: Schema.number().default(25).min(10).description("请求数据的超时时间（秒）"),
+    retryDelay: Schema.number().default(1).min(0.1).description("请求失败时的重试间隔（秒）"),
+    maxRetries: Schema.number().default(3).min(1).description("最大重试次数"),
+  }).description("爬取设置"),
+
+  Schema.object({
+    cacheJSONpath: Schema.string().default("./data/storeluna/index.json").description("从npm平台搜索整合的数据 缓存文件 保存地址。<br>相对路径，相对于koishi根目录"),
+    packagelinks: Schema.boolean().default(false).description("包地址是否根据`searchaddress`自动修改。<br>开启后，如果你使用`registry.npmmirror.com`则会生成的是`https://npmmirror.com/package/***`"),
+  }).description("JSON输出设置"),
+
+  Schema.object({
     consoleinfo: Schema.boolean().default(false).description("日志调试模式"),
-  }).description("调试设置"),
+  }).description("开发者设置"),
+  
 ]);
 
 
@@ -743,10 +726,17 @@ async function apply(ctx, config) {
     });
     ctx.logger.info(`路由已注册：${config.path}`);
 
-    // 定时同步 (仅在 URL 模式下，且 upstream 是网络 URL)
-    if (config.upstream && !config.upstream.startsWith('file://')) {
-      ctx.setInterval(syncDataFromUpstream, config.syncInterval * 1000);
-    }
+    // 定时同步 (仅在 URL 模式下)
+    ctx.setInterval(() => {
+      if (config.upstream && (config.upstream.startsWith('file://') || path.isAbsolute(config.upstream))) {
+        // 如果 upstream 是本地文件，从 NPM 更新
+        updateDataFromNPM();
+      } else {
+        // 否则，从 upstream 同步
+        syncDataFromUpstream();
+      }
+    }, config.syncInterval * 1000);
+
   }
 
 
@@ -761,6 +751,7 @@ async function apply(ctx, config) {
       ctx.logger.info(report);
     }, config.reportInterval * 1000);
   }
+
 
 }
 
