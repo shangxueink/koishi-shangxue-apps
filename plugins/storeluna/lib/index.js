@@ -17,15 +17,29 @@ exports.usage = `
 <h2>StoreLuna 插件市场镜像</h2>
 <p>提供基于规则过滤的插件市场镜像服务，支持本地/远程数据源</p>
 <p>提供生成插件市场镜像文件的工作模式，用于本地文件挂载，让你的market再也不 *无法连接到插件市场*</p>
+
+## 算法参考
+
+爬取模式的算法参考： [Hoshino-Yumetsuki/koishi-registry](https://github.com/Hoshino-Yumetsuki/koishi-registry)。
+
+---
+
+<li><a href="https://github.com/shangxueink/koishi-shangxue-apps/tree/main/plugins/storeluna" target="_blank">点我查看完整 README</a></li>
 `;
 
 exports.Config = Schema.intersect([
+  Schema.object({
+    type: Schema.union([
+      Schema.const('URL').description('挂载模式（从镜像 定时获取）'),
+      Schema.const('NPM').description('本地镜像初始化（爬取生成JSON）').experimental(),
+    ]).default("URL").description('工作模式'),
+  }).description("工作模式设置"),
 
   Schema.object({
-    upstream: Schema.string().default("https://registry.koishi.chat/index.json").role('link').description("上游数据源地址，支持：<br>• HTTP URL （插件市场镜像）<br>• 本地文件路径 (file:// 协议)（插件市场镜像的JSON文件）"),
-    path: Schema.string().default("/storeluna/index.json").description("监听路径，默认：http://localhost:5140/storeluna/index.json<br>可以填入`market`插件以实现使用此镜像"),
-    syncInterval: Schema.number().default(60).min(10).description("数据 同步/请求 间隔（秒）<br>从`upstream`定时获取。若`upstream`为本地地址 则定时从npm爬取"),
-    reportInterval: Schema.number().default(600).min(60).description("统计数据——日志报告间隔（秒）"),
+    upstream: Schema.string().default("https://registry.koishi.chat/index.json").role('link').description("上游数据源地址，支持：<br>• HTTP URL （插件市场镜像）<br>• 本地文件路径 （插件市场镜像的JSON文件）"),
+    path: Schema.string().default("/storeluna/index.json").description("监听路径，默认：http://localhost:5140/storeluna/index.json<br>可以填入`market`插件 以实现使用此镜像"),
+    syncInterval: Schema.number().default(3600).min(0).description("数据 同步/请求 间隔（秒）`0 代表不更新`<br>从`upstream`定时获取。若`upstream`为本地地址 则定时从npm爬取"),
+    reportInterval: Schema.number().default(0).min(0).description("统计数据——日志报告间隔（秒）`0 代表不报告`"),
     reportTemplate: Schema.string().role('textarea', { rows: [2, 4] }).default("访问量: {visits} 📈 | 同步次数: {syncs} 🔄 | 成功次数: {success} ✅ | 过滤插件: {filtered} 🛠️").description("统计日志报告——模板<br>效果：定时在日志打印"),
     filterUnsafe: Schema.boolean().default(false).description("过滤不安全插件（过滤 insecure 标记的插件）"),
     enableFilter: Schema.boolean().default(false).description("启用规则过滤功能"),
@@ -46,7 +60,7 @@ exports.Config = Schema.intersect([
       Schema.const('https://registry.npmjs.org/').description('官方 NPM 镜像 (registry.npmjs.org)'),
       Schema.const('https://registry.npmmirror.com/').description('淘宝 NPM 镜像 (registry.npmmirror.com)'),
     ]).default('https://registry.npmmirror.com/').description("使用的 NPM 平台地址").role('radio'),
-    bundlePath: Schema.string().default('./bundle.json').description("分类文件（bundle.json）的相对路径。相对于本插件的index.js目录<br>存本地是为了解决网络问题，原地址：https://koishi-registry.github.io/categories/bundle.json"),
+    bundlePath: Schema.string().default('./bundle.json').description("分类文件（bundle.json）的相对路径。相对于本插件的`index.js`目录<br>存本地是为了解决网络问题，原地址：https://koishi-registry.github.io/categories/bundle.json"),
     responsetimeout: Schema.number().default(25).min(10).description("请求数据的超时时间（秒）"),
     retryDelay: Schema.number().default(1).min(0.1).description("请求失败时的重试间隔（秒）"),
     maxRetries: Schema.number().default(3).min(1).description("最大重试次数"),
@@ -60,7 +74,7 @@ exports.Config = Schema.intersect([
   Schema.object({
     consoleinfo: Schema.boolean().default(false).description("日志调试模式"),
   }).description("开发者设置"),
-  
+
 ]);
 
 
@@ -727,21 +741,22 @@ async function apply(ctx, config) {
     ctx.logger.info(`路由已注册：${config.path}`);
 
     // 定时同步 (仅在 URL 模式下)
-    ctx.setInterval(() => {
-      if (config.upstream && (config.upstream.startsWith('file://') || path.isAbsolute(config.upstream))) {
-        // 如果 upstream 是本地文件，从 NPM 更新
-        updateDataFromNPM();
-      } else {
-        // 否则，从 upstream 同步
-        syncDataFromUpstream();
-      }
-    }, config.syncInterval * 1000);
+    if (config.syncInterval > 0) {
+      ctx.setInterval(() => {
+        if (config.upstream && (config.upstream.startsWith('file://') || path.isAbsolute(config.upstream))) {
+          // 如果 upstream 是本地文件，从 NPM 更新
+          updateDataFromNPM();
+        } else {
+          // 否则，从 upstream 同步
+          syncDataFromUpstream();
+        }
+      }, config.syncInterval * 1000);
+    }
 
   }
 
-
   // 统计报告 (与之前相同, 但只在 URL 模式下)
-  if (config.type === 'URL') {
+  if (config.reportInterval > 0) {
     ctx.setInterval(() => {
       const report = config.reportTemplate
         .replace('{visits}', stats.visits)
