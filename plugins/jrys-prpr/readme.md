@@ -384,6 +384,11 @@ ${dJson.luckyStar}
 <details>
 <summary>点击此处————查看更新日志</summary>
 
+- **1.3.5**
+    - 增加时区设置，统一时区使用
+    - 增加重试机制，优化记录重试值
+    - 优化本地化
+
 - **1.3.4**
     - `https://github.com/shangxueink/koishi-shangxue-apps/issues/89`
     - 我草怎么三个版本了，我更新了什么？

@@ -225,6 +225,13 @@ exports.Config =
       currency: Schema.string().default('jrysprpr').description('monetary 数据库的 currency 字段名称'),
       maintenanceCostPerUnit: Schema.number().role('slider').min(0).max(1000).step(1).default(100).description("签到获得的货币数量"),
     }).description('monetary·通用货币设置'),
+
+    Schema.object({
+      timezone: Schema.number().min(-12).max(+12).step(1).default(+8).description("时区设置。默认`中国东八区：+8`"),
+      retryexecute: Schema.boolean().default(false).description(" `重试机制`。触发`渲染失败`时，是否自动重新执行"),
+      maxretrytimes: Schema.number().role('slider').min(0).max(10).step(1).default(1).description("最大的重试次数<br>`0`代表`不重试`"),
+    }).description('进阶功能'),
+
     Schema.object({
       Repeated_signin_for_different_groups: Schema.boolean().default(false).description("允许同一个用户从不同群组签到"),
       consoleinfo: Schema.boolean().default(false).description("日志调试模式`日常使用无需开启`"),
@@ -279,11 +286,17 @@ function apply(ctx, config) {
     }
   };
   ctx.i18n.define("zh-CN", zh_CN_default);
-  function logInfo(message) {
+
+  function logInfo(message, message2) {
     if (config.consoleinfo) {
-      ctx.logger.error(message);
+      if (message2) {
+        ctx.logger.info(`${message} ${message2}`)
+      } else {
+        ctx.logger.info(message);
+      }
     }
   }
+
   // 读取 TTF 字体文件并转换为 Base64 编码
   function getFontBase64(fontPath) {
     const fontBuffer = fs.readFileSync(fontPath);
@@ -304,6 +317,7 @@ function apply(ctx, config) {
       ctx.logger.error("删除记录时出错: ", error);
     }
   }
+
   if (config.GetOriginalImageCommand) {
     ctx.command(`${config.command2} <InputmessageId:text>`, { authority: 1 })
       .alias('获取原图')
@@ -342,15 +356,17 @@ function apply(ctx, config) {
         }
       });
   }
+
   // 在全局作用域中定义字体 Base64 缓存
   let cachedFontBase64 = null;
-
-  ctx.command(config.command, { authority: config.authority || 1 })
+  const retryCounts = {}; // 使用一个对象来存储每个用户的重试次数
+  ctx.command(config.command, { authority: 1 })
     .alias('prpr运势')
     .userFields(["id"])
     .option('split', '-s 以图文输出今日运势')
     .action(async ({ session, options }) => {
       let hasSignedInToday = await alreadySignedInToday(ctx, session.userId, session.channelId)
+      retryCounts[session.userId] = retryCounts[session.userId] || 0; // 初始化重试次数
       let Checkin_HintText_messageid
       let backgroundImage = getRandomBackground(config);
       let BackgroundURL = backgroundImage.replace(/\\/g, '/');
@@ -583,6 +599,7 @@ ${dJson.unsignText}
 </html>
 `;
           logInfo(`触发用户: ${session.event.user?.id}`);
+          logInfo(`使用的格式化时间: ${formattedDate}`);
           if (session.platform === 'qq') {
             logInfo(`QQ官方：bot: ${session.bot.config.id}`);
             logInfo(`QQ官方：用户头像: http://q.qlogo.cn/qqapp/${session.bot.config.id}/${session.event.user?.id}/640`);
@@ -640,8 +657,9 @@ ${dJson.unsignText}
         const sendImageMessage = async (imageBuffer) => {
           let sentMessage;
           //let markdownmessageId;
-          const messageTime = new Date().toISOString(); // 获取当前时间的ISO格式
+          const messageTime = new Date().toISOString(); // 获取当前时间的ISO格式 // 这里就不考虑时区了 只是标记ID而已 确保唯一即可
           const encodedMessageTime = encodeTimestamp(messageTime); // 对时间戳进行简单编码
+
           if ((config.markdown_button_mode === "markdown" || config.markdown_button_mode === "raw" || config.markdown_button_mode === "markdown_raw_json" || config.markdown_button_mode === "raw_jrys") && session.platform === 'qq') {
             const uploadedImageURL = await uploadImageToChannel(imageBuffer, session.bot.config.id, session.bot.config.secret, config.QQchannelId);
             const qqmarkdownmessage = await markdown(session, encodedMessageTime, uploadedImageURL.url);
@@ -749,12 +767,33 @@ ${dJson.unsignText}
       } catch (e) {
         const errorTime = new Date().toISOString(); // 获取错误发生时间的ISO格式
         ctx.logger.error(`状态渲染失败 [${errorTime}]: `, e); // 记录错误信息并包含时间戳
-        return "渲染失败" + e.message;
+
+        if (config.retryexecute && retryCounts[session.userId] < config.maxretrytimes) {
+          retryCounts[session.userId]++;
+          ctx.logger.warn(`用户 ${session.userId} 尝试第 ${retryCounts[session.userId]} 次重试...`);
+          try {
+            await session.execute(config.command); // 使用 session.execute 重试
+            delete retryCounts[session.userId]; // 执行成功，删除重试次数
+            return; // 阻止发送错误消息，因为我们正在重试
+          } catch (retryError) {
+            ctx.logger.error(`重试失败 [${errorTime}]: `, retryError);
+            // 重试失败，继续执行错误处理
+          }
+        }
+        // 如果达到最大重试次数或未启用重试，则发送错误消息
+        delete retryCounts[session.userId]; // 清理重试次数
+        return "渲染失败 " + e.message + '\n' + e.stack;
+
       } finally {
         if (page && !page.isClosed()) {
           page.close();
         }
+        // 仅在成功或达到最大重试后清理
+        if (!config.retryexecute || retryCounts[session.userId] >= config.maxretrytimes) {
+          delete retryCounts[session.userId];
+        }
       }
+
     });
 
   // 提取消息发送逻辑为函数
@@ -805,6 +844,7 @@ ${dJson.unsignText}
     };
     return { url: `https://gchat.qpic.cn/qmeetpic/0/0-0-${md5}/0` };
   }
+
   async function markdown(session, encodedMessageTime, imageUrl) {
     const markdownMessage = {
       msg_type: 2,
@@ -934,6 +974,7 @@ ${dJson.unsignText}
     logInfo(`Markdown 模板参数: ${JSON.stringify(markdownMessage, null, 2)}`);
     return markdownMessage;
   }
+
   function replacePlaceholders(content, context, isRawMode = false) {
     // 如果 content 是字符串，直接替换占位符
     if (typeof content === 'string') {
@@ -967,6 +1008,7 @@ ${dJson.unsignText}
     // 其他情况直接返回
     return content;
   }
+
   function convertToBase64IfLocal(url) {
     if (url.startsWith('file:///')) {
       try {
@@ -1137,11 +1179,12 @@ ${dJson.unsignText}
       throw error;
     }
   }
+
   async function getJrys(session) {
     const md5 = crypto.createHash('md5');
     const hash = crypto.createHash('sha256');
     // 获取当前时间
-    let now = new Date();
+    let now = convertToTimeZone(new Date(), config.timezone); // 使用时区转换函数
     let etime = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime(); // 使用当天的0点时间戳
     let userId;
     // 获取用户ID
@@ -1183,8 +1226,11 @@ ${dJson.unsignText}
       resolve(todayJrys[randomIndex]);
     });
   }
+
   async function getFormattedDate() {
-    const today = new Date();
+    // 获取当前时间
+    const today = convertToTimeZone(new Date(), config.timezone); // 使用时区转换函数
+    logInfo(`使用时区日期: ${today}`);
     let year = today.getFullYear();  // 获取年份
     let month = today.getMonth() + 1;  // 获取月份，月份是从0开始的，所以需要加1
     let day = today.getDate();  // 获取日
@@ -1194,6 +1240,7 @@ ${dJson.unsignText}
     let formattedDate = `${year}/${month}/${day}`;
     return formattedDate;
   }
+
   async function updateUserCurrency(uid, amount, currency = config.currency) {
     try {
       const numericUserId = Number(uid); // 将 userId 转换为数字类型
@@ -1214,6 +1261,7 @@ ${dJson.unsignText}
       return `更新用户 ${uid} 的货币时出现问题。`;
     }
   }
+
   async function getUserCurrency(uid, currency = config.currency) {
     try {
       const numericUserId = Number(uid);
@@ -1228,6 +1276,7 @@ ${dJson.unsignText}
       return 0; // Return 0 
     }
   }
+
   async function updateIDbyuserId(userId, platform) {
     // 查询数据库的 binding 表
     const [bindingRecord] = await ctx.database.get('binding', {
@@ -1243,9 +1292,10 @@ ${dJson.unsignText}
     // 返回 aid 字段作为对应的 id
     return bindingRecord.aid;
   }
+
   // 记录用户签到时间
   async function recordSignIn(ctx, userId, channelId) {
-    const currentTime = new Date();
+    const currentTime = convertToTimeZone(new Date(), config.timezone); // 使用时区转换函数
     const dateString = currentTime.toISOString().split('T')[0]; // 获取当前日期字符串
 
     const [record] = await ctx.database.get('jrysprprdata', { userid: userId, channelId });
@@ -1261,7 +1311,7 @@ ${dJson.unsignText}
 
   // 检查用户是否已签到
   async function alreadySignedInToday(ctx, userId, channelId) {
-    const currentTime = new Date();
+    const currentTime = convertToTimeZone(new Date(), config.timezone); // 使用时区转换函数
     const dateString = currentTime.toISOString().split('T')[0]; // 获取当前日期字符串
 
     if (!config.Repeated_signin_for_different_groups) {
@@ -1286,3 +1336,31 @@ ${dJson.unsignText}
 
 }
 exports.apply = apply;
+
+function timezoneOffsetToIANA(offset) {
+  const offsetString = offset >= 0 ? `Etc/GMT${offset * -1}` : `Etc/GMT+${offset * -1}`;
+  return offsetString;
+}
+
+function convertToTimeZone(date, timezoneOffset) {
+  // 将时区偏移量转换为 IANA 时区名称
+  const timezone = timezoneOffsetToIANA(timezoneOffset);
+
+  // 创建 Intl.DateTimeFormat 对象，指定时区
+  const formatter = new Intl.DateTimeFormat('zh-CN', { // 可以根据需要修改语言环境
+    timeZone: timezone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false, // 使用 24 小时制
+  });
+
+  // 格式化日期
+  const formatted = formatter.format(date);
+
+  // 将格式化后的字符串转换为 Date 对象
+  return new Date(formatted);
+}
