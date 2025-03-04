@@ -596,7 +596,7 @@ const Config = Schema.intersect([
         }).description('酷狗-星之阁API返回设置'),
 
         Schema.object({
-            serverSelect: Schema.const('command5'),
+            serverSelect: Schema.const('command5').required(),
             command5: Schema.string().default('歌曲搜索').description('`music.gdstudio.xyz`的指令名称'),
             command5_defaultPlatform: Schema.union([
                 Schema.const('网易云').description('网易云'),
@@ -635,7 +635,7 @@ const Config = Schema.intersect([
         }).description('`music.gdstudio.xyz`返回设置'),
 
         Schema.object({
-            serverSelect: Schema.const('command6').required(),
+            serverSelect: Schema.const('command6'),
             command6: Schema.string().default('网易点歌').description('`网易点歌`的指令名称<br>输入歌曲ID，返回歌曲'),
             command6_searchList: Schema.number().default(20).min(1).max(50).description('歌曲搜索的列表长度。返回的候选项个数。'),
             command6_usedAPI: Schema.union([
