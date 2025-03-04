@@ -38,7 +38,7 @@ const usage = `
 
 <h3>使用api.injahow.cn网站搜索网易云音乐</h3>
 <pre><code>网易点歌 [歌曲名称/歌曲ID]</code></pre>
-<p><b>(比较推荐)</b> api.injahow.cn 网站，API请求快速且稳定，无需 puppeteer 服务，推荐QQ官方机器人使用此后端，但是VIP歌曲只能听45秒。<b>仅支持网易云音乐</b>，可以通过歌曲名称或歌曲ID进行搜索。</p>
+<p><b>(比较推荐)</b> api.injahow.cn 网站，API请求快速且稳定，无需 puppeteer 服务，推荐QQ官方机器人使用此后端，使用这个后端VIP歌曲只能听45秒，但这个指令还有一个后端可以都听。很好用哦<b>仅支持网易云音乐</b>，可以通过歌曲名称或歌曲ID进行搜索。</p>
 <hr>
 
 <h3>使用dev.iw233.cn网站搜索网易云音乐</h3>
@@ -531,10 +531,10 @@ const Config = Schema.intersect([
             Schema.const('command1').description('command1：星之阁API                 （需加群申请APIkey）          （QQ + 网易云）'),
             Schema.const('command4').description('command4：星之阁-酷狗API             （需加群申请APIkey）          （酷狗）'),
             Schema.const('command5').description('command5：`music.gdstudio.xyz`  网站   （需puppeteer爬取 较慢，但访问性好）    （多平台）'),
-            Schema.const('command6').description('command6：`api.injahow.cn`网站       （API 请求快 + 稳定 推荐QQ官方机器人使用）      （非VIP网易云）'),
+            Schema.const('command6').description('command6：`api.injahow.cn`网站       （API 请求快 + 稳定 推荐QQ官方机器人使用）      （网易云）'),
             Schema.const('command7').description('command7：`dev.iw233.cn` 网站         （需puppeteer爬取 较慢）          （网易云）'),
             Schema.const('command8').description('command8：`www.hhlqilongzhu.cn` 龙珠API  （API，江苏可能访问不了）        （网易云 + QQ点歌）'),
-        ]).role('radio').default("command5").description('选择使用的后端<br>➣ 推荐度：`music.gdstudio.xyz`  > `dev.iw233.cn` ≥ `api.injahow.cn` ≥ `www.hhlqilongzhu.cn` > `星之阁API`'),
+        ]).role('radio').default("command6").description('选择使用的后端<br>➣ 推荐度：`music.gdstudio.xyz`  ≥ `api.injahow.cn`  `dev.iw233.cn` ≥ `www.hhlqilongzhu.cn` > `星之阁API`'),
     }).description('后端选择'),
     Schema.union([
         Schema.object({
@@ -638,6 +638,10 @@ const Config = Schema.intersect([
             serverSelect: Schema.const('command6').required(),
             command6: Schema.string().default('网易点歌').description('`网易点歌`的指令名称<br>输入歌曲ID，返回歌曲'),
             command6_searchList: Schema.number().default(20).min(1).max(50).description('歌曲搜索的列表长度。返回的候选项个数。'),
+            command6_usedAPI: Schema.union([
+                Schema.const('api.injahow.cn').description('稳定、黑胶只能30秒的`api.injahow.cn`后端（适合官方bot）'),
+                Schema.const('www.byfuns.top').description('稳定性未知、全部可听的`www.byfuns.top`后端').experimental(),
+            ]).description("选择 获取音乐直链的后端API").default("www.byfuns.top"),
             command6_return_data_Field: Schema.array(Schema.object({
                 data: Schema.string().description('返回的字段'),
                 describe: Schema.string().description('对该字段的中文描述'),
@@ -1433,13 +1437,20 @@ function apply(ctx, config) {
                 .action(async ({ session, options }, keyword) => {
                     if (!keyword) return h.text(session.text(`.nokeyword`));
 
-                    // 尝试判断输入是否为歌曲ID (纯数字)
                     const isSongId = /^\d+$/.test(keyword.trim());
+                    const useApi = config.command6_usedAPI; // 获取用户选择的 API
 
-                    if (isSongId && !options.number) { // 指定了 -n 当然是因为有列表啦
-                        // 如果是歌曲ID，则直接使用原有的ID点歌逻辑
+                    if (isSongId && !options.number) {
                         try {
-                            // 请求 API 获取单曲数据
+                            // 获取歌曲直链 (根据选择的 API 调整)
+                            let songUrl = '';
+                            if (useApi === 'api.injahow.cn') {
+                                songUrl = `https://api.injahow.cn/meting/?id=${keyword}&type=url`;
+                            } else if (useApi === 'www.byfuns.top') {
+                                songUrl = await ctx.http.get(`https://www.byfuns.top/api/1/?id=${keyword}`);
+                            }
+                            logInfo("请求 API (songUrl):", songUrl);
+                            // 请求 163 API 获取歌曲详情 (用于获取歌曲名称、艺术家、图片等信息，与获取直链的 API 无关)
                             const apiBase = `http://music.163.com/api/song/detail/?id=${keyword}&ids=[${keyword}]`;
                             logInfo("请求 API (ID点歌):", apiBase);
                             const apiResponse = await ctx.http.get(apiBase);
@@ -1462,11 +1473,8 @@ function apply(ctx, config) {
                                 return h.text(session.text(`.songlisterror`));
                             }
 
-                            // 获取歌曲直链
-                            const songUrl = `https://api.injahow.cn/meting/?id=${keyword}&type=url`;
-                            // const apiBase = `https://api.injahow.cn/meting/?id=${keyword}&type=song`;
 
-                            // 处理歌词
+                            // 处理歌词 (仍然使用 163 的 API)
                             let lyric = '歌词获取失败';
                             try {
                                 const lyricApiUrl = `https://music.163.com/api/song/lyric?id=${keyword}&lv=1&kv=1&tv=-1`;
@@ -1498,7 +1506,7 @@ function apply(ctx, config) {
                             return h.text(session.text(`.somerror`));
                         }
                     } else {
-                        // 如果不是歌曲ID，则进行歌名搜索
+                        // 歌名搜索
                         try {
                             const searchApiUrl = `http://music.163.com/api/search/get/web?csrf_token=hlpretag=&hlposttag=&s=${encodeURIComponent(keyword)}&type=1&offset=0&total=true&limit=${config.command6_searchList}`;
                             logInfo("请求搜索 API:", searchApiUrl);
@@ -1507,18 +1515,15 @@ function apply(ctx, config) {
                             let parsedSearchApiResponse;
                             try {
                                 parsedSearchApiResponse = JSON.parse(searchApiResponse);
-                                // parsedSearchApiResponse 是 超级长的json
                             } catch (e) {
                                 ctx.logger.error("搜索结果 JSON 解析失败:", e);
                                 return h.text(session.text(`.songlisterror`));
                             }
                             const searchData = parsedSearchApiResponse.result;
 
-                            // logInfo(searchApiResponse);// 是一个很长的json，需要的时候再打印确认吧
-                            // logInfo(searchData); // 打印 searchData
 
                             if (!searchData || !searchData.songs || searchData.songs.length === 0) {
-                                return h.text(session.text(`.songlisterror`)); //  使用 songlisterror 提示搜索失败
+                                return h.text(session.text(`.songlisterror`));
                             }
 
                             const songList = searchData.songs.map((song, index) => {
@@ -1532,7 +1537,6 @@ function apply(ctx, config) {
                             let input = options.number;
 
                             if (!options.number) {
-                                // 格式化歌单供用户选择
                                 const formattedList = songList.map((song, index) => `${index + 1}. ${song.name} - ${song.artists} - ${song.albumName}`).join('<br />');
                                 const exitCommands = config.exitCommand.split(/[,，]/).map(cmd => cmd.trim());
                                 const exitCommandTip = config.menuExitCommandTip ? `退出选择请发[${exitCommands}]中的任意内容<br /><br />` : '';
@@ -1567,7 +1571,7 @@ function apply(ctx, config) {
 
                             const selectedSongId = songList[serialNumber - 1].id;
 
-                            // 使用选定的歌曲ID调用官方API获取歌曲详情
+                            // 获取歌曲详情 (用于获取歌曲名称、艺术家、图片等，与获取直链的 API 无关)
                             const detailApiUrl = `http://music.163.com/api/song/detail/?id=${selectedSongId}&ids=[${selectedSongId}]`;
                             logInfo("请求歌曲详情 API:", detailApiUrl);
                             const detailApiResponse = await ctx.http.get(detailApiUrl);
@@ -1579,12 +1583,17 @@ function apply(ctx, config) {
                             const songData = detailParsedApiResponse.songs[0];
 
 
-                            // 获取歌曲直链
-                            const songUrl = `https://api.injahow.cn/meting/?id=${selectedSongId}&type=url`;
-                            // const songUrl = `https://music.163.com/song/media/outer/url?id=${selectedSongId}`;
-                            // const songUrl = `https://api.injahow.cn/meting/?id=${keyword}&type=song`;
+                            // 获取歌曲直链 (根据选择的 API 调整)
+                            let songUrl = '';
+                            if (useApi === 'api.injahow.cn') {
+                                songUrl = `https://api.injahow.cn/meting/?id=${selectedSongId}&type=url`;
+                            } else if (useApi === 'www.byfuns.top') {
+                                songUrl = await ctx.http.get(`https://www.byfuns.top/api/1/?id=${selectedSongId}`);
+                            }
 
-                            // 处理歌词
+                            logInfo("请求 API (songUrl):", songUrl);
+
+                            // 处理歌词 (仍然使用 163 的 API)
                             let lyric = '歌词获取失败';
                             try {
                                 const lyricApiUrl = `https://music.163.com/api/song/lyric?id=${selectedSongId}&lv=1&kv=1&tv=-1`;
@@ -1599,7 +1608,6 @@ function apply(ctx, config) {
                                 ctx.logger.error(`获取歌词失败:`, error);
                             }
 
-                            // logInfo(JSON.stringify(songData));
                             const processedSongData = {
                                 name: songData.name,
                                 artist: songData.artists.map(artist => artist.name).join('/'),
@@ -1621,6 +1629,7 @@ function apply(ctx, config) {
                     }
                 });
         }
+
 
         if (config.serverSelect === "command7") {
             ctx.command(`${config.command7} <keyword:text>`)
