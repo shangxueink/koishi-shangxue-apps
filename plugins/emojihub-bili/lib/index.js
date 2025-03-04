@@ -1075,7 +1075,7 @@ function apply(ctx, config) {
   ctx.on('ready', () => {
     config.MoreEmojiHubList.forEach(({ command, source_url }) => {
       ctx.command(`${config.emojihub_bili_command}/${command} <local_picture_name:text>`)
-        .option('num', '-n <num:number> 指定返回数量')
+        .option('numpics', '-n <numpics:number> 指定返回数量')
         .action(async ({ session, options }, local_picture_name) => {
           if (options?.num) {
             await sendMultipleEmojis(session, `${command} ${local_picture_name || ''}`.trim(), options.num);
@@ -1209,9 +1209,7 @@ function apply(ctx, config) {
     })
   });
 
-
   ctx.command(`${config.emojihub_bili_command}/再来一张`)
-    .option('num', '-n <num:number> 指定返回数量')
     .action(async ({ session, options }) => {
       // 根据 config.repeatCommandDifferentiation 的值选择合适的 ID
       const identifier = config.repeatCommandDifferentiation === 'userId' ? session.userId : session.channelId;
@@ -1229,7 +1227,6 @@ function apply(ctx, config) {
     });
 
   ctx.command(`${config.emojihub_bili_command}/随机表情包`)
-    .option('num', '-n <num:number> 指定返回数量')
     .action(async ({ session, options }) => {
       if (options?.num) {
         await sendMultipleEmojis(session, `随机表情包`, options.num);
