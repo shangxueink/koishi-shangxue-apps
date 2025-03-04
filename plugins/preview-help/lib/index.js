@@ -336,9 +336,7 @@ function apply(ctx, config) {
                     }
                 }
 
-
-                const cacheKey = generateCacheKey(config.helpmode, currentHelpContent, config.screenshotquality);
-
+                const cacheKey = generateCacheKey(config.helpmode, currentHelpContent.replace(currentBackgroundURL, ""), config.screenshotquality);
 
                 if (config.tempPNG && ['2.1', '2.2', '3', '3.2'].includes(config.helpmode)) { // 模式 3.2 也应该支持缓存
                     if (lastCacheKey === cacheKey && fs.existsSync(temp_helpFilePath)) {
