@@ -1077,7 +1077,7 @@ function apply(ctx, config) {
       ctx.command(`${config.emojihub_bili_command}/${command} <local_picture_name:text>`)
         .option('numpics', '-n <numpics:number> 指定返回数量')
         .action(async ({ session, options }, local_picture_name) => {
-          if (options?.num) {
+          if (options?.numpics) {
             await sendMultipleEmojis(session, `${command} ${local_picture_name || ''}`.trim(), options.num);
             return;
           }
@@ -1214,10 +1214,7 @@ function apply(ctx, config) {
       // 根据 config.repeatCommandDifferentiation 的值选择合适的 ID
       const identifier = config.repeatCommandDifferentiation === 'userId' ? session.userId : session.channelId;
       const lastCommand = lastCommandByChannel[identifier];
-      if (options?.num) {
-        await sendMultipleEmojis(session, "再来一张", options.num);
-        return;
-      }
+
       logInfo('尝试在区分ID ' + identifier + ' 中执行最后一个命令： ' + lastCommand);
       if (lastCommand) {
         await session.execute(`${lastCommand}`);
@@ -1228,10 +1225,7 @@ function apply(ctx, config) {
 
   ctx.command(`${config.emojihub_bili_command}/随机表情包`)
     .action(async ({ session, options }) => {
-      if (options?.num) {
-        await sendMultipleEmojis(session, `随机表情包`, options.num);
-        return;
-      }
+
       const randomEmojiHubCommand = getRandomEmojiHubCommand(config);
       if (randomEmojiHubCommand) {
         await session.execute(randomEmojiHubCommand);
