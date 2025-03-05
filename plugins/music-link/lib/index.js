@@ -705,7 +705,7 @@ const Config = Schema.intersect([
     }).description('JSON卡片解析设置'),
 
     Schema.object({
-        isfigure: Schema.boolean().default(true).description("`图片、文本`元素 使用合并转发，其余单独发送<br>`仅支持 onebot 适配器` 其他平台开启 无效").experimental(),
+        isfigure: Schema.boolean().default(false).description("`图片、文本`元素 使用合并转发，其余单独发送<br>`仅支持 onebot 适配器` 其他平台开启 无效").experimental(),
         data_Field_Mode: Schema.union([
             Schema.const('text').description('富媒体置底：文字 > 图片 > 语音 ≥ 视频 ≥ 文件 （默认）'),
             Schema.const('image').description('仅图片置顶的 富媒体置底：图片 > 文字 ≥ 语音 ≥ 视频 ≥ 文件 （仅官方机器人考虑使用）'),
