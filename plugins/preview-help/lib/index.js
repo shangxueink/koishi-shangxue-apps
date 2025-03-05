@@ -60,6 +60,12 @@ webUI 交互 请见 ➤ <a href="/help/index.html" target="_blank">/help/index.h
 ## <a href="/help/index.html" target="_blank">菜单 webUI 交互 请点击这里 ➤ /help/index.html</a>
 
 ---
+
+注：自定义图片URL地址，支持格式：
+
+- 本地文件的相对路径（默认内容）：\`./pictures/backgrounds/3.png\`
+- 绝对路径：\`file:///D:/Pictures/meme/2024-12-05-22-10-20-627.png\`
+- 网络图片URL：\`https://i1.hdslb.com/bfs/article/f32980cbce6808fd54613dea589eee013f0c5fe3.png\`
 `;
 
 const Config = Schema.intersect([
@@ -90,22 +96,22 @@ const Config = Schema.intersect([
         }),
         Schema.object({
             helpmode: Schema.const("2.1"),
-            background_URL: Schema.string().role('textarea', { rows: [8, 8] }).description('渲染使用的背景图地址<br>一行一个网络URL地址').default("https://i0.hdslb.com/bfs/article/3f79c64129020b522a516480c1066ea2f563964b.jpg\nhttps://i0.hdslb.com/bfs/article/28c76b561eadbbb826c2c902088c87a1a7e92f25.jpg\nhttps://i0.hdslb.com/bfs/article/806202a9b867a0b1d2d3399f1a183fc556ec258d.jpg\nhttps://i0.hdslb.com/bfs/article/796ae5ab9ef1f2e7db2c6a6020f5cbb718c9d953.jpg\nhttps://i0.hdslb.com/bfs/article/60e1532cf0a59828fbdd86c1b4e5740ca551f5b2.jpg\nhttps://i0.hdslb.com/bfs/article/9c7e7d66913155a32cad1591472a77374f0caf54.jpg\nhttps://i0.hdslb.com/bfs/article/a6154de573f73246ea4355a614f0b7b94eff8f20.jpg"),
+            background_URL: Schema.string().role('textarea', { rows: [4, 4] }).description('渲染使用的背景图地址，会随机选一个使用<br>一行一个图片的URL地址（`网络URL`或者`本地绝对路径的URL`）<br>默认会有使用随机的猫羽雫的背景图'),
         }),
         Schema.object({
             helpmode: Schema.const("2.2").required(),
-            background_URL: Schema.string().role('textarea', { rows: [8, 8] }).description('渲染使用的背景图地址<br>一行一个网络URL地址').default("https://i0.hdslb.com/bfs/article/3f79c64129020b522a516480c1066ea2f563964b.jpg\nhttps://i0.hdslb.com/bfs/article/28c76b561eadbbb826c2c902088c87a1a7e92f25.jpg\nhttps://i0.hdslb.com/bfs/article/806202a9b867a0b1d2d3399f1a183fc556ec258d.jpg\nhttps://i0.hdslb.com/bfs/article/796ae5ab9ef1f2e7db2c6a6020f5cbb718c9d953.jpg\nhttps://i0.hdslb.com/bfs/article/60e1532cf0a59828fbdd86c1b4e5740ca551f5b2.jpg\nhttps://i0.hdslb.com/bfs/article/9c7e7d66913155a32cad1591472a77374f0caf54.jpg\nhttps://i0.hdslb.com/bfs/article/a6154de573f73246ea4355a614f0b7b94eff8f20.jpg"),
+            background_URL: Schema.string().role('textarea', { rows: [4, 4] }).description('渲染使用的背景图地址，会随机选一个使用<br>一行一个图片的URL地址（`网络URL`或者`本地绝对路径的URL`）<br>默认会有使用随机的猫羽雫的背景图'),
             help_text: Schema.string().default("当前可用的指令有：\necho  发送消息  其他功能\nhelp  显示帮助信息  系统工具\ninspect  查看用户、频道或消息的详细信息  系统工具\nplugin  插件管理  系统功能\nstatus  查看运行状态  系统工具\ntimer  定时器信息  系统功能\nusage  调用次数信息  系统功能\n输入“help 指令名”查看特定指令的语法和使用示例。")
                 .role('textarea', { rows: [8, 8] }).description('返回的文字菜单内容<br>每行格式: `指令名称  指令描述  指令分类`<br>其中`指令分类`为导入添加标记所用，help文字菜单并不自带，需手动指定'),
         }),
         Schema.object({
             helpmode: Schema.const("3").required(),
-            background_URL: Schema.string().role('textarea', { rows: [8, 8] }).description('渲染使用的背景图地址<br>一行一个网络URL地址').default("https://i0.hdslb.com/bfs/article/3f79c64129020b522a516480c1066ea2f563964b.jpg\nhttps://i0.hdslb.com/bfs/article/28c76b561eadbbb826c2c902088c87a1a7e92f25.jpg\nhttps://i0.hdslb.com/bfs/article/806202a9b867a0b1d2d3399f1a183fc556ec258d.jpg\nhttps://i0.hdslb.com/bfs/article/796ae5ab9ef1f2e7db2c6a6020f5cbb718c9d953.jpg\nhttps://i0.hdslb.com/bfs/article/60e1532cf0a59828fbdd86c1b4e5740ca551f5b2.jpg\nhttps://i0.hdslb.com/bfs/article/9c7e7d66913155a32cad1591472a77374f0caf54.jpg\nhttps://i0.hdslb.com/bfs/article/a6154de573f73246ea4355a614f0b7b94eff8f20.jpg"),
+            background_URL: Schema.string().role('textarea', { rows: [4, 4] }).description('渲染使用的背景图地址，会随机选一个使用<br>一行一个图片的URL地址（`网络URL`或者`本地绝对路径的URL`）<br>默认会有使用随机的猫羽雫的背景图'),
             help_text_json_path: Schema.string().role('textarea', { rows: [4, 4] }).default("C:\\Users\\shangxue\\Downloads").description('导入配置使用的JSON的`所在文件夹`的绝对路径<br>你可以直接填入浏览器导出json的默认文件夹地址 `即浏览器下载文件夹`<br>若不填入，则默认使用`./data/preview-help/menu-config.json`'),
         }),
         Schema.object({
             helpmode: Schema.const("3.2").required(),
-            background_URL: Schema.string().role('textarea', { rows: [8, 8] }).description('渲染使用的背景图地址<br>一行一个网络URL地址').default("https://i0.hdslb.com/bfs/article/3f79c64129020b522a516480c1066ea2f563964b.jpg\nhttps://i0.hdslb.com/bfs/article/28c76b561eadbbb826c2c902088c87a1a7e92f25.jpg\nhttps://i0.hdslb.com/bfs/article/806202a9b867a0b1d2d3399f1a183fc556ec258d.jpg\nhttps://i0.hdslb.com/bfs/article/796ae5ab9ef1f2e7db2c6a6020f5cbb718c9d953.jpg\nhttps://i0.hdslb.com/bfs/article/60e1532cf0a59828fbdd86c1b4e5740ca551f5b2.jpg\nhttps://i0.hdslb.com/bfs/article/9c7e7d66913155a32cad1591472a77374f0caf54.jpg\nhttps://i0.hdslb.com/bfs/article/a6154de573f73246ea4355a614f0b7b94eff8f20.jpg"),
+            background_URL: Schema.string().role('textarea', { rows: [4, 4] }).description('渲染使用的背景图地址，会随机选一个使用<br>一行一个图片的URL地址（`网络URL`或者`本地绝对路径的URL`）<br>默认会有使用随机的猫羽雫的背景图'),
             help_text_json: Schema.string().role('textarea', { rows: [8, 8] }).description('导入配置使用的JSON内容'),
         }),
     ]),
@@ -203,7 +209,7 @@ function apply(ctx, config) {
         });
 
         ctx.command(`${config.command} <help_text:text>`)
-            .option('backgroung', '-b <backgroung:string> 指定背景URL')
+            .option('background', '-b <background:string> 指定背景URL')
             .example("帮助菜单 -b https://i0.hdslb.com/bfs/article/a6154de573f73246ea4355a614f0b7b94eff8f20.jpg   当前可用的指令有：\necho  发送消息\nstatus  查看运行状态\ntimer  定时器信息\nusage  调用次数信息\n输入“help 指令名”查看特定指令的语法和使用示例。")
             .action(async ({ session, options }, help_text) => {
                 if (!ctx.puppeteer) {
@@ -211,24 +217,27 @@ function apply(ctx, config) {
                     return;
                 }
 
-
                 // 生成缓存Key
                 const generateCacheKey = (helpmode, helpContent, screenshotquality) => {
                     return `${helpmode}-${helpContent}-${screenshotquality}`;
                 };
 
-
                 let currentHelpContent = '';
                 let currentBackgroundURL = '';
                 let useCache = false;
-                // 随机背景图处理
-                if (config.background_URL) {
+
+                // 随机背景图处理 (如果提供了 -b 参数，则优先使用 -b 参数)
+                if (options.background) {
+                    currentBackgroundURL = options.background;
+                    logInfo(`使用 -b 参数指定的背景图：${currentBackgroundURL}`);
+                } else if (config.background_URL) {
                     const bgList = config.background_URL.split('\n').filter(url => url.trim());
                     if (bgList.length > 0) {
                         currentBackgroundURL = bgList[Math.floor(Math.random() * bgList.length)];
                         logInfo(`选择随机背景图：${currentBackgroundURL}`);
                     }
                 }
+
                 switch (config.helpmode) {
                     case '2.1': {
                         logInfo(`正在获取系统帮助内容...`);
@@ -247,7 +256,6 @@ function apply(ctx, config) {
                         break;
                     }
                     case '3': {
-
                         let jsonFilePathToUse = jsonFilePath; // 默认路径
 
                         if (config.help_text_json_path) {
@@ -359,24 +367,20 @@ function apply(ctx, config) {
                     }
                 }
 
-
                 const page = await ctx.puppeteer.page();
                 try {
-                    // 记录开始时间用于性能监控
                     const startTime = Date.now();
                     logInfo(`开始处理帮助请求，模式：${config.helpmode}`);
 
                     let helpContent = currentHelpContent;
-                    let backgroundURLForPuppeteer = currentBackgroundURL;
-
+                    // let backgroundURLForPuppeteer = currentBackgroundURL; // 不需要了
 
                     switch (config.helpmode) {
-                        case '1.1': {
+                        case '1.1':
                             logInfo(config.help_text);
                             await session.send(h.text(config.help_text));
                             return;
-                        }
-                        case '1.2': {
+                        case '1.2':
                             logInfo(config.help_URL);
                             try {
                                 await session.send(h.image(config.help_URL));
@@ -386,182 +390,170 @@ function apply(ctx, config) {
                                 return;
                             }
                             return;
-                        }
                         case '2.1':
                         case '2.2':
                         case '3':
-                        case '3.2': // 模式 3.2 也应该进入渲染流程
-                            break; // These modes will be handled below after cache check
+                        case '3.2':
+                            break;
                         default:
                             await session.send(h.text(session.text('.mode.notsupport')));
                             return;
                     }
 
-
-                    // 设置 Puppeteer 页面背景
-                    if (backgroundURLForPuppeteer) {
-                        await page.evaluate((url) => {
-                            document.documentElement.style.setProperty('--background-image', `url(${url})`);
-                        }, backgroundURLForPuppeteer);
-
-                        // 等待背景图片加载完成
-                        await page.waitForFunction(() => {
-                            return new Promise(resolve => {
-                                const backgroundImage = getComputedStyle(document.documentElement).getPropertyValue('--background-image');
-                                if (backgroundImage && backgroundImage !== 'none') { // 检查是否设置了背景图且不为 'none'
-                                    const imageUrl = backgroundImage.replace(/^url\("?/, '').replace(/"?\)$/, ''); // 提取 URL
-                                    if (imageUrl) {
-                                        const img = new Image();
-                                        img.onload = resolve;
-                                        img.onerror = resolve; // 图片加载失败也 resolve，避免无限等待
-                                        img.src = imageUrl;
-                                        if (img.complete) { // 检查图片是否已在缓存中加载完成
-                                            resolve();
-                                        }
-                                    } else {
-                                        resolve(); // 没有图片 URL 也 resolve
-                                    }
-                                } else {
-                                    resolve(); // 没有设置背景图也 resolve
-                                }
-                            });
-                        }, { timeout: 30000 }); // 设置超时时间，单位毫秒，可以根据网络情况调整
-                    }
-
-
-                    // 添加渲染状态提示
+                    // 添加渲染状态提示 (放在设置背景之前)
                     if (config.rendering) {
                         await session.send(h.text(config.rendering));
                     }
 
-                    try {
-                        const helpHTMLUrl = url.pathToFileURL(htmlPath).href
-                        logInfo(`正在加载本地HTML文件：${helpHTMLUrl}`);
-                        await page.goto(helpHTMLUrl, {
-                            waitUntil: 'networkidle2',
-                            timeout: 30000
-                        });
+                    const helpHTMLUrl = url.pathToFileURL(htmlPath).href;
+                    logInfo(`正在加载本地HTML文件：${helpHTMLUrl}`);
+                    await page.goto(helpHTMLUrl, {
+                        waitUntil: 'networkidle2',
+                        timeout: 30000
+                    });
 
-                        // 元素操作增强日志
-                        const logElementAction = async (selector, action) => {
-                            const element = await page.$(selector);
-                            if (!element) {
-                                const errorMsg = session.text('.element.notfound', [selector]);
-                                logInfo(`${errorMsg}`);
-                                throw new Error(errorMsg);
-                            }
-                            logInfo(`正在${action}：${selector}`);
-                            return element;
+                    // 元素操作增强日志 
+                    const logElementAction = async (selector, action) => {
+                        const element = await page.$(selector);
+                        if (!element) {
+                            const errorMsg = session.text('.element.notfound', [selector]);
+                            logInfo(`${errorMsg}`);
+                            throw new Error(errorMsg);
                         }
-
-                        // 处理导入配置
-                        const importButton = await logElementAction('.btn-group button:nth-child(2)', '点击导入配置按钮');
-                        await importButton.click();
-
-                        if (config.fontEnabled && config.fontURL) {
-                            logInfo(session.text('.font.load.start', [config.fontURL]));
-                            try {
-
-                                const fontURLInput = await logElementAction('.image-upload-content input[placeholder="绝对路径的 URL编码 (.ttf)"]', '查找字体URL输入框');
-
-                                await page.evaluate((inputElement, fontURL) => {
-                                    inputElement.value = fontURL;
-                                    inputElement.dispatchEvent(new Event('input', { bubbles: true })); // 触发输入事件
-                                }, fontURLInput, config.fontURL);
-                                await page.evaluate(() => {
-                                    document.querySelector('.image-upload-content button').click();
-                                });
-
-                                logInfo(session.text('.font.load.success', [config.fontURL]));
-
-                                // 等待字体加载完成，这里可能需要更精确的判断方式，例如监听字体加载事件
-                                await new Promise(resolve => setTimeout(resolve, 1000)); // 简单等待 1 秒
-                            } catch (fontError) {
-                                logger.warn(`字体加载失败: ${config.fontURL}`, fontError);
-                                logInfo(session.text('.font.load.fail', [config.fontURL]));
-                            }
-                        }
-
-
-                        if (config.helpmode === '3' || config.helpmode === '3.2') { // 模式 3.2 同样使用 JSON 导入
-                            // JSON模式处理
-                            const textarea = await logElementAction('.popup-content textarea', '输入JSON内容');
-                            await page.evaluate((element, content) => {
-                                element.value = content; // 直接设置输入框的值
-                                element.dispatchEvent(new Event('input', { bubbles: true })); // 触发输入事件
-                            }, textarea, helpContent);
-                            const confirmButton = await logElementAction('.popup-buttons button:nth-child(1)', '确认导入');
-                            await confirmButton.click();
-                        } else {
-                            // 快速导入模式处理
-                            const tab = await logElementAction('.popup-tab:nth-child(3)', '切换至快速导入标签');
-                            await tab.click();
-
-                            const textarea = await logElementAction('.popup-content textarea', '输入帮助内容');
-                            await page.evaluate((element, content) => {
-                                element.value = content; // 直接设置输入框的值
-                                element.dispatchEvent(new Event('input', { bubbles: true })); // 触发输入事件
-                            }, textarea, helpContent);
-                            const replaceButton = await logElementAction('.popup-buttons button:nth-child(1)', '执行替换导入');
-                            await replaceButton.click();
-                        }
-
-
-                        // 等待渲染完成
-                        logInfo(`等待渲染完成...`);
-                        await page.waitForSelector('.preview-container-wrapper', {
-                            visible: true,
-                            timeout: 30000
-                        });
-
-
-                        // 截图处理
-                        logInfo(`正在执行截图...`);
-                        // 等待 1000ms 确保页面完全加载 // 不然背景图加载好了 也会截图到空白背景
-                        await new Promise(resolve => setTimeout(resolve, 1000));
-                        const previewContainer = await logElementAction('.preview-container-wrapper', '执行截图');
-                        const imageBuffer = await previewContainer.screenshot({
-                            type: "jpeg",
-                            encoding: "binary",
-                            quality: config.screenshotquality,
-                            captureBeyondViewport: true // 确保截取完整内容
-                        });
-
-                        // 保存缓存
-                        if (config.tempPNG && ['2.1', '2.2', '3', '3.2'].includes(config.helpmode)) { // 模式 3.2 也应该支持缓存
-                            try {
-                                fs.writeFileSync(temp_helpFilePath, imageBuffer);
-                                lastCacheKey = cacheKey; // 存储缓存Key
-                                logInfo(`缓存图片成功，key: ${cacheKey}`);
-                            } catch (e) {
-                                logger.warn(`保存缓存图片失败`, e);
-                            }
-                        }
-
-
-                        // 性能统计
-                        const costTime = ((Date.now() - startTime) / 1000).toFixed(2);
-                        logInfo(`截图完成，耗时${costTime}秒，图片大小：${(imageBuffer.length / 1024).toFixed(2)}KB`);
-
-                        await session.send([
-                            h.image(imageBuffer, 'image/jpeg'),
-                            // h.text(session.text('.success')) // 移除成功文字
-                        ]);
-
-                    } catch (error) {
-                        logger.error(`渲染过程出错：`, error);
-                        await session.send(h.text(session.text('.somerror')));
-                    } finally {
-                        await page.close().catch(error => {
-                            logger.warn(`页面关闭失败：`, error);
-                        });
+                        logInfo(`正在${action}：${selector}`);
+                        return element;
                     }
 
+                    // 设置背景图片 URL
+                    if (currentBackgroundURL) {
+                        logInfo(`设置背景图片 URL: ${currentBackgroundURL}`);
+                        try {
+                            // 1. 点击 "URL" 标签
+                            const urlTab = await logElementAction('.form-item .image-upload-tab:nth-child(1)', '点击 URL 标签');
+                            await urlTab.click();
+
+                            // 2. 填入 URL 输入框
+                            const urlInput = await logElementAction('.form-item .image-upload-content:nth-child(3) input', '找到 URL 输入框');
+                            await page.evaluate((inputElement, url) => {
+                                inputElement.value = url;
+                                inputElement.dispatchEvent(new Event('input', { bubbles: true })); // 触发输入事件
+                            }, urlInput, currentBackgroundURL);
+
+                            //  添加一个小延迟，确保 Vue 组件有时间响应输入事件
+                            await new Promise(resolve => ctx.setTimeout(resolve, 200));
+
+                        } catch (bgError) {
+                            logger.warn(`设置背景图片失败: ${currentBackgroundURL}`, bgError);
+                            logInfo(session.text('.background.set.fail', [currentBackgroundURL]));
+                        }
+                    }
+
+
+                    // 处理导入配置 (字体和 JSON/快速导入部分保持不变)
+                    const importButton = await logElementAction('.btn-group button:nth-child(2)', '点击导入配置按钮');
+                    await importButton.click();
+
+                    if (config.fontEnabled && config.fontURL) {
+                        logInfo(session.text('.font.load.start', [config.fontURL]));
+                        try {
+
+                            const fontURLInput = await logElementAction('.image-upload-content input[placeholder="绝对路径的 URL编码 (.ttf)"]', '查找字体URL输入框');
+
+                            await page.evaluate((inputElement, fontURL) => {
+                                inputElement.value = fontURL;
+                                inputElement.dispatchEvent(new Event('input', { bubbles: true })); // 触发输入事件
+                            }, fontURLInput, config.fontURL);
+                            await page.evaluate(() => {
+                                document.querySelector('.image-upload-content button').click();
+                            });
+
+                            logInfo(session.text('.font.load.success', [config.fontURL]));
+
+                            // 等待字体加载完成，这里可能需要更精确的判断方式，例如监听字体加载事件
+                            await new Promise(resolve => ctx.setTimeout(resolve, 1000)); // 简单等待 1 秒
+                        } catch (fontError) {
+                            logger.warn(`字体加载失败: ${config.fontURL}`, fontError);
+                            logInfo(session.text('.font.load.fail', [config.fontURL]));
+                        }
+                    }
+
+
+                    if (config.helpmode === '3' || config.helpmode === '3.2') { // 模式 3.2 同样使用 JSON 导入
+                        // JSON模式处理
+                        const textarea = await logElementAction('.popup-content textarea', '输入JSON内容');
+                        await page.evaluate((element, content) => {
+                            element.value = content; // 直接设置输入框的值
+                            element.dispatchEvent(new Event('input', { bubbles: true })); // 触发输入事件
+                        }, textarea, helpContent);
+                        const confirmButton = await logElementAction('.popup-buttons button:nth-child(1)', '确认导入');
+                        await confirmButton.click();
+                    } else {
+                        // 快速导入模式处理
+                        const tab = await logElementAction('.popup-tab:nth-child(3)', '切换至快速导入标签');
+                        await tab.click();
+
+                        const textarea = await logElementAction('.popup-content textarea', '输入帮助内容');
+                        await page.evaluate((element, content) => {
+                            element.value = content; // 直接设置输入框的值
+                            element.dispatchEvent(new Event('input', { bubbles: true })); // 触发输入事件
+                        }, textarea, helpContent);
+                        const replaceButton = await logElementAction('.popup-buttons button:nth-child(1)', '执行替换导入');
+                        await replaceButton.click();
+                    }
+
+                    // 等待渲染完成,截图,保存缓存,性能统计,错误处理 (这些部分都保持不变)
+                    // 等待渲染完成
+                    logInfo(`等待渲染完成...`);
+                    await page.waitForSelector('.preview-container-wrapper', {
+                        visible: true,
+                        timeout: 30000
+                    });
+
+
+                    // 截图处理
+                    logInfo(`正在执行截图...`);
+                    // 等待 1000ms 确保页面完全加载 // 不然背景图加载好了 也会截图到空白背景
+                    await new Promise(resolve => ctx.setTimeout(resolve, 1000));
+                    const previewContainer = await logElementAction('.preview-container-wrapper', '执行截图');
+                    const imageBuffer = await previewContainer.screenshot({
+                        type: "jpeg",
+                        encoding: "binary",
+                        quality: config.screenshotquality,
+                        captureBeyondViewport: true // 确保截取完整内容
+                    });
+
+                    // 保存缓存
+                    if (config.tempPNG && ['2.1', '2.2', '3', '3.2'].includes(config.helpmode)) { // 模式 3.2 也应该支持缓存
+                        try {
+                            fs.writeFileSync(temp_helpFilePath, imageBuffer);
+                            lastCacheKey = cacheKey; // 存储缓存Key
+                            logInfo(`缓存图片成功，key: ${cacheKey}`);
+                        } catch (e) {
+                            logger.warn(`保存缓存图片失败`, e);
+                        }
+                    }
+
+
+                    // 性能统计
+                    const costTime = ((Date.now() - startTime) / 1000).toFixed(2);
+                    logInfo(`截图完成，耗时${costTime}秒，图片大小：${(imageBuffer.length / 1024).toFixed(2)}KB`);
+
+                    await session.send([
+                        h.image(imageBuffer, 'image/jpeg'),
+                        // h.text(session.text('.success')) // 移除成功文字
+                    ]);
+
                 } catch (error) {
-                    logger.error(`全局错误：`, error);
+                    logger.error(`渲染过程出错：`, error);
                     await session.send(h.text(session.text('.somerror')));
+                } finally {
+                    await page.close().catch(error => {
+                        logger.warn(`页面关闭失败：`, error);
+                    });
                 }
+
             });
+
     });
 
 
