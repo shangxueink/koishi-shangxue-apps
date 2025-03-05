@@ -60,7 +60,7 @@ exports.Config = Schema.intersect([
       Schema.const('https://registry.npmjs.org/').description('官方 NPM 镜像 (registry.npmjs.org)'),
       Schema.const('https://registry.npmmirror.com/').description('淘宝 NPM 镜像 (registry.npmmirror.com)'),
     ]).default('https://registry.npmmirror.com/').description("使用的 NPM 平台地址").role('radio'),
-    bundlePath: Schema.string().default('./bundle.json').description("分类文件（bundle.json）的相对路径。相对于本插件的`index.js`目录<br>存本地是为了解决网络问题，原地址：https://koishi-registry.github.io/categories/bundle.json"),
+    bundlePath: Schema.string().default('./bundle.json').description("分类文件（bundle.json）的相对路径。相对于本插件的`index.js`目录<br>存本地是为了解决网络问题，原地址：https://koishi-registry.github.io/categories/bundle.json<br>默认使用本地json。若此项非默认值，则使用网络json"),
     responsetimeout: Schema.number().default(25).min(10).description("请求数据的超时时间（秒）"),
     retryDelay: Schema.number().default(1).min(0.1).description("请求失败时的重试间隔（秒）"),
     maxRetries: Schema.number().default(3).min(1).description("最大重试次数"),
@@ -72,6 +72,7 @@ exports.Config = Schema.intersect([
   }).description("JSON输出设置"),
 
   Schema.object({
+    progressinfo: Schema.boolean().default(true).description("NPM拉取进度的日志输出"),
     consoleinfo: Schema.boolean().default(false).description("日志调试模式"),
   }).description("开发者设置"),
 
@@ -144,15 +145,23 @@ async function apply(ctx, config) {
   }
 
   // 获取分类数据
-  // const CATEGORIES_API_URL = 'https://koishi-registry.github.io/categories/bundle.json';
+  const CATEGORIES_API_URL = 'https://koishi-registry.github.io/categories/bundle.json';
   let categoriesCache = null;
   let categoriesLoading = null;
 
   async function fetchCategories() {
     try {
-      // const categoryData = await fetchWithRetry(CATEGORIES_API_URL);
-      const bundlePath = path.resolve(__dirname, config.bundlePath);
-      const categoryData = JSON.parse(await fs.readFile(bundlePath, 'utf8'));
+      let categoryData;
+      if (config.bundlePath === "./bundle.json") {
+        // 使用本地文件路径
+        const bundlePath = path.resolve(__dirname, config.bundlePath);
+        const bundleContent = await fs.readFile(bundlePath, 'utf8');
+        categoryData = JSON.parse(bundleContent);
+      } else {
+        // 使用远程 URL
+        categoryData = await fetchWithRetry(CATEGORIES_API_URL);
+      }
+
       const categories = new Map();
       for (const [category, plugins] of Object.entries(categoryData)) {
         for (const plugin of plugins) {
@@ -165,6 +174,7 @@ async function apply(ctx, config) {
       return new Map(); // 加载失败时返回一个空的 Map
     }
   }
+
 
   async function loadCategories() {
     if (categoriesCache) {
@@ -500,7 +510,9 @@ async function apply(ctx, config) {
       plugins.push(...validResults);
 
       fromOffset += results.length;
-      ctx.logger.info(`进度: ${fromOffset}/${totalPackages} | 已收录: ${plugins.length}`);
+      if (config.progressinfo) {
+        ctx.logger.info(`进度: ${fromOffset}/${totalPackages} | 已收录: ${plugins.length}`);
+      }
 
       if (fromOffset >= totalPackages) break;
     }
@@ -673,8 +685,9 @@ async function apply(ctx, config) {
       stats.syncs++;
       stats.success++;
       ctx.logger.info(`从 NPM 同步成功，插件总数：${marketData.total}`);
-      ctx.logger.info(`请将配置项 "工作模式" 改为 "从上游镜像获取"，并且填入上述文件绝对路径，然后重启 Koishi 以切换到挂载模式。`);
-
+      if (config.type === 'NPM') {
+        ctx.logger.info(`请将配置项 "工作模式" 改为 "从上游镜像获取"，并且填入上述文件绝对路径，然后重启 Koishi 以切换到挂载模式。`);
+      }
     } catch (error) {
       ctx.logger.error("从 NPM 更新数据失败：" + error.message);
     } finally {
