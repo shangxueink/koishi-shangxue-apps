@@ -134,6 +134,12 @@
 
 ### 更新日志
 
+- **1.7.19**：
+  - 优化`generateResponse`调用方法
+  - 修复command5的无下载链接的歌曲导致的无限等待
+  - 新增合并转发模式 仅支持onebot平台
+  - 优化项目说明
+
 - **1.7.17**：
   - 感谢`https://github.com/Onimaimai/nonebot-plugin-voicemusic/issues/10`提及的的API捏
   - 感谢`www.byfuns.top`

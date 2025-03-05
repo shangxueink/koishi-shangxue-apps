@@ -38,7 +38,7 @@ const usage = `
 
 <h3>使用api.injahow.cn网站搜索网易云音乐</h3>
 <pre><code>网易点歌 [歌曲名称/歌曲ID]</code></pre>
-<p><b>(比较推荐)</b> api.injahow.cn 网站，API请求快速且稳定，无需 puppeteer 服务，推荐QQ官方机器人使用此后端，使用这个后端VIP歌曲只能听45秒，但这个指令还有一个后端可以都听。很好用哦<b>仅支持网易云音乐</b>，可以通过歌曲名称或歌曲ID进行搜索。</p>
+<p><b>(很推荐)</b> api.injahow.cn 网站，API请求快速且稳定，无需 puppeteer 服务，推荐QQ官方机器人使用此后端，使用这个后端VIP歌曲只能听45秒，但这个指令还有一个后端可以都听。很好用哦<b>仅支持网易云音乐</b>，可以通过歌曲名称或歌曲ID进行搜索。</p>
 <hr>
 
 <h3>使用dev.iw233.cn网站搜索网易云音乐</h3>
@@ -48,7 +48,7 @@ const usage = `
 
 <h3>使用www.hhlqilongzhu.cn网站API搜索QQ + 网易云音乐</h3>
 <pre><code>龙珠搜索 [keywords]</code></pre>
-<p><b>(一般推荐)</b> www.hhlqilongzhu.cn 网站的点歌API，江苏的确可能访问性较差（江苏反诈）。支持网易云音乐平台搜索。</p>
+<p><b>(一般推荐)</b> www.hhlqilongzhu.cn 网站的点歌API，江苏的确可能访问性较差（江苏反诈）。支持网易云音乐平台搜索。（好像QQ音乐有点死掉了）</p>
 <hr>
 
 </details>
@@ -81,12 +81,12 @@ const usage = `
 
 ### 目前 星之阁API的key已经失效，如需使用请自行前往注册
 
-### 目前 推荐使用<code>music.gdstudio.xyz</code>的服务，请确保<code>puppeteer</code>服务可用
+### 目前 推荐使用<code>api.injahow.cn（网易云点歌）</code>的服务，请确保<code>puppeteer</code>服务可用
 
 ---
 | 后端推荐度 |               名称                | 备注  |
 | :--------: | :-------------------------------: | :---: |
-|   **ⅰ**    | \`music.gdstudio.xyz\` (歌曲搜索) | 较高  |
+|   **ⅰ**    | \`api.injahow.cn\` (歌曲搜索) | 较高  |
 |   **ⅱ**    |   \`dev.iw233.cn\` (音乐搜索器)   | 中等  |
 |  *......*  |               其他                | 中等  |
 |   **ⅳ**    | \`星之阁API\` (下载音乐/酷狗音乐) | 较低  |
@@ -533,8 +533,8 @@ const Config = Schema.intersect([
             Schema.const('command5').description('command5：`music.gdstudio.xyz`  网站   （需puppeteer爬取 较慢，但访问性好）    （多平台）'),
             Schema.const('command6').description('command6：`api.injahow.cn`网站       （API 请求快 + 稳定 推荐QQ官方机器人使用）      （网易云）'),
             Schema.const('command7').description('command7：`dev.iw233.cn` 网站         （需puppeteer爬取 较慢）          （网易云）'),
-            Schema.const('command8').description('command8：`www.hhlqilongzhu.cn` 龙珠API  （API，江苏可能访问不了）        （网易云 + QQ点歌）'),
-        ]).role('radio').default("command6").description('选择使用的后端<br>➣ 推荐度：`music.gdstudio.xyz`  ≥ `api.injahow.cn`  `dev.iw233.cn` ≥ `www.hhlqilongzhu.cn` > `星之阁API`'),
+            Schema.const('command8').description('command8：`www.hhlqilongzhu.cn` 龙珠API  （API，江苏可能访问不了）        （网易云 + QQ点歌）（好像QQ音乐有点死掉了）'),
+        ]).role('radio').default("command6").description('选择使用的后端<br>➣ 推荐度：`api.injahow.cn`  ≥ `music.gdstudio.xyz` ≥ `dev.iw233.cn` ≥ `www.hhlqilongzhu.cn` > `星之阁API`'),
     }).description('后端选择'),
     Schema.union([
         Schema.object({
@@ -653,7 +653,7 @@ const Config = Schema.intersect([
                     Schema.const('file').description('文件（file）'),
                 ]).description('字段发送类型'),
                 enable: Schema.boolean().default(true).description('是否启用'),
-            })).role('table').description('歌曲返回信息的字段选择<br>[➣ 点我查看该API返回内容示例](https://api.injahow.cn/meting/?id=2608813264&type=song)').default(command6_return_data_Field_default),
+            })).role('table').description('歌曲返回信息的字段选择<br>[➣ 点我查看该API返回内容示例](http://music.163.com/api/search/get/web?csrf_token=hlpretag=&hlposttag=&s=蔚蓝档案&type=1&offset=0&total=true&limit=10)').default(command6_return_data_Field_default),
         }).description('`网易点歌`返回设置'),
 
         Schema.object({
@@ -705,6 +705,7 @@ const Config = Schema.intersect([
     }).description('JSON卡片解析设置'),
 
     Schema.object({
+        isfigure: Schema.boolean().default(true).description("`图片、文本`元素 使用合并转发，其余单独发送<br>`仅支持 onebot 适配器` 其他平台开启 无效").experimental(),
         data_Field_Mode: Schema.union([
             Schema.const('text').description('富媒体置底：文字 > 图片 > 语音 ≥ 视频 ≥ 文件 （默认）'),
             Schema.const('image').description('仅图片置顶的 富媒体置底：图片 > 文字 ≥ 语音 ≥ 视频 ≥ 文件 （仅官方机器人考虑使用）'),
@@ -1019,9 +1020,9 @@ function apply(ctx, config) {
                         try {
                             let songDetails;
                             if (serialNumber <= totalQQSongs) {
-                                songDetails = generateResponse(data, config.command1_return_qqdata_Field, config.deleteTempTime, tempFiles, fs, tempDir);
+                                songDetails = generateResponse(session, data, config.command1_return_qqdata_Field);
                             } else {
-                                songDetails = generateResponse(data, config.command1_return_wyydata_Field, config.deleteTempTime, tempFiles, fs, tempDir);
+                                songDetails = generateResponse(session, data, config.command1_return_wyydata_Field);
                             }
                             logInfo(songDetails);
                             return songDetails;
@@ -1112,7 +1113,7 @@ function apply(ctx, config) {
                         try {
                             logInfo(song);
                             logInfo(data);
-                            const songDetails = generateResponse(data, config.command4_return_data_Field, config.deleteTempTime, tempFiles, fs, tempDir);
+                            const songDetails = generateResponse(session, data, config.command4_return_data_Field);
                             logInfo(songDetails);
                             return songDetails;
                         } catch (e) {
@@ -1182,6 +1183,7 @@ function apply(ctx, config) {
                     let popupError;
 
                     async function checkAndHandlePopup(page) {
+                        // layui-layer layui-layer-dialog layui-layer-border layui-layer-msg layui-layer-hui
                         const alert = await page.$('.layui-layer.layui-layer-msg.layui-layer-hui, .layui-layer-dialog.layui-layer-msg');
                         if (alert) {
                             // 修改 page.evaluate，从 alert 元素本身查找 .layui-layer-content
@@ -1227,6 +1229,11 @@ function apply(ctx, config) {
                                     await page.close();
                                     logInfo('没有找到相关歌曲，请切换其它音乐源。');
                                     return `没有找到相关歌曲，请切换其它音乐源。`;
+                                }
+                                if (alertText.includes('播放失败') || alertText.includes('已停止')) {
+                                    await page.close();
+                                    logInfo('获取失败。没有此歌曲的下载链接。');
+                                    return `获取失败。没有此歌曲的下载链接。`;
                                 }
                             }
                         }
@@ -1352,6 +1359,12 @@ function apply(ctx, config) {
                                         logInfo(`封面链接: ${songDetails.coverUrl}`);
                                     }
                                 }
+                                //  检查弹窗
+                                popupError = await checkAndHandlePopup(page);
+                                if (popupError) {
+                                    await session.send(h.text(popupError));
+                                    return;
+                                }
                                 // 检查是否所有信息都已获取
                                 if (songDetails.musicUrl && songDetails.coverUrl && songDetails.lyric) {
                                     logInfo("已获取所有必要信息，准备关闭 Puppeteer");
@@ -1373,7 +1386,7 @@ function apply(ctx, config) {
                                         br: songDetails.musicBr
                                     };
                                     // .map((song, index) => `${index + startIndex + 1}. ${song.songname || song.title} -- ${song.name || song.author}`)
-                                    const response = await generateResponse(responseData, config.command5_return_data_Field, config.deleteTempTime, tempFiles, fs, tempDir, config);
+                                    const response = await generateResponse(session, responseData, config.command5_return_data_Field);
                                     await session.send(response); // 发送响应数据
                                 }
 
@@ -1499,7 +1512,7 @@ function apply(ctx, config) {
                                 id: songData.id,
                             };
                             logInfo(processedSongData);
-                            const response = generateResponse(processedSongData, config.command6_return_data_Field, config.deleteTempTime, tempFiles, fs, tempDir);
+                            const response = generateResponse(session, processedSongData, config.command6_return_data_Field);
                             return response;
                         } catch (error) {
                             ctx.logger.error('网易单曲点歌插件出错 (ID点歌):', error);
@@ -1618,7 +1631,7 @@ function apply(ctx, config) {
                             };
                             logInfo(processedSongData)
 
-                            const response = generateResponse(processedSongData, config.command6_return_data_Field, config.deleteTempTime, tempFiles, fs, tempDir);
+                            const response = generateResponse(session, processedSongData, config.command6_return_data_Field,);
                             return response;
 
 
@@ -1738,7 +1751,7 @@ function apply(ctx, config) {
                             return h.text(session.text(`.noplatform`));
                         }
                         // 返回自定义字段
-                        const response = generateResponse(selectedSong, config.command7_return_data_Field, config.deleteTempTime, tempFiles, fs, tempDir);
+                        const response = generateResponse(session, selectedSong, config.command7_return_data_Field);
 
                         logInfo(response)
                         return response;
@@ -1852,7 +1865,7 @@ function apply(ctx, config) {
 
                         logInfo(JSON.stringify(wyDetailsData));
                         details = wyDetailsData; // 赋值歌曲详细信息
-                        songDetails8 = generateResponse(details, config.command8_return_wyydata_Field);
+                        songDetails8 = generateResponse(session, details, config.command8_return_wyydata_Field);
                     } catch (error) {
                         logger.error('获取龙珠网易云歌曲详情时发生错误', error);
                         return '无法获取网易云音乐歌曲下载链接。'; // 针对详情获取错误返回更具体的提示
@@ -1916,13 +1929,16 @@ function apply(ctx, config) {
             throw new Error(`Failed to delete ${filePath} after ${maxRetries} retries`);
         }
 
-        async function generateResponse(data, platformconfig, deleteTempTime, tempFiles, fs, tempDir) {
+        async function generateResponse(session, data, platformconfig) {
             // 按类型分类存储
             const textElements = [];
             const imageElements = [];
             const mediaElements = [];
             const fileElements = [];
             const rawElements = [];
+
+            // 用于合并转发的内容
+            const figureContentElements = []; // 存储 figure 内部的元素
 
             // 遍历配置项，根据类型收集元素
             for (const field of platformconfig) {
@@ -1958,12 +1974,12 @@ function apply(ctx, config) {
                                 tempFiles.add(localFilePath);
 
                                 // 定时删除逻辑
-                                if (deleteTempTime > 0) {
+                                if (config.deleteTempTime > 0) {
                                     ctx.setTimeout(async () => {
                                         await safeUnlink(localFilePath).catch(() => { });
                                         logInfo(`正在执行： tempFiles.delete(${localFilePath})`)
                                         tempFiles.delete(localFilePath);
-                                    }, deleteTempTime * 1000);
+                                    }, config.deleteTempTime * 1000);
                                 }
                             }
                         } catch (error) {
@@ -1978,6 +1994,7 @@ function apply(ctx, config) {
 
             let responseElements = [];
 
+            // 根据 data_Field_Mode 排序元素
             switch (config.data_Field_Mode) {
                 case 'image':
                     responseElements = [...imageElements, ...textElements, ...mediaElements, ...fileElements];
@@ -1991,8 +2008,43 @@ function apply(ctx, config) {
                     break;
             }
 
-            // 按最终顺序合并所有元素
-            return responseElements.join('\n');
+            // 如果启用了合并转发，处理文本和图片
+            if (config.isfigure && (session.platform === "onebot" || session.platform === "red")) {
+                logInfo(`使用合并转发，正在收集图片和文本。`);
+
+                // 创建 figureContentElements
+                for (const element of responseElements) {
+                    if (element.type === 'text' || element.type === 'image' || element.type === 'img') { // 图片是 img 元素
+                        const attrs = {
+                            userId: session.userId,
+                            nickname: session.author?.nickname || session.username,
+                        };
+                        figureContentElements.push(h('message', attrs, element));
+                    }
+                }
+
+                // 创建 figure 元素
+                const figureContent = h('figure', {
+                    children: figureContentElements
+                });
+                logInfo(figureContent);
+
+                // 发送合并转发消息
+                await session.send(figureContent);
+
+                // 发送剩余的媒体和文件
+                for (const element of responseElements) {
+                    if (element.type === 'audio' || element.type === 'video' || element.type === 'file') {
+                        await session.send(element);
+                    }
+                }
+                return; // 结束函数，不再返回字符串
+            } else {
+                // 如果没有启用合并转发，按顺序发送所有元素
+                responseElements = responseElements.join('\n')
+                logInfo(responseElements);
+                return responseElements;
+            }
         }
 
         async function searchKugou(http, query, br) {
