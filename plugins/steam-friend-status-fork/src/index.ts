@@ -1,9 +1,8 @@
 import { Context, Schema, h, Session, sleep } from 'koishi'
 import puppeteer from 'koishi-plugin-puppeteer'
-import * as fs from 'fs'
-import * as path from 'path'
-
-
+import * as fs from 'node:fs'
+import * as path from 'node:path'
+import * as URL from 'node:url'
 export const name = 'steam-friend-status'
 
 
@@ -39,7 +38,7 @@ interface Config {
 
 export const Config: Schema<Config> = Schema.intersect([
   Schema.object({
-    SteamApiKey: Schema.string().description('Steam API Key，获取方式：https://partner.steamgames.com/doc/webapi_overview/auth').required(),
+    SteamApiKey: Schema.string().description('Steam API Key，获取方式：https://partner.steamgames.com/doc/webapi_overview/auth').role('secret').required(),
     interval: Schema.number().default(300).description('查询间隔,单位：秒'),
     useSteamName: Schema.boolean().default(true).description('使用Steam昵称,关闭时使用的QQ昵称'),
     broadcastWithImage: Schema.boolean().default(true).description('播报时附带图片'),
@@ -426,7 +425,7 @@ export function apply(ctx: Context, config: Config) {
     const onlineUsers = userData.response.players.filter(player => player.personastate != 0 && !player.gameextrainfo); // 筛选出在线但未游戏的好友
     onlineUsers.sort((a, b) => a.personastate - b.personastate); // 根据在线状态排序
     const offlineUsers = userData.response.players.filter(player => player.personastate == 0); // 筛选出离线好友
-    const url = path.join(__dirname, '../data/html/steamFriendList.html'); // 模板文件路径
+    const url = URL.pathToFileURL(path.join(__dirname, './../data/html/steamFriendList.html')).href; // 模板文件路径
 
     // 图片转 Base64 函数
     const convertImageToBase64 = async (filePath) => {
@@ -567,7 +566,6 @@ export function apply(ctx: Context, config: Config) {
     // 截图并返回
     const image = await page.screenshot({ fullPage: true, type: 'png', encoding: 'binary' });
     await page.close();
-    await ctx.puppeteer.stop(); // 关闭浏览器并取消连接。
     return h.image(image, 'image/png');
   }
 
