@@ -1,7 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.apply = exports.usage = exports.Config = exports.name = exports.inject = void 0;
-const koishi_1 = require("koishi");
 const { Schema, Logger, h } = require("koishi");
 const logger = new Logger('bilibili-videolink-analysis');
 exports.name = 'bilibili-videolink-analysis';
@@ -73,10 +72,6 @@ exports.Config = Schema.intersect([
             Schema.const('4').description('返回视频和视频直链'),
             Schema.const('5').description('返回视频，仅在日志记录视频直链'),
         ]).role('radio').default('2').description("是否返回` 视频/视频直链 `"),
-        //Video_ClarityPriority: Schema.union([
-        //    Schema.const('1').description('低清晰度优先（低清晰度的视频发得快一点）'),
-        //    Schema.const('2').description('高清晰度优先（清晰的还是去B站看吧）'),
-        //]).role('radio').default('1').description("发送的视频清晰度优先策略"),
         BVnumberParsing: Schema.boolean().default(true).description("是否允许根据`独立的BV号`解析视频 `开启后，可以通过视频的BV号解析视频。` <br>  [触发说明见README](https://www.npmjs.com/package/koishi-plugin-bilibili-videolink-analysis)"),
         Maximumduration: Schema.number().default(25).description("允许解析的视频最大时长（分钟）`超过这个时长 就不会发视频`").min(1),
         Maximumduration_tip: Schema.union([
@@ -94,14 +89,10 @@ exports.Config = Schema.intersect([
             Schema.const("bv").description("BV 号"),
             Schema.const("av").description("AV 号"),
         ]).default("bv").description("ID 偏好").hidden(),
-        //bVideoImage: Schema.boolean().default(true).description("显示封面"),
-        //bVideoOwner: Schema.boolean().default(true).description("显示 UP 主"),
-        //bVideoDesc: Schema.boolean().default(false).description("显示简介`有的简介真的很长`"),
-        //bVideoStat: Schema.boolean().default(true).description("显示状态（*三连数据*）"),
-        //bVideoExtraStat: Schema.boolean().default(true).description("显示额外状态（*弹幕&观看*）"),        
         bVideo_area: Schema.string().role('textarea', { rows: [8, 16] }).description("图文解析的返回格式<br>注意变量格式，以及变量名称<br>比如 `${标题}` 不可以变成`${标题123}`，你可以直接删掉但是不能修改变量名称哦<br>当然变量也不能无中生有，下面的默认值内容 就是所有变量了，你仅可以删去变量 或者修改变量之外的格式。")
             .default("${标题} --- ${UP主}\n---\n${封面}\n---\n${简介}\n---\n${点赞} --- ${投币}\n${收藏} --- ${转发}\n${观看} --- ${弹幕}"),
         bVideoShowLink: Schema.boolean().default(false).description("在末尾显示视频的链接地址 `开启可能会导致其他bot循环解析`"),
+        bVideoShowIntroductionTofixed: Schema.number().default(50).description("视频的`简介`最大的字符长度<br>超出部分会使用 `...` 代替"),
     }).description("链接的图文解析设置"),
 
     Schema.object({
@@ -114,7 +105,6 @@ exports.Config = Schema.intersect([
 function apply(ctx, config) {
 
     ctx.middleware(async (session, next) => {
-
         let sessioncontent = session.content;
         // 如果允许解析 BV 号，则进行解析
         if (config.BVnumberParsing) {
@@ -132,6 +122,7 @@ function apply(ctx, config) {
         }
         return next();
     }, config.middleware);
+
     if (config.demand) {
         ctx.command('B站点播/退出登录', '退出B站账号')
             .action(async ({ session }) => {
@@ -349,7 +340,7 @@ display: none !important;
                 }
 
                 if (config.enable) { // 开启自动解析了
-                    
+
                     const ret = await extractLinks(session, config, ctx, [{ type: 'Video', id: chosenVideo.id }], logger); // 提取链接
                     if (ret && !isLinkProcessedRecently(ret, lastProcessedUrls, config, logger)) {
                         await processVideoFromLink(session, config, ctx, lastProcessedUrls, logger, ret, options); // 解析视频并返回
@@ -357,6 +348,7 @@ display: none !important;
                 }
             })
     }
+
     if (config.loggerinfo) {
         ctx.command('B站点播/调试点播 [keyword]', '调试时点播B站视频')
             .option('video', '-v 解析返回视频')
@@ -456,7 +448,7 @@ display: none !important;
 
                 if (config.enable) {
                     // 开启自动解析了
-                    
+
                     const ret = await extractLinks(session, config, ctx, [{ type: 'Video', id: chosenVideo.id }], logger);
                     if (ret && !isLinkProcessedRecently(ret, lastProcessedUrls, config, logger)) {
                         await processVideoFromLink(session, config, ctx, lastProcessedUrls, logger, ret, options);
@@ -471,7 +463,6 @@ display: none !important;
         if (links.length === 0) {
             return false; // 如果没有找到链接，返回 false
         }
-
         return links; // 返回解析出的链接
     }
 
@@ -738,12 +729,18 @@ display: none !important;
             if (!info || !info["data"])
                 return null;
 
+            let description = info["data"]["desc"];
+            // 根据配置处理简介
+            const maxLength = config.bVideoShowIntroductionTofixed;
+            if (description.length > maxLength) {
+                description = description.substring(0, maxLength) + '...';
+            }
             // 定义占位符对应的数据
             const placeholders = {
                 '${标题}': info["data"]["title"],
                 '${UP主}': info["data"]["owner"]["name"],
                 '${封面}': `<img src="${info["data"]["pic"]}"/>`,
-                '${简介}': info["data"]["desc"],
+                '${简介}': description, // 使用处理后的简介
                 '${点赞}': `点赞：${(0, numeral)(info["data"]["stat"]["like"], this.config)}`,
                 '${投币}': `投币：${(0, numeral)(info["data"]["stat"]["coin"], this.config)}`,
                 '${收藏}': `收藏：${(0, numeral)(info["data"]["stat"]["favorite"], this.config)}`,
