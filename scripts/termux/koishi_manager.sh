@@ -5,61 +5,146 @@ if ! command -v dialog &> /dev/null; then
     pkg install dialog -y
 fi
 
-# 查找 koishi.yml 文件
-function find_koishi_instances {
-    local instances=()
-    for dir in $(find ~/ -name "koishi.yml" -exec dirname {} \;); do
-        instances+=("$dir")
+# 默认实例目录
+KOISHI_BASE_DIR="$HOME/koishi"
+
+# 日志函数
+log() {
+    local message="$1"
+    echo "$(date +'%Y-%m-%d %H:%M:%S') - $message" >> "$KOISHI_BASE_DIR/koishi-manager.log"
+}
+
+# 获取 Koishi 实例列表
+function get_koishi_instances {
+    find "$KOISHI_BASE_DIR" -maxdepth 2 -name "koishi.yml" -print0 | while IFS= read -r -d $'\0' file; do
+        dir=$(dirname "$file")
+        instance_name=$(basename "$dir")
+        echo "$instance_name"
     done
-    echo "${instances[@]}"
 }
 
 # 选择 Koishi 实例
 function select_koishi_instance {
-    local instances=($(find_koishi_instances))
-    if [ ${#instances[@]} -eq 0 ]; then
-        dialog --msgbox "未找到任何 Koishi 实例！" 5 50
+    local instances
+    instances=$(get_koishi_instances)
+
+    if [ -z "$instances" ]; then
+        dialog --msgbox "未找到 Koishi 实例！" 5 50
         return 1
-    elif [ ${#instances[@]} -eq 1 ]; then
-        KOISHI_DIR="${instances[0]}"
-    else
-        local options=()
-        for i in "${!instances[@]}"; do
-            options+=("$((i+1))" "${instances[$i]}")
-        done
-        choice=$(dialog --clear --backtitle "Koishi Manager" \
-                        --title "选择 Koishi 实例" \
-                        --menu "请选择一个 Koishi 实例：" 15 50 5 \
-                        "${options[@]}" \
-                        3>&1 1>&2 2>&3)
-        KOISHI_DIR="${instances[$((choice-1))]}"
     fi
+
+    local options=()
+    while IFS= read -r instance; do
+        options+=("$instance" "$instance")
+    done <<< "$instances"
+
+    selected_instance=$(dialog --clear --backtitle "Koishi Manager" \
+                                --title "选择 Koishi 实例" \
+                                --menu "请选择一个 Koishi 实例：" 15 50 0 \
+                                "${options[@]}" \
+                                3>&1 1>&2 2>&3)
+
+    if [ -z "$selected_instance" ]; then
+        return 1 # 用户取消选择
+    fi
+
+    KOISHI_APP_DIR="$KOISHI_BASE_DIR/$selected_instance"
+    echo "$KOISHI_APP_DIR"
 }
 
-# 主菜单函数
-function main_menu {
+# 确认操作函数
+function confirm_return {
+    echo "--------------------------------------------------"
+    read -n 1 -s -r -p "执行完成。按 任意 键返回主菜单..."
+    echo
+    read -n 1 -s -r -p "再按 任意 键返回主菜单..."
+    echo
+    echo
+}
+
+# 运行命令并展示输出 (切换到终端)
+run_command() {
+    local cmd="$1"
+    local dir="$2"
+    local title="$3"
+
+    if [ -n "$dir" ]; then
+        cd "$dir" || { dialog --msgbox "无法进入目录: $dir" 5 50; return 1; }
+    fi
+
+    # 清屏并显示提示信息
+    clear
+    echo "正在执行: $title"
+    echo "目录: $dir"
+    echo "命令: $cmd"
+    echo "--------------------------------------------------"
+
+    # 执行命令并输出到终端
+    eval "$cmd"
+
+    # 等待用户输入两次任意键
+    confirm_return
+
+    return $?
+}
+
+# 安装依赖函数
+function install_dependencies {
     while true; do
         choice=$(dialog --clear --backtitle "Koishi Manager" \
-                        --title "主菜单" \
-                        --menu "请选择一个操作：" 15 50 5 \
-                        1 "安装依赖" \
-                        2 "Koishi 控制" \
-                        3 "退出" \
+                        --title "安装依赖" \
+                        --menu "请选择要安装的依赖：" 15 50 7 \
+                        1 "安装 x11-repo" \
+                        2 "安装 tur-repo" \
+                        3 "安装 libexpat" \
+                        4 "安装 chromium" \
+                        5 "安装 ffmpeg" \
+                        6 "安装 nodejs-lts" \
+                        7 "返回主菜单" \
                         3>&1 1>&2 2>&3)
 
         case $choice in
             1)
-                install_dependencies
+                clear
+                echo "正在安装 x11-repo，请稍候..."
+                pkg i x11-repo -y
+                confirm_return
                 ;;
             2)
-                select_koishi_instance
-                if [ $? -eq 0 ]; then
-                    koishi_control
-                fi
+                clear
+                echo "正在安装 tur-repo，请稍候..."
+                pkg rei tur-repo -y
+                confirm_return
                 ;;
             3)
                 clear
-                exit 0
+                echo "正在安装 libexpat，请稍候..."
+                pkg rei libexpat -y
+                confirm_return
+                ;;
+            4)
+                clear
+                echo "正在安装 chromium，请稍候..."
+                pkg i chromium -y
+                confirm_return
+                ;;
+            5)
+                clear
+                echo "正在安装 ffmpeg，请稍候..."
+                pkg i ffmpeg -y
+                confirm_return
+                ;;
+            6)
+                clear
+                echo "正在安装 nodejs-lts，请稍候..."
+                pkg i nodejs-lts -y
+                npm config set registry https://registry.npmmirror.com
+                npm i -g yarn
+                yarn config set registry https://registry.npmmirror.com
+                confirm_return
+                ;;
+            7)
+                break
                 ;;
             *)
                 break
@@ -68,28 +153,55 @@ function main_menu {
     done
 }
 
-# 安装依赖函数
-function install_dependencies {
-    dialog --infobox "正在安装依赖，请稍候..." 5 50
-    pkg i x11-repo -y
-    pkg rei tur-repo -y
-    pkg rei libexpat -y
-    pkg i chromium -y
-    pkg i ffmpeg -y
-    pkg i nodejs-lts -y
-    npm config set registry https://registry.npmmirror.com
-    npm i -g yarn
-    yarn config set registry https://registry.npmmirror.com
-    mkdir -p ~/koishi
-    dialog --msgbox "依赖安装完成！" 5 50
+# 创建 Koishi 实例
+function create_koishi_instance {
+    mkdir -p "$KOISHI_BASE_DIR"
+    cd "$KOISHI_BASE_DIR" || return
+
+    # 退出 UI，将控制权交给终端
+    clear
+    echo "正在创建 Koishi 实例，请按照提示进行操作..."
+
+    yarn create koishi
+
+    # 查找新创建的实例目录
+    local new_instance_dir=$(find "$KOISHI_BASE_DIR" -maxdepth 2 -name "koishi.yml" -type f -printf "%h\n" | tail -n 1)
+
+    if [ -n "$new_instance_dir" ]; then
+        echo "Koishi 实例创建成功！目录: $new_instance_dir"
+        cd "$new_instance_dir" || return
+        echo "正在启动 Koishi..."
+        yarn start
+    else
+        echo "Koishi 实例创建失败！"
+    fi
+
+    # 退出脚本，不再返回 UI
+    exit 0
 }
 
-# Koishi 控制菜单函数
+# 删除 Koishi 实例
+function delete_koishi_instance {
+    if ! KOISHI_APP_DIR=$(select_koishi_instance); then
+        return
+    fi
+
+    if dialog --yesno "确定要删除 Koishi 实例吗？此操作不可恢复！" 7 50; then
+        rm -rf "$KOISHI_APP_DIR"
+        dialog --msgbox "Koishi 实例已删除！" 5 50
+    fi
+}
+
+# Koishi 控制菜单
 function koishi_control {
+    if ! KOISHI_APP_DIR=$(select_koishi_instance); then
+        return
+    fi
+
     while true; do
         choice=$(dialog --clear --backtitle "Koishi Manager" \
                         --title "Koishi 控制" \
-                        --menu "请选择一个操作：" 15 50 8 \
+                        --menu "请选择一个操作：" 15 50 9 \
                         1 "启动 Koishi (yarn start)" \
                         2 "整理依赖 (yarn)" \
                         3 "重装依赖 (rm -rf node_modules && yarn install)" \
@@ -97,41 +209,70 @@ function koishi_control {
                         5 "以开发模式启动 (yarn dev)" \
                         6 "编译全部源码 (yarn build)" \
                         7 "依赖去重 (yarn dedupe)" \
-                        8 "返回主菜单" \
+                        8 "删除 Koishi 实例" \
+                        9 "返回主菜单" \
                         3>&1 1>&2 2>&3)
 
         case $choice in
             1)
-                cd "$KOISHI_DIR/koishi-app"
-                yarn start
+                run_command "yarn start" "$KOISHI_APP_DIR" "启动 Koishi"
                 ;;
             2)
-                cd "$KOISHI_DIR/koishi-app"
-                yarn
+                run_command "yarn" "$KOISHI_APP_DIR" "整理依赖"
                 ;;
             3)
-                cd "$KOISHI_DIR/koishi-app"
-                rm -rf node_modules
-                yarn install
+                run_command "rm -rf node_modules && yarn install" "$KOISHI_APP_DIR" "重装依赖"
                 ;;
             4)
-                cd "$KOISHI_DIR/koishi-app"
-                yarn upgrade
+                run_command "yarn upgrade" "$KOISHI_APP_DIR" "升级全部依赖"
                 ;;
             5)
-                cd "$KOISHI_DIR/koishi-app"
-                yarn dev
+                run_command "yarn dev" "$KOISHI_APP_DIR" "开发模式启动"
                 ;;
             6)
-                cd "$KOISHI_DIR/koishi-app"
-                yarn build
+                run_command "yarn build" "$KOISHI_APP_DIR" "编译全部源码"
                 ;;
             7)
-                cd "$KOISHI_DIR/koishi-app"
-                yarn dedupe
+                run_command "yarn dedupe" "$KOISHI_APP_DIR" "依赖去重"
                 ;;
             8)
+                delete_koishi_instance
+                ;;
+            9)
                 break
+                ;;
+            *)
+                break
+                ;;
+        esac
+    done
+}
+
+# 主菜单
+function main_menu {
+    while true; do
+        choice=$(dialog --clear --backtitle "Koishi Manager" \
+                        --title "主菜单" \
+                        --menu "请选择一个操作：" 15 50 4 \
+                        1 "安装依赖" \
+                        2 "创建 Koishi 实例" \
+                        3 "管理 Koishi 实例" \
+                        4 "退出" \
+                        3>&1 1>&2 2>&3)
+
+        case $choice in
+            1)
+                install_dependencies
+                ;;
+            2)
+                create_koishi_instance
+                ;;
+            3)
+                koishi_control
+                ;;
+            4)
+                clear
+                exit 0
                 ;;
             *)
                 break
