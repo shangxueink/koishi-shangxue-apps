@@ -6,26 +6,10 @@ const { Schema } = require("koishi");
 const name = "command-creator-extender";
 
 const usage = `
-<p>本插件用于将一个已有的指令映射到其他指令，并允许用户自定义指令。</p>
 
 本插件效果预览：
 <li><a href="https://i0.hdslb.com/bfs/article/c3a90e76082632cd5321d23582f9bc0d312276085.png" target="_blank" referrerpolicy="no-referrer">一次调用多个指令</a></li>
 <li><a href="https://i0.hdslb.com/bfs/article/b130e445dcfe99a89e841ee7615a4e61312276085.png" target="_blank" referrerpolicy="no-referrer">同一个指令，不同群里调用不同指令</a></li>
-
-<h2>功能</h2>
-<ul>
-<li>指令映射：通过配置表将输入指令映射到多个输出指令。</li>
-<li>自定义指令：用户可以创建自定义指令，指定其行为为回复消息或执行其他指令。</li>
-<li>日志调试：启用调试模式以输出详细日志信息。</li>
-</ul>
-<h2>使用方法</h2>
-<p>您可以在 <strong>table2</strong> 表格中指定【关键词或已经注册的指令】的调用关系。</p>
-<h3>注意事项</h3>
-<ul>
-<li><strong>table2</strong>：在执行完【关键词或原始指令】之后，会自动执行右侧的【下一个指令】。可以指定多个重复的【关键词或原始指令】以实现多重调用。</li>
-</ul>
-</body>
-
 
 ---
 
@@ -34,35 +18,54 @@ const usage = `
 （注：下面的【前缀】均指【全局设置】里的指令前缀）
 
 > 灵感来自 [command-creator](/market?keyword=command-creater)
+
+<h2>使用示例</h2>
+<p>假设您的 全局设置 里前缀只有 <code>["++", "/"]</code>：</p>
+<ul>
+    <li><strong>默认配置项</strong>（例如 <code>rawCommand: "一键打卡"</code>）：
+        <ul>
+            <li><strong>私聊</strong>：可以使用 <code>一键打卡</code>、<code>++一键打卡</code> 或 <code>/一键打卡</code> 触发。</li>
+            <li><strong>群聊</strong>：必须使用 <code>++一键打卡</code> 或 <code>/一键打卡</code> 触发。</li>
+        </ul>
+    </li>
+    <li><strong>修改配置项</strong>（例如 <code>rawCommand: "**一键打卡"</code>）：
+        <ul>
+            <li><strong>私聊、群聊</strong>：必须使用 <code>++**一键打卡</code> 或 <code>/**一键打卡</code> 触发。（即使配置中包含了其他字符，全局前缀仍然是必需的）</li>
+        </ul>
+    </li>
+</ul>
+
+<code>即，解析rawCommand的行为 与指令效果 一致</code>
 `;
+
 
 
 const Config = Schema.intersect([
   Schema.object({
     table2: Schema.array(Schema.object({
       rawCommand: Schema.string().description('【当接收到消息】或【原始指令】'),
-      nextCommand: Schema.string().description('自动执行的下一个指令（无需指令前缀）'),
+      nextCommand: Schema.string().description('自动执行的下一个指令'),
       effectchannelId: Schema.string().description('生效的频道ID。全部频道请填入 `0`，多群组使用逗号分隔开').default("0"),
       uneffectchannelId: Schema.string().description('排除的频道ID。全部频道请填入 `0`，多群组使用逗号分隔开').default(""),
-    })).role('table').description('指令调用映射表<br>因为不是注册指令 只是匹配接收到的消息 所以如果你希望有前缀触发的话，需要加上前缀<br>当然你也可以写已有的指令名称比如【/help】（需要指令前缀）').default(
+    })).role('table').description('指令调用映射表<br>因为不是注册指令 只是匹配接收到的消息 所以如果你希望有前缀触发的话，需要加上前缀<br>当然你也可以写已有的指令名称比如【help】').default(
       [
         {
-          "rawCommand": "/help",
+          "rawCommand": "help",
           "nextCommand": "status",
           "effectchannelId": "11514"
         },
         {
-          "rawCommand": "/一键打卡",
+          "rawCommand": "一键打卡",
           "nextCommand": "今日运势",
           "uneffectchannelId": "11514"
         },
         {
-          "rawCommand": "/一键打卡",
+          "rawCommand": "一键打卡",
           "nextCommand": "签到",
           "uneffectchannelId": "11514"
         },
         {
-          "rawCommand": "/一键打卡",
+          "rawCommand": "一键打卡",
           "nextCommand": "鹿",
           "uneffectchannelId": "11514"
         }
@@ -78,6 +81,17 @@ const Config = Schema.intersect([
 
 
 async function apply(ctx, config) {
+
+  function loggerinfo(message, message2) {
+    if (config.loggerinfo) {
+      if (message2) {
+        ctx.logger.info(`${message}${message2}`)
+      } else {
+        ctx.logger.info(message);
+      }
+    }
+  }
+
   ctx.middleware(async (session, next) => {
     if (!config.reverse_order) {
       await next();
@@ -87,9 +101,22 @@ async function apply(ctx, config) {
     const [currentCommand, ...args] = content.trim().split(/\s+/);
     const remainingArgs = args.join(" ");
 
+    const prefixes = session.app.koishi.config.prefix || ctx.root.options.prefix || [];
+    if (typeof prefixes === 'string') prefixes = [prefixes];
     // 查找匹配的原始指令
-    const mappings = config.table2.filter(item => currentCommand === item.rawCommand);
+    const mappings = config.table2.filter(item => {
+      // 如果 rawCommand 已经包含了前缀，则直接匹配
+      if (prefixes.some(prefix => currentCommand === prefix + item.rawCommand || currentCommand === item.rawCommand) && session.isDirect) { // 私聊 允许无前缀
+        return true;
+      } else if (prefixes.some(prefix => currentCommand === prefix + item.rawCommand) && !session.isDirect) { // 群聊 必须有前缀
+        return true;
+      }
+      // 否则，检查是否为无前缀调用 或 添加了任意一个前缀
+      return prefixes.length === 0 ? currentCommand === item.rawCommand : prefixes.some(prefix => currentCommand === (prefix + item.rawCommand));
+    });
+
     if (mappings.length > 0) {
+      loggerinfo(prefixes)
       for (const mapping of mappings) {
         // 处理全角和半角逗号
         const effectChannelIds = (mapping.effectchannelId || "").replace(/，/g, ',').split(',').map(id => id.trim());
@@ -114,27 +141,15 @@ async function apply(ctx, config) {
         // 检查 at 情况
         if ((hasAt && atSelf) || !hasAt) {
           if (isEffective) {
-            if (config.loggerinfo) {
-              ctx.logger.info(
-                `用户 ${session.userId} 在频道 ${session.channelId} 触发了 ${currentCommand} ${remainingArgs}，即将自动执行：\n${mapping.nextCommand} ${remainingArgs}`
-              );
-            }
+            loggerinfo(`用户 ${session.userId} 在频道 ${session.channelId} 触发了 ${currentCommand} ${remainingArgs}，即将自动执行：\n${mapping.nextCommand} ${remainingArgs}`);
             await session.execute(`${mapping.nextCommand} ${remainingArgs}`);
           } else {
-            if (config.loggerinfo) {
-              ctx.logger.info(
-                `用户 ${session.userId} 在频道 ${session.channelId} 触发了 ${currentCommand}，但该指令未在当前频道生效（effectChannelId: ${effectChannelIds.join(
-                  ", "
-                )}, uneffectChannelId: ${uneffectChannelIds.join(", ")}）。`
-              );
-            }
-          }
-        } else {
-          if (config.loggerinfo) {
-            ctx.logger.info(
-              `用户 ${session.userId} 在频道 ${session.channelId} 触发了 ${currentCommand}，但由于 at 了其他用户，该指令未触发。`
+            loggerinfo(`用户 ${session.userId} 在频道 ${session.channelId} 触发了 ${currentCommand}，但该指令未在当前频道生效（effectChannelId: ${effectChannelIds.join(", "
+            )}, uneffectChannelId: ${uneffectChannelIds.join(", ")}）。`
             );
           }
+        } else {
+          loggerinfo(`用户 ${session.userId} 在频道 ${session.channelId} 触发了 ${currentCommand}，但由于 at 了其他用户，该指令未触发。`);
         }
       }
     }

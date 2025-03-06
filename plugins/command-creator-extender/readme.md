@@ -3,50 +3,35 @@
 [![npm](https://img.shields.io/npm/v/koishi-plugin-command-creator-extender?style=flat-square)](https://www.npmjs.com/package/koishi-plugin-command-creator-extender)
 
 
-Command Creator Extender 是一个 Koishi 插件，用于将已有的指令映射到其他指令，并允许用户自定义指令。
+本插件效果预览：
+<li><a href="https://i0.hdslb.com/bfs/article/c3a90e76082632cd5321d23582f9bc0d312276085.png" target="_blank" referrerpolicy="no-referrer">一次调用多个指令</a></li>
+<li><a href="https://i0.hdslb.com/bfs/article/b130e445dcfe99a89e841ee7615a4e61312276085.png" target="_blank" referrerpolicy="no-referrer">同一个指令，不同群里调用不同指令</a></li>
 
-## 功能
+---
 
-- **指令映射**：通过配置表将输入指令映射到多个输出指令。
-- **自定义指令**：用户可以创建自定义指令，指定其行为为回复消息或执行其他指令。
-- **日志调试**：启用调试模式以输出详细日志信息。
+我们在下面的默认配置项内容里写好了一个使用示例
 
-## 使用方法
+（注：下面的【前缀】均指【全局设置】里的指令前缀）
 
-您可以在 `table2` 表格中指定【关键词或已经注册的指令】的调用关系。
+> 灵感来自 [command-creator](https://www.npmjs.com/package/koishi-plugin-command-creater)
 
-### 注意事项
+<h2>使用示例</h2>
+<p>假设您的 全局设置 里前缀只有 <code>["++", "/"]</code>：</p>
+<ul>
+    <li><strong>默认配置项</strong>（例如 <code>rawCommand: "一键打卡"</code>）：
+        <ul>
+            <li><strong>私聊</strong>：可以使用 <code>一键打卡</code>、<code>++一键打卡</code> 或 <code>/一键打卡</code> 触发。</li>
+            <li><strong>群聊</strong>：必须使用 <code>++一键打卡</code> 或 <code>/一键打卡</code> 触发。</li>
+        </ul>
+    </li>
+    <li><strong>修改配置项</strong>（例如 <code>rawCommand: "**一键打卡"</code>）：
+        <ul>
+            <li><strong>私聊、群聊</strong>：必须使用 <code>++**一键打卡</code> 或 <code>/**一键打卡</code> 触发。（即使配置中包含了其他字符，全局前缀仍然是必需的）</li>
+        </ul>
+    </li>
+</ul>
 
-- **table2**：在执行完【关键词或原始指令】之后，会自动执行右侧的【下一个指令】。可以指定多个重复的【关键词或原始指令】以实现多重调用。
-
-## 配置项
-
-### 指令设置
-
-- **table2**：指令调用映射表。因为不是注册指令，只是匹配接收到的消息，所以如果希望有前缀触发的话，需要加上前缀。当然也可以写已有的指令名称比如【/help】（需要指令前缀）。
-
-  示例配置：
-
-  ```json
-  [
-    {
-      "rawCommand": "/help",
-      "nextCommand": "status"
-    },
-    {
-      "rawCommand": "/一键打卡",
-      "nextCommand": "今日运势"
-    },
-    {
-      "rawCommand": "/一键打卡",
-      "nextCommand": "签到"
-    },
-    {
-      "rawCommand": "/一键打卡",
-      "nextCommand": "鹿"
-    }
-  ]
-  ```
+<code>即，解析rawCommand的行为 与指令效果 一致</code>
 
 ### 调试设置
 
