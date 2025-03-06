@@ -55,7 +55,7 @@ function select_koishi_instance {
 # 确认操作函数
 function confirm_return {
     echo "--------------------------------------------------"
-    read -n 1 -s -r -p "执行完成。按 任意 键返回主菜单..."
+    read -n 1 -s -r -p "执行完成。按 任意 键返回主菜单...如果有任何报错：请 立即 现在 截图 完整 日志！！！"
     echo
     read -n 1 -s -r -p "再按 任意 键返回主菜单..."
     echo
@@ -205,7 +205,7 @@ function koishi_control {
                         1 "启动 Koishi (yarn start)" \
                         2 "整理依赖 (yarn)" \
                         3 "重装依赖 (rm -rf node_modules && yarn install)" \
-                        4 "升级全部依赖 (yarn upgrade)" \
+                        4 "升级全部依赖 (yarn up)" \
                         5 "以开发模式启动 (yarn dev)" \
                         6 "编译全部源码 (yarn build)" \
                         7 "依赖去重 (yarn dedupe)" \
@@ -224,7 +224,7 @@ function koishi_control {
                 run_command "rm -rf node_modules && yarn install" "$KOISHI_APP_DIR" "重装依赖"
                 ;;
             4)
-                run_command "yarn upgrade" "$KOISHI_APP_DIR" "升级全部依赖"
+                run_command "yarn up" "$KOISHI_APP_DIR" "升级全部依赖"
                 ;;
             5)
                 run_command "yarn dev" "$KOISHI_APP_DIR" "开发模式启动"
