@@ -1,0 +1,36 @@
+{
+  "name": "@shangxueink/koishi-plugin-content-guard",
+  "version": "2.0.0",
+  "description": "[<ruby>**审核输入调用**<rp>（</rp><rt>点我查看使用说明</rt><rp>）</rp></ruby>](https://www.npmjs.com/package/@shangxueink/koishi-plugin-content-guard) 设置对应指令的文本输入审核，实现违规输入禁止调用，适用于任何指令的调用审核。让你的机器人更安全地面向用户开放服务。",
+  "main": "lib/index.js",
+  "typings": "lib/index.d.ts",
+  "files": [
+    "lib",
+    "Vocabulary"
+  ],
+  "license": "MIT",
+  "homepage": "https://github.com/shangxueink/koishi-shangxue-apps/tree/main/",
+  "bugs": {
+    "url": "https://github.com/shangxueink/koishi-shangxue-apps/issues"
+  },
+  "keywords": [
+    "bot",
+    "chatbot",
+    "koishi",
+    "plugin",
+    "审核",
+    "文本",
+    "对话",
+    "审核输入调用",
+    "关键词"
+  ],
+  "koishi": {
+    "description": {
+      "en": "",
+      "zh": "[<ruby>**审核输入调用**<rp>（</rp><rt>点我查看使用说明</rt><rp>）</rp></ruby>](https://www.npmjs.com/package/@shangxueink/koishi-plugin-content-guard) 设置对应指令的文本输入审核，实现违规输入禁止调用，适用于任何指令的调用审核。让你的机器人更安全地面向用户开放服务。"
+    }
+  },
+  "peerDependencies": {
+    "koishi": "^4.17.1"
+  }
+}
