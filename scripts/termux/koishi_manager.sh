@@ -1,188 +1,287 @@
 #!/bin/bash
 
-# 设置颜色变量，方便后续使用
+# Koishi Manager for Termux
+# Version: 1.0
+
+# 设置颜色
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[0;33m'
+BLUE='\033[0;34m'
+PURPLE='\033[0;35m'
+CYAN='\033[0;36m'
 NC='\033[0m' # No Color
 
-# 定义菜单选项
-main_menu_options=(
-    "安装 Koishi 环境"
-    "Koishi 管理"
-    "退出"
-)
-
-koishi_menu_options=(
-    "启动 Koishi (cd koishi/koishi-app && yarn start)"
-    "整理依赖 (cd koishi/koishi-app && yarn)"
-    "重装依赖 (cd koishi/koishi-app && rm -rf node_modules && rm yarn.lock && yarn install)"
-    "升级全部依赖 (cd koishi/koishi-app && yarn upgrade)"
-    "以开发模式启动 (cd koishi/koishi-app && yarn dev)"
-    "编译全部源码 (cd koishi/koishi-app && yarn build)"
-    "返回主菜单"
-)
-
-# 获取终端大小
-get_terminal_size() {
-  rows=$(tput lines)
-  cols=$(tput cols)
-}
-
-# 打印菜单
-print_menu() {
-  local menu_options=("${!1[@]}")
-  local selected=$2
-  get_terminal_size
+# 清屏函数
+clear_screen() {
   clear
-  echo "--------------------------------------------------"
-  echo "  Koishi Termux 管理脚本"
-  echo "--------------------------------------------------"
-  for i in "${!menu_options[@]}"; do
-    if [ "$i" -eq "$selected" ]; then
-      echo -e "${GREEN}* ${menu_options[$i]}${NC}"
-    else
-      echo "  ${menu_options[$i]}"
-    fi
-  done
-  echo "--------------------------------------------------"
-  echo -e "使用 ${GREEN}↑${NC}/${GREEN}↓${NC} 选择，${GREEN}Enter${NC} 确认"
 }
 
-# 执行命令并记录日志
+# 显示标题
+show_title() {
+  echo -e "${CYAN}=================================${NC}"
+  echo -e "${PURPLE}     Koishi Termux 管理器     ${NC}"
+  echo -e "${CYAN}=================================${NC}"
+  echo ""
+}
+
+# 确保 koishi 目录存在
+ensure_koishi_dir() {
+  if [ ! -d "$HOME/koishi" ]; then
+    echo -e "${YELLOW}创建 koishi 目录...${NC}"
+    mkdir -p $HOME/koishi
+  fi
+}
+
+# 执行命令并显示结果
 execute_command() {
-  local command="$1"
-  echo -e "${YELLOW}执行命令: ${command}${NC}"
-  eval "$command" 2>&1 | tee -a koishi_manager.log
-  echo -e "${GREEN}命令执行完毕。${NC}"
-  sleep 1
+  echo -e "${GREEN}执行命令: $1${NC}"
+  echo -e "${YELLOW}----------------------------------------${NC}"
+  eval "$1"
+  echo -e "${YELLOW}----------------------------------------${NC}"
+  echo -e "${GREEN}命令执行完成!${NC}"
+  echo ""
+  read -n 1 -s -r -p "按任意键继续..."
 }
 
-# 主菜单处理函数
-handle_main_menu() {
-  local selected=0
-  local key
-  while true; do
-    print_menu main_menu_options "$selected"
-    read -rsn1 key
-    case "$key" in
-      $'\e[A') # Up
-        selected=$(( (selected - 1 + ${#main_menu_options[@]}) % ${#main_menu_options[@]} ))
-        ;;
-      $'\e[B') # Down
-        selected=$(( (selected + 1) % ${#main_menu_options[@]} ))
-        ;;
-      $'\r') # Enter
-        case "$selected" in
-          0) # 安装 Koishi 环境
-            install_koishi_env
-            break
-            ;;
-          1) # Koishi 管理
-            handle_koishi_menu
-            break
-            ;;
-          2) # 退出
-            clear
-            exit 0
-            ;;
-        esac
-        ;;
-    esac
-  done
-}
-
-# Koishi 管理菜单处理函数
-handle_koishi_menu() {
-  local selected=0
-  local key
-  while true; do
-    print_menu koishi_menu_options "$selected"
-    read -rsn1 key
-    case "$key" in
-      $'\e[A') # Up
-        selected=$(( (selected - 1 + ${#koishi_menu_options[@]}) % ${#koishi_menu_options[@]} ))
-        ;;
-      $'\e[B') # Down
-        selected=$(( (selected + 1) % ${#koishi_menu_options[@]} ))
-        ;;
-      $'\r') # Enter
-        case "$selected" in
-          0) # 启动 Koishi
-            execute_command "cd koishi/koishi-app && yarn start"
-            break
-            ;;
-          1) # 整理依赖
-            execute_command "cd koishi/koishi-app && yarn"
-            break
-            ;;
-          2) # 重装依赖
-            execute_command "cd koishi/koishi-app && rm -rf node_modules && rm yarn.lock && yarn install"
-            break
-            ;;
-          3) # 升级全部依赖
-            execute_command "cd koishi/koishi-app && yarn upgrade"
-            break
-            ;;
-          4) # 以开发模式启动
-            execute_command "cd koishi/koishi-app && yarn dev"
-            break
-            ;;
-          5) # 编译全部源码
-            execute_command "cd koishi/koishi-app && yarn build"
-            break
-          6) # 返回主菜单
-            handle_main_menu
-            return
-            ;;
-        esac
-        ;;
-    esac
-  done
-}
-
-
-# 安装 Koishi 环境
-install_koishi_env() {
-  echo -e "${YELLOW}开始安装 Koishi 环境...${NC}"
-  # 安装依赖
+# 安装基础依赖
+install_dependencies() {
+  clear_screen
+  show_title
+  echo -e "${BLUE}正在安装基础依赖...${NC}"
+  
   execute_command "pkg i x11-repo -y"
   execute_command "pkg rei tur-repo -y"
   execute_command "pkg rei libexpat -y"
   execute_command "pkg i chromium -y"
   execute_command "pkg i ffmpeg -y"
   execute_command "pkg i nodejs-lts -y"
-
-  # 设置 npm 淘宝镜像源
   execute_command "npm config set registry https://registry.npmmirror.com"
-
-  # 安装 yarn
   execute_command "npm i -g yarn"
-
-  # 设置 yarn 淘宝镜像源
   execute_command "yarn config set registry https://registry.npmmirror.com"
+  
+  echo -e "${GREEN}基础依赖安装完成!${NC}"
+  read -n 1 -s -r -p "按任意键继续..."
+}
 
-  # 创建 koishi 目录
-  if [ ! -d "$HOME/koishi" ]; then
-    mkdir "$HOME/koishi"
-  fi
+# 创建 Koishi 项目
+create_koishi_project() {
+  clear_screen
+  show_title
+  echo -e "${BLUE}正在创建 Koishi 项目...${NC}"
+  
+  ensure_koishi_dir
+  cd $HOME/koishi
+  
+  execute_command "cd $HOME/koishi && yarn create koishi << EOF
 
-  # 创建 koishi 项目
-  execute_command "cd $HOME/koishi && yarn create koishi"
 
-  # 自动回车五次
-  execute_command "cd $HOME/koishi && yes '' | yarn create koishi"
 
-  echo -e "${GREEN}Koishi 环境安装完成！${NC}"
-  sleep 1
+
+EOF"
+  
+  echo -e "${GREEN}Koishi 项目创建完成!${NC}"
+  read -n 1 -s -r -p "按任意键继续..."
+}
+
+# 启动 Koishi
+start_koishi() {
+  clear_screen
+  show_title
+  echo -e "${BLUE}正在启动 Koishi...${NC}"
+  
+  ensure_koishi_dir
+  execute_command "cd $HOME/koishi/koishi-app && yarn start"
+}
+
+# 整理依赖
+organize_dependencies() {
+  clear_screen
+  show_title
+  echo -e "${BLUE}正在整理依赖...${NC}"
+  
+  ensure_koishi_dir
+  execute_command "cd $HOME/koishi/koishi-app && yarn"
+}
+
+# 重装依赖
+reinstall_dependencies() {
+  clear_screen
+  show_title
+  echo -e "${BLUE}正在重装依赖...${NC}"
+  
+  ensure_koishi_dir
+  execute_command "cd $HOME/koishi/koishi-app && rm -rf node_modules && > yarn.lock && yarn install"
+}
+
+# 升级全部依赖
+upgrade_dependencies() {
+  clear_screen
+  show_title
+  echo -e "${BLUE}正在升级全部依赖...${NC}"
+  
+  ensure_koishi_dir
+  execute_command "cd $HOME/koishi/koishi-app && yarn upgrade-interactive --latest"
+}
+
+# 开发模式启动
+start_dev_mode() {
+  clear_screen
+  show_title
+  echo -e "${BLUE}正在以开发模式启动 Koishi...${NC}"
+  
+  ensure_koishi_dir
+  execute_command "cd $HOME/koishi/koishi-app && yarn dev"
+}
+
+# 编译全部源码
+build_source() {
+  clear_screen
+  show_title
+  echo -e "${BLUE}正在编译全部源码...${NC}"
+  
+  ensure_koishi_dir
+  execute_command "cd $HOME/koishi/koishi-app && yarn build"
+}
+
+# 显示主菜单
+show_main_menu() {
+  clear_screen
+  show_title
+  
+  local options=("安装基础依赖 (安装 Chromium、Node.js、Yarn 等)" 
+                "创建 Koishi 项目 (执行 yarn create koishi)" 
+                "Koishi 管理" 
+                "退出")
+  local current=0
+  
+  # 显示菜单
+  display_menu() {
+    for i in "${!options[@]}"; do
+      if [ $i -eq $current ]; then
+        echo -e "${GREEN}> ${options[$i]}${NC}"
+      else
+        echo -e "  ${options[$i]}"
+      fi
+    done
+  }
+  
+  # 显示初始菜单
+  display_menu
+  
+  # 处理按键
+  while true; do
+    read -s -n 1 key
+    
+    # 检测箭头键
+    if [[ $key = $'\e' ]]; then
+      read -s -n 2 -t 0.1 key
+      if [[ $key = '[A' ]]; then  # 上箭头
+        ((current--))
+        if [ $current -lt 0 ]; then
+          current=$((${#options[@]}-1))
+        fi
+      elif [[ $key = '[B' ]]; then  # 下箭头
+        ((current++))
+        if [ $current -ge ${#options[@]} ]; then
+          current=0
+        fi
+      fi
+      
+      # 重新显示菜单
+      clear_screen
+      show_title
+      display_menu
+    elif [[ $key = '' ]]; then  # 回车键
+      case $current in
+        0) install_dependencies; break;;
+        1) create_koishi_project; break;;
+        2) show_koishi_menu; break;;
+        3) exit 0;;
+      esac
+    fi
+  done
+}
+
+# 显示 Koishi 管理菜单
+show_koishi_menu() {
+  clear_screen
+  show_title
+  
+  local options=("启动 Koishi (cd koishi/koishi-app && yarn start)" 
+                "整理依赖 (cd koishi/koishi-app && yarn)" 
+                "重装依赖 (cd koishi/koishi-app && rm -rf node_modules && > yarn.lock && yarn install)" 
+                "升级全部依赖 (cd koishi/koishi-app && yarn upgrade-interactive --latest)" 
+                "开发模式启动 (cd koishi/koishi-app && yarn dev)" 
+                "编译全部源码 (cd koishi/koishi-app && yarn build)"
+                "返回主菜单")
+  local current=0
+  
+  # 显示菜单
+  display_menu() {
+    for i in "${!options[@]}"; do
+      if [ $i -eq $current ]; then
+        echo -e "${GREEN}> ${options[$i]}${NC}"
+      else
+        echo -e "  ${options[$i]}"
+      fi
+    done
+  }
+  
+  # 显示初始菜单
+  display_menu
+  
+  # 处理按键
+  while true; do
+    read -s -n 1 key
+    
+    # 检测箭头键
+    if [[ $key = $'\e' ]]; then
+      read -s -n 2 -t 0.1 key
+      if [[ $key = '[A' ]]; then  # 上箭头
+        ((current--))
+        if [ $current -lt 0 ]; then
+          current=$((${#options[@]}-1))
+        fi
+      elif [[ $key = '[B' ]]; then  # 下箭头
+        ((current++))
+        if [ $current -ge ${#options[@]} ]; then
+          current=0
+        fi
+      fi
+      
+      # 重新显示菜单
+      clear_screen
+      show_title
+      display_menu
+    elif [[ $key = '' ]]; then  # 回车键
+      case $current in
+        0) start_koishi; break;;
+        1) organize_dependencies; break;;
+        2) reinstall_dependencies; break;;
+        3) upgrade_dependencies; break;;
+        4) start_dev_mode; break;;
+        5) build_source; break;;
+        6) show_main_menu; return;;
+      esac
+    fi
+  done
+  
+  # 返回到 Koishi 管理菜单
+  show_koishi_menu
 }
 
 # 主程序入口
 main() {
-  # 初始化日志文件
-  > koishi_manager.log
-
-  handle_main_menu
+  # 检查 Termux 环境
+  if [ ! -d "/data/data/com.termux" ]; then
+    echo -e "${RED}错误: 此脚本只能在 Termux 环境中运行!${NC}"
+    exit 1
+  fi
+  
+  # 显示主菜单
+  show_main_menu
 }
 
+# 运行主程序
 main
