@@ -24,7 +24,10 @@ exports.usage = `
 
 ---
 
-<li><a href="https://github.com/shangxueink/koishi-shangxue-apps/tree/main/plugins/storeluna" target="_blank">点我查看完整 README</a></li>
+<li><a href="https://github.com/shangxueink/koishi-shangxue-apps/tree/main/plugins/storeluna" target="_blank">点我查看完整项目 README</a></li>
+
+<li><a href="https://forum.koishi.xyz/t/topic/10511/2" target="_blank">点我查看 论坛插件使用教程（本地镜像源）</a></li>
+
 `;
 
 exports.Config = Schema.intersect([
@@ -104,7 +107,7 @@ async function apply(ctx, config) {
     return name.startsWith('@koishijs/')
   }
 
-  // 使用 fetch 的重试函数 (使用 ctx.http.get), 包含详细错误日志和自定义重试间隔
+  // 使用 ctx.http.get 的重试函数, 包含详细错误日志和自定义重试间隔
   async function fetchWithRetry(url, options = {}, retries = config.maxRetries) {
     for (let i = 0; i < retries; i++) {
       try {
