@@ -147,7 +147,7 @@ function install_dependencies {
                 break
                 ;;
             *)
-                dialog --infobox "无效选项，请重新选择..." 3 30; sleep 1
+                break
                 ;;
         esac
     done
@@ -184,7 +184,7 @@ function delete_koishi_instance {
 
     if dialog --clear --backtitle "Koishi Manager" \
               --title "删除 Koishi 实例"\
-              --yesno "确定要删除 Koishi 实例吗？此操作不可恢复！" 7 50; then
+              --yesno "确定要删除 "$KOISHI_APP_DIR" 实例吗？此操作不可恢复！" 7 50; then
         rm -rf "$KOISHI_APP_DIR"
         dialog --msgbox "Koishi 实例已删除！" 6 50
         main_menu # 删除后返回主菜单
@@ -242,7 +242,7 @@ function koishi_control {
                 break
                 ;;
             *)
-               dialog --infobox "无效选项，请重新选择..." 3 30; sleep 1
+               break
                 ;;
         esac
     done
