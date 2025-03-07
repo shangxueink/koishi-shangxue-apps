@@ -4,6 +4,10 @@
 
 通过这个工具，你可以轻松安装依赖、创建和管理 Koishi 实例。
 
+现已加入 Koimux全家桶： -> https://github.com/initialencounter/koimux_bot/blob/master/script/koimuxTUI.sh
+
+> 本仓库是为了存放备份（？）
+
 ---
 
 ## 推荐环境
