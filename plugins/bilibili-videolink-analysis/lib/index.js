@@ -89,7 +89,8 @@ exports.Config = Schema.intersect([
             Schema.const("bv").description("BV 号"),
             Schema.const("av").description("AV 号"),
         ]).default("bv").description("ID 偏好").hidden(),
-        bVideo_area: Schema.string().role('textarea', { rows: [8, 16] }).description("图文解析的返回格式<br>注意变量格式，以及变量名称<br>比如 `${标题}` 不可以变成`${标题123}`，你可以直接删掉但是不能修改变量名称哦<br>当然变量也不能无中生有，下面的默认值内容 就是所有变量了，你仅可以删去变量 或者修改变量之外的格式。")
+
+        bVideo_area: Schema.string().role('textarea', { rows: [8, 16] }).description("图文解析的返回格式<br>注意变量格式，以及变量名称。<br>比如 `${标题}` 不可以变成`${标题123}`，你可以直接删掉但是不能修改变量名称哦<br>当然变量也不能无中生有，下面的默认值内容 就是所有变量了，你仅可以删去变量 或者修改变量之外的格式。<br>· 特殊变量`${~~~}`表示分割线，会把上下内容分为两个信息单独发送。")
             .default("${标题} --- ${UP主}\n---\n${封面}\n---\n${简介}\n---\n${点赞} --- ${投币}\n${收藏} --- ${转发}\n${观看} --- ${弹幕}"),
         bVideoShowLink: Schema.boolean().default(false).description("在末尾显示视频的链接地址 `开启可能会导致其他bot循环解析`"),
         bVideoShowIntroductionTofixed: Schema.number().default(50).description("视频的`简介`最大的字符长度<br>超出部分会使用 `...` 代替"),
@@ -515,22 +516,32 @@ display: none !important;
     async function processVideoFromLink(session, config, ctx, lastProcessedUrls, logger, ret, options = { video: true }) {
         const lastretUrl = extractLastUrl(ret);
 
-        let mediaData = '';
-
         if (config.waitTip_Switch) {
             // 等候的提示文字
             await session.send(config.waitTip_Switch);
         }
 
+        let textParts = []; // 用于存储分割后的文本部分
         if (config.linktextParsing) {
+            let fullText;
             if (config.bVideoShowLink) {
-                await session.send(ret); // 发送完整信息
+                fullText = ret; // 发送完整信息
             } else {
                 // 去掉最后一个链接
-                const retWithoutLastLink = ret.replace(lastretUrl, '');
-                await session.send(retWithoutLastLink);
+                fullText = ret.replace(lastretUrl, '');
+            }
+
+            // 分割文本
+            textParts = fullText.split('${~~~}');
+        }
+        // 发送分割后的文本部分
+        for (const part of textParts) {
+            const trimmedPart = part.trim(); // 去除首尾空格
+            if (trimmedPart) { // 确保不是空字符串
+                await session.send(trimmedPart);
             }
         }
+
         if (config.VideoParsing_ToLink) {
             const fullAPIurl = `https://api.xingzhige.com/API/b_parse/?url=${encodeURIComponent(lastretUrl)}`;
 
@@ -604,13 +615,12 @@ display: none !important;
             }
         }
 
-
         if (config.loggerinfo) {
-            //logger.info(`视频信息内容：\n ${JSON.stringify(mediaData)}`);
             logger.info(`机器人发送完整消息为：\n ${ret}`);
         }
         return;
     }
+
 
 
     // 提取最后一个URL

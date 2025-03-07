@@ -178,6 +178,11 @@ https://www.bilibili.com/video/BV1ii421Q7oj
 <details>
 <summary>点击此处 可查看更新日志</summary>
 
+-   **1.1.10**
+    -   又想写了（指readme）
+    -   新增解析格式的的变量分割线
+    -   期间还写了什么，忘了
+
 -   **1.0.0**
     -   不想写了
 
