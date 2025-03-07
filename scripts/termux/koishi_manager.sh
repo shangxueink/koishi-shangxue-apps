@@ -29,7 +29,7 @@ function select_koishi_instance {
     instances=$(get_koishi_instances)
 
     if [ -z "$instances" ]; then
-        dialog --msgbox "未找到 Koishi 实例！" 5 50
+        dialog --msgbox "未找到 Koishi 实例！" 6 50
         return 1
     fi
 
@@ -40,7 +40,7 @@ function select_koishi_instance {
 
     selected_instance=$(dialog --clear --backtitle "Koishi Manager" \
                                 --title "选择 Koishi 实例" \
-                                --menu "请选择一个 Koishi 实例：" 15 50 0 \
+                                --menu "请选择一个 Koishi 实例：" 18 60 10 \
                                 "${options[@]}" \
                                 3>&1 1>&2 2>&3)
 
@@ -69,7 +69,7 @@ run_command() {
     local title="$3"
 
     if [ -n "$dir" ]; then
-        cd "$dir" || { dialog --msgbox "无法进入目录: $dir" 5 50; return 1; }
+        cd "$dir" || { dialog --msgbox "无法进入目录: $dir" 6 50; return 1; }
     fi
 
     # 清屏并显示提示信息
@@ -93,7 +93,7 @@ function install_dependencies {
     while true; do
         choice=$(dialog --clear --backtitle "Koishi Manager" \
                         --title "安装依赖" \
-                        --menu "请选择要安装的依赖：" 15 50 7 \
+                        --menu "请选择要安装的依赖：" 18 60 10 \
                         1 "安装 x11-repo" \
                         2 "安装 tur-repo" \
                         3 "安装 libexpat" \
@@ -147,7 +147,7 @@ function install_dependencies {
                 break
                 ;;
             *)
-                break
+                dialog --infobox "无效选项，请重新选择..." 3 30; sleep 1
                 ;;
         esac
     done
@@ -156,6 +156,14 @@ function install_dependencies {
 # 创建 Koishi 实例
 function create_koishi_instance {
     mkdir -p "$KOISHI_BASE_DIR"
+
+    # 确认创建
+    if ! dialog --clear --backtitle "Koishi Manager" \
+                --title "创建 Koishi 实例" \
+                --yesno "确定要创建新的 Koishi 实例吗？" 7 50; then
+      return
+    fi
+
     cd "$KOISHI_BASE_DIR" || return
 
     # 退出 UI，将控制权交给终端
@@ -186,9 +194,12 @@ function delete_koishi_instance {
         return
     fi
 
-    if dialog --yesno "确定要删除 Koishi 实例吗？此操作不可恢复！" 7 50; then
+    if dialog --clear --backtitle "Koishi Manager" \
+              --title "删除 Koishi 实例"\
+              --yesno "确定要删除 Koishi 实例吗？此操作不可恢复！" 7 50; then
         rm -rf "$KOISHI_APP_DIR"
-        dialog --msgbox "Koishi 实例已删除！" 5 50
+        dialog --msgbox "Koishi 实例已删除！" 6 50
+        main_menu # 删除后返回主菜单
     fi
 }
 
@@ -201,7 +212,7 @@ function koishi_control {
     while true; do
         choice=$(dialog --clear --backtitle "Koishi Manager" \
                         --title "Koishi 控制" \
-                        --menu "请选择一个操作：" 15 50 9 \
+                        --menu "请选择一个操作：" 18 60 10 \
                         1 "启动 Koishi (yarn start)" \
                         2 "整理依赖 (yarn)" \
                         3 "重装依赖 (rm -rf node_modules && yarn install)" \
@@ -237,12 +248,13 @@ function koishi_control {
                 ;;
             8)
                 delete_koishi_instance
+                return # 删除后返回主菜单, 避免继续循环
                 ;;
             9)
                 break
                 ;;
             *)
-                break
+               dialog --infobox "无效选项，请重新选择..." 3 30; sleep 1
                 ;;
         esac
     done
@@ -253,7 +265,7 @@ function main_menu {
     while true; do
         choice=$(dialog --clear --backtitle "Koishi Manager" \
                         --title "主菜单" \
-                        --menu "请选择一个操作：" 15 50 4 \
+                        --menu "请选择一个操作：" 18 60 10 \
                         1 "安装依赖" \
                         2 "创建 Koishi 实例" \
                         3 "管理 Koishi 实例" \
@@ -271,11 +283,24 @@ function main_menu {
                 koishi_control
                 ;;
             4)
-                clear
-                exit 0
+                if dialog --clear --backtitle "Koishi Manager" \
+                          --title "退出" \
+                          --yesno "确定要退出吗？" 7 50; then
+                    clear
+                    exit 0
+                fi
                 ;;
+            "")  # 处理直接按 Enter 或 Esc 的情况 (Cancell)
+                if dialog --clear --backtitle "Koishi Manager" \
+                          --title "退出" \
+                          --yesno "确定要退出吗？" 7 50; then
+                    clear
+                    exit 0
+                fi
+                ;;
+
             *)
-                break
+                dialog --infobox "无效选项，请重新选择..." 3 30; sleep 1
                 ;;
         esac
     done
