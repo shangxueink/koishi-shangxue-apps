@@ -29,7 +29,7 @@ function select_koishi_instance {
     instances=$(get_koishi_instances)
 
     if [ -z "$instances" ]; then
-        dialog --msgbox "未找到 Koishi 实例！" 10 50
+        dialog --msgbox "未找到 Koishi 实例！" 5 50
         return 1
     fi
 
@@ -40,7 +40,7 @@ function select_koishi_instance {
 
     selected_instance=$(dialog --clear --backtitle "Koishi Manager" \
                                 --title "选择 Koishi 实例" \
-                                --menu "请选择一个 Koishi 实例：" 20 50 0 \
+                                --menu "请选择一个 Koishi 实例：" 15 50 0 \
                                 "${options[@]}" \
                                 3>&1 1>&2 2>&3)
 
@@ -63,13 +63,13 @@ function confirm_return {
 }
 
 # 运行命令并展示输出 (切换到终端)
-function run_command {
+run_command() {
     local cmd="$1"
     local dir="$2"
     local title="$3"
 
     if [ -n "$dir" ]; then
-        cd "$dir" || { dialog --msgbox "无法进入目录: $dir" 10 50; return 1; }
+        cd "$dir" || { dialog --msgbox "无法进入目录: $dir" 5 50; return 1; }
     fi
 
     # 清屏并显示提示信息
@@ -93,7 +93,7 @@ function install_dependencies {
     while true; do
         choice=$(dialog --clear --backtitle "Koishi Manager" \
                         --title "安装依赖" \
-                        --menu "请选择要安装的依赖：" 20 50 7 \
+                        --menu "请选择要安装的依赖：" 15 50 7 \
                         1 "安装 x11-repo" \
                         2 "安装 tur-repo" \
                         3 "安装 libexpat" \
@@ -155,31 +155,29 @@ function install_dependencies {
 
 # 创建 Koishi 实例
 function create_koishi_instance {
-    if dialog --yesno "确定要创建 Koishi 实例吗？" 10 50 --defaultno; then
-        mkdir -p "$KOISHI_BASE_DIR"
-        cd "$KOISHI_BASE_DIR" || return
+    mkdir -p "$KOISHI_BASE_DIR"
+    cd "$KOISHI_BASE_DIR" || return
 
-        # 退出 UI，将控制权交给终端
-        clear
-        echo "正在创建 Koishi 实例，请按照提示进行操作..."
+    # 退出 UI，将控制权交给终端
+    clear
+    echo "正在创建 Koishi 实例，请按照提示进行操作..."
 
-        yarn create koishi
+    yarn create koishi
 
-        # 查找新创建的实例目录
-        local new_instance_dir=$(find "$KOISHI_BASE_DIR" -maxdepth 2 -name "koishi.yml" -type f -printf "%h\n" | tail -n 1)
+    # 查找新创建的实例目录
+    local new_instance_dir=$(find "$KOISHI_BASE_DIR" -maxdepth 2 -name "koishi.yml" -type f -printf "%h\n" | tail -n 1)
 
-        if [ -n "$new_instance_dir" ]; then
-            echo "Koishi 实例创建成功！目录: $new_instance_dir"
-            cd "$new_instance_dir" || return
-            echo "正在启动 Koishi..."
-            yarn start
-        else
-            echo "Koishi 实例创建失败！"
-        fi
-
-        # 退出脚本，不再返回 UI
-        exit 0
+    if [ -n "$new_instance_dir" ]; then
+        echo "Koishi 实例创建成功！目录: $new_instance_dir"
+        cd "$new_instance_dir" || return
+        echo "正在启动 Koishi..."
+        yarn start
+    else
+        echo "Koishi 实例创建失败！"
     fi
+
+    # 退出脚本，不再返回 UI
+    exit 0
 }
 
 # 删除 Koishi 实例
@@ -188,10 +186,9 @@ function delete_koishi_instance {
         return
     fi
 
-    if dialog --yesno "确定要删除 Koishi 实例吗？此操作不可恢复！" 10 50; then
+    if dialog --yesno "确定要删除 Koishi 实例吗？此操作不可恢复！" 7 50; then
         rm -rf "$KOISHI_APP_DIR"
-        dialog --msgbox "Koishi 实例已删除！" 10 50
-        main_menu # 返回主菜单
+        dialog --msgbox "Koishi 实例已删除！" 5 50
     fi
 }
 
@@ -204,7 +201,7 @@ function koishi_control {
     while true; do
         choice=$(dialog --clear --backtitle "Koishi Manager" \
                         --title "Koishi 控制" \
-                        --menu "请选择一个操作：" 20 50 9 \
+                        --menu "请选择一个操作：" 15 50 9 \
                         1 "启动 Koishi (yarn start)" \
                         2 "整理依赖 (yarn)" \
                         3 "重装依赖 (rm -rf node_modules && yarn install)" \
@@ -240,9 +237,6 @@ function koishi_control {
                 ;;
             8)
                 delete_koishi_instance
-                if [ $? -eq 0 ]; then # 检查 delete_koishi_instance 是否成功执行
-                    break # 删除成功后返回主菜单
-                fi
                 ;;
             9)
                 break
@@ -259,7 +253,7 @@ function main_menu {
     while true; do
         choice=$(dialog --clear --backtitle "Koishi Manager" \
                         --title "主菜单" \
-                        --menu "请选择一个操作：" 20 50 4 \
+                        --menu "请选择一个操作：" 15 50 4 \
                         1 "安装依赖" \
                         2 "创建 Koishi 实例" \
                         3 "管理 Koishi 实例" \
@@ -277,9 +271,8 @@ function main_menu {
                 koishi_control
                 ;;
             4)
-                if dialog --yesno "即将退出，请确认退出？" 10 50 --defaultno; then
-                    exit 0
-                fi
+                clear
+                exit 0
                 ;;
             *)
                 break
