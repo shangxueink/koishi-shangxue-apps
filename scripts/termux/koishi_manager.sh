@@ -274,7 +274,6 @@ function main_menu {
                 if dialog --clear --backtitle "Koishi Manager" \
                           --title "退出" \
                           --yesno "确定要退出吗？" 7 50; then
-                    clear
                     exit 0
                 fi
                 ;;
@@ -282,7 +281,6 @@ function main_menu {
                 if dialog --clear --backtitle "Koishi Manager" \
                           --title "退出" \
                           --yesno "确定要退出吗？" 7 50; then
-                    clear
                     exit 0
                 fi
                 ;;
