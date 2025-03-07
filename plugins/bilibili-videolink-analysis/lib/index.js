@@ -72,7 +72,7 @@ exports.Config = Schema.intersect([
             Schema.const('4').description('返回视频和视频直链'),
             Schema.const('5').description('返回视频，仅在日志记录视频直链'),
         ]).role('radio').default('2').description("是否返回` 视频/视频直链 `"),
-        BVnumberParsing: Schema.boolean().default(true).description("是否允许根据`独立的BV号`解析视频 `开启后，可以通过视频的BV号解析视频。` <br>  [触发说明见README](https://www.npmjs.com/package/koishi-plugin-bilibili-videolink-analysis)"),
+        BVnumberParsing: Schema.boolean().default(true).description("是否允许根据`独立的BV、AV号`解析视频 `开启后，可以通过视频的BV、AV号解析视频。` <br>  [触发说明见README](https://www.npmjs.com/package/koishi-plugin-bilibili-videolink-analysis)"),
         Maximumduration: Schema.number().default(25).description("允许解析的视频最大时长（分钟）`超过这个时长 就不会发视频`").min(1),
         Maximumduration_tip: Schema.union([
             Schema.const('不返回文字提示').description('不返回文字提示'),
@@ -630,15 +630,24 @@ display: none !important;
         return urls ? urls.pop() : null;
     }
 
-    // 检测BV号并转换为URL
+    // 检测BV / AV 号并转换为URL
     function convertBVToUrl(text) {
         const bvPattern = /(?:^|\s)(BV\w{10})(?:\s|$)/g;
-        const bvMatches = [];
+        const avPattern = /(?:^|\s)(av\d+)(?:\s|$)/g; // 新增 AV 号的正则表达式
+        const matches = [];
         let match;
+
+        // 查找 BV 号
         while ((match = bvPattern.exec(text)) !== null) {
-            bvMatches.push(match[1]);
+            matches.push(`https://www.bilibili.com/video/${match[1]}`);
         }
-        return bvMatches.length ? bvMatches.map(bv => `https://www.bilibili.com/video/${bv}`) : [];
+
+        // 查找 AV 号
+        while ((match = avPattern.exec(text)) !== null) {
+            matches.push(`https://www.bilibili.com/video/${match[1]}`);
+        }
+
+        return matches;
     }
 
     // 记录上次处理链接的时间
