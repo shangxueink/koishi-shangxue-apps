@@ -172,18 +172,6 @@ function create_koishi_instance {
 
     yarn create koishi
 
-    # 查找新创建的实例目录
-    local new_instance_dir=$(find "$KOISHI_BASE_DIR" -maxdepth 2 -name "koishi.yml" -type f -printf "%h\n" | tail -n 1)
-
-    if [ -n "$new_instance_dir" ]; then
-        echo "Koishi 实例创建成功！目录: $new_instance_dir"
-        cd "$new_instance_dir" || return
-        echo "正在启动 Koishi..."
-        yarn start
-    else
-        echo "Koishi 实例创建失败！"
-    fi
-
     # 退出脚本，不再返回 UI
     exit 0
 }
