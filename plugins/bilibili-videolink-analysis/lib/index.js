@@ -97,6 +97,7 @@ exports.Config = Schema.intersect([
     }).description("链接的图文解析设置"),
 
     Schema.object({
+        isfigure: Schema.boolean().default(false).description("是否开启合并转发 `仅支持 onebot 适配器` 其他平台开启 无效").experimental(),
         userAgent: Schema.string().description("所有 API 请求所用的 User-Agent").default("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"),
         middleware: Schema.boolean().default(false).description("前置中间件模式"),
         loggerinfo: Schema.boolean().default(false).description("日志调试输出 `日常使用无需开启`"),
@@ -104,6 +105,16 @@ exports.Config = Schema.intersect([
 ]);
 
 function apply(ctx, config) {
+
+    function logInfo(message, message2) {
+        if (config.loggerinfo) {
+            if (message2) {
+                ctx.logger.info(message, message2)
+            } else {
+                ctx.logger.info(message);
+            }
+        }
+    }
 
     ctx.middleware(async (session, next) => {
         let sessioncontent = session.content;
@@ -285,13 +296,13 @@ display: none !important;
                 }, config.point) // 传递配置的 point 参数
 
                 // 如果开启了日志调试模式，打印获取到的视频信息
-                if (config.loggerinfo) {
-                    ctx.logger.info(options)
-                    ctx.logger.info(`共找到 ${videos.length} 个视频:`)
-                    videos.forEach((video, index) => {
-                        ctx.logger.info(`序号 ${index + 1}: ID - ${video.id}`)
-                    })
-                }
+
+                logInfo(options)
+                logInfo(`共找到 ${videos.length} 个视频:`)
+                videos.forEach((video, index) => {
+                    logInfo(`序号 ${index + 1}: ID - ${video.id}`)
+                })
+
 
                 if (videos.length === 0) {
                     await page.close()
@@ -335,10 +346,9 @@ display: none !important;
                 const chosenVideo = videos[choiceIndex]
 
                 // 如果开启了日志调试模式，打印用户选择的视频信息
-                if (config.loggerinfo) {
-                    ctx.logger.info(`渲染序号设置\noverlay.style.top = ${config.point[0]}% \noverlay.style.left = ${config.point[1]}%`)
-                    ctx.logger.info(`用户选择了序号 ${choiceIndex + 1}: ID - ${chosenVideo.id}`)
-                }
+                logInfo(`渲染序号设置\noverlay.style.top = ${config.point[0]}% \noverlay.style.left = ${config.point[1]}%`)
+                logInfo(`用户选择了序号 ${choiceIndex + 1}: ID - ${chosenVideo.id}`)
+
 
                 if (config.enable) { // 开启自动解析了
 
@@ -401,14 +411,13 @@ display: none !important;
                     }).filter(video => video.id);
                 }, config.point);
 
-                // 如果开启了日志调试模式，打印获取到的视频信息
-                if (config.loggerinfo) {
-                    ctx.logger.info(options);
-                    ctx.logger.info(`共找到 ${videos.length} 个视频:`);
-                    videos.forEach((video, index) => {
-                        ctx.logger.info(`序号 ${index + 1}: ID - ${video.id}`);
-                    });
-                }
+                // 如果开启了日志调试模式，打印获取到的视频信息                
+                logInfo(options);
+                logInfo(`共找到 ${videos.length} 个视频:`);
+                videos.forEach((video, index) => {
+                    logInfo(`序号 ${index + 1}: ID - ${video.id}`);
+                });
+
                 if (videos.length === 0) {
                     await page.close();
                     return '未找到相关视频。';
@@ -442,10 +451,9 @@ display: none !important;
                 // 返回用户选择的视频ID
                 const chosenVideo = videos[choiceIndex];
                 // 如果开启了日志调试模式，打印用户选择的视频信息
-                if (config.loggerinfo) {
-                    ctx.logger.info(`渲染序号设置\noverlay.style.top = ${config.point[0]}% \noverlay.style.left = ${config.point[1]}%`);
-                    ctx.logger.info(`用户选择了序号 ${choiceIndex + 1}: ID - ${chosenVideo.id}`);
-                }
+                logInfo(`渲染序号设置\noverlay.style.top = ${config.point[0]}% \noverlay.style.left = ${config.point[1]}%`);
+                logInfo(`用户选择了序号 ${choiceIndex + 1}: ID - ${chosenVideo.id}`);
+
 
                 if (config.enable) {
                     // 开启自动解析了
@@ -501,9 +509,8 @@ display: none !important;
         const currentTime = Date.now();
 
         if (lastProcessedUrls[lastretUrl] && (currentTime - lastProcessedUrls[lastretUrl] < config.MinimumTimeInterval * 1000)) {
-            if (config.loggerinfo) {
-                logger.info(`重复出现，略过处理：\n ${lastretUrl}`);
-            }
+            ctx.logger.info(`重复出现，略过处理：\n ${lastretUrl}`);
+
             return true; // 已经处理过
         }
 
@@ -512,16 +519,18 @@ display: none !important;
         return false; // 没有处理过
     }
 
-    //解析视频并返回 
+    //解析视频并返回
     async function processVideoFromLink(session, config, ctx, lastProcessedUrls, logger, ret, options = { video: true }) {
         const lastretUrl = extractLastUrl(ret);
 
+        // 等待提示语单独发送
         if (config.waitTip_Switch) {
-            // 等候的提示文字
             await session.send(config.waitTip_Switch);
         }
 
-        let textParts = []; // 用于存储分割后的文本部分
+        let responseElements = []; // 用于存储所有要发送的元素
+
+        // 图文解析
         if (config.linktextParsing) {
             let fullText;
             if (config.bVideoShowLink) {
@@ -532,16 +541,32 @@ display: none !important;
             }
 
             // 分割文本
-            textParts = fullText.split('${~~~}');
-        }
-        // 发送分割后的文本部分
-        for (const part of textParts) {
-            const trimmedPart = part.trim(); // 去除首尾空格
-            if (trimmedPart) { // 确保不是空字符串
-                await session.send(trimmedPart);
+            const textParts = fullText.split('${~~~}');
+
+            // 创建 message 元素的内容数组
+            let messageContent = [];
+
+            // 将分割后的文本部分解析为消息元素，并添加到 messageContent
+            for (const part of textParts) {
+                const trimmedPart = part.trim(); // 去除首尾空格
+                if (trimmedPart) { // 确保不是空字符串
+                    // 使用 h.parse 解析文本为消息元素
+                    const parsedElements = h.parse(trimmedPart);
+                    messageContent.push(...parsedElements);
+                }
             }
+
+            // 创建 message 元素
+            const messageElement = h('message', {
+                userId: session.userId,
+                nickname: session.author?.nickname || session.username,
+            }, messageContent);
+
+            // 添加 message 元素到 responseElements
+            responseElements.push(messageElement);
         }
 
+        // 视频/链接解析
         if (config.VideoParsing_ToLink) {
             const fullAPIurl = `https://api.xingzhige.com/API/b_parse/?url=${encodeURIComponent(lastretUrl)}`;
 
@@ -552,9 +577,7 @@ display: none !important;
                     const { bvid, cid, video } = responseData.data;
                     const bilibiliUrl = `https://api.bilibili.com/x/player/playurl?fnval=80&cid=${cid}&bvid=${bvid}`;
                     const playData = await ctx.http.get(bilibiliUrl);
-                    if (config.loggerinfo) {
-                        ctx.logger.info(bilibiliUrl);
-                    }
+                    logInfo(bilibiliUrl);
                     if (playData.code === 0 && playData.data && playData.data.dash.duration) {
                         const videoDurationSeconds = playData.data.dash.duration;
                         const videoDurationMinutes = videoDurationSeconds / 60;
@@ -569,33 +592,30 @@ display: none !important;
                         }
 
                         const videoUrl = video.url;
-                        if (config.loggerinfo) {
-                            ctx.logger.info(videoUrl);
-                        }
+                        logInfo(videoUrl);
+
                         if (videoUrl) {
                             if (options.link) {
-                                await session.send(h.text(videoUrl));
-                                return;
+                                responseElements.push(h.text(videoUrl));
                             } else if (options.audio) {
-                                await session.send(h.audio(videoUrl));
-                                return;
+                                responseElements.push(h.audio(videoUrl));
                             } else {
                                 switch (config.VideoParsing_ToLink) {
                                     case '1':
                                         break;
                                     case '2':
-                                        await session.send(h.video(videoUrl));
+                                        responseElements.push(h.video(videoUrl));
                                         break;
                                     case '3':
-                                        await session.send(h.text(videoUrl));
+                                        responseElements.push(h.text(videoUrl));
                                         break;
                                     case '4':
-                                        await session.send(h.text(videoUrl));
-                                        await session.send(h.video(videoUrl));
+                                        responseElements.push(h.text(videoUrl));
+                                        responseElements.push(h.video(videoUrl));
                                         break;
                                     case '5':
                                         logger.info(videoUrl);
-                                        await session.send(h.video(videoUrl));
+                                        responseElements.push(h.video(videoUrl));
                                         break;
                                     default:
                                         break;
@@ -615,9 +635,26 @@ display: none !important;
             }
         }
 
-        if (config.loggerinfo) {
-            logger.info(`机器人发送完整消息为：\n ${ret}`);
+        // 合并转发处理
+        if (config.isfigure && (session.platform === "onebot" || session.platform === "red")) {
+            logInfo(`使用合并转发，正在合并消息。`);
+
+            // 创建 figure 元素
+            const figureContent = h('figure', {
+                children: responseElements // 直接使用 responseElements
+            });
+            logInfo(JSON.stringify(figureContent, null, 2));
+
+            // 发送合并转发消息
+            await session.send(figureContent);
+        } else {
+            // 没有启用合并转发，按顺序发送所有元素
+            for (const element of responseElements) {
+                await session.send(element);
+            }
         }
+
+        logInfo(`机器人发送完整消息。`);
         return;
     }
 
