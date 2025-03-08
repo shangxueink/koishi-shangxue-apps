@@ -543,27 +543,23 @@ display: none !important;
             // 分割文本
             const textParts = fullText.split('${~~~}');
 
-            // 创建 message 元素的内容数组
-            let messageContent = [];
-
-            // 将分割后的文本部分解析为消息元素，并添加到 messageContent
+            // 循环处理每个分割后的部分
             for (const part of textParts) {
                 const trimmedPart = part.trim(); // 去除首尾空格
                 if (trimmedPart) { // 确保不是空字符串
                     // 使用 h.parse 解析文本为消息元素
                     const parsedElements = h.parse(trimmedPart);
-                    messageContent.push(...parsedElements);
+
+                    // 创建 message 元素
+                    const messageElement = h('message', {
+                        userId: session.userId,
+                        nickname: session.author?.nickname || session.username,
+                    }, parsedElements);
+
+                    // 添加 message 元素到 responseElements
+                    responseElements.push(messageElement);
                 }
             }
-
-            // 创建 message 元素
-            const messageElement = h('message', {
-                userId: session.userId,
-                nickname: session.author?.nickname || session.username,
-            }, messageContent);
-
-            // 添加 message 元素到 responseElements
-            responseElements.push(messageElement);
         }
 
         // 视频/链接解析
@@ -577,7 +573,9 @@ display: none !important;
                     const { bvid, cid, video } = responseData.data;
                     const bilibiliUrl = `https://api.bilibili.com/x/player/playurl?fnval=80&cid=${cid}&bvid=${bvid}`;
                     const playData = await ctx.http.get(bilibiliUrl);
+
                     logInfo(bilibiliUrl);
+
                     if (playData.code === 0 && playData.data && playData.data.dash.duration) {
                         const videoDurationSeconds = playData.data.dash.duration;
                         const videoDurationMinutes = videoDurationSeconds / 60;
@@ -592,8 +590,8 @@ display: none !important;
                         }
 
                         const videoUrl = video.url;
-                        logInfo(videoUrl);
 
+                        logInfo(videoUrl);
                         if (videoUrl) {
                             if (options.link) {
                                 responseElements.push(h.text(videoUrl));
@@ -654,9 +652,10 @@ display: none !important;
             }
         }
 
-        logInfo(`机器人发送完整消息。`);
+        logInfo(`机器人已发送完整消息。`);
         return;
     }
+
 
 
 
