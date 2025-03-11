@@ -78,6 +78,7 @@ exports.Config = Schema.intersect([
       })
     ).role('table').description('多图源配置表'),
     consoleinfo: Schema.boolean().default(false).description('日志调试模式'),
+    UserInfoCommand: Schema.string().description('图源标签').default("booru"),
   }),
 ]);
 
@@ -87,6 +88,17 @@ exports.apply = (ctx, config) => {
       ctx.logger.info(message);
     }
   };
+
+  // 添加中间件，记录用户信息
+  ctx.middleware((session, next) => {
+    if (config.consoleinfo) {
+      const content = session.stripped.content.trim();
+      if (content.includes(config.UserInfoCommand)) {
+        ctx.logger.info(`[User Info] User ID: ${session.userId}, User Name: ${session.username}, Content: ${content}`);
+      }
+    }
+    return next();
+  }, true);
 
   class CustomizeImageSource extends koishi_plugin_booru.ImageSource {
     constructor(ctx, config) {
