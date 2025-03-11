@@ -638,6 +638,7 @@ const Config = Schema.intersect([
             serverSelect: Schema.const('command6'),
             command6: Schema.string().default('网易点歌').description('`网易点歌`的指令名称<br>输入歌曲ID，返回歌曲'),
             command6_searchList: Schema.number().default(20).min(1).max(50).description('歌曲搜索的列表长度。返回的候选项个数。'),
+            maxDuration: Schema.natural().description('歌曲最长持续时间，单位为：分钟').default(10),
             command6_usedAPI: Schema.union([
                 Schema.const('api.injahow.cn').description('稳定、黑胶只能30秒的`api.injahow.cn`后端（适合官方bot）'),
                 Schema.const('www.byfuns.top').description('稳定性未知、全部可听的`www.byfuns.top`后端').experimental(),
@@ -784,6 +785,7 @@ function apply(ctx, config) {
                         "noplatform": "获取歌曲失败。",
                         "somerror": "解析歌曲详情时发生错误",
                         "songlisterror": "无法获取歌曲列表，请稍后再试。",
+                        "maxDuration": "歌曲持续时间超出限制，允许的单曲最大时长为 {0} 分钟。",
                     }
                 },
                 [config.command7]: {
@@ -1544,7 +1546,8 @@ function apply(ctx, config) {
                                     id: song.id,
                                     name: song.name,
                                     artists: song.artists.map(artist => artist.name).join('/'),
-                                    albumName: song.album.name
+                                    albumName: song.album.name,
+                                    duration: song.duration
                                 };
                             });
                             let input = options.number;
@@ -1583,7 +1586,10 @@ function apply(ctx, config) {
                             }
 
                             const selectedSongId = songList[serialNumber - 1].id;
-
+                            const selectedinterval = songList[serialNumber - 1].duration / 6000; // selected 的 duration 秒数
+                            if (selectedinterval > config.maxDuration) {
+                                return h.text(session.text(`.maxDuration`, [config.maxDuration]));
+                            }
                             // 获取歌曲详情 (用于获取歌曲名称、艺术家、图片等，与获取直链的 API 无关)
                             const detailApiUrl = `http://music.163.com/api/song/detail/?id=${selectedSongId}&ids=[${selectedSongId}]`;
                             logInfo("请求歌曲详情 API:", detailApiUrl);
@@ -2027,7 +2033,7 @@ function apply(ctx, config) {
                 const figureContent = h('figure', {
                     children: figureContentElements
                 });
-                logInfo(figureContent);
+                logInfo(JSON.stringify(figureContent, null, 2));
 
                 // 发送合并转发消息
                 await session.send(figureContent);
