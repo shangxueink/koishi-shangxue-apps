@@ -49,15 +49,12 @@ exports.usage = `
   </ul>
 </div>
 `;
-
-
 exports.Config = Schema.intersect([
     Schema.object({
         command_name: Schema.string().default('按钮菜单').description('注册的指令名称'),
         markdown_id: Schema.string().default('123456789_1234567890').description('markdown模板的ID'),
         json_button_id: Schema.string().default('123456789_1234567890').description('按钮模板的ID'),
     }).description('基础设置'),
-
     Schema.object({
         file_name: Schema.array(String).role('table').description('存储文件的文件夹名称<br>请依次填写 相对于`koishi根目录`的 **文件夹** 路径<br>本插件会自动使用对应的文件夹下的 json / markdown 文件来发送消息<br>使用多重配置时，你通常只需要修改 `按钮菜单配置1` 那一行')
             .default([
@@ -71,41 +68,39 @@ exports.Config = Schema.intersect([
             Schema.const('raw').description('原生md（./raw/raw_markdown.json 、 ./raw/raw_markdown.md）'),
         ]).role('radio').description('选择菜单发送方式。<br>即 使用的json文件'),
     }).description('发送设置'),
-
     Schema.object({
         Allow_INTERACTION_CREATE: Schema.boolean().default(false).description("是否自动执行所有回调按钮内容（通过`session.execute`）"),
     }).description('高级设置'),
-
     Schema.object({
         broadcast: Schema.boolean().default(false).description("是否遍历数据库qq平台的`群组` 以实现广播推送主动消息 `谨慎开启！`"),
         consoleinfo: Schema.boolean().default(false).description("日志调试模式`日常使用无需开启`"),
     }).description('调试设置'),
 ])
-
+// 用于存储上次广播的时间戳
+let lastBroadcastTime = 0;
+// 广播冷却时间 (15 分钟)
+const broadcastCooldown = 15 * 60 * 1000;
+// 用于存储已发送消息的 channelId，每次广播后重新填充并逐步清空
+let sentChannelIds = new Set();
 function apply(ctx, config) {
     ctx.on('ready', () => {
-
         // 使用配置项中的 file_name 数组构建 baseDir 路径
         const baseDirArray = [ctx.baseDir].concat(config.file_name);
         const baseDir = path.join(...baseDirArray);
-
         // 确保目录存在，如果不存在则创建 (包括子目录)
         if (!fs.existsSync(baseDir)) {
             fs.mkdirSync(baseDir, { recursive: true });
         }
-
         const filesToCopy = {
             json: ['json.json'],
             markdown: ['markdown.json'],
             raw: ['raw_markdown.json', 'raw_markdown.md'],
         };
-
         // 复制文件到配置的目录下，并按照新的子目录结构存放
         for (const type in filesToCopy) {
             filesToCopy[type].forEach(file => {
                 const srcPath = path.join(__dirname, 'qq', type, file); // 源文件路径，根据新的目录结构调整
                 const destPath = path.join(baseDir, type, file);       // 目标文件路径，保持新的目录结构
-
                 // 确保目标目录存在
                 const destDir = path.dirname(destPath);
                 if (!fs.existsSync(destDir)) {
@@ -116,7 +111,6 @@ function apply(ctx, config) {
                 }
             });
         }
-
         if (config.Allow_INTERACTION_CREATE) {
             ctx.on("interaction/button", async session => {
                 const buttoncontent = session?.event?.button['data'];
@@ -135,7 +129,6 @@ function apply(ctx, config) {
                 }
             })
         }
-
         ctx.command(`${config.command_name}`, '发送按钮菜单')
             .action(async ({ session }) => {
                 if (!(session.platform === "qq" || session.platform === "qqguild")) {
@@ -147,7 +140,6 @@ function apply(ctx, config) {
                 let Menu_message;
                 try {
                     let jsonFilePath, mdFilePath;
-
                     if (type === 'json') {
                         jsonFilePath = path.join(baseDir, 'json', 'json.json');
                         mdFilePath = null; // json 类型不需要 md 文件
@@ -158,20 +150,27 @@ function apply(ctx, config) {
                         jsonFilePath = path.join(baseDir, 'raw', 'raw_markdown.json');
                         mdFilePath = path.join(baseDir, 'raw', 'raw_markdown.md');
                     }
-
                     Menu_message = await processMarkdownCommand(jsonFilePath, mdFilePath, session, config, { INTERACTION_CREATE: INTERACTION_CREATE });
-
                     logInfo("完整的 Menu_message 内容为：", Menu_message);
                     if (!config.broadcast) {
                         await sendsomeMessage(Menu_message, session);
                     } else {
+                        // 检查是否在冷却时间内
+                        const now = Date.now();
+                        if (now - lastBroadcastTime < broadcastCooldown) {
+                            const timeLeft = Math.ceil((broadcastCooldown - (now - lastBroadcastTime)) / 60000);
+                            await session.send(`广播消息冷却中，请 ${timeLeft} 分钟后再试。`);
+                            return;
+                        }
+                        // 执行广播消息
                         await sendbroadcastMessage(Menu_message, session);
+                        // 更新上次广播时间
+                        lastBroadcastTime = now;
                     }
                 } catch (error) {
                     ctx.logger.error(`处理命令时出错: ${error}`);
                 }
             });
-
         function logInfo(message, message2) {
             if (config.consoleinfo) {
                 if (message2) {
@@ -187,19 +186,18 @@ function apply(ctx, config) {
                 const channels = await ctx.database.get('channel', {
                     platform: "qq",
                 });
-
                 if (!channels || channels.length === 0) {
                     logInfo("没有找到任何 QQ 群组频道，广播消息已取消。");
                     return;
                 }
-
                 logInfo(`开始向 ${channels.length} 个 QQ 群组频道广播消息...`);
-
+                // 在广播前，填充 sentChannelIds
+                sentChannelIds = new Set(channels.map(channel => channel.id));
                 // 遍历群组列表并发送消息
                 for (const channel of channels) {
                     try {
                         const channelId = channel.id; // 从数据库记录中获取 channelId
-                        if (channelId) {
+                        if (channelId && sentChannelIds.has(channelId)) {
                             logInfo(`正在向群组频道 ${channelId} 发送广播消息...`);
                             if (session.qq) {
                                 await session.qq.sendMessage(channelId, message);
@@ -208,28 +206,27 @@ function apply(ctx, config) {
                             }
                             logInfo(`已向群组频道 ${channelId} 发送广播消息。`);
                         } else {
-                            logInfo(`群组频道记录 ${channel} 缺少 channelId，跳过发送。`);
+                            logInfo(`群组频道记录 ${channel} 缺少 channelId 或已发送，跳过发送。`);
                         }
                     } catch (error) {
                         ctx.logger.error(`向群组频道 ${channel.id} 广播消息时出错:`, error);
                         // 出错了也继续广播
+                    } finally {
+                        // 无论成功与否，都从 sentChannelIds 中移除，确保最终清空
+                        sentChannelIds.delete(channelId);
                     }
                 }
-
                 logInfo("QQ 群组频道广播消息发送完成。");
-
+                // 清空 sentChannelIds
+                sentChannelIds.clear();
             } catch (error) {
                 ctx.logger.error(`获取 QQ 群组频道列表或广播消息时出错:`, error);
             }
         }
-
-
-
         async function sendsomeMessage(message, session) {
             try {
                 const { guild, user } = session.event;
                 const { qq, qqguild, channelId } = session;
-
                 if (guild?.id) {
                     if (qq) {
                         await qq.sendMessage(channelId, message);
@@ -243,12 +240,10 @@ function apply(ctx, config) {
                 ctx.logger.error(`发送markdown消息时出错:`, error);
             }
         }
-
         function processMarkdownCommand(jsonFilePath, mdFilePath, session, config, variables = {}) {
             try {
                 const rawJsonData = fs.readFileSync(jsonFilePath, 'utf-8');
                 let markdownContent = mdFilePath ? fs.readFileSync(mdFilePath, 'utf-8') : '';
-
                 const allVariables = {
                     ...variables,
                     session,
@@ -269,11 +264,8 @@ function apply(ctx, config) {
                     }
                     return data;
                 };
-
                 markdownContent = replacePlaceholders(markdownContent).replace(/\n/g, '');
-
                 allVariables.markdown = markdownContent;
-
                 const rawJsonObject = JSON.parse(rawJsonData);
                 const replacedJsonObject = replacePlaceholders(rawJsonObject);
                 // 根据 session.messageId 是否存在，动态删除 JSON 对象中不需要的 ID 字段 
