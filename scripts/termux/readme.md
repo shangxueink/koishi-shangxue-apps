@@ -6,6 +6,9 @@
 
 现已加入 Koimux全家桶： -> https://github.com/initialencounter/koimux_bot/blob/master/script/koimuxTUI.sh
 
+> 使用以下指令以运行！
+> bash -c "$(curl -L https://gitee.com/initencunter/koimux_bot/raw/master/script/koimuxTUI.sh)"
+
 > 本仓库是为了存放备份（？）
 
 ---
