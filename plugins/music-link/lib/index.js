@@ -707,6 +707,7 @@ const Config = Schema.intersect([
 
     Schema.object({
         isfigure: Schema.boolean().default(false).description("`图片、文本`元素 使用合并转发，其余单独发送<br>`仅支持 onebot 适配器` 其他平台开启 无效").experimental(),
+        isuppercase: Schema.boolean().default(false).description("将链接域名进行大写置换，仅适用于qq官方平台").experimental(),
         data_Field_Mode: Schema.union([
             Schema.const('text').description('富媒体置底：文字 > 图片 > 语音 ≥ 视频 ≥ 文件 （默认）'),
             Schema.const('image').description('仅图片置顶的 富媒体置底：图片 > 文字 ≥ 语音 ≥ 视频 ≥ 文件 （仅官方机器人考虑使用）'),
@@ -1957,9 +1958,27 @@ function apply(ctx, config) {
                 let element = null;
                 switch (field.type) {
                     case 'text':
-                        element = h.text(`${field.describe}：${value}`);
+                        let textValue = data[field.data];
+
+                        // 类型检查和默认值
+                        if (typeof textValue === 'string') {
+                            if (config.isuppercase) {
+                                // 使用正则表达式匹配 URL 中的域名部分
+                                textValue = textValue.replace(/(https?:\/\/)([^/]+)/, (match, protocol, domain) => {
+                                    return `${protocol}${domain.toUpperCase()}`;
+                                });
+                            }
+                        } else {
+                            // 如果 textValue 不是字符串，则使用空字符串作为默认值或进行其他处理
+                            textValue = textValue ? String(textValue) : ''; // 转换为字符串或使用空字符串
+                            // 或者，如果 textValue 为 null 或 undefined，则不进行任何操作
+                            // textValue = '';
+                        }
+
+                        element = h.text(`${field.describe}：${textValue}`);
                         textElements.push(element);
                         break;
+
                     case 'image':
                         element = h.image(value);
                         imageElements.push(element);
