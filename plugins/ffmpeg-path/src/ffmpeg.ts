@@ -87,7 +87,7 @@ export class FFmpegBuilder {
 
 export class FFmpeg extends Service {
   constructor(ctx: Context, public executable: string) {
-    super(ctx, 'ffmpeg-path')
+    super(ctx, 'ffmpeg')
   }
 
   builder() {

@@ -1,11 +1,11 @@
 import { Context, Schema } from 'koishi'
 import { } from 'koishi-plugin-downloads'
-import * as os from 'node:os'
-import registry from 'get-registry'
-import { FFmpeg } from './ffmpeg'
 import { access, constants } from 'node:fs/promises';
-
+import { existsSync } from 'node:fs'
+import * as os from 'node:os'
+import { FFmpeg } from './ffmpeg'
 export * from './ffmpeg'
+import registry from 'get-registry'
 
 const platform = os.platform()
 const arch = os.arch()
@@ -64,30 +64,49 @@ export const Config: Schema<Config> = Schema.object({
   path: Schema.string().description('指定ffmpeg可执行文件的绝对路径')
 })
 
-export const inject = ['downloads']
+export const inject = {
+  optional: ['downloads']
+};
 
 export async function apply(ctx: Context, config: Config) {
-  let executable: string;
-
-  if (config.path) {
+  ctx.on('ready', async () => {
+    let executable: string;
     try {
-      await access(config.path, constants.F_OK | constants.X_OK); // 检查 存在和可执行
-      executable = config.path;
+      if (config.path && existsSync(config.path)) {
+        ctx.logger.warn(`指定了 ffmpeg 路径: ${config.path}`);
+        try {
+          await access(config.path, constants.F_OK | constants.X_OK); // 检查 存在和可执行
+          executable = config.path;
+        } catch (error) {
+          ctx.logger.warn(`指定的 FFmpeg 路径 (${config.path}) 不可用: `, error.message);
+          // 使用自动下载
+        }
+      } else if (!executable) { // 如果指定path 但是不可用，则 进入自动下载
+        const downloadsAvailable = await waitForDownloads(ctx);
+        if (!downloadsAvailable) {
+          ctx.logger.warn(`缺少 downloads 依赖，无法自动下载 ffmpeg。无法自动下载，请确保手动安装 ffmpeg 并配置路径。`);
+          return; // 退出插件启动
+        }
+        const task = ctx.downloads.nereid('ffmpeg', [
+          `npm://@koishijs-assets/ffmpeg?registry=${await registry()}`
+        ], bucket())
+        const path = await task.promise
+        executable = platform === 'win32' ? `${path}/ffmpeg.exe` : `${path}/ffmpeg`
+      }
+      ctx.logger.info(`使用 FFmpeg 可执行文件: ${executable}`);
+      ctx.plugin(FFmpeg, executable);
     } catch (error) {
-      ctx.logger.warn(`指定的 FFmpeg 路径 (${config.path}) 不可用: `, error.message);
-      // 使用自动下载
+      ctx.logger.warn(`插件启动失败： `, error);
     }
-  }
 
-  if (!executable) { // 如果指定path但是不可用，则 进入自动下载
-    const task = ctx.downloads.nereid('ffmpeg', [
-      `npm://@koishijs-assets/ffmpeg?registry=${await registry()}`
-    ], bucket())
-    const path = await task.promise
-    executable = platform === 'win32' ? `${path}/ffmpeg.exe` : `${path}/ffmpeg`
-  }
-  ctx.logger.info(`使用 FFmpeg 可执行文件: ${executable}`);
-  ctx.plugin(FFmpeg, executable);
+    async function waitForDownloads(ctx: Context, timeout = 3000): Promise<boolean> {
+      const startTime = Date.now();
+      while (!ctx.downloads && Date.now() - startTime < timeout) {
+        await new Promise(resolve => setTimeout(resolve, 300)); // 短暂等待
+      }
+      return !!ctx.downloads; // 返回 downloads 是否可用
+    }
+  });
 }
 
 function bucket() {

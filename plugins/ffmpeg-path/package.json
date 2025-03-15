@@ -1,7 +1,7 @@
 {
   "name": "koishi-plugin-ffmpeg-path",
-  "version": "1.0.0",
-  "description": "允许指定 FFmpeg 可执行文件路径，或自动下载 FFmpeg。个人使用咪~ 会在[PR11](https://github.com/koishijs/koishi-plugin-ffmpeg/pull/11)通过时 移除本插件。",
+  "version": "1.0.1",
+  "description": "允许指定 FFmpeg 可执行文件路径，或自动下载 FFmpeg。个人使用咪~ 会在[PR11](https://github.com/koishijs/koishi-plugin-ffmpeg/pull/11) 通过时 移除本插件。",
   "keywords": [
     "koishi",
     "plugin",
@@ -32,7 +32,7 @@
   },
   "koishi": {
     "description": {
-      "zh": "允许指定 FFmpeg 可执行文件路径，或自动下载 FFmpeg。个人使用咪~ 会在[PR11](https://github.com/koishijs/koishi-plugin-ffmpeg/pull/11)通过时 移除本插件。"
+      "zh": "允许指定 FFmpeg 可执行文件路径，或自动下载 FFmpeg。个人使用咪~ 会在[PR11](https://github.com/koishijs/koishi-plugin-ffmpeg/pull/11) 通过时 移除本插件。"
     },
     "service": {
       "implements": [
