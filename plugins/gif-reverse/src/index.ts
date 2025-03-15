@@ -7,7 +7,7 @@ import { parseGIF, decompressFrames } from 'gifuct-js'
 import { promises as fsPromises } from 'node:fs';
 const { readFile } = fsPromises;
 
-export const name = 'gif-reverse-plus'
+export const name = 'gif-reverse'
 export const inject = {
   required: ['http', 'i18n', 'logger', 'ffmpeg']
 }
@@ -114,7 +114,10 @@ export function apply(ctx: Context, config) {
   ctx.i18n.define("zh-CN", {
     commands: {
       [config.gifCommand]: {
-        description: "GIF 图片处理：倒放/正放、变速、滑动、旋转、翻转",
+        arguments: {
+          gif: "图片消息",
+        },
+        description: "GIF 图片处理",
         messages: {
           "invalidPTS": "播放速度必须大于 0",
           "waitprompt": "在 {0} 秒内发送想要处理的 GIF",
@@ -124,18 +127,27 @@ export function apply(ctx: Context, config) {
           "invalidDirection": "无效的方向参数，请选择：左、右、上、下",
           "invalidRotation": "无效的旋转方向，请选择：顺、逆",
           "invalidMirror": "无效的翻转方向，请选择：上、下、左、右",
+        },
+        options: {
+          help: "查看指令帮助",
+          forward: "正向播放 GIF（默认）",
+          reverse: " 倒放 GIF",
+          speed: " 改变播放速度 (大于 1 为加速，小于则为减速)",
+          slide: "滑动方向 (左/右/上/下)",
+          rotate: "旋转方向 (顺/逆)",
+          mirror: "翻转方向 (上/下/左/右)",
         }
       },
     }
   });
 
   ctx.command(`${config.gifCommand} [gif:image]`)
-    .option('forward', '-f, --forward  正向播放 GIF（默认）', { type: 'boolean', fallback: true })
-    .option('reverse', '-r, --reverse  倒放 GIF', { type: 'boolean' })
-    .option('speed', '-s <times:number>  改变播放速度 (大于 1 为加速，小于则为减速)', { fallback: 1 })
-    .option('slide', '-l <direction:string>  滑动方向 (左/右/上/下)', { type: 'string' })
-    .option('rotate', '-o <direction:string>  旋转方向 (顺/逆)', { type: 'string' })
-    .option('mirror', '-m <direction:string>  翻转方向 (上/下/左/右)', { type: 'string' })
+    .option('forward', '-f, --forward', { type: 'boolean', fallback: true })
+    .option('reverse', '-r, --reverse', { type: 'boolean' })
+    .option('speed', '-s <times:number>', { type: 'string', fallback: 1 })
+    .option('slide', '-l <direction:string>', { type: 'string' })
+    .option('rotate', '-o <direction:string>', { type: 'string' })
+    .option('mirror', '-m <direction:string>', { type: 'string' })
     .example(`倒放：${config.gifCommand} -r`)
     .example(`两倍速右滑：${config.gifCommand} -f -s 2 -l 右`)
     .example(`向左翻转：${config.gifCommand} -m 左`)
