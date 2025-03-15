@@ -89,6 +89,8 @@ export const usage = `
 </ul>
 
 ---
+
+请确保 'http', 'i18n', 'logger', 'ffmpeg' 服务均可用！
 `;
 
 export const Config =
@@ -217,11 +219,11 @@ export function apply(ctx: Context, config) {
         let rotateAngle = ''
         switch (rotate) {
           case '顺':
-            rotateAngle = `rotate=${360 / gifDuration}*t*PI/180`
+            rotateAngle = `rotate=${360 / gifDuration}*t*PI/180:fillcolor=0x00000000`
             logInfo(`应用顺时针旋转效果, 旋转速度: ${360 / gifDuration} 度/秒`)
             break
           case '逆':
-            rotateAngle = `rotate=-${360 / gifDuration}*t*PI/180`
+            rotateAngle = `rotate=-${360 / gifDuration}*t*PI/180:fillcolor=0x00000000`
             logInfo(`应用逆时针旋转效果, 旋转速度: ${360 / gifDuration} 度/秒`)
             break
           default:
@@ -293,8 +295,7 @@ export function apply(ctx: Context, config) {
         }
       }
 
-      filters.push('split[s0][s1];[s0]palettegen=stats_mode=full[p];[s1][p]paletteuse=dither=none')
-
+      filters.push('split[s0][s1];[s0]palettegen=stats_mode=full:reserve_transparent=on[p];[s1][p]paletteuse=new=1:dither=none')
       vf = filters.filter(f => f).join(',')
 
       const builder = ctx.ffmpeg.builder().input(path)

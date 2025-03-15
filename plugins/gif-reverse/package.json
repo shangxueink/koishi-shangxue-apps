@@ -1,7 +1,7 @@
 {
   "name": "koishi-plugin-gif-reverse",
   "description": "Rewind GIF images",
-  "version": "1.5.6",
+  "version": "1.5.7",
   "main": "lib/index.js",
   "typings": "lib/index.d.ts",
   "files": [
@@ -30,9 +30,6 @@
   },
   "peerDependencies": {
     "koishi": "^4.17.7"
-  },
-  "devDependencies": {
-    "koishi-plugin-ffmpeg": "^1.1.0"
   },
   "dependencies": {
     "gifuct-js": "^2.1.2"
