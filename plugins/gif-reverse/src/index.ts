@@ -26,11 +26,11 @@ export const usage = `
 </thead>
 <tbody>
 <tr>
-<td><code>--forward</code></td>
-<td><code>-f</code></td>
-<td>正向播放 GIF</td>
+<td><code>--rebound</code></td>
+<td><code>-b</code></td>
+<td>回弹播放 GIF</td>
 <td><code>boolean</code></td>
-<td><code>true</code></td>
+<td></td>
 </tr>
 <tr>
 <td><code>--reverse</code></td>
@@ -49,7 +49,7 @@ export const usage = `
 <tr>
 <td><code>--slide</code></td>
 <td><code>-l</code></td>
-<td>滑动方向 (左/右/上/下)</td>
+<td>滑动方向 (上/下/左/右)</td>
 <td><code>string</code></td>
 <td></td>
 </tr>
@@ -133,7 +133,7 @@ export function apply(ctx: Context, config) {
           rebound: "回弹效果（正放+倒放）",
           reverse: " 倒放 GIF",
           speed: " 改变播放速度 (大于 1 为加速，小于则为减速)",
-          slide: "滑动方向 (左/右/上/下)",
+          slide: "滑动方向 (上/下/左/右)",
           rotate: "旋转方向 (顺/逆)",
           mirror: "翻转方向 (上/下/左/右)",
         }
