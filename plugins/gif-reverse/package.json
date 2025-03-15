@@ -31,6 +31,9 @@
   "peerDependencies": {
     "koishi": "^4.17.7"
   },
+  "devDependencies": {
+    "koishi-plugin-ffmpeg": "^1.1.0"
+  },
   "dependencies": {
     "gifuct-js": "^2.1.2"
   }
