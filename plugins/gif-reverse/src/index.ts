@@ -100,8 +100,11 @@ export const Config =
       waitTimeout: Schema.number().default(50).description("等待用户输入图片的最大时间（秒）"),
     }).description('基础设置'),
     Schema.object({
+      usedReverse: Schema.boolean().default(true).description("开启后，在不指定选项时，默认使用`倒放`效果。<br>关闭后，在不指定选项时，执行`-h`选项查看帮助"),
+    }).description('进阶设置'),
+    Schema.object({
       loggerinfo: Schema.boolean().default(false).description("日志调试模式"),
-    }).description('高级设置'),
+    }).description('开发者选项'),
   ])
 
 export function apply(ctx: Context, config) {
@@ -120,6 +123,7 @@ export function apply(ctx: Context, config) {
         },
         description: "GIF 图片处理",
         messages: {
+          "invalidFFmpeg": "没有安装 FFmpeg 服务！",
           "invalidPTS": "播放速度必须大于 0",
           "waitprompt": "在 {0} 秒内发送想要处理的 GIF",
           "invalidimage": "未检测到图片输入。",
@@ -154,7 +158,17 @@ export function apply(ctx: Context, config) {
     .example(`向左翻转：${config.gifCommand} -m 左`)
     .example(`逆时针旋转：${config.gifCommand} -o 逆`)
     .action(async ({ session, options }, gif) => {
-      const { reverse, rebound, speed, slide, rotate, mirror } = options
+      let { reverse, rebound, speed, slide, rotate, mirror } = options
+      logInfo(options)
+      if (!ctx.ffmpeg) return session.text(".invalidFFmpeg")
+      if (Object.keys(options).length === 1 && options.speed === 1) { // speed 始终存在，且默认值为1，需要忽略判断
+        if (config.usedReverse) {
+          reverse = true
+        } else {
+          await session.execute(`${config.gifCommand} -h`)
+          return
+        }
+      }
       if (speed <= 0) return session.text(".invalidPTS")
 
       let src = gif?.src
