@@ -58,7 +58,6 @@ export const usage = `
 <td><code>-o</code></td>
 <td>旋转方向 (顺/逆)</td>
 <td><code>string</code></td>
-<td></td>
 </tr>
 <tr>
 <td><code>--mirror</code></td>
@@ -183,13 +182,19 @@ export function apply(ctx: Context, config) {
       let vf = ''
       const filters: string[] = []
 
-      // 获取 GIF 时长
+      // 获取 GIF 信息
       let gifDuration = 0;
+      let fps = 20; // 默认帧率
       try {
         const gifData = await readFile(path);
         const gif = parseGIF(gifData);
         const frames = decompressFrames(gif, true);
         gifDuration = frames.map(frame => frame.delay).reduce((a, b) => a + b, 0) / 1000; // 转换为秒
+        // 计算帧率
+        if (frames.length > 0 && gifDuration > 0) {
+          fps = frames.length / gifDuration;
+        }
+        logInfo(`GIF 帧率: ${fps}`);
       } catch (error) {
         logger.error("解析 GIF 时发生错误:", error);
         return `${quote}${session.text(".generatefailed")}`;
@@ -246,7 +251,6 @@ export function apply(ctx: Context, config) {
 
       if (slide) {
         try {
-          const fps = 20;
           const outputDuration = totalDuration / speed;
           const totalFrames = Math.ceil(outputDuration * fps); // 向上 取整
           logInfo(`输出时长: ${outputDuration}`);
@@ -294,7 +298,7 @@ export function apply(ctx: Context, config) {
       vf = filters.filter(f => f).join(',')
 
       const builder = ctx.ffmpeg.builder().input(path)
-      builder.outputOption('-r', String(20), '-loop', '0'); // 显式设置帧率和 loop
+      builder.outputOption('-r', String(fps), '-loop', '0'); // 使用获取到的帧率
 
       if (vf) {
         logInfo(`使用的滤镜: ${vf}`)
