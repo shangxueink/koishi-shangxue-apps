@@ -79,7 +79,7 @@ export const usage = `
 <pre><code>gif -r</code></pre>
 </li>
 <li><strong>两倍速右滑 GIF:</strong>
-<pre><code>gif -f -s 2 -l 右</code></pre>
+<pre><code>gif -s 2 -l 右</code></pre>
 </li>
 <li><strong>向左翻转 GIF:</strong>
 <pre><code>gif -m 左</code></pre>
@@ -149,7 +149,7 @@ export function apply(ctx: Context, config) {
     .option('rotate', '-o <direction:string>', { type: 'string' })
     .option('mirror', '-m <direction:string>', { type: 'string' })
     .example(`倒放：${config.gifCommand} -r`)
-    .example(`两倍速右滑：${config.gifCommand} -f -s 2 -l 右`)
+    .example(`两倍速右滑：${config.gifCommand} -s 2 -l 右`)
     .example(`向左翻转：${config.gifCommand} -m 左`)
     .example(`逆时针旋转：${config.gifCommand} -o 逆`)
     .action(async ({ session, options }, gif) => {
@@ -172,6 +172,7 @@ export function apply(ctx: Context, config) {
       if (!src) return `${quote}${session.text(".invalidimage")}`
 
       const file = await ctx.http.file(src)
+      logInfo(file)
       if (!['image/gif', 'application/octet-stream', 'video/mp4'].includes(file.type)) {
         return `${quote}${session.text(".invalidGIF")}`
       }
@@ -184,7 +185,6 @@ export function apply(ctx: Context, config) {
 
       // 获取 GIF 时长
       let gifDuration = 0;
-      let totalDuration = gifDuration;
       try {
         const gifData = await readFile(path);
         const gif = parseGIF(gifData);
@@ -195,7 +195,7 @@ export function apply(ctx: Context, config) {
         return `${quote}${session.text(".generatefailed")}`;
       }
 
-
+      let totalDuration = gifDuration;
       // 回弹效果处理
       if (rebound) {
         totalDuration = gifDuration * 2 / speed; // 总时长为原时长两倍
@@ -249,7 +249,7 @@ export function apply(ctx: Context, config) {
           const fps = 20;
           const outputDuration = totalDuration / speed;
           const totalFrames = Math.ceil(outputDuration * fps); // 向上 取整
-
+          logInfo(`输出时长: ${outputDuration}`);
           switch (slide) {
             case '左':
               filters.unshift( // 使用 unshift 确保拼接操作在最前
