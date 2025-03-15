@@ -130,7 +130,7 @@ export function apply(ctx: Context, config) {
         },
         options: {
           help: "查看指令帮助",
-          forward: "正向播放 GIF（默认）",
+          rebound: "回弹效果（正放+倒放）",
           reverse: " 倒放 GIF",
           speed: " 改变播放速度 (大于 1 为加速，小于则为减速)",
           slide: "滑动方向 (左/右/上/下)",
@@ -142,7 +142,7 @@ export function apply(ctx: Context, config) {
   });
 
   ctx.command(`${config.gifCommand} [gif:image]`)
-    .option('forward', '-f, --forward', { type: 'boolean', fallback: true })
+    .option('rebound', '-b, --rebound', { type: 'boolean' })
     .option('reverse', '-r, --reverse', { type: 'boolean' })
     .option('speed', '-s <times:number>', { type: 'string', fallback: 1 })
     .option('slide', '-l <direction:string>', { type: 'string' })
@@ -153,7 +153,7 @@ export function apply(ctx: Context, config) {
     .example(`向左翻转：${config.gifCommand} -m 左`)
     .example(`逆时针旋转：${config.gifCommand} -o 逆`)
     .action(async ({ session, options }, gif) => {
-      const { reverse, forward, speed, slide, rotate, mirror } = options
+      const { reverse, rebound, speed, slide, rotate, mirror } = options
       if (speed <= 0) return session.text(".invalidPTS")
 
       let src = gif?.src
@@ -184,6 +184,7 @@ export function apply(ctx: Context, config) {
 
       // 获取 GIF 时长
       let gifDuration = 0;
+      let totalDuration = gifDuration;
       try {
         const gifData = await readFile(path);
         const gif = parseGIF(gifData);
@@ -194,19 +195,18 @@ export function apply(ctx: Context, config) {
         return `${quote}${session.text(".generatefailed")}`;
       }
 
-      if (reverse) {
-        filters.push('reverse')
-        if (speed !== 1) {
-          filters.push(`setpts=PTS/${speed}`)
-        }
-        logInfo(`应用倒放效果，速度: ${speed}`)
-      } else if (forward) {
-        if (speed !== 1) {
-          filters.push(`setpts=PTS/${speed}`)
-        }
-        logInfo(`应用正放效果，速度: ${speed}`)
-      }
 
+      // 回弹效果处理
+      if (rebound) {
+        totalDuration = gifDuration * 2 / speed; // 总时长为原时长两倍
+        filters.push(
+          '[0]split[main][back];' +
+          '[back]reverse[reversed];' +
+          '[main][reversed]concat=n=2:v=1'
+        );
+      } else if (reverse) {
+        filters.push('reverse');
+      }
 
       if (rotate) {
         let rotateAngle = ''
@@ -247,7 +247,7 @@ export function apply(ctx: Context, config) {
       if (slide) {
         try {
           const fps = 20;
-          const outputDuration = gifDuration / speed;
+          const outputDuration = totalDuration / speed;
           const totalFrames = Math.ceil(outputDuration * fps); // 向上 取整
 
           switch (slide) {
