@@ -213,7 +213,13 @@ function apply(ctx, config) {
                         // 出错了也继续广播
                     } finally {
                         // 无论成功与否，都从 sentChannelIds 中移除，确保最终清空
-                        sentChannelIds.delete(channelId);
+                        if (channel.id) {
+                            logInfo("已移除channel.id：", channel.id);
+                            sentChannelIds.delete(channel.id);
+                        } else {
+                            logInfo("已移除channel：", channel);
+                            sentChannelIds.delete(channel); // 尝试删除 channel 对象本身，以防万一
+                        }
                     }
                 }
                 logInfo("QQ 群组频道广播消息发送完成。");
