@@ -1,7 +1,7 @@
 {
   "name": "koishi-plugin-gif-reverse",
   "description": "Rewind GIF images",
-  "version": "1.5.5",
+  "version": "1.5.6",
   "main": "lib/index.js",
   "typings": "lib/index.d.ts",
   "files": [
@@ -25,7 +25,7 @@
   "koishi": {
     "description": {
       "en": "Rewind GIF images",
-      "zh": "对 GIF 图片进行处理。支持倒放/正放、变速、滑动、旋转、翻转"
+      "zh": "[<ruby>对 GIF 图片进行处理<rp>（</rp><rt>点我查看README</rt><rp>）</rp></ruby>](https://www.npmjs.com/package/koishi-plugin-gif-reverse)。支持倒放/正放、回弹、变速、滑动、旋转、翻转... [点我预览效果图](https://i0.hdslb.com/bfs/article/e1421ea81d2de817a0cd37ba83eb34e2312276085.gif) "
     }
   },
   "peerDependencies": {
