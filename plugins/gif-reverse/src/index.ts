@@ -57,7 +57,7 @@ export const usage = `
 <td><code>--rotate</code></td>
 <td><code>-o</code></td>
 <td>旋转方向 (顺/逆)</td>
-<td><code>string</code></td>
+<td><code>string</code>
 </tr>
 <tr>
 <td><code>--mirror</code></td>
@@ -91,6 +91,8 @@ export const usage = `
 ---
 
 请确保 'http', 'i18n', 'logger', 'ffmpeg' 服务均可用！
+
+speed加速/减速太多可能会导致效果不明显。
 `;
 
 export const Config =
@@ -149,7 +151,7 @@ export function apply(ctx: Context, config) {
   ctx.command(`${config.gifCommand} [gif:image]`)
     .option('rebound', '-b, --rebound', { type: 'boolean' })
     .option('reverse', '-r, --reverse', { type: 'boolean' })
-    .option('speed', '-s <times:number>', { type: 'string', fallback: 1 })
+    .option('speed', '-s <times:number>', { type: 'number', fallback: 1 })
     .option('slide', '-l <direction:string>', { type: 'string' })
     .option('rotate', '-o <direction:string>', { type: 'string' })
     .option('mirror', '-m <direction:string>', { type: 'string' })
@@ -227,6 +229,13 @@ export function apply(ctx: Context, config) {
         );
       } else if (reverse) {
         filters.push('reverse');
+      }
+
+      // 应用 speed 效果
+      if (speed !== 1) {
+        filters.push(`setpts=PTS/${speed}`); // 调整时间戳实现变速
+        fps = fps * speed; // 调整输出帧率
+        logInfo(`应用变速效果，速度: ${speed}，调整后帧率: ${fps}`);
       }
 
       if (rotate) {
