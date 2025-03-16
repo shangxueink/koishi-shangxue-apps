@@ -2,6 +2,11 @@
 
 [![npm](https://img.shields.io/npm/v/koishi-plugin-gif-reverse?style=flat-square)](https://www.npmjs.com/package/koishi-plugin-gif-reverse)
 
+https://github.com/idranme/koishi-plugin-gif-reverse
+
+https://github.com/shangxueink/koishi-plugin-gif-reverse
+
+https://github.com/shangxueink/koishi-shangxue-apps/edit/main/plugins/gif-reverse
 
 处理 GIF 图片，提供倒放/正放、变速、滑动、旋转、翻转功能。
 
