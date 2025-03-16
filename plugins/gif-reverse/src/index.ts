@@ -219,6 +219,38 @@ export function apply(ctx: Context, config) {
       }
 
       let totalDuration = gifDuration;
+
+      // 应用 slide 效果 (必须在 speed 之前)
+      if (slide) {
+        try {
+          const outputDuration = totalDuration; // 滑动效果不改变总时长
+          const totalFrames = Math.ceil(outputDuration * fps); // 向上 取整
+          logInfo(`输出时长: ${outputDuration}`);
+          let slideFilter = '';
+          switch (slide) {
+            case '左':
+              slideFilter = `split[a][b];[a][b]hstack[tiled];[tiled]crop=iw/2:ih:x='t*(iw/2)/${outputDuration}':y=0,setpts=PTS-STARTPTS`;
+              break;
+            case '右':
+              slideFilter = `split[a][b];[a][b]hstack[tiled];[tiled]crop=iw/2:ih:x='iw/2 - t*(iw/2)/${outputDuration}':y=0,setpts=PTS-STARTPTS`;
+              break;
+            case '上':
+              slideFilter = `split[a][b];[a][b]vstack[tiled];[tiled]crop=iw:ih/2:x=0:y='t*(ih/2)/${outputDuration}',setpts=PTS-STARTPTS`;
+              break;
+            case '下':
+              slideFilter = `split[a][b];[a][b]vstack[tiled];[tiled]crop=iw:ih/2:x=0:y='ih/2 - t*(ih/2)/${outputDuration}',setpts=PTS-STARTPTS`;
+              break;
+            default:
+              return `${quote}${session.text(".invalidDirection")}`;
+          }
+          filters.push(slideFilter);
+          logInfo(`应用${slide}方向滑动效果，总帧数: ${totalFrames}`);
+        } catch (error) {
+          logger.error("解析 GIF 时发生错误:", error);
+          return `${quote}${session.text(".generatefailed")}`; // 或者返回一个更具体的错误消息
+        }
+      }
+
       // 回弹效果处理
       if (rebound) {
         totalDuration = gifDuration * 2 / speed; // 总时长为原时长两倍
@@ -272,50 +304,6 @@ export function apply(ctx: Context, config) {
             return `${quote}${session.text(".invalidMirror")}`
         }
         filters.push(mirrorEffect)
-      }
-
-      if (slide) {
-        try {
-          const outputDuration = totalDuration / speed;
-          const totalFrames = Math.ceil(outputDuration * fps); // 向上 取整
-          logInfo(`输出时长: ${outputDuration}`);
-          switch (slide) {
-            case '左':
-              filters.unshift( // 使用 unshift 确保拼接操作在最前
-                `split[a][b];[a][b]hstack[tiled];` +
-                `[tiled]crop=iw/2:ih:x='t*(iw/2)/${outputDuration}':y=0,` +
-                `setpts=PTS-STARTPTS`
-              );
-              break;
-            case '右':
-              filters.unshift(
-                `split[a][b];[a][b]hstack[tiled];` +
-                `[tiled]crop=iw/2:ih:x='iw/2 - t*(iw/2)/${outputDuration}':y=0,` +
-                `setpts=PTS-STARTPTS`
-              );
-              break;
-            case '上':
-              filters.unshift(
-                `split[a][b];[a][b]vstack[tiled];` +
-                `[tiled]crop=iw:ih/2:x=0:y='t*(ih/2)/${outputDuration}',` +
-                `setpts=PTS-STARTPTS`
-              );
-              break;
-            case '下':
-              filters.unshift(
-                `split[a][b];[a][b]vstack[tiled];` +
-                `[tiled]crop=iw:ih/2:x=0:y='ih/2 - t*(ih/2)/${outputDuration}',` +
-                `setpts=PTS-STARTPTS`
-              );
-              break;
-            default:
-              return `${quote}${session.text(".invalidDirection")}`;
-          }
-          logInfo(`应用${slide}方向滑动效果，总帧数: ${totalFrames}`);
-        } catch (error) {
-          logger.error("解析 GIF 时发生错误:", error);
-          return `${quote}${session.text(".generatefailed")}`; // 或者返回一个更具体的错误消息
-        }
       }
 
       filters.push('split[s0][s1];[s0]palettegen=stats_mode=full:reserve_transparent=on[p];[s1][p]paletteuse=new=1:dither=none')
