@@ -197,13 +197,11 @@ exports.Config = Schema.intersect([
     }).description('定时推送'),
 
     Schema.object({
-        loggerinfo: Schema.boolean().default(false).description("日志调试模式"),
-        pageclose: Schema.boolean().default(true).description("puppeteer自动page.close"),
-    }).description('调试设置'),
+        loggerinfo: Schema.boolean().default(false).description("日志调试模式 `非必要不开启`"),
+        pageclose: Schema.boolean().default(true).description("puppeteer自动page.close<br>非开发者请勿改动"),
+    }).description('开发者选项'),
 ]);
 
-
-exports.apply = apply;
 async function apply(ctx, config) {
 
     let cachedFontBase64;
@@ -524,6 +522,58 @@ async function apply(ctx, config) {
                 } catch (error) {
                     ctx.logger.error('移除课程失败:', error);
                     return "移除课程失败，请重试或检查日志。";
+                }
+            });
+
+        // 课程去重指令
+        // 课程去重指令
+        ctx.command(`${config.command}/课程去重`)
+            .action(async ({ session }) => {
+                const userId = session.userId;
+                const channelId = session.channelId;
+
+                try {
+                    const courses = await ctx.database.get('curriculumtable', { userid: userId, channelId: channelId });
+                    if (courses.length === 0) {
+                        return "您在本群还没有添加任何课程。";
+                    }
+
+                    const uniqueCoursesMap = new Map(); // 使用 Map 存储唯一的课程，key 是 courseKey，value 是第一个遇到的课程对象
+                    const duplicates = [];
+
+                    for (const course of courses) {
+                        // 确保 curriculumndate 是数组，并且课程时间是字符串
+                        const courseDays = Array.isArray(course.curriculumndate) ? course.curriculumndate : [course.curriculumndate];
+                        const courseTime = typeof course.curriculumtime === 'string' ? course.curriculumtime : String(course.curriculumtime);
+
+                        const courseKey = `${course.curriculumname}-${courseDays.join(',')}-${courseTime}`;
+
+                        if (uniqueCoursesMap.has(courseKey)) {
+                            duplicates.push(course); // 如果 key 已存在，说明是重复的课程
+                        } else {
+                            uniqueCoursesMap.set(courseKey, course); // 否则，将课程添加到 uniqueCoursesMap
+                        }
+                    }
+
+                    if (duplicates.length === 0) {
+                        return "没有检测到重复的课程。";
+                    }
+
+                    // 删除重复的课程
+                    let removedCount = 0;
+                    for (const duplicate of duplicates) {
+                        const result = await ctx.database.remove('curriculumtable', {
+                            id: duplicate.id, // 使用 ID 删除，更安全
+                        });
+                        loggerinfo(result)
+                        removedCount += Number(result.affected); // 使用 Number() 确保 affected 是数字
+                    }
+
+                    return `已成功移除 ${removedCount} 门重复的课程。`;
+
+                } catch (error) {
+                    ctx.logger.error('课程去重失败:', error);
+                    return "课程去重失败，请重试或检查日志。";
                 }
             });
 
@@ -1119,3 +1169,4 @@ async function apply(ctx, config) {
         }
     }
 }
+exports.apply = apply;
