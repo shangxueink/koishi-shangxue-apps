@@ -53,7 +53,7 @@ exports.usage = `
 
 exports.Config = Schema.intersect([
     Schema.object({
-        demand: Schema.boolean().default(true).description("开启点播指令功能"),
+        demand: Schema.boolean().default(true).description("开启点播指令功能<br>`其实点播登录不登录 都搜不准，登录只是写着玩的`"),
         timeout: Schema.number().role('slider').min(1).max(300).step(1).default(60).description('指定播放视频的输入时限。`单位 秒`'),
         point: Schema.tuple([Number, Number]).description('序号标注位置。分别表示`距离顶部 距离左侧`的百分比').default([50, 50]),
         enable: Schema.boolean().description('是否开启自动解析`选择对应视频 会自动解析视频内容`').default(true),
@@ -98,10 +98,14 @@ exports.Config = Schema.intersect([
 
     Schema.object({
         isfigure: Schema.boolean().default(false).description("是否开启合并转发 `仅支持 onebot 适配器` 其他平台开启 无效").experimental(),
-        userAgent: Schema.string().description("所有 API 请求所用的 User-Agent").default("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"),
         middleware: Schema.boolean().default(false).description("前置中间件模式"),
-        loggerinfo: Schema.boolean().default(false).description("日志调试输出 `日常使用无需开启`"),
+        userAgent: Schema.string().description("所有 API 请求所用的 User-Agent").default("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"),
     }).description("调试设置"),
+
+    Schema.object({
+        pageclose: Schema.boolean().default(true).description("自动`page.close()`<br>非开发者请勿改动").experimental(),
+        loggerinfo: Schema.boolean().default(false).description("日志调试输出 `日常使用无需开启`<br>非开发者请勿改动").experimental(),
+    }).description("开发者选项"),
 ]);
 
 function apply(ctx, config) {
@@ -316,7 +320,13 @@ display: none !important;
                     width: 1440,
                     height: viewportHeight
                 })
+                logInfo("窗口：宽度：")
+                logInfo(1440)
+
+                logInfo("窗口：高度：")
+                logInfo(viewportHeight)
                 let msg;
+
                 // 截图
                 const videoListElement = await page.$('.video-list.row')
                 if (videoListElement) {
@@ -325,8 +335,9 @@ display: none !important;
                     })
                     msg = h.image(imgBuf, 'image/png')
                 }
-
-                await page.close()
+                if (page && config.pageclose) {
+                    await page.close()
+                }
 
                 // 发送截图
                 await session.send(msg)
@@ -360,111 +371,6 @@ display: none !important;
             })
     }
 
-    if (config.loggerinfo) {
-        ctx.command('B站点播/调试点播 [keyword]', '调试时点播B站视频')
-            .option('video', '-v 解析返回视频')
-            .option('audio', '-a 解析返回语音')
-            .option('link', '-l 解析返回链接')
-            .option('page', '-p <page:number> 指定页数', { fallback: '1' })
-            .example('调试点播 遠い空へ -v')
-            .action(async ({ options, session }, keyword) => {
-                if (!keyword) {
-                    await session.execute('调试点播 -h');
-                    return '没输入keyword';
-                }
-                const url = `https://search.bilibili.com/video?keyword=${encodeURIComponent(keyword)}&page=${options.page}&o=30`;
-                const page = await ctx.puppeteer.page();
-                await page.goto(url, {
-                    waitUntil: 'networkidle2',
-                });
-
-                // 获取视频列表并为每个视频元素添加序号
-                const videos = await page.evaluate((point) => {
-                    const items = Array.from(document.querySelectorAll('.video-list-item:not([style*="display: none"])'));
-                    return items.map((item, index) => {
-                        const link = item.querySelector('a');
-                        const href = link?.getAttribute('href') || '';
-                        const idMatch = href.match(/\/video\/(BV\w+)\//);
-                        const id = idMatch ? idMatch[1] : '';
-                        if (!id) {
-                            const htmlElement = item;
-                            htmlElement.style.display = 'none';
-                        } else {
-                            const overlay = document.createElement('div');
-                            overlay.style.position = 'absolute';
-                            overlay.style.top = `${point[0]}%`;
-                            overlay.style.left = `${point[1]}%`;
-                            overlay.style.transform = 'translate(-50%, -50%)';
-                            overlay.style.fontSize = '48px';
-                            overlay.style.fontWeight = 'bold';
-                            overlay.style.color = 'black';
-                            overlay.style.zIndex = '10';
-                            overlay.style.backgroundColor = 'rgba(255, 255, 255, 0.7)';
-                            overlay.style.padding = '10px';
-                            overlay.style.borderRadius = '8px';
-                            overlay.textContent = `${index + 1}`;
-                            const videoElement = item;
-                            videoElement.style.position = 'relative';
-                            videoElement.appendChild(overlay);
-                        }
-                        return { id };
-                    }).filter(video => video.id);
-                }, config.point);
-
-                // 如果开启了日志调试模式，打印获取到的视频信息                
-                logInfo(options);
-                logInfo(`共找到 ${videos.length} 个视频:`);
-                videos.forEach((video, index) => {
-                    logInfo(`序号 ${index + 1}: ID - ${video.id}`);
-                });
-
-                if (videos.length === 0) {
-                    await page.close();
-                    return '未找到相关视频。';
-                }
-
-                // 动态调整窗口大小以适应视频数量
-                const viewportHeight = 200 + videos.length * 100;
-                await page.setViewport({
-                    width: 1440,
-                    height: viewportHeight,
-                });
-
-                let msg;
-                // 截取整个页面
-                const imgBuf = await page.screenshot({ fullPage: true });
-                msg = h.image(imgBuf, 'image/png');
-
-                await page.close();
-
-                // 发送截图
-                await session.send(msg);
-                // 提示用户输入
-                await session.send(`请选择视频的序号：`);
-                // 等待用户输入
-                const userChoice = await session.prompt(config.timeout * 1000);
-                const choiceIndex = parseInt(userChoice) - 1;
-                if (isNaN(choiceIndex) || choiceIndex < 0 || choiceIndex >= videos.length) {
-                    return '输入无效，请输入正确的序号。';
-                }
-
-                // 返回用户选择的视频ID
-                const chosenVideo = videos[choiceIndex];
-                // 如果开启了日志调试模式，打印用户选择的视频信息
-                logInfo(`渲染序号设置\noverlay.style.top = ${config.point[0]}% \noverlay.style.left = ${config.point[1]}%`);
-                logInfo(`用户选择了序号 ${choiceIndex + 1}: ID - ${chosenVideo.id}`);
-
-
-                if (config.enable) {
-                    // 开启自动解析了
-
-                    const ret = await extractLinks(session, config, ctx, [{ type: 'Video', id: chosenVideo.id }], logger);
-                    if (ret && !isLinkProcessedRecently(ret, lastProcessedUrls, config, logger)) {
-                        await processVideoFromLink(session, config, ctx, lastProcessedUrls, logger, ret, options);
-                    }
-                }
-            });
-    }
     //判断是否需要解析
     async function isProcessLinks(sessioncontent) {
         // 解析内容中的链接

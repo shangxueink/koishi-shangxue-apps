@@ -178,6 +178,10 @@ https://www.bilibili.com/video/BV1ii421Q7oj
 <details>
 <summary>点击此处 可查看更新日志</summary>
 
+-   **1.1.14**
+    -   上次更新了什么？
+    -   新增page.close调试选项
+
 -   **1.1.12**
     -   支持合并转发
     -   支持独立的AV号
