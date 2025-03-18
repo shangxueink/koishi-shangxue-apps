@@ -1,0 +1,31 @@
+{
+  "name": "@shangxueink/koishi-plugin-qq-onebot",
+  "version": "1.0.1",
+  "description": "神秘小插件。自用插件哦~",
+  "main": "lib/index.js",
+  "typings": "lib/index.d.ts",
+  "files": [
+    "lib"
+  ],
+  "license": "MIT",
+  "homepage": "https://github.com/shangxueink/koishi-shangxue-apps/tree/main/",
+  "bugs": {
+    "url": "https://github.com/shangxueink/koishi-shangxue-apps/issues"
+  },
+  "keywords": [
+    "bot",
+    "chatbot",
+    "koishi",
+    "plugin",
+    "onebot"
+  ],
+  "koishi": {
+    "description": {
+      "en": "",
+      "zh": "神秘小插件。自用插件哦~"
+    }
+  },
+  "peerDependencies": {
+    "koishi": "^4.17.1"
+  }
+}
