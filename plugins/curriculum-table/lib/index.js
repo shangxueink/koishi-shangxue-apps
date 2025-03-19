@@ -166,6 +166,10 @@ exports.usage = `
 ---
 
 本插件只适合一些互相熟悉的小团体玩。
+
+输入 <code>查看课程表 1</code> 即可查看明日课程，输入 <code>查看课程表 2</code> 即可查看后天课程，
+
+输入 <code>查看课程表 -1</code> 即可查看昨天课程，
 `;
 
 exports.Config = Schema.intersect([
@@ -174,6 +178,7 @@ exports.Config = Schema.intersect([
         command11: Schema.string().default("添加课程").description("实现 `添加课程` 的指令名称"),
         command12: Schema.string().default("移除课程").description("实现 `移除课程` 的指令名称"),
         command13: Schema.string().default("wakeup").description("实现 `wakeup快速导入课表` 的指令名称"),
+        command14: Schema.string().default("课程去重").description("实现 `课程去重` 的指令名称"),
         command21: Schema.string().default("查看课程表").description("实现 `查看当前群组的课表` 的指令名称"),
     }).description('基础设置'),
 
@@ -186,6 +191,7 @@ exports.Config = Schema.intersect([
 
     Schema.object({
         waittimeout: Schema.number().description("等待用户交互的超时时间").default(30),
+        autocommand14: Schema.boolean().default(true).description("添加课程时，自动执行`课程去重`"),
     }).description('进阶设置'),
 
     Schema.object({
@@ -344,6 +350,9 @@ async function apply(ctx, config) {
                         endDate: endDate,       // 手动添加的结束日期
                     });
 
+                    if (config.autocommand14) {
+                        await session.execute(`${config.command14}`)
+                    }
                     return `已为 ${username} 添加课程：${classname} ${normalizedWeekday.join(',')} ${normalizedTime}`;
 
                 } catch (error) {
@@ -358,7 +367,7 @@ async function apply(ctx, config) {
             .option('username', '-n <username:string> 指定用户的名称')
             .example(`输入示例：\n${config.command13} 这是来自「WakeUp课程表」的课表分享......分享口令为「PaJ_8Kj_zeelspJs2HBL1」`)
             .action(async ({ session, options }, param) => {
-                const keyMatch = param.match(/分享口令为「([a-zA-Z0-9_]+)」/);
+                const keyMatch = param.match(/分享口令为「(.*?)」/);
                 if (!keyMatch) return "未检测到分享口令，请检查输入格式。";
                 const shareKey = keyMatch[1];
 
@@ -470,6 +479,9 @@ async function apply(ctx, config) {
                     }
 
                     if (importedCourseCount > 0) {
+                        if (config.autocommand14) {
+                            await session.execute(`${config.command14}`)
+                        }
                         return `已成功导入来自WakeUp的课程表，共导入 ${importedCourseCount} 门课程：${successMessageDetails}`;
                     } else {
                         return "课程表导入完成，但没有发现可导入的新课程 (可能已全部导入或数据异常)。";
@@ -525,9 +537,10 @@ async function apply(ctx, config) {
                 }
             });
 
+
         // 课程去重指令
-        // 课程去重指令
-        ctx.command(`${config.command}/课程去重`)
+        // 在其他地方 await session.execute(`${config.command14}`)
+        ctx.command(`${config.command}/${config.command14}`)
             .action(async ({ session }) => {
                 const userId = session.userId;
                 const channelId = session.channelId;
@@ -566,7 +579,7 @@ async function apply(ctx, config) {
                             id: duplicate.id, // 使用 ID 删除，更安全
                         });
                         loggerinfo(result)
-                        removedCount += Number(result.affected); // 使用 Number() 确保 affected 是数字
+                        removedCount += Number(result.removed); // 使用 Number() 确保 removed 是数字
                     }
 
                     return `已成功移除 ${removedCount} 门重复的课程。`;
@@ -578,10 +591,18 @@ async function apply(ctx, config) {
             });
 
         // 渲染课程表
-        ctx.command(`${config.command}/${config.command21}`)
-            .action(async ({ session }) => {
-                await session.send(await renderCourseTable(ctx, config, session.channelId)); // 调用渲染函数
+        ctx.command(`${config.command}/${config.command21} [day:number]`)
+            .action(async ({ session, options }, day) => {
+                // 将 day 转换为数字，如果无法转换或者为空，则默认为 0
+                const dayOffset = Number(day) || 0;
+
+                if (isNaN(dayOffset)) {
+                    return "day 参数必须是一个数字。";
+                }
+
+                await session.send(await renderCourseTable(ctx, config, session.channelId, dayOffset)); // 调用渲染函数，传递 dayOffset
             });
+
 
     });
 
@@ -647,7 +668,7 @@ async function apply(ctx, config) {
 
 
     // 渲染课程表的函数 
-    async function renderCourseTable(ctx, config, channelId) {
+    async function renderCourseTable(ctx, config, channelId, dayOffset = 0) {
         if (!ctx.puppeteer) {
             ctx.logger.error("没有开启 puppeteer 服务，无法生成图片。");
             return null; // puppeteer 未启用
@@ -664,6 +685,7 @@ async function apply(ctx, config) {
             }
 
             const now = new Date();
+            now.setDate(now.getDate() + dayOffset); // 根据 dayOffset 调整日期
             const currentDate = now.toISOString().split('T')[0];
 
             // 获取今天的星期几 (中文格式)
@@ -715,7 +737,12 @@ async function apply(ctx, config) {
             const currentDayOfWeek = now.getDay();
             const currentHour = now.getHours();
             const currentMinute = now.getMinutes();
-            const currentTimestamp = currentDayOfWeek * 24 * 60 + currentHour * 60 + currentMinute;
+            let currentTimestamp;
+            if (dayOffset === 0) {
+                currentTimestamp = currentDayOfWeek * 24 * 60 + currentHour * 60 + currentMinute;
+            } else {
+                currentTimestamp = currentDayOfWeek * 24 * 60; // 使用指定日期的 0:00 时刻
+            }
 
             const mergedCourseList = [];
             const noCourseMap = new Map();
