@@ -1,6 +1,9 @@
 name: QQNT-version-scraper
 
 on:
+  push:
+    branches:
+      - main  # 当推送到 main 分支时触发
   schedule:
     - cron: '0 * * * *'  # 每小时运行一次
   workflow_dispatch:  # 手动触发
