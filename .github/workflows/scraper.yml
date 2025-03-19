@@ -26,6 +26,9 @@ jobs:
       - name: 切换到脚本目录 📂
         run: cd ./scripts/QQNT-version-scraper
 
+      - name: 列出目录内容 🔍
+        run: ls -l
+
       - name: 安装依赖 📦
         run: npm install cheerio
 
