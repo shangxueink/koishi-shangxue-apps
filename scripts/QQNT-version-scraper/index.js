@@ -191,7 +191,12 @@ async function main() {
 
     // 获取 Windows 版本号，用于 Release 标题和 Tag
     const windowsVersion = versions.windows ? versions.windows.versionCode : 'latest';
-    process.env.WINDOWS_VERSION = windowsVersion; // 设置环境变量
+    process.env.WINDOWS_VERSION = windowsVersion; // 设置环境变量 (虽然这个环境变量在后续步骤中不可直接用)
+
+    // 输出 WINDOWS_VERSION 作为 GitHub Actions 的 output
+    console.log(`WINDOWS_VERSION=${windowsVersion}`); // 为了调试，先输出到控制台
+    console.log(`::set-output name=windows_version::${windowsVersion}`); // 设置 output，注意 output 名称要小写，用下划线分隔
+
 }
 
 // 运行主函数
