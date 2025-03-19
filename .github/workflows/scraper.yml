@@ -73,9 +73,9 @@ jobs:
         if: steps.check_update.outputs.updated == 'true'
         uses: softprops/action-gh-release@v1
         with:
-          name: QQNT-最新版本
+          name: QQNT-${{ env.WINDOWS_VERSION }}  # 使用环境变量
           body_path: ./scripts/QQNT-version-scraper/QQNT/versions.md
-          tag_name: QQNT-latest
+          tag_name: QQNT-${{ env.WINDOWS_VERSION }} # 使用环境变量
           generate_release_notes: false
           files: |
             ./scripts/QQNT-version-scraper/QQNT/versions.json
