@@ -159,6 +159,7 @@ function generateMarkdown(versions) {
 // 主函数
 async function main() {
     const versions = {};
+    const updatedPlatforms = {};
 
     for (const platformKey in config.platforms) {
         const platformConfig = config.platforms[platformKey];
@@ -189,14 +190,20 @@ async function main() {
     await writeFile(markdownOutputPath, markdownContent);
     console.log(`versions.md 文件写入成功到 ${markdownOutputPath}.`);
 
-    // 获取 Windows 版本号，用于 Release 标题和 Tag
-    const windowsVersion = versions.windows ? versions.windows.versionCode : 'latest';
-    process.env.WINDOWS_VERSION = windowsVersion; // 设置环境变量 (虽然这个环境变量在后续步骤中不可直接用)
+    // 检查版本更新并记录更新的平台
+    const oldVersionsResponse = await fetch('https://raw.githubusercontent.com/${{ github.repository }}/main/scripts/QQNT-version-scraper/QQNT/versions.json');
+    const oldVersions = await oldVersionsResponse.json();
 
-    // 输出 WINDOWS_VERSION 作为 GitHub Actions 的 output
-    console.log(`WINDOWS_VERSION=${windowsVersion}`); // 为了调试，先输出到控制台
-    console.log(`::set-output name=windows_version::${windowsVersion}`); // 设置 output，注意 output 名称要小写，用下划线分隔
+    for (const platformKey in versions) {
+        if (JSON.stringify(versions[platformKey]) !== JSON.stringify(oldVersions[platformKey])) {
+            updatedPlatforms[platformKey] = versions[platformKey].versionCode;
+        }
+    }
 
+    // 输出更新的平台信息作为 GitHub Actions 的 output
+    const updatedPlatformsJSON = JSON.stringify(updatedPlatforms);
+    console.log(`已更新平台: ${updatedPlatformsJSON}`);
+    console.log(`::set-output name=updated_platforms::${updatedPlatformsJSON}`);
 }
 
 // 运行主函数
