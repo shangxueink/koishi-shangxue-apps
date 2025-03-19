@@ -3,10 +3,11 @@ import { writeFile } from 'node:fs/promises';
 import https from 'node:https';
 import http from 'node:http';
 import * as cheerio from 'cheerio';
+const __dirname = path.dirname(new URL(import.meta.url).pathname);
 
 const config = {
-    outputPathJSONFile: './QQNT/versions.json',
-    outputPathMarkdownFile: './QQNT/versions.md',
+    outputPathJSONFile: path.join(__dirname, 'QQNT', 'versions.json'),
+    outputPathMarkdownFile: path.join(__dirname, 'QQNT', 'versions.md'),
     platforms: {
         windows: {
             name: 'Windows',
