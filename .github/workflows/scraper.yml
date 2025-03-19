@@ -3,10 +3,10 @@ name: QQNT-version-scraper
 on:
   push:
     branches:
-      - main  # 当推送到 main 分支时触发
+      - main
   schedule:
-    - cron: '0 * * * *'  # 每小时运行一次
-  workflow_dispatch:  # 手动触发
+    - cron: '0 * * * *'
+  workflow_dispatch:
 
 jobs:
   scrape_and_release:
@@ -16,7 +16,7 @@ jobs:
       - name: 检出代码 ⬇️
         uses: actions/checkout@v3
         with:
-          fetch-depth: 0  # 获取所有历史记录，用于比较版本
+          fetch-depth: 0
 
       - name: 设置 Node.js ⚙️
         uses: actions/setup-node@v3
@@ -26,8 +26,17 @@ jobs:
       - name: 安装依赖 📦
         run: npm install cheerio
 
-      - name: 创建 QQNT 目录 📂
-        run: mkdir -p ./scripts/QQNT-version-scraper/QQNT
+      - name: 显示当前工作目录 📂 (Debug)
+        run: pwd
+
+      - name: 列出 scripts/QQNT-version-scraper 目录内容 📂 (Debug)
+        run: ls -l ./scripts/QQNT-version-scraper/
+
+      - name: 创建 QQNT 目录 📂 (Debug mkdir)
+        run: |
+          mkdir -p ./scripts/QQNT-version-scraper/QQNT
+          echo "目录创建命令执行完毕"
+          ls -l ./scripts/QQNT-version-scraper/ # 再次列出目录内容，确认创建结果
 
       - name: 运行版本抓取脚本 🚀
         run: node ./scripts/QQNT-version-scraper/index.js
