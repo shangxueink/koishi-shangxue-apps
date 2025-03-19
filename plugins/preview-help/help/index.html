@@ -178,7 +178,8 @@
         .preview-container-wrapper {
             min-height: 600px;
             position: relative;
-            overflow: hidden;
+            overflow: auto;
+            /* 修改为 auto，允许滚动 */
             border: 1px solid var(--border-color);
             /* Preview container border */
             border-radius: 8px;
@@ -207,21 +208,19 @@
             background-size: cover;
             background-position: center;
             position: relative;
-            overflow: hidden;
+            /* overflow: hidden;  不再需要隐藏溢出 */
             display: flex;
-            /* Enable flexbox for menu items */
             flex-direction: column;
-            /* Stack menu items vertically */
             padding: 20px;
-            /* Add padding around the menu */
-            /*height: 100%;*/
-            /* Remove fixed height, will be dynamic */
+            width: 100%;
+            /* 确保容器占据全部宽度 */
+            box-sizing: border-box;
+            /* 包含 padding 在宽度计算中 */
             font-family: var(--preview-font, inherit);
-            /* 应用预览字体 */
             z-index: 1;
-            /* Ensure menu content is above blurred background */
             background-color: rgba(255, 255, 255, 0.0);
-            /* Make preview container background transparent */
+            min-height: 100%;
+            /* 确保容器至少有 wrapper 的高度 */
         }
 
         .menu-item-preview {
@@ -398,52 +397,63 @@
         }
 
         .footer {
-            position: absolute;
-            bottom: 15px;
+            position: relative;
+            bottom: auto;
             left: 0;
             right: 0;
             font-size: 12px;
             color: #909399;
             text-align: center;
-            /* Default to center alignment */
             cursor: pointer;
-            /* Make footer editable */
+            padding: 10px;
+            box-sizing: border-box;
+            width: 100%;
         }
 
         .footer.left-top {
+            position: absolute;
             top: 15px;
             left: 15px;
             text-align: left;
             bottom: auto;
             right: auto;
+            width: auto;
         }
 
         .footer.left-bottom {
+            position: absolute;
             bottom: 15px;
             left: 15px;
             text-align: left;
             right: auto;
+            top: auto;
+            width: auto;
         }
 
         .footer.right-top {
+            position: absolute;
             top: 15px;
             right: 15px;
             text-align: right;
             bottom: auto;
             left: auto;
+            width: auto;
         }
 
         .footer.right-bottom {
+            position: absolute;
             bottom: 15px;
             right: 15px;
             text-align: right;
             left: auto;
+            top: auto;
+            width: auto;
         }
 
         .footer.top-center {
+            position: absolute;
             top: 15px;
             text-align: center;
-            bottom: auto;
         }
 
 
@@ -1507,7 +1517,7 @@ https://i0.hdslb.com/bfs/article/7a5138b47dcd88c25513ef783be4715c175033875.jpg
                     previewHeight: 1440, // 默认预览高度 改为1440
                     backgroundImage: '',
                     backgroundBrightness: 1,
-                    footerTextContent: '### *Bot of koishi & koishi-plugin-preview-help*', // 默认角标文字, 支持Markdown
+                    footerTextContent: '## *Bot of koishi & koishi-plugin-preview-help*', // 默认角标文字, 支持Markdown
                     footerPosition: 'center',
                     footerTextColor: '#909399',
                     footerTextBold: false,

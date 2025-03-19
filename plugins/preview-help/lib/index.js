@@ -31,10 +31,10 @@ const usage = `
 
 ---
 
-<p>推荐使用webUI交互生成你喜欢的菜单图片，并且导出JSON配置，用于配置本插件。</p>
+<p>推荐使用webUI交互（开启插件后）生成你喜欢的菜单图片，并且导出JSON配置，用于配置本插件。</p>
 <p>当然也可以把渲染好的菜单图片保存，使用本插件的图片返回功能等</p>
 
-webUI 交互 请见 ➤ <a href="/help/index.html" target="_blank">/help/index.html</a>
+webUI 交互 （开启插件后）请见 ➤ <a href="/help/index.html" target="_blank">/help/index.html</a>
 
 
 ---
@@ -57,7 +57,7 @@ webUI 交互 请见 ➤ <a href="/help/index.html" target="_blank">/help/index.h
   <button onclick="navigator.clipboard.writeText('${htmlPath.replace(/\\/g, '/')}')">点我复制文件地址</button>
 </p>
 
-## <a href="/help/index.html" target="_blank">菜单 webUI 交互 请点击这里 ➤ /help/index.html</a>
+## <a href="/help/index.html" target="_blank">菜单 webUI 交互 （开启插件后）请点击这里 ➤ /help/index.html</a>
 
 ---
 
@@ -127,8 +127,11 @@ const Config = Schema.intersect([
     Schema.object({
         screenshotquality: Schema.number().role('slider').min(0).max(100).step(1).default(60).description('设置图片压缩质量（%）'),
         tempPNG: Schema.boolean().description('打开后，开启缓存功能。<br>在`输入配置不变`/`help菜单不变`的情况下，使用缓存的PNG菜单图片（同一张图）。<br>关闭后，每次调用均使用puppeteer渲染').default(true),
-        loggerinfo: Schema.boolean().default(false).description('日志调试开关'),
+        isfigure: Schema.boolean().default(false).description("是否开启合并转发 `仅支持 onebot 适配器` 其他平台开启 无效").experimental(),
     }).description('调试模式'),
+    Schema.object({
+        loggerinfo: Schema.boolean().default(false).description('日志调试开关'),
+    }).description('开发者选项'),
 ]);
 
 // 存储上一次的 generateCacheKey
@@ -357,9 +360,7 @@ function apply(ctx, config) {
                     logInfo(session.text('.cache.hit'));
                     try {
                         const imageBuffer = fs.readFileSync(temp_helpFilePath);
-                        await session.send([
-                            h.image(imageBuffer, 'image/jpeg'),
-                        ]);
+                        await sendwithfigure(session, h.image(imageBuffer, 'image/jpeg'));
                         return;
                     } catch (e) {
                         logger.warn(`读取缓存图片失败，重新渲染`, e);
@@ -378,12 +379,12 @@ function apply(ctx, config) {
                     switch (config.helpmode) {
                         case '1.1':
                             logInfo(config.help_text);
-                            await session.send(h.text(config.help_text));
+                            await sendwithfigure(session, h.text(config.help_text));
                             return;
                         case '1.2':
                             logInfo(config.help_URL);
                             try {
-                                await session.send(h.image(config.help_URL));
+                                await sendwithfigure(session, h.image(config.help_URL));
                             } catch (e) {
                                 logger.error(`图片菜单加载失败: ${config.help_URL}`, e);
                                 await session.send(h.text(session.text('.image.load.error', [config.help_URL])));
@@ -538,10 +539,7 @@ function apply(ctx, config) {
                     const costTime = ((Date.now() - startTime) / 1000).toFixed(2);
                     logInfo(`截图完成，耗时${costTime}秒，图片大小：${(imageBuffer.length / 1024).toFixed(2)}KB`);
 
-                    await session.send([
-                        h.image(imageBuffer, 'image/jpeg'),
-                        // h.text(session.text('.success')) // 移除成功文字
-                    ]);
+                    await sendwithfigure(session, h.image(imageBuffer, 'image/jpeg'));
 
                 } catch (error) {
                     logger.error(`渲染过程出错：`, error);
@@ -553,6 +551,24 @@ function apply(ctx, config) {
                 }
 
             });
+
+        async function sendwithfigure(session, responseElements) {
+            if (config.isfigure && (session.platform === "onebot" || session.platform === "red")) {
+                logInfo(`使用合并转发，正在合并消息。`);
+                // 创建 figure 元素
+                const figureContent = h('figure', {
+                    children: responseElements
+                });
+                logInfo(JSON.stringify(figureContent, null, 2));
+                // 发送合并转发消息
+                await session.send(figureContent);
+            } else {
+                // 没有启用合并转发
+                await session.send(responseElements);
+            }
+        }
+
+
 
     });
 
