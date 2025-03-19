@@ -1,3 +1,4 @@
+
 name: QQNT-version-scraper
 
 on:
@@ -74,10 +75,11 @@ jobs:
         if: steps.check_update.outputs.updated == 'true'
         uses: softprops/action-gh-release@v1
         with:
-          name: ${{ fromJson(steps.run_scraper_script.outputs.updated_platforms).windows ? format('Windows {0}', fromJson(steps.run_scraper_script.outputs.updated_platforms).windows) : '' }}${{ fromJson(steps.run_scraper_script.outputs.updated_platforms).linux ? format(', Linux {0}', fromJson(steps.run_scraper_script.outputs.updated_platforms).linux) : '' }}${{ fromJson(steps.run_scraper_script.outputs.updated_platforms).mac ? format(', macOS {0}', fromJson(steps.run_scraper_script.outputs.updated_platforms).mac) : '' }}
+          name: QQNT-${{ steps.run_scraper_script.outputs.windows_version }}  # 使用 output
           body_path: ./scripts/QQNT-version-scraper/QQNT/versions.md
-          tag_name: ${{ fromJson(steps.run_scraper_script.outputs.updated_platforms).windows ? format('QQNT-Windows-{0}', fromJson(steps.run_scraper_script.outputs.updated_platforms).windows) : '' }}${{ fromJson(steps.run_scraper_script.outputs.updated_platforms).linux ? format('QQNT-Linux-{0}', fromJson(steps.run_scraper_script.outputs.updated_platforms).linux) : '' }}${{ fromJson(steps.run_scraper_script.outputs.updated_platforms).mac ? format('QQNT-macOS-{0}', fromJson(steps.run_scraper_script.outputs.updated_platforms).mac) : '' }}
+          tag_name: QQNT-${{ steps.run_scraper_script.outputs.windows_version }} # 使用 output
           generate_release_notes: false
           files: |
             ./scripts/QQNT-version-scraper/QQNT/versions.json
             ./scripts/QQNT-version-scraper/QQNT/versions.md
+
