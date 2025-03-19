@@ -1,10 +1,12 @@
-import { URL } from 'node:url';
+import { URL, fileURLToPath } from 'node:url';
 import { writeFile } from 'node:fs/promises';
 import https from 'node:https';
 import http from 'node:http';
 import path from 'node:path';
 import * as cheerio from 'cheerio';
-const __dirname = path.dirname(new URL(import.meta.url).pathname);
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const config = {
     outputPathJSONFile: path.join(__dirname, 'QQNT', 'versions.json'),
@@ -121,31 +123,34 @@ async function extractVersion(platformKey, html) {
 
 function generateMarkdown(versions) {
     let markdown = `
-| Platform/Arch | .exe | .deb | .rpm | .AppImage | .dmg |
-|---|---|---|---|---|---|
+| Platform/Arch | Version | .exe | .deb | .rpm | .AppImage | .dmg |
+|---|---|---|---|---|---|---|
 `;
 
     // Windows
     if (versions.windows) {
         const windows = versions.windows;
-        markdown += `| Windows x64 | [Download](${windows.x64}) |   |   |   |   |\n`;
-        markdown += `| Windows x86 | [Download](${windows.x86}) |   |   |   |   |\n`;
-        markdown += `| Windows arm | [Download](${windows.arm}) |   |   |   |   |\n`;
+        const version = windows.versionCode; // 获取版本号
+        markdown += `| Windows x64 | ${version} | [Download](${windows.x64}) |   |   |   |   |\n`;
+        markdown += `| Windows x86 | ${version} | [Download](${windows.x86}) |   |   |   |   |\n`;
+        markdown += `| Windows arm | ${version} | [Download](${windows.arm}) |   |   |   |   |\n`;
     }
 
     // Linux
     if (versions.linux) {
         const linux = versions.linux;
-        markdown += `| Linux x64 |   | ${linux.x64?.deb ? `[Download](${linux.x64.deb})` : ''} | ${linux.x64?.rpm ? `[Download](${linux.x64.rpm})` : ''} | ${linux.x64?.appimage ? `[Download](${linux.x64.appimage})` : ''} |   |\n`;
-        markdown += `| Linux arm |   | ${linux.arm?.deb ? `[Download](${linux.arm.deb})` : ''} | ${linux.arm?.rpm ? `[Download](${linux.arm.rpm})` : ''} | ${linux.arm?.appimage ? `[Download](${linux.arm.appimage})` : ''} |   |\n`;
-        markdown += `| Linux loongarch |   | ${linux.loongarch?.deb ? `[Download](${linux.loongarch.deb})` : ''} |   |   |   |\n`;
-        markdown += `| Linux mips |   | ${linux.mips?.deb ? `[Download](${linux.mips.deb})` : ''} |   |   |   |\n`;
+        const version = linux.versionCode; // 获取版本号
+        markdown += `| Linux x64 | ${version} |   | ${linux.x64?.deb ? `[Download](${linux.x64.deb})` : ''} | ${linux.x64?.rpm ? `[Download](${linux.x64.rpm})` : ''} | ${linux.x64?.appimage ? `[Download](${linux.x64.appimage})` : ''} |   |\n`;
+        markdown += `| Linux arm | ${version} |   | ${linux.arm?.deb ? `[Download](${linux.arm.deb})` : ''} | ${linux.arm?.rpm ? `[Download](${linux.arm.rpm})` : ''} | ${linux.arm?.appimage ? `[Download](${linux.arm.appimage})` : ''} |   |\n`;
+        markdown += `| Linux loongarch | ${version} |   | ${linux.loongarch?.deb ? `[Download](${linux.loongarch.deb})` : ''} |   |   |   |\n`;
+        markdown += `| Linux mips | ${version} |   | ${linux.mips?.deb ? `[Download](${linux.mips.deb})` : ''} |   |   |   |\n`;
     }
 
     // macOS
     if (versions.mac) {
         const mac = versions.mac;
-        markdown += `| macOS Universal |   |   |   |   | [Download](${mac.downloadUrl}) |\n`;
+        const version = mac.versionCode; // 获取版本号
+        markdown += `| macOS Universal | ${version} |   |   |   |   | [Download](${mac.downloadUrl}) |\n`;
     }
 
     return markdown;
@@ -183,6 +188,10 @@ async function main() {
     const markdownContent = generateMarkdown(versions);
     await writeFile(markdownOutputPath, markdownContent);
     console.log(`versions.md 文件写入成功到 ${markdownOutputPath}.`);
+
+    // 获取 Windows 版本号，用于 Release 标题和 Tag
+    const windowsVersion = versions.windows ? versions.windows.versionCode : 'latest';
+    process.env.WINDOWS_VERSION = windowsVersion; // 设置环境变量
 }
 
 // 运行主函数
