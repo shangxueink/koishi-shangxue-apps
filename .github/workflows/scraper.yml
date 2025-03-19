@@ -1,0 +1,67 @@
+name: QQNT-version-scraper
+
+on:
+  schedule:
+    - cron: '0 * * * *'  # 每小时运行一次
+  workflow_dispatch:  # 手动触发
+
+jobs:
+  scrape_and_release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 检出代码 ⬇️
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0  # 获取所有历史记录，用于比较版本
+
+      - name: 设置 Node.js ⚙️
+        uses: actions/setup-node@v3
+        with:
+          node-version: '22'
+
+      - name: 安装依赖 📦
+        run: npm install cheerio
+
+      - name: 运行版本抓取脚本 🚀
+        run: node ./scripts/QQNT-version-scraper/index.js
+
+      - name: 检查版本更新 🔍
+        id: check_update
+        run: |
+          if [[ -f ./QQNT/versions.json ]]; then
+            NEW_VERSION=$(cat ./QQNT/versions.json)
+            OLD_VERSION=$(git show origin/main:./QQNT/versions.json)
+
+            if [[ "$NEW_VERSION" == "$OLD_VERSION" ]]; then
+              echo "版本没有更新，跳过发布。"
+              echo "updated=false" >> "$GITHUB_OUTPUT"
+            else
+              echo "检测到版本更新！"
+              echo "updated=true" >> "$GITHUB_OUTPUT"
+            fi
+          else
+            echo "未找到 versions.json，首次运行，将发布 Release。"
+            echo "updated=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: 提交版本文件 ➕
+        if: steps.check_update.outputs.updated == 'true'
+        run: |
+          git config --local user.email "actions@github.com"
+          git config --local user.name "GitHub Actions"
+          git add ./QQNT/versions.json ./QQNT/versions.md
+          git commit -m "✨ 更新 QQNT 版本信息"
+          git push
+
+      - name: 创建 Release 🏷️
+        if: steps.check_update.outputs.updated == 'true'
+        uses: softprops/action-gh-release@v1
+        with:
+          name: QQNT-最新版本
+          body_path: ./QQNT/versions.md
+          tag_name: QQNT-latest
+          generate_release_notes: false
+          files: |
+            ./QQNT/versions.json
+            ./QQNT/versions.md
