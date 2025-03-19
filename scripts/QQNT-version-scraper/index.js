@@ -2,6 +2,7 @@ import { URL } from 'node:url';
 import { writeFile } from 'node:fs/promises';
 import https from 'node:https';
 import http from 'node:http';
+import path from 'node:path';
 import * as cheerio from 'cheerio';
 const __dirname = path.dirname(new URL(import.meta.url).pathname);
 
