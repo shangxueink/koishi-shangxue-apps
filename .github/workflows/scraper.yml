@@ -39,6 +39,7 @@ jobs:
           ls -l ./scripts/QQNT-version-scraper/ # 再次列出目录内容，确认创建结果
 
       - name: 运行版本抓取脚本 🚀
+        id: run_scraper_script  # 添加步骤 ID
         run: node ./scripts/QQNT-version-scraper/index.js
 
       - name: 检查版本更新 🔍
@@ -73,9 +74,9 @@ jobs:
         if: steps.check_update.outputs.updated == 'true'
         uses: softprops/action-gh-release@v1
         with:
-          name: QQNT-${{ env.WINDOWS_VERSION }}  # 使用环境变量
+          name: QQNT-${{ steps.run_scraper_script.outputs.windows_version }}  # 使用 output
           body_path: ./scripts/QQNT-version-scraper/QQNT/versions.md
-          tag_name: QQNT-${{ env.WINDOWS_VERSION }} # 使用环境变量
+          tag_name: QQNT-${{ steps.run_scraper_script.outputs.windows_version }} # 使用 output
           generate_release_notes: false
           files: |
             ./scripts/QQNT-version-scraper/QQNT/versions.json
