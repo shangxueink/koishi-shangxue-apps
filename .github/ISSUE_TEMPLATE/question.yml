@@ -34,14 +34,12 @@ body:
       label: 是否可能是 Bug？
       description: 您认为这个问题可能是 Bug 吗？
       options:
-        - label: 是，我认为可能是 Bug
-          value: yes
-        - label: 否，我认为不是 Bug，只是疑问
-          value: no
-        - label: 不确定
-          value: unsure
+        - 是，我认为可能是 Bug
+        - 否，我认为不是 Bug，只是疑问
+        - 不确定
     validations:
       required: false
+
 
   - type: textarea
     id: additional-context
