@@ -1,0 +1,959 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>插件列表</title>
+  <style>
+    :root {
+      --transition-time: 0.3s;
+      --animation-delay-increment: 0.015s; /* Reduced delay increment for smoother animation */
+    }
+
+    body {
+      margin: 0;
+      font-family: system-ui;
+      transition: background-color var(--transition-time);
+      overflow-x: hidden;
+      display: flex; /* Flex container for sidebar and content */
+    }
+
+    body.dark-mode {
+      background-color: rgb(30, 30, 32);
+      --card-bg: rgb(37, 37, 41);
+      --border-color: rgba(255,255,255,0.1);
+      --text-color: rgba(255,255,255,0.9);
+      --secondary-color: rgba(255,255,255,0.7);
+    }
+
+    body.light-mode {
+      background-color: rgb(240,240,242);
+      --card-bg: rgb(249,249,250);
+      --border-color: rgba(0,0,0,0.1);
+      --text-color: rgba(0,0,0,0.9);
+      --secondary-color: rgba(0,0,0,0.7);
+    }
+
+    body.gray-mode {
+      background-color: rgb(230,223,220);
+      --card-bg: rgb(234,228,225);
+      --border-color: rgba(0,0,0,0.1);
+      --text-color: rgba(0,0,0,0.9);
+      --secondary-color: rgba(0,0,0,0.7);
+    }
+
+    .sidebar {
+      width: 240px;
+      background-color: var(--card-bg);
+      border-right: 1px solid var(--border-color);
+      padding: 20px;
+      box-sizing: border-box;
+      height: 100vh; /* Full height sidebar */
+      position: sticky; /* Sticky sidebar */
+      top: 0;
+      overflow-y: auto; /* Scroll if content overflows */
+      transition: all var(--transition-time);
+      color: var(--text-color);
+    }
+
+    .sidebar h2 {
+      margin-top: 0;
+      margin-bottom: 20px;
+    }
+
+    .sidebar-nav {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+
+    .sidebar-nav li {
+      margin-bottom: 10px;
+    }
+
+    .sidebar-nav a {
+      display: block;
+      padding: 8px 12px;
+      border-radius: 6px;
+      text-decoration: none;
+      color: var(--text-color);
+      transition: background-color var(--transition-time);
+    }
+
+    .sidebar-nav a:hover, .sidebar-nav a.active {
+      background-color: rgba(255,255,255,0.1);
+    }
+
+    .sidebar-nav .sub-nav {
+      padding-left: 15px;
+      margin-top: 5px;
+      display: none; /* Initially hidden sub-nav */
+    }
+
+    .sidebar-nav .has-subnav > a.active + .sub-nav,
+    .sidebar-nav .has-subnav > .sub-nav.active {
+      display: block; /* Show sub-nav when parent is active */
+    }
+
+
+    .content {
+      flex-grow: 1;
+      padding: 30px 20px;
+      box-sizing: border-box;
+    }
+
+
+    .container {
+      max-width: 1280px;
+      margin: 0 auto;
+    }
+
+    .header {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      margin-bottom: 20px; /* Reduced margin */
+      flex-wrap: wrap;
+    }
+
+    .theme-toggle {
+      padding: 8px 16px;
+      background: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all var(--transition-time);
+      color: var(--text-color);
+    }
+
+    .search-box {
+      margin-left: auto; /* Push to the right */
+    }
+
+    .search-input {
+      padding: 8px 12px;
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      background-color: var(--card-bg);
+      color: var(--text-color);
+      transition: all var(--transition-time);
+    }
+
+    .search-input:focus {
+      outline: none;
+      box-shadow: 0 0 0 2px rgba(0, 120, 212, 0.5); /* Example focus style */
+    }
+
+
+    .plugin-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 24px;
+      margin-top: 20px; /* Added margin */
+    }
+
+    .plugin-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 24px;
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      min-height: 140px;
+      opacity: 0;
+      transform: translateY(10px); /* Reduced initial Y offset */
+      animation: cardAppear 0.4s ease-out forwards; /* Slightly faster animation */
+      will-change: transform, opacity;
+      animation-play-state: paused;
+    }
+
+    .plugin-card:hover {
+      transform: translateY(-6px) scale(1.02);
+      box-shadow: 0 12px 24px rgba(0,0,0,0.15);
+    }
+
+    .plugin-card h3 {
+      margin: 0 0 12px;
+      color: var(--text-color);
+      font-size: 1.2em;
+      transition: color var(--transition-time);
+    }
+
+    .plugin-card p {
+      margin: 0 0 16px;
+      color: var(--secondary-color);
+      line-height: 1.5;
+      flex-grow: 1;
+      transition: color var(--transition-time);
+    }
+
+    .plugin-card a {
+      color: var(--text-color);
+      text-decoration: none;
+      font-weight: 500;
+      border: 1px solid var(--border-color);
+      padding: 6px 12px;
+      border-radius: 6px;
+      transition: all var(--transition-time);
+      display: inline-block;
+      margin-top: 8px;
+    }
+
+    .plugin-card a:hover {
+      background: rgba(255,255,255,0.15);
+      transform: scale(1.05);
+    }
+
+    @keyframes cardAppear {
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .tab-content {
+      display: none; /* Initially hide all content areas */
+    }
+
+    .tab-content.active {
+      display: block; /* Show active content area */
+    }
+
+    .markdown-body {
+      color: var(--text-color);
+      line-height: 1.6;
+    }
+
+    .markdown-body a {
+      color: cornflowerblue; /* Example link color */
+    }
+
+    .markdown-body h1, .markdown-body h2, .markdown-body h3 {
+      color: var(--text-color);
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 0.3em;
+    }
+
+    .markdown-body ul, .markdown-body ol {
+      padding-left: 20px;
+    }
+
+    .markdown-body blockquote {
+      border-left: 3px solid var(--border-color);
+      padding-left: 10px;
+      font-style: italic;
+      color: var(--secondary-color);
+    }
+
+
+  </style>
+</head>
+<body class="gray-mode">
+  <aside class="sidebar">
+    <img src="https://avatars.githubusercontent.com/u/138397030" width="48" height="48" style="border-radius:50%; margin-bottom: 20px; transition: transform 0.4s ease-out;" alt="作者头像"
+      onmouseover="this.style.transform='rotate(360deg)'" onmouseout="this.style.transform='rotate(0deg)'">
+    <h2>项目概要</h2>
+    <ul class="sidebar-nav">
+      <li><a href="#plugins" class="active" data-tab="plugins">插件列表</a></li>
+      <li><a href="#scripts" data-tab="scripts">仓库小插件</a></li>
+    </ul>
+  </aside>
+  <div class="content">
+    <div class="container">
+      <div class="header">
+        <h1 style="margin:0;color:var(--text-color);transition: color var(--transition-time);">插件列表</h1>
+        <div class="search-box">
+          <input type="text" class="search-input" placeholder="搜索插件/脚本..." oninput="searchPlugins(this.value)">
+        </div>
+        <select class="theme-toggle" onchange="changeTheme(event)">
+          <option value="gray">🌤️ 浅色模式</option>
+          <option value="dark">🌙 深色模式</option>
+          <option value="light">☀️ 亮色模式</option>
+        </select>
+      </div>
+
+      
+      <div id="plugins" class="tab-content active">
+        <div class="plugin-grid" id="pluginGrid">
+          
+            <div class="plugin-card" data-name="keyword-blocker" data-description="用于屏蔽和取消屏蔽关键词的插件 官方bot也可以用诶。可以开启/关闭指令，或者拉黑某用户/频道 等。可以对指令进行黑白名单设置。" data-version="1.6.0" style="animation-delay: 0s;">
+              <h3>keyword-blocker</h3>
+              <p style="font-size:0.9em">v1.6.0</p>
+              <p>用于屏蔽和取消屏蔽关键词的插件 官方bot也可以用诶。可以开启/关闭指令，或者拉黑某用户/频道 等。可以对指令进行黑白名单设置。</p>
+              <a href="https://github.com/shangxueink/koishi-shangxue-apps/tree/main/plugins/keyword-blocker" target="_blank">仓库地址 →</a>
+            </div>
+          
+            <div class="plugin-card" data-name="change-auth-callme" data-description="/*提权*/通过指令，自定义修改自身权限。使用`changeauth 5`即可提升自己权限至5。[参考自callme插件](/market?keyword=callme)" data-version="1.3.4" style="animation-delay: 0.015s;">
+              <h3>change-auth-callme</h3>
+              <p style="font-size:0.9em">v1.3.4</p>
+              <p>/*提权*/通过指令，自定义修改自身权限。使用`changeauth 5`即可提升自己权限至5。<a href="/market?keyword=callme" target="_blank">参考自callme插件</a></p>
+              <a href="https://github.com/shangxueink/koishi-shangxue-apps/tree/main/plugins/change-auth-callme" target="_blank">仓库地址 →</a>
+            </div>
+          
+            <div class="plugin-card" data-name="beauty-huluxia" data-description="/*[葫芦侠美图](https://www.npmjs.com/package/koishi-plugin-beauty-huluxia)*/🥰葫芦侠图片、黑丝、白丝、😍淘宝买家秀、coser、jk、帅哥、风景、ai的 图片" data-version="1.6.16" style="animation-delay: 0.03s;">
+              <h3>beauty-huluxia</h3>
+              <p style="font-size:0.9em">v1.6.16</p>
+              <p>/*<a href="https://www.npmjs.com/package/koishi-plugin-beauty-huluxia" target="_blank">葫芦侠美图</a>*/🥰葫芦侠图片、黑丝、白丝、😍淘宝买家秀、coser、jk、帅哥、风景、AI的 图片</p>
+              <a href="https://github.com/shangxueink/koishi-shangxue-apps/tree/main/plugins/beauty-huluxia" target="_blank">仓库地址 →</a>
+            </div>
+          
+            <div class="plugin-card" data-name="dgluna" data-description="[<ruby>dgluna 游戏插件<rp>（</rp><rt>点我查看readme</rt><rp>）</rp></ruby>](https://www.npmjs.com/package/koishi-plugin-dgluna) 在群聊中玩郊狼吧！🎮 实现郊狼 n 对 n 的控制玩耍，多人impart 📱。包含加入频道、调节强度、邀请玩家...自己一个人玩，与被人控真的不一样哦~ （会一直笑 bushi）" data-version="0.1.3" style="animation-delay: 0.045s;">
+              <h3>dgluna</h3>
+              <p style="font-size:0.9em">v0.1.3</p>
+              <p><a href="https://www.npmjs.com/package/koishi-plugin-dgluna" target="_blank"><ruby>dgluna 游戏插件<rp>（</rp><rt>点我查看README</rt><rp>）</rp></ruby></a> 在群聊中玩郊狼吧！🎮 实现郊狼 N 对 N 的控制玩耍，多人impart 📱。包含加入频道、调节强度、邀请玩家...自己一个人玩，与被人控真的不一样哦~ （会一直笑 bushi）</p>
+              <a href="https://github.com/shangxueink/koishi-shangxue-apps/tree/main/plugins/dgluna" target="_blank">仓库地址 →</a>
+            </div>
+          
+            <div class="plugin-card" data-name="quiz-master" data-description="/*知识问答*/知识问答💪选择题。[玩法详见这里哦](https://www.npmjs.com/package/koishi-plugin-quiz-master)。" data-version="0.2.1" style="animation-delay: 0.06s;">
+              <h3>quiz-master</h3>
+              <p style="font-size:0.9em">v0.2.1</p>
+              <p>/*知识问答*/知识问答💪选择题。<a href="https://www.npmjs.com/package/koishi-plugin-quiz-master" target="_blank">玩法详见这里哦</a>。</p>
+              <a href="https://github.com/shangxueink/koishi-shangxue-apps/tree/main/plugins/quiz-master" target="_blank">仓库地址 →</a>
+            </div>
+          
+            <div class="plugin-card" data-name="universal-translation" data-description="通用翻译，支持多语种翻译...开箱即用。返回速度提升。[使用方法](https://www.npmjs.com/package/koishi-plugin-universal-translation)。翻译速度和质量还行，好像比百度翻译好欸？" data-version="0.1.2" style="animation-delay: 0.075s;">
+              <h3>universal-translation</h3>
+              <p style="font-size:0.9em">v0.1.2</p>
+              <p>通用翻译，支持多语种翻译...开箱即用。返回速度提升。<a href="https://www.npmjs.com/package/koishi-plugin-universal-translation" target="_blank">使用方法</a>。翻译速度和质量还行，好像比百度翻译好欸？</p>
+              <a href="https://github.com/shangxueink/koishi-shangxue-apps/tree/main/plugins/universal-translation" target="_blank">仓库地址 →</a>
+            </div>
+          
+            <div class="plugin-card" data-name="keyword-dialogue" data-description="[<ruby>**关键词回复**<rp>（</rp><rt>点我查看使用说明</rt><rp>）</rp></ruby>](https://www.npmjs.com/package/@shangxueink/koishi-plugin-keyword-dialogue) 设置关键词回复，json存放便于编辑。适用于多段落图文的内容添加。自用小插件哦，[更强大的功能请使用dialogue](/market?keyword=dialogue)" data-version="0.8.8" style="animation-delay: 0.09s;">
+              <h3>keyword-dialogue</h3>
+              <p style="font-size:0.9em">v0.8.8</p>
+              <p><a href="https://www.npmjs.com/package/@shangxueink/koishi-plugin-keyword-dialogue" target="_blank"><ruby>**关键词回复**<rp>（</rp><rt>点我查看使用说明</rt><rp>）</rp></ruby></a> 设置关键词回复，json存放便于编辑。适用于多段落图文的内容添加。自用小插件哦，<a href="/market?keyword=dialogue" target="_blank">更强大的功能请使用dialogue</a></p>
+              <a href="https://github.com/shangxueink/koishi-shangxue-apps/tree/main/plugins/keyword-dialogue" target="_blank">仓库地址 →</a>
+            </div>
+          
+            <div class="plugin-card" data-name="chouxianghua" data-description="/*抽象话生成*/把中文输入转换为emoji抽象话。比如：💉💦太🤡🐘🌶！（真的太抽象啦！）。是个很普通的字符转换插件而已" data-version="1.0.0" style="animation-delay: 0.105s;">
+              <h3>chouxianghua</h3>
+              <p style="font-size:0.9em">v1.0.0</p>
+              <p>/*抽象话生成*/把中文输入转换为emoji抽象话。比如：💉💦太🤡🐘🌶！（真的太抽象啦！）。是个很普通的字符转换插件而已</p>
+              <a href="https://github.com/shangxueink/koishi-shangxue-apps/tree/main/plugins/chouxianghua" target="_blank">仓库地址 →</a>
+            </div>
+          
+            <div class="plugin-card" data-name="ba-voice" data-description="/*语音猜角色*/自用小插件。蔚蓝档案语音 支持qq原生markdown。参考自[gamekee](https://www.gamekee.com/ba/)攻略网站。" data-version="1.0.1" style="animation-delay: 0.12s;">
+              <h3>ba-voice</h3>
+              <p style="font-size:0.9em">v1.0.1</p>
+              <p>/*语音猜角色*/自用小插件。蔚蓝档案语音 支持qq原生markdown。参考自<a href="https://www.gamekee.com/ba/" target="_blank">gamekee</a>攻略网站。</p>
+              <a href="https://github.com/shangxueink/koishi-shangxue-apps/tree/main/plugins/ba-voice" target="_blank">仓库地址 →</a>
+            </div>
+          
+            <div class="plugin-card" data-name="qrcode-service-null" data-description="二维码服务 为一些需要发送链接的场景提供qrcode服务，更统一地使用qrcode。" data-version="0.2.1" style="animation-delay: 0.135s;">
+              <h3>qrcode-service-null</h3>
+              <p style="font-size:0.9em">v0.2.1</p>
+              <p>二维码服务 为一些需要发送链接的场景提供qrcode服务，更统一地使用qrcode。</p>
+              <a href="https://github.com/shangxueink/koishi-shangxue-apps/tree/main/plugins/qrcode-service-null" target="_blank">仓库地址 →</a>
+            </div>
+          
+            <div class="plugin-card" data-name="martian-translator" data-description="火星文转换插件，可以将中文转换为火星文，或将火星文转换回中文。" data-version="0.1.1" style="animation-delay: 0.15s;">
+              <h3>martian-translator</h3>
+              <p style="font-size:0.9em">v0.1.1</p>
+              <p>火星文转换插件，可以将中文转换为火星文，或将火星文转换回中文。</p>
+              <a href="https://github.com/shangxueink/koishi-shangxue-apps/tree/main/plugins/martian-translator" target="_blank">仓库地址 →</a>
+            </div>
+          
+            <div class="plugin-card" data-name="perchance" data-description="/*perchance generator*/ 使用puppeteer操作perchance generator网站，进行ai绘图吧！" data-version="1.1.9" style="animation-delay: 0.16499999999999998s;">
+              <h3>perchance</h3>
+              <p style="font-size:0.9em">v1.1.9</p>
+              <p>/*Perchance Generator*/ 使用puppeteer操作Perchance Generator网站，进行AI绘图吧！</p>
+              <a href="https://github.com/shangxueink/koishi-shangxue-apps/tree/main/plugins/perchance" target="_blank">仓库地址 →</a>
+            </div>
+          
+            <div class="plugin-card" data-name="qq-estimate" data-description="/*qq号查询相关*/qq号估价、查询注册时间。仅供娱乐" data-version="0.1.1" style="animation-delay: 0.18s;">
+              <h3>qq-estimate</h3>
+              <p style="font-size:0.9em">v0.1.1</p>
+              <p>/*QQ号查询相关*/QQ号估价、查询注册时间。仅供娱乐</p>
+              <a href="https://github.com/shangxueink/koishi-shangxue-apps/tree/main/plugins/qq-estimate" target="_blank">仓库地址 →</a>
+            </div>
+          
+            <div class="plugin-card" data-name="weather-qq-rainbowsky" data-description="/*天气查询*/未来15天的天气预报？☁️🌧️☀️实时天气、今明天气，文字返回~ " data-version="0.1.0" style="animation-delay: 0.195s;">
+              <h3>weather-qq-rainbowsky</h3>
+              <p style="font-size:0.9em">v0.1.0</p>
+              <p>/*天气查询*/未来15天的天气预报？☁️🌧️☀️实时天气、今明天气，文字返回~ </p>
+              <a href="https://github.com/shangxueink/koishi-shangxue-apps/tree/main/plugins/weather-qq-rainbowsky" target="_blank">仓库地址 →</a>
+            </div>
+          
+            <div class="plugin-card" data-name="ensure-bot-alive" data-description="看看你的官方机器人还在线吗？检测群里另一个机器人（第三方或者是官方bot）的在线状态。" data-version="0.1.6" style="animation-delay: 0.21s;">
+              <h3>ensure-bot-alive</h3>
+              <p style="font-size:0.9em">v0.1.6</p>
+              <p>看看你的官方机器人还在线吗？检测群里另一个机器人（第三方或者是官方bot）的在线状态。</p>
+              <a href="https://github.com/shangxueink/koishi-shangxue-apps/tree/main/plugins/ensure-bot-alive" target="_blank">仓库地址 →</a>
+            </div>
+          
+            <div class="plugin-card" data-name="huozi-generator" data-description="/*otto活字印刷*/活字乱刷，嘛，但是好像奇奇怪怪的蛮好玩唔[点我查看使用方法](https://www.npmjs.com/package/koishi-plugin-huozi-generator)" data-version="0.1.2" style="animation-delay: 0.22499999999999998s;">
+              <h3>huozi-generator</h3>
+              <p style="font-size:0.9em">v0.1.2</p>
+              <p>/*otto活字印刷*/活字乱刷，嘛，但是好像奇奇怪怪的蛮好玩唔<a href="https://www.npmjs.com/package/koishi-plugin-huozi-generator" target="_blank">点我查看使用方法</a></p>
+              <a href="https://github.com/shangxueink/koishi-shangxue-apps/tree/main/plugins/huozi-generator" target="_blank">仓库地址 →</a>
+            </div>
+          
+            <div class="plugin-card" data-name="minecraft-rank-mc-api" data-description="/*mc积分查询*/查询花雨庭积分排行榜的工具。使用方法详见readme" data-version="0.0.3" style="animation-delay: 0.24s;">
+              <h3>minecraft-rank-mc-api</h3>
+              <p style="font-size:0.9em">v0.0.3</p>
+              <p>/*MC积分查询*/查询花雨庭积分排行榜的工具。使用方法详见readme</p>
+              <a href="https://github.com/shangxueink/koishi-shangxue-apps/tree/main/plugins/minecraft-rank-mc-api" target="_blank">仓库地址 →</a>
+            </div>
+          
+            <div class="plugin-card" data-name="smmcat-photodisk-htmlpictureapi" data-description="smmcat-photodisk的 htmlpictureapi 服务" data-version="0.3.1" style="animation-delay: 0.255s;">
+              <h3>smmcat-photodisk-htmlpictureapi</h3>
+              <p style="font-size:0.9em">v0.3.1</p>
+              <p>smmcat-photodisk的 htmlpictureapi 服务</p>
+              <a href="https://github.com/shangxueink/koishi-shangxue-apps/tree/main/plugins/smmcat-photodisk-htmlpictureapi" target="_blank">仓库地址 →</a>
+            </div>
+          
+            <div class="plugin-card" data-name="verse-match" data-description="/*对对联啦~*/对对联，用户输入上联，自动给出下联~ 开箱即食~ " data-version="0.1.0" style="animation-delay: 0.27s;">
+              <h3>verse-match</h3>
+              <p style="font-size:0.9em">v0.1.0</p>
+              <p>/*对对联啦~*/对对联，用户输入上联，自动给出下联~ 开箱即食~ </p>
+              <a href="https://github.com/shangxueink/koishi-shangxue-apps/tree/main/plugins/verse-match" target="_blank">仓库地址 →</a>
+            </div>
+          
+            <div class="plugin-card" data-name="speechless-mind" data-description="/*梗图生成*/ 生成梗图「无语，和你说不下去，典型的_____思维」的meme图哦！[点我查看](https://i0.hdslb.com/bfs/article/00bf52c9f36bf40e63fd28334338a71d312276085.png) [插件预览效果图](https://i0.hdslb.com/bfs/article/5d9001575731061e467cc1c3d77f6a54312276085.png) 好像很好玩的样子（（（嘻嘻" data-version="1.0.6" style="animation-delay: 0.285s;">
+              <h3>speechless-mind</h3>
+              <p style="font-size:0.9em">v1.0.6</p>
+              <p>/*梗图生成*/ 生成梗图「无语，和你说不下去，典型的_____思维」的meme图哦！<a href="https://i0.hdslb.com/bfs/article/00bf52c9f36bf40e63fd28334338a71d312276085.png" target="_blank">点我查看</a> <a href="https://i0.hdslb.com/bfs/article/5d9001575731061e467cc1c3d77f6a54312276085.png" target="_blank">插件预览效果图</a> 好像很好玩的样子（（（嘻嘻</p>
+              <a href="https://github.com/shangxueink/koishi-shangxue-apps/tree/main/plugins/speechless-mind" target="_blank">仓库地址 →</a>
+            </div>
+          
+            <div class="plugin-card" data-name="emojihub-bili" data-description="[<ruby>emojihub-bili<rp>（</rp><rt>点我查看食用方法</rt><rp>）</rp></ruby>](https://www.npmjs.com/package/koishi-plugin-emojihub-bili)🐱支持qq官方json按钮！20群即可发按钮！😍可自定义添加或删除任意表情包！基本每个指令都有上千张！支持定时/定量消息触发！[点我查看食用方法](https://www.npmjs.com/package/koishi-plugin-emojihub-bili)" data-version="1.3.26" style="animation-delay: 0.3s;">
+              <h3>emojihub-bili</h3>
+              <p style="font-size:0.9em">v1.3.26</p>
+              <p><a href="https://www.npmjs.com/package/koishi-plugin-emojihub-bili" target="_blank"><ruby>Emojihub-bili<rp>（</rp><rt>点我查看食用方法</rt><rp>）</rp></ruby></a>🐱支持QQ官方json按钮！20群即可发按钮！😍可自定义添加或删除任意表情包！基本每个指令都有上千张！支持定时/定量消息触发！<a href="https://www.npmjs.com/package/koishi-plugin-emojihub-bili" target="_blank">点我查看食用方法</a></p>
+              <a href="https://github.com/shangxueink/koishi-shangxue-apps/tree/main/plugins/emojihub-bili" target="_blank">仓库地址 →</a>
+            </div>
+          
+            <div class="plugin-card" data-name="storeluna" data-description="/*storeluna*/通过koishi，⭐快速搭建你的koishi镜像！支持统计访问量📈、同步次数🔄、成功次数✅、白名单规则数🟢、黑名单规则数🔴🛠️....." data-version="1.1.3" style="animation-delay: 0.315s;">
+              <h3>storeluna</h3>
+              <p style="font-size:0.9em">v1.1.3</p>
+              <p>/*storeluna*/通过koishi，⭐快速搭建你的koishi镜像！支持统计访问量📈、同步次数🔄、成功次数✅、白名单规则数🟢、黑名单规则数🔴🛠️.....</p>
+              <a href="https://github.com/shangxueink/koishi-shangxue-apps/tree/main/plugins/storeluna" target="_blank">仓库地址 →</a>
+            </div>
+          
+            <div class="plugin-card" data-name="impart-pro" data-description="*[<ruby>impart-pro<rp>（</rp><rt>点我查看readme</rt><rp>）</rp></ruby>](https://www.npmjs.com/package/koishi-plugin-impart-pro)* 🐮牛牛大作战插件 [点我预览效果](https://i0.hdslb.com/bfs/article/fdb2caeeffc063f393dfb030bc0d6cda312276085.png) 。支持 monetary，😿不支持qq官方bot。灵感来自于[yunzai](https://gitee.com/sumght/impart-pro-plugin)和[niuzi插件](https://github.com/usfese/koishi-plugin-niuzi/tree/main)" data-version="1.5.10" style="animation-delay: 0.32999999999999996s;">
+              <h3>impart-pro</h3>
+              <p style="font-size:0.9em">v1.5.10</p>
+              <p>*<a href="https://www.npmjs.com/package/koishi-plugin-impart-pro" target="_blank"><ruby>impart-pro<rp>（</rp><rt>点我查看README</rt><rp>）</rp></ruby></a>* 🐮牛牛大作战插件 <a href="https://i0.hdslb.com/bfs/article/fdb2caeeffc063f393dfb030bc0d6cda312276085.png" target="_blank">点我预览效果</a> 。支持 monetary，😿不支持QQ官方bot。灵感来自于<a href="https://gitee.com/sumght/impart-pro-plugin" target="_blank">yunzai</a>和<a href="https://github.com/usfese/koishi-plugin-niuzi/tree/main" target="_blank">niuzi插件</a></p>
+              <a href="https://github.com/shangxueink/koishi-shangxue-apps/tree/main/plugins/impart-pro" target="_blank">仓库地址 →</a>
+            </div>
+          
+            <div class="plugin-card" data-name="jrys-prpr" data-description="[<ruby>**jrys-prpr**<rp>（</rp><rt>点我查看预览图</rt><rp>）</rp></ruby>](https://i0.hdslb.com/bfs/article/ae33f1b2e9dbc3fe89363a40fbf040703493298333289018.png)😽qq官方json按钮支持，20个群即可发按钮！支持 monetary！很好看的字体！ 支持自动清理记录内容。" data-version="1.3.8" style="animation-delay: 0.345s;">
+              <h3>jrys-prpr</h3>
+              <p style="font-size:0.9em">v1.3.8</p>
+              <p><a href="https://i0.hdslb.com/bfs/article/ae33f1b2e9dbc3fe89363a40fbf040703493298333289018.png" target="_blank"><ruby>**jrys-prpr**<rp>（</rp><rt>点我查看预览图</rt><rp>）</rp></ruby></a>😽QQ官方json按钮支持，20个群即可发按钮！支持 monetary！很好看的字体！ 支持自动清理记录内容。</p>
+              <a href="https://github.com/shangxueink/koishi-shangxue-apps/tree/main/plugins/jrys-prpr" target="_blank">仓库地址 →</a>
+            </div>
+          
+            <div class="plugin-card" data-name="certificate-achievement" data-description="/*奖状生成*/生成一张奖状的图片！可指定获奖者、奖项名称、授权单位！开箱即食。" data-version="0.1.1" style="animation-delay: 0.36s;">
+              <h3>certificate-achievement</h3>
+              <p style="font-size:0.9em">v0.1.1</p>
+              <p>/*奖状生成*/生成一张奖状的图片！可指定获奖者、奖项名称、授权单位！开箱即食。</p>
+              <a href="https://github.com/shangxueink/koishi-shangxue-apps/tree/main/plugins/certificate-achievement" target="_blank">仓库地址 →</a>
+            </div>
+          
+            <div class="plugin-card" data-name="beta-dxl-bert-vits" data-description="或许这是better-dxl-bert-vits呢（内置了gsvits和魔塔社区的语音合成api，同时支持自行添加bert-vits2后端api地址到/data/bert-vits/speakers.json中）" data-version="1.2.1" style="animation-delay: 0.375s;">
+              <h3>beta-dxl-bert-vits</h3>
+              <p style="font-size:0.9em">v1.2.1</p>
+              <p>或许这是better-dxl-bert-vits呢（内置了gsvits和魔塔社区的语音合成api，同时支持自行添加bert-vits2后端api地址到/data/bert-vits/speakers.json中）</p>
+              <a href="https://github.com/shangxueink/koishi-shangxue-apps/tree/main/plugins/beta-dxl-bert-vits" target="_blank">仓库地址 →</a>
+            </div>
+          
+            <div class="plugin-card" data-name="translator-youdaoavailable" data-description="/*中英互译的有道翻译*/中英互译，且多个备用翻译接口。[点我查看使用方法](https://www.npmjs.com/package/koishi-plugin-translator-youdaoavailable)" data-version="0.2.0" style="animation-delay: 0.39s;">
+              <h3>translator-youdaoavailable</h3>
+              <p style="font-size:0.9em">v0.2.0</p>
+              <p>/*中英互译的有道翻译*/中英互译，且多个备用翻译接口。<a href="https://www.npmjs.com/package/koishi-plugin-translator-youdaoavailable" target="_blank">点我查看使用方法</a></p>
+              <a href="https://github.com/shangxueink/koishi-shangxue-apps/tree/main/plugins/translator-youdaoavailable" target="_blank">仓库地址 →</a>
+            </div>
+          
+            <div class="plugin-card" data-name="chatluna-freexiaoxue-adapter" data-description="/freexiaoxue adapter for chatluna/ 免费小学？ 整合一些免费ai接口咪~" data-version="1.2.0" style="animation-delay: 0.40499999999999997s;">
+              <h3>chatluna-freexiaoxue-adapter</h3>
+              <p style="font-size:0.9em">v1.2.0</p>
+              <p>/freexiaoxue adapter for chatluna/ 免费小学？ 整合一些免费AI接口咪~</p>
+              <a href="https://github.com/shangxueink/koishi-shangxue-apps/tree/main/plugins/chatluna-freexiaoxue-adapter" target="_blank">仓库地址 →</a>
+            </div>
+          
+            <div class="plugin-card" data-name="qq-markdown-button" data-description="[<ruby>**qq机器人按钮菜单**<rp>（</rp><rt>点我查看使用说明</rt><rp>）</rp></ruby>](https://www.npmjs.com/package/@shangxueink/koishi-plugin-qq-markdown-button) 自用小插件咪~  使用json文件设置你的机器人菜单这样就不需要一堆配置项还很烧脑了。自用插件哦~" data-version="2.0.4" style="animation-delay: 0.42s;">
+              <h3>qq-markdown-button</h3>
+              <p style="font-size:0.9em">v2.0.4</p>
+              <p><a href="https://www.npmjs.com/package/@shangxueink/koishi-plugin-qq-markdown-button" target="_blank"><ruby>**QQ机器人按钮菜单**<rp>（</rp><rt>点我查看使用说明</rt><rp>）</rp></ruby></a> 自用小插件咪~  使用json文件设置你的机器人菜单这样就不需要一堆配置项还很烧脑了。自用插件哦~</p>
+              <a href="https://github.com/shangxueink/koishi-shangxue-apps/tree/main/plugins/qq-markdown-button" target="_blank">仓库地址 →</a>
+            </div>
+          
+            <div class="plugin-card" data-name="tongue-twister-picker" data-description="/*来个绕口令*/抽取绕口令文本，755个绕口令随机抽取，以文本输出。" data-version="0.1.1" style="animation-delay: 0.435s;">
+              <h3>tongue-twister-picker</h3>
+              <p style="font-size:0.9em">v0.1.1</p>
+              <p>/*来个绕口令*/抽取绕口令文本，755个绕口令随机抽取，以文本输出。</p>
+              <a href="https://github.com/shangxueink/koishi-shangxue-apps/tree/main/plugins/tongue-twister-picker" target="_blank">仓库地址 →</a>
+            </div>
+          
+            <div class="plugin-card" data-name="instance-backup" data-description="/*文件 备份*/自动备份 koishi 实例中的指定文件和文件夹。支持指令触发备份和使用 cron 表达式进行定时自动备份。" data-version="1.2.2" style="animation-delay: 0.44999999999999996s;">
+              <h3>instance-backup</h3>
+              <p style="font-size:0.9em">v1.2.2</p>
+              <p>/*文件 备份*/自动备份 Koishi 实例中的指定文件和文件夹。支持指令触发备份和使用 cron 表达式进行定时自动备份。</p>
+              <a href="https://github.com/shangxueink/koishi-shangxue-apps/tree/main/plugins/instance-backup" target="_blank">仓库地址 →</a>
+            </div>
+          
+            <div class="plugin-card" data-name="automation-console" data-description="[<ruby>**指令控制台操作**<rp>（</rp><rt>点我查看使用说明</rt><rp>）</rp></ruby>](https://www.npmjs.com/package/koishi-plugin-automation-console) 通过 puppeteer 操作 控制台的插件，提供多种功能，包括打开控制台、小火箭更新、配置插件、查看日志、软重启等。" data-version="1.3.4" style="animation-delay: 0.46499999999999997s;">
+              <h3>automation-console</h3>
+              <p style="font-size:0.9em">v1.3.4</p>
+              <p><a href="https://www.npmjs.com/package/koishi-plugin-automation-console" target="_blank"><ruby>**指令控制台操作**<rp>（</rp><rt>点我查看使用说明</rt><rp>）</rp></ruby></a> 通过 Puppeteer 操作 控制台的插件，提供多种功能，包括打开控制台、小火箭更新、配置插件、查看日志、软重启等。</p>
+              <a href="https://github.com/shangxueink/koishi-shangxue-apps/tree/main/plugins/automation-console" target="_blank">仓库地址 →</a>
+            </div>
+          
+            <div class="plugin-card" data-name="status-prpr" data-description="[<ruby>**status-prpr**<rp>（</rp><rt>点我查看预览图</rt><rp>）</rp></ruby>](https://i0.hdslb.com/bfs/article/28cd6d40a3561ba3a2ecaedf60fb0efb3493298333289018.png)可以更换背景的状态图插件😽 [唔姆，但是好像status-pro更好看wwww](/market?keyword=status-pro)😿" data-version="0.4.2" style="animation-delay: 0.48s;">
+              <h3>status-prpr</h3>
+              <p style="font-size:0.9em">v0.4.2</p>
+              <p><a href="https://i0.hdslb.com/bfs/article/28cd6d40a3561ba3a2ecaedf60fb0efb3493298333289018.png" target="_blank"><ruby>**status-prpr**<rp>（</rp><rt>点我查看预览图</rt><rp>）</rp></ruby></a>可以更换背景的状态图插件😽 <a href="/market?keyword=status-pro" target="_blank">唔姆，但是好像status-pro更好看wwww</a>😿</p>
+              <a href="https://github.com/shangxueink/koishi-shangxue-apps/tree/main/plugins/status-prpr" target="_blank">仓库地址 →</a>
+            </div>
+          
+            <div class="plugin-card" data-name="jm-week-recommendation" data-description="/*[一本好书](https://www.npmjs.com/package/koishi-plugin-jm-week-recommendation)*/图片封面支持！👍精选 jmcomic 周排行top10，品鉴高人气漫画【random-jm-book】得到随机推荐书籍，【jm-book-search  白】搜索关键词白，并获得随即一本相关的书" data-version="0.2.8" style="animation-delay: 0.495s;">
+              <h3>jm-week-recommendation</h3>
+              <p style="font-size:0.9em">v0.2.8</p>
+              <p>/*<a href="https://www.npmjs.com/package/koishi-plugin-jm-week-recommendation" target="_blank">一本好书</a>*/图片封面支持！👍精选 JmComic 周排行top10，品鉴高人气漫画【random-jm-book】得到随机推荐书籍，【jm-book-search  白】搜索关键词白，并获得随即一本相关的书</p>
+              <a href="https://github.com/shangxueink/koishi-shangxue-apps/tree/main/plugins/jm-week-recommendation" target="_blank">仓库地址 →</a>
+            </div>
+          
+            <div class="plugin-card" data-name="localpics-to-qqurls" data-description="qq频道图床？将一个图包文件夹，通过qq官方机器人上传至qq频道" data-version="0.2.0" style="animation-delay: 0.51s;">
+              <h3>localpics-to-qqurls</h3>
+              <p style="font-size:0.9em">v0.2.0</p>
+              <p>QQ频道图床？将一个图包文件夹，通过QQ官方机器人上传至QQ频道</p>
+              <a href="https://github.com/shangxueink/koishi-shangxue-apps/tree/main/plugins/localpics-to-qqurls" target="_blank">仓库地址 →</a>
+            </div>
+          
+            <div class="plugin-card" data-name="content-guard" data-description="[<ruby>**审核输入调用**<rp>（</rp><rt>点我查看使用说明</rt><rp>）</rp></ruby>](https://www.npmjs.com/package/@shangxueink/koishi-plugin-content-guard) 设置对应指令的文本输入审核，实现违规输入禁止调用，适用于任何指令的调用审核。让你的机器人更安全地面向用户开放服务。" data-version="2.0.0" style="animation-delay: 0.525s;">
+              <h3>content-guard</h3>
+              <p style="font-size:0.9em">v2.0.0</p>
+              <p><a href="https://www.npmjs.com/package/@shangxueink/koishi-plugin-content-guard" target="_blank"><ruby>**审核输入调用**<rp>（</rp><rt>点我查看使用说明</rt><rp>）</rp></ruby></a> 设置对应指令的文本输入审核，实现违规输入禁止调用，适用于任何指令的调用审核。让你的机器人更安全地面向用户开放服务。</p>
+              <a href="https://github.com/shangxueink/koishi-shangxue-apps/tree/main/plugins/content-guard" target="_blank">仓库地址 →</a>
+            </div>
+          
+            <div class="plugin-card" data-name="local-audio-sender" data-description="/*指令触发语音*/支持本地音频、网络url、文件夹音频搜索、txt网络url列表...（有点像emojihub）。指令调用，可以很方便的触发语音哦。支持模糊匹配、递归搜索... 灵感来自[audio-sender](https://github.com/windbullet/koishi-plugin-audio-sender)" data-version="1.0.1" style="animation-delay: 0.54s;">
+              <h3>local-audio-sender</h3>
+              <p style="font-size:0.9em">v1.0.1</p>
+              <p>/*指令触发语音*/支持本地音频、网络URL、文件夹音频搜索、txt网络URL列表...（有点像emojihub）。指令调用，可以很方便的触发语音哦。支持模糊匹配、递归搜索... 灵感来自<a href="https://github.com/windbullet/koishi-plugin-audio-sender" target="_blank">audio-sender</a></p>
+              <a href="https://github.com/shangxueink/koishi-shangxue-apps/tree/main/plugins/local-audio-sender" target="_blank">仓库地址 →</a>
+            </div>
+          
+            <div class="plugin-card" data-name="piano" data-description="/*简谱演奏*/在聊天平台演奏简谱哦，有好几种乐器。但是效果差强人意呢~ 感觉不如点歌插件好用。" data-version="1.0.1" style="animation-delay: 0.5549999999999999s;">
+              <h3>piano</h3>
+              <p style="font-size:0.9em">v1.0.1</p>
+              <p>/*简谱演奏*/在聊天平台演奏简谱哦，有好几种乐器。但是效果差强人意呢~ 感觉不如点歌插件好用。</p>
+              <a href="https://github.com/shangxueink/koishi-shangxue-apps/tree/main/plugins/piano" target="_blank">仓库地址 →</a>
+            </div>
+          
+            <div class="plugin-card" data-name="preview-help" data-description="[<ruby>交互图片菜单<rp>（</rp><rt>点我查看效果预览图</rt><rp>）</rp></ruby>](https://i0.hdslb.com/bfs/article/07fec85a1bb90656e8dbd163b7e2222f312276085.jpg)支持webui编辑、导入导出配置、导出图片、指令渲染，可以help文本菜单转图片菜单。[点我查看使用方法](https://github.com/shangxueink/koishi-shangxue-apps/tree/main/plugins/preview-help)" data-version="2.1.0" style="animation-delay: 0.57s;">
+              <h3>preview-help</h3>
+              <p style="font-size:0.9em">v2.1.0</p>
+              <p><a href="https://i0.hdslb.com/bfs/article/07fec85a1bb90656e8dbd163b7e2222f312276085.jpg" target="_blank"><ruby>交互图片菜单<rp>（</rp><rt>点我查看效果预览图</rt><rp>）</rp></ruby></a>支持webUI编辑、导入导出配置、导出图片、指令渲染，可以help文本菜单转图片菜单。<a href="https://github.com/shangxueink/koishi-shangxue-apps/tree/main/plugins/preview-help" target="_blank">点我查看使用方法</a></p>
+              <a href="https://github.com/shangxueink/koishi-shangxue-apps/tree/main/plugins/preview-help" target="_blank">仓库地址 →</a>
+            </div>
+          
+            <div class="plugin-card" data-name="poet-craft" data-description="[赛博作诗](https://www.npmjs.com/package/koishi-plugin-poet-craft)可让ai作诗一首。尽量使用四个短词，并且用逗号分隔。接口好像国内访问性不太好。" data-version="0.0.4" style="animation-delay: 0.585s;">
+              <h3>poet-craft</h3>
+              <p style="font-size:0.9em">v0.0.4</p>
+              <p><a href="https://www.npmjs.com/package/koishi-plugin-poet-craft" target="_blank">赛博作诗</a>可让AI作诗一首。尽量使用四个短词，并且用逗号分隔。接口好像国内访问性不太好。</p>
+              <a href="https://github.com/shangxueink/koishi-shangxue-apps/tree/main/plugins/poet-craft" target="_blank">仓库地址 →</a>
+            </div>
+          
+            <div class="plugin-card" data-name="dg-lab-ws" data-description="[<ruby>dg-lab<rp>（</rp><rt>点我查看readme</rt><rp>）</rp></ruby>](https://www.npmjs.com/package/koishi-plugin-dg-lab-ws)郊狼的ws服务插件，让你的koishi变成郊狼websocket服务器！转发命令、管理连接...一起在koishi里玩郊狼吧！" data-version="0.1.7" style="animation-delay: 0.6s;">
+              <h3>dg-lab-ws</h3>
+              <p style="font-size:0.9em">v0.1.7</p>
+              <p><a href="https://www.npmjs.com/package/koishi-plugin-dg-lab-ws" target="_blank"><ruby>DG-LAB<rp>（</rp><rt>点我查看README</rt><rp>）</rp></ruby></a>郊狼的ws服务插件，让你的koishi变成郊狼websocket服务器！转发命令、管理连接...一起在koishi里玩郊狼吧！</p>
+              <a href="https://github.com/shangxueink/koishi-shangxue-apps/tree/main/plugins/dg-lab-ws" target="_blank">仓库地址 →</a>
+            </div>
+          
+            <div class="plugin-card" data-name="idiom-dictionary" data-description="[成语字典查询插件](https://www.npmjs.com/package/koishi-plugin-idiom-dictionary) 📖，可以指定位置查询成语，近义词查询...🚀为您提供精准、迅速的四字成语解释服务，📈或许是[词影游戏](/market?keyword=wordle-game)的秘籍哦~" data-version="0.2.3" style="animation-delay: 0.615s;">
+              <h3>idiom-dictionary</h3>
+              <p style="font-size:0.9em">v0.2.3</p>
+              <p><a href="https://www.npmjs.com/package/koishi-plugin-idiom-dictionary" target="_blank">成语字典查询插件</a> 📖，可以指定位置查询成语，近义词查询...🚀为您提供精准、迅速的四字成语解释服务，📈或许是<a href="/market?keyword=wordle-game" target="_blank">词影游戏</a>的秘籍哦~</p>
+              <a href="https://github.com/shangxueink/koishi-shangxue-apps/tree/main/plugins/idiom-dictionary" target="_blank">仓库地址 →</a>
+            </div>
+          
+            <div class="plugin-card" data-name="baidu-image-search" data-description="[图片搜索](https://www.npmjs.com/package/koishi-plugin-baidu-image-search)🎴根据文字搜索一张图片！百度搜图、搜狗搜图。" data-version="0.3.2" style="animation-delay: 0.63s;">
+              <h3>baidu-image-search</h3>
+              <p style="font-size:0.9em">v0.3.2</p>
+              <p><a href="https://www.npmjs.com/package/koishi-plugin-baidu-image-search" target="_blank">图片搜索</a>🎴根据文字搜索一张图片！百度搜图、搜狗搜图。</p>
+              <a href="https://github.com/shangxueink/koishi-shangxue-apps/tree/main/plugins/baidu-image-search" target="_blank">仓库地址 →</a>
+            </div>
+          
+            <div class="plugin-card" data-name="gif-reverse" data-description="[<ruby>对 gif 图片进行处理<rp>（</rp><rt>点我查看readme</rt><rp>）</rp></ruby>](https://www.npmjs.com/package/koishi-plugin-gif-reverse)。支持倒放/正放、回弹、变速、滑动、旋转、翻转... [点我预览效果图](https://i0.hdslb.com/bfs/article/e1421ea81d2de817a0cd37ba83eb34e2312276085.gif) " data-version="1.5.10" style="animation-delay: 0.645s;">
+              <h3>gif-reverse</h3>
+              <p style="font-size:0.9em">v1.5.10</p>
+              <p><a href="https://www.npmjs.com/package/koishi-plugin-gif-reverse" target="_blank"><ruby>对 GIF 图片进行处理<rp>（</rp><rt>点我查看README</rt><rp>）</rp></ruby></a>。支持倒放/正放、回弹、变速、滑动、旋转、翻转... <a href="https://i0.hdslb.com/bfs/article/e1421ea81d2de817a0cd37ba83eb34e2312276085.gif" target="_blank">点我预览效果图</a> </p>
+              <a href="https://github.com/shangxueink/koishi-shangxue-apps/tree/main/plugins/gif-reverse" target="_blank">仓库地址 →</a>
+            </div>
+          
+            <div class="plugin-card" data-name="bilibili-videolink-analysis" data-description="[<ruby>bilibili视频解析<rp>（</rp><rt>点我查看食用方法</rt><rp>）</rp></ruby>](https://www.npmjs.com/package/koishi-plugin-bilibili-videolink-analysis)解析b站链接（支持小程序卡片）支持搜索点播功能！灵感来自完美的 [bili-parser](/market?keyword=bili-parser) ！" data-version="1.1.14" style="animation-delay: 0.6599999999999999s;">
+              <h3>bilibili-videolink-analysis</h3>
+              <p style="font-size:0.9em">v1.1.14</p>
+              <p><a href="https://www.npmjs.com/package/koishi-plugin-bilibili-videolink-analysis" target="_blank"><ruby>Bilibili视频解析<rp>（</rp><rt>点我查看食用方法</rt><rp>）</rp></ruby></a>解析B站链接（支持小程序卡片）支持搜索点播功能！灵感来自完美的 <a href="/market?keyword=bili-parser" target="_blank">bili-parser</a> ！</p>
+              <a href="https://github.com/shangxueink/koishi-shangxue-apps/tree/main/plugins/bilibili-videolink-analysis" target="_blank">仓库地址 →</a>
+            </div>
+          
+            <div class="plugin-card" data-name="smmcat-photodisk-imgdiskapi" data-description="smmcat-photodisk 的 imgdiskapi 服务" data-version="0.3.0" style="animation-delay: 0.6749999999999999s;">
+              <h3>smmcat-photodisk-imgdiskapi</h3>
+              <p style="font-size:0.9em">v0.3.0</p>
+              <p>smmcat-photodisk 的 imgDiskApi 服务</p>
+              <a href="https://github.com/shangxueink/koishi-shangxue-apps/tree/main/plugins/smmcat-photodisk-imgdiskapi" target="_blank">仓库地址 →</a>
+            </div>
+          
+            <div class="plugin-card" data-name="music-link" data-description="/*音乐下载*/🎵搜索音乐资源🤩提供qq、网易云平台的音乐下载，付费的也可以欸？[点我查看使用方法](https://github.com/shangxueink/koishi-shangxue-apps/tree/main/plugins/music-link)" data-version="1.7.23" style="animation-delay: 0.69s;">
+              <h3>music-link</h3>
+              <p style="font-size:0.9em">v1.7.23</p>
+              <p>/*音乐下载*/🎵搜索音乐资源🤩提供QQ、网易云平台的音乐下载，付费的也可以欸？<a href="https://github.com/shangxueink/koishi-shangxue-apps/tree/main/plugins/music-link" target="_blank">点我查看使用方法</a></p>
+              <a href="https://github.com/shangxueink/koishi-shangxue-apps/tree/main/plugins/music-link" target="_blank">仓库地址 →</a>
+            </div>
+          
+            <div class="plugin-card" data-name="curriculum-table" data-description="[<ruby>群友课程表<rp>（</rp><rt>点我查看效果示例</rt><rp>）</rp></ruby>](https://i0.hdslb.com/bfs/article/3cd43011f330ee77f9cf6ac7f8d8308a312276085.png) 💾支持[定时触发课程表](https://i0.hdslb.com/bfs/article/df4c68e2ad6406d2fd27b6bf8d1c5322312276085.png) 。支持[从wakeup课程表快速导入你的课表](https://i0.hdslb.com/bfs/article/a80a8b5ea7f4a3053b3f0b24520a84d9312276085.png)🤖支持重命文件名和后缀名。" data-version="1.1.5" style="animation-delay: 0.705s;">
+              <h3>curriculum-table</h3>
+              <p style="font-size:0.9em">v1.1.5</p>
+              <p><a href="https://i0.hdslb.com/bfs/article/3cd43011f330ee77f9cf6ac7f8d8308a312276085.png" target="_blank"><ruby>群友课程表<rp>（</rp><rt>点我查看效果示例</rt><rp>）</rp></ruby></a> 💾支持<a href="https://i0.hdslb.com/bfs/article/df4c68e2ad6406d2fd27b6bf8d1c5322312276085.png" target="_blank">定时触发课程表</a> 。支持<a href="https://i0.hdslb.com/bfs/article/a80a8b5ea7f4a3053b3f0b24520a84d9312276085.png" target="_blank">从wakeup课程表快速导入你的课表</a>🤖支持重命文件名和后缀名。</p>
+              <a href="https://github.com/shangxueink/koishi-shangxue-apps/tree/main/plugins/curriculum-table" target="_blank">仓库地址 →</a>
+            </div>
+          
+            <div class="plugin-card" data-name="cpdd-picker" data-description="/*cp短打生成器、宇宙生成器*/[食用方法](https://www.npmjs.com/package/koishi-plugin-cpdd-picker)优化交互，支持@用户" data-version="0.1.0" style="animation-delay: 0.72s;">
+              <h3>cpdd-picker</h3>
+              <p style="font-size:0.9em">v0.1.0</p>
+              <p>/*CP短打生成器、宇宙生成器*/<a href="https://www.npmjs.com/package/koishi-plugin-cpdd-picker" target="_blank">食用方法</a>优化交互，支持@用户</p>
+              <a href="https://github.com/shangxueink/koishi-shangxue-apps/tree/main/plugins/cpdd-picker" target="_blank">仓库地址 →</a>
+            </div>
+          
+            <div class="plugin-card" data-name="furry-encode-decode" data-description="/*兽音译者的js实现*/😻使用兽语加密/解密一段文本，😽不可套娃加密哦[食用方法](https://www.npmjs.com/package/koishi-plugin-furry-encode-decode)（如果加密sao话，被群u们decode了就会原地毕业的吧 /笑）" data-version="0.1.0" style="animation-delay: 0.735s;">
+              <h3>furry-encode-decode</h3>
+              <p style="font-size:0.9em">v0.1.0</p>
+              <p>/*兽音译者的js实现*/😻使用兽语加密/解密一段文本，😽不可套娃加密哦<a href="https://www.npmjs.com/package/koishi-plugin-furry-encode-decode" target="_blank">食用方法</a>（如果加密sao话，被群u们decode了就会原地毕业的吧 /笑）</p>
+              <a href="https://github.com/shangxueink/koishi-shangxue-apps/tree/main/plugins/furry-encode-decode" target="_blank">仓库地址 →</a>
+            </div>
+          
+            <div class="plugin-card" data-name="ffmpeg-path" data-description="允许指定 ffmpeg 可执行文件路径，或自动下载 ffmpeg。个人使用咪~ 会在[pr11](https://github.com/koishijs/koishi-plugin-ffmpeg/pull/11) 通过时 移除本插件。" data-version="1.1.0" style="animation-delay: 0.75s;">
+              <h3>ffmpeg-path</h3>
+              <p style="font-size:0.9em">v1.1.0</p>
+              <p>允许指定 FFmpeg 可执行文件路径，或自动下载 FFmpeg。个人使用咪~ 会在<a href="https://github.com/koishijs/koishi-plugin-ffmpeg/pull/11" target="_blank">PR11</a> 通过时 移除本插件。</p>
+              <a href="https://github.com/shangxueink/koishi-shangxue-apps/tree/main/plugins/ffmpeg-path" target="_blank">仓库地址 →</a>
+            </div>
+          
+            <div class="plugin-card" data-name="birthdays-voice" data-description="在学生生日当天 返回对应的语音" data-version="1.0.1" style="animation-delay: 0.765s;">
+              <h3>birthdays-voice</h3>
+              <p style="font-size:0.9em">v1.0.1</p>
+              <p>在学生生日当天 返回对应的语音</p>
+              <a href="https://github.com/shangxueink/koishi-shangxue-apps/tree/main/plugins/birthdays-voice" target="_blank">仓库地址 →</a>
+            </div>
+          
+            <div class="plugin-card" data-name="lexicon-era-shift" data-description="/[词语新解](https://www.npmjs.com/package/koishi-plugin-lexicon-era-shift)/一些在新时代下的新词义😹。可以自定义生成哦~ [点我查看说明书](https://www.npmjs.com/package/koishi-plugin-lexicon-era-shift)" data-version="0.1.2" style="animation-delay: 0.78s;">
+              <h3>lexicon-era-shift</h3>
+              <p style="font-size:0.9em">v0.1.2</p>
+              <p>/<a href="https://www.npmjs.com/package/koishi-plugin-lexicon-era-shift" target="_blank">词语新解</a>/一些在新时代下的新词义😹。可以自定义生成哦~ <a href="https://www.npmjs.com/package/koishi-plugin-lexicon-era-shift" target="_blank">点我查看说明书</a></p>
+              <a href="https://github.com/shangxueink/koishi-shangxue-apps/tree/main/plugins/lexicon-era-shift" target="_blank">仓库地址 →</a>
+            </div>
+          
+            <div class="plugin-card" data-name="patina" data-description="/*有趣html合集*/ 幻影坦克、电子包浆、蒸気機、斜着看、像素化... 许多有趣的功能，旨在通过 puppeteer 来让你的bot获得更多功能！" data-version="1.5.0" style="animation-delay: 0.7949999999999999s;">
+              <h3>patina</h3>
+              <p style="font-size:0.9em">v1.5.0</p>
+              <p>/*有趣HTML合集*/ 幻影坦克、电子包浆、蒸気機、斜着看、像素化... 许多有趣的功能，旨在通过 puppeteer 来让你的bot获得更多功能！</p>
+              <a href="https://github.com/shangxueink/koishi-shangxue-apps/tree/main/plugins/patina" target="_blank">仓库地址 →</a>
+            </div>
+          
+            <div class="plugin-card" data-name="steam-friend-status-fork" data-description="查询群友steam状态，修改自koishi-plugin-steam-friend-status" data-version="0.0.30" style="animation-delay: 0.8099999999999999s;">
+              <h3>steam-friend-status-fork</h3>
+              <p style="font-size:0.9em">v0.0.30</p>
+              <p>查询群友steam状态，修改自koishi-plugin-steam-friend-status</p>
+              <a href="https://github.com/shangxueink/koishi-shangxue-apps/tree/main/plugins/steam-friend-status-fork" target="_blank">仓库地址 →</a>
+            </div>
+          
+            <div class="plugin-card" data-name="bmi-calculator" data-description="/*bmi身体质量指数*/根据身高、体重计算bmi，评估体重对于健康带来的影响，并返回对应bmi的建议。 " data-version="0.0.4" style="animation-delay: 0.825s;">
+              <h3>bmi-calculator</h3>
+              <p style="font-size:0.9em">v0.0.4</p>
+              <p>/*BMI身体质量指数*/根据身高、体重计算BMI，评估体重对于健康带来的影响，并返回对应BMI的建议。 </p>
+              <a href="https://github.com/shangxueink/koishi-shangxue-apps/tree/main/plugins/bmi-calculator" target="_blank">仓库地址 →</a>
+            </div>
+          
+            <div class="plugin-card" data-name="puppeteer-without-canvas" data-description="没有 canvas 的浏览器服务，方便用于同一实例下同时开启 puppeteer插件的puppeteer服务 和 canvas插件的canvas的服务。会在 koishi v5 时下架本插件哦~" data-version="1.1.0" style="animation-delay: 0.84s;">
+              <h3>puppeteer-without-canvas</h3>
+              <p style="font-size:0.9em">v1.1.0</p>
+              <p>没有 canvas 的浏览器服务，方便用于同一实例下同时开启 puppeteer插件的puppeteer服务 和 canvas插件的canvas的服务。会在 koishi v5 时下架本插件哦~</p>
+              <a href="https://github.com/shangxueink/koishi-shangxue-apps/tree/main/plugins/puppeteer-without-canvas" target="_blank">仓库地址 →</a>
+            </div>
+          
+            <div class="plugin-card" data-name="qq-onebot" data-description="神秘小插件。自用插件哦~" data-version="1.0.0" style="animation-delay: 0.855s;">
+              <h3>qq-onebot</h3>
+              <p style="font-size:0.9em">v1.0.0</p>
+              <p>神秘小插件。自用插件哦~</p>
+              <a href="https://github.com/shangxueink/koishi-shangxue-apps/tree/main/plugins/qq-onebot" target="_blank">仓库地址 →</a>
+            </div>
+          
+            <div class="plugin-card" data-name="image-upscale-bigjpg" data-description="/*[bigjpg 图片放大服务](https://www.npmjs.com/package/koishi-plugin-image-upscale-bigjpg)*/使用bigjpg来放大你的图片吧！支持最高16倍放大。[bigjpg价格表](https://i0.hdslb.com/bfs/article/ea2d3a1aa6a060eb5981ea8b7416e899312276085.png) 每月免费20次放大，支持付费服务。" data-version="1.0.2" style="animation-delay: 0.87s;">
+              <h3>image-upscale-bigjpg</h3>
+              <p style="font-size:0.9em">v1.0.2</p>
+              <p>/*<a href="https://www.npmjs.com/package/koishi-plugin-image-upscale-bigjpg" target="_blank">bigjpg 图片放大服务</a>*/使用bigjpg来放大你的图片吧！支持最高16倍放大。<a href="https://i0.hdslb.com/bfs/article/ea2d3a1aa6a060eb5981ea8b7416e899312276085.png" target="_blank">bigjpg价格表</a> 每月免费20次放大，支持付费服务。</p>
+              <a href="https://github.com/shangxueink/koishi-shangxue-apps/tree/main/plugins/image-upscale-bigjpg" target="_blank">仓库地址 →</a>
+            </div>
+          
+            <div class="plugin-card" data-name="booru-custom-api" data-description="[点我查看说明](https://www.npmjs.com/package/koishi-plugin-booru-custom-api) support for custom api graph sources for booru viewing! " data-version="1.0.3" style="animation-delay: 0.885s;">
+              <h3>booru-custom-api</h3>
+              <p style="font-size:0.9em">v1.0.3</p>
+              <p><a href="https://www.npmjs.com/package/koishi-plugin-booru-custom-api" target="_blank">点我查看说明</a> Support for custom API graph sources for booru viewing! </p>
+              <a href="https://github.com/shangxueink/koishi-shangxue-apps/tree/main/plugins/booru-custom-api" target="_blank">仓库地址 →</a>
+            </div>
+          
+            <div class="plugin-card" data-name="mikutop-jieya" data-description="在控制台玩初音解压！更强大的功能请使用[iframe](/market?keyword=iframe)" data-version="0.1.1" style="animation-delay: 0.8999999999999999s;">
+              <h3>mikutop-jieya</h3>
+              <p style="font-size:0.9em">v0.1.1</p>
+              <p>在控制台玩初音解压！更强大的功能请使用<a href="/market?keyword=iframe" target="_blank">iframe</a></p>
+              <a href="https://github.com/shangxueink/koishi-shangxue-apps/tree/main/plugins/mikutop-jieya" target="_blank">仓库地址 →</a>
+            </div>
+          
+            <div class="plugin-card" data-name="image-save-path" data-description="[<ruby>保存图片<rp>（</rp><rt>点我查看食用方法</rt><rp>）</rp></ruby>](https://www.npmjs.com/package/koishi-plugin-image-save-path) 💾支持[交互保存图片](https://i0.hdslb.com/bfs/article/a2780975ccbf74c422dd7f0333af0172312276085.png) 、 [回复保存图片](https://i0.hdslb.com/bfs/article/144dac10d99a911648b9016c620fa49a312276085.png) 、 [批量保存图片](https://i0.hdslb.com/bfs/article/a3f0844195795fc7e51f947e689fd744312276085.png) 、 [中间件批量保存图片](https://i0.hdslb.com/bfs/article/23e26c25d805e0d5d5d76958e5950d56312276085.png)。🤖支持重命文件名和后缀名。" data-version="1.4.3" style="animation-delay: 0.9149999999999999s;">
+              <h3>image-save-path</h3>
+              <p style="font-size:0.9em">v1.4.3</p>
+              <p><a href="https://www.npmjs.com/package/koishi-plugin-image-save-path" target="_blank"><ruby>保存图片<rp>（</rp><rt>点我查看食用方法</rt><rp>）</rp></ruby></a> 💾支持<a href="https://i0.hdslb.com/bfs/article/a2780975ccbf74c422dd7f0333af0172312276085.png" target="_blank">交互保存图片</a> 、 <a href="https://i0.hdslb.com/bfs/article/144dac10d99a911648b9016c620fa49a312276085.png" target="_blank">回复保存图片</a> 、 <a href="https://i0.hdslb.com/bfs/article/a3f0844195795fc7e51f947e689fd744312276085.png" target="_blank">批量保存图片</a> 、 <a href="https://i0.hdslb.com/bfs/article/23e26c25d805e0d5d5d76958e5950d56312276085.png" target="_blank">中间件批量保存图片</a>。🤖支持重命文件名和后缀名。</p>
+              <a href="https://github.com/shangxueink/koishi-shangxue-apps/tree/main/plugins/image-save-path" target="_blank">仓库地址 →</a>
+            </div>
+          
+            <div class="plugin-card" data-name="genshin-date" data-description="/*原神老黄历*/获得原神今日的黄历，包含宜/忌事件，很简单的插件，开箱即用。" data-version="0.2.0" style="animation-delay: 0.9299999999999999s;">
+              <h3>genshin-date</h3>
+              <p style="font-size:0.9em">v0.2.0</p>
+              <p>/*原神老黄历*/获得原神今日的黄历，包含宜/忌事件，很简单的插件，开箱即用。</p>
+              <a href="https://github.com/shangxueink/koishi-shangxue-apps/tree/main/plugins/genshin-date" target="_blank">仓库地址 →</a>
+            </div>
+          
+            <div class="plugin-card" data-name="deer-pipe" data-description="*[<ruby>deer-pipe<rp>（</rp><rt>点我查看readme</rt><rp>）</rp></ruby>](https://github.com/shangxueink/koishi-shangxue-apps/tree/main/plugins/deer-pipe)* 一个🦌管（鹿管）签到小[插件 效果预览](https://i0.hdslb.com/bfs/article/496e02d92547d2a74c17ff9280e8ab55312276085.png) 日历效果的签到插件。支持 monetary，😿不支持qq官方bot。灵感来自于[yunzai](https://gitee.com/kyrzy0416/yunzai-plugin-deer-pipe/tree/master)和[nonebot](https://github.com/samunatsu/nonebot-plugin-deer-pipe)" data-version="2.0.6" style="animation-delay: 0.945s;">
+              <h3>deer-pipe</h3>
+              <p style="font-size:0.9em">v2.0.6</p>
+              <p>*<a href="https://github.com/shangxueink/koishi-shangxue-apps/tree/main/plugins/deer-pipe" target="_blank"><ruby>deer-pipe<rp>（</rp><rt>点我查看README</rt><rp>）</rp></ruby></a>* 一个🦌管（鹿管）签到小<a href="https://i0.hdslb.com/bfs/article/496e02d92547d2a74c17ff9280e8ab55312276085.png" target="_blank">插件 效果预览</a> 日历效果的签到插件。支持 monetary，😿不支持QQ官方bot。灵感来自于<a href="https://gitee.com/kyrzy0416/yunzai-plugin-deer-pipe/tree/master" target="_blank">yunzai</a>和<a href="https://github.com/SamuNatsu/nonebot-plugin-deer-pipe" target="_blank">nonebot</a></p>
+              <a href="https://github.com/shangxueink/koishi-shangxue-apps/tree/main/plugins/deer-pipe" target="_blank">仓库地址 →</a>
+            </div>
+          
+            <div class="plugin-card" data-name="freexiaoxue-api" data-description="[<ruby>免费小学后端服务<rp>（</rp><rt>点我查看食用方法</rt><rp>）</rp></ruby>](https://www.npmjs.com/package/koishi-plugin-freexiaoxue-api) 为 chatluna-freexiaoxue-adapter 提供一个后端服务地址" data-version="1.1.0" style="animation-delay: 0.96s;">
+              <h3>freexiaoxue-api</h3>
+              <p style="font-size:0.9em">v1.1.0</p>
+              <p><a href="https://www.npmjs.com/package/koishi-plugin-freexiaoxue-api" target="_blank"><ruby>免费小学后端服务<rp>（</rp><rt>点我查看食用方法</rt><rp>）</rp></ruby></a> 为 chatluna-freexiaoxue-adapter 提供一个后端服务地址</p>
+              <a href="https://github.com/shangxueink/koishi-shangxue-apps/tree/main/plugins/freexiaoxue-api" target="_blank">仓库地址 →</a>
+            </div>
+          
+            <div class="plugin-card" data-name="command-creator-extender" data-description="创建和扩展指令！自定义搭配你的指令，互相调用！可以实现 [一键打卡](https://i0.hdslb.com/bfs/article/c3a90e76082632cd5321d23582f9bc0d312276085.png)、[同指令分群调用不同指令](https://i0.hdslb.com/bfs/article/b130e445dcfe99a89e841ee7615a4e61312276085.png)功能，一键触发多指令~ 灵感来自[command-creator](https://www.npmjs.com/package/koishi-plugin-command-creater)" data-version="2.0.0" style="animation-delay: 0.975s;">
+              <h3>command-creator-extender</h3>
+              <p style="font-size:0.9em">v2.0.0</p>
+              <p>创建和扩展指令！自定义搭配你的指令，互相调用！可以实现 <a href="https://i0.hdslb.com/bfs/article/c3a90e76082632cd5321d23582f9bc0d312276085.png" target="_blank">一键打卡</a>、<a href="https://i0.hdslb.com/bfs/article/b130e445dcfe99a89e841ee7615a4e61312276085.png" target="_blank">同指令分群调用不同指令</a>功能，一键触发多指令~ 灵感来自<a href="https://www.npmjs.com/package/koishi-plugin-command-creater" target="_blank">command-creator</a></p>
+              <a href="https://github.com/shangxueink/koishi-shangxue-apps/tree/main/plugins/command-creator-extender" target="_blank">仓库地址 →</a>
+            </div>
+          
+            <div class="plugin-card" data-name="guess-riddle" data-description="/*猜谜语*/ 猜谜实在是难🤨，很多谜语很冷🥶，有兴趣就来玩玩吧~[使用方法可以参见这里哦](https://www.npmjs.com/package/koishi-plugin-guess-riddle)" data-version="0.1.5" style="animation-delay: 0.99s;">
+              <h3>guess-riddle</h3>
+              <p style="font-size:0.9em">v0.1.5</p>
+              <p>/*猜谜语*/ 猜谜实在是难🤨，很多谜语很冷🥶，有兴趣就来玩玩吧~<a href="https://www.npmjs.com/package/koishi-plugin-guess-riddle" target="_blank">使用方法可以参见这里哦</a></p>
+              <a href="https://github.com/shangxueink/koishi-shangxue-apps/tree/main/plugins/guess-riddle" target="_blank">仓库地址 →</a>
+            </div>
+          
+        </div>
+      </div>
+  
+      
+      <div id="scripts" class="tab-content">
+        <div class="plugin-grid" id="scriptGrid">
+          
+            <div class="plugin-card" data-scriptname="termux" style="animation-delay: 0s;">
+              <h3>termux</h3>
+              <p style="font-size:0.9em">Scripts</p>
+              <p>该脚本没有介绍，你可以访问仓库地址查看更多信息。</p>
+              <a href="https://github.com/shangxueink/koishi-shangxue-apps/tree/main/scripts/termux" target="_blank">仓库地址 →</a>
+            </div>
+          
+            <div class="plugin-card" data-scriptname="bilibili专栏原图链接提取2024改版" style="animation-delay: 0.015s;">
+              <h3>Bilibili专栏原图链接提取2024改版</h3>
+              <p style="font-size:0.9em">Scripts</p>
+              <p>该脚本没有介绍，你可以访问仓库地址查看更多信息。</p>
+              <a href="https://github.com/shangxueink/koishi-shangxue-apps/tree/main/scripts/Bilibili专栏原图链接提取2024改版" target="_blank">仓库地址 →</a>
+            </div>
+          
+            <div class="plugin-card" data-scriptname="qqnt-version-scraper" style="animation-delay: 0.03s;">
+              <h3>QQNT-version-scraper</h3>
+              <p style="font-size:0.9em">Scripts</p>
+              <p>该脚本没有介绍，你可以访问仓库地址查看更多信息。</p>
+              <a href="https://github.com/shangxueink/koishi-shangxue-apps/tree/main/scripts/QQNT-version-scraper" target="_blank">仓库地址 →</a>
+            </div>
+          
+            <div class="plugin-card" data-scriptname="米游社帖子图片链接提取" style="animation-delay: 0.045s;">
+              <h3>米游社帖子图片链接提取</h3>
+              <p style="font-size:0.9em">Scripts</p>
+              <p>该脚本没有介绍，你可以访问仓库地址查看更多信息。</p>
+              <a href="https://github.com/shangxueink/koishi-shangxue-apps/tree/main/scripts/米游社帖子图片链接提取" target="_blank">仓库地址 →</a>
+            </div>
+          
+            <div class="plugin-card" data-scriptname="others" style="animation-delay: 0.06s;">
+              <h3>others</h3>
+              <p style="font-size:0.9em">Scripts</p>
+              <p>该脚本没有介绍，你可以访问仓库地址查看更多信息。</p>
+              <a href="https://github.com/shangxueink/koishi-shangxue-apps/tree/main/scripts/others" target="_blank">仓库地址 →</a>
+            </div>
+          
+        </div>
+      </div>
+  
+
+
+    </div>
+  </div>
+
+  <script>
+    const pluginCards = Array.from(document.querySelectorAll('#pluginGrid .plugin-card')); // 插件卡片
+    const scriptCards = Array.from(document.querySelectorAll('#scriptGrid .plugin-card'));   // 脚本卡片
+    let currentCards = pluginCards; // 初始显示插件卡片
+
+    // Fisher-Yates (Knuth) Shuffle algorithm
+    function shuffleArray(array) {
+      for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+      }
+    }
+
+    function applyAnimationDelays(cards) {
+      cards.forEach((card, index) => {
+        card.style.animationDelay = `${index * 0.015} s`;
+      });
+    }
+
+
+    function changeTheme(event) {
+      const theme = event.target.value;
+      document.body.className = theme + '-mode';
+    }
+
+    function handleScroll() {
+      currentCards.forEach(card => { // 使用 currentCards
+        if (isElementInViewport(card)) {
+          card.style.animationPlayState = 'running';
+        }
+      });
+    }
+
+    function isElementInViewport(el) {
+      const rect = el.getBoundingClientRect();
+      return (
+        rect.top <= window.innerHeight * 1.1 &&
+        rect.bottom >= 0 &&
+        rect.left <= window.innerWidth * 1.1 &&
+        rect.right >= 0
+      );
+    }
+
+    function searchPlugins(searchText) {
+      const keywords = searchText.toLowerCase().split(' ').filter(keyword => keyword.trim() !== '');
+      let filteredPlugins = [];
+      let filteredScripts = [];
+
+      // 搜索插件
+      filteredPlugins = pluginCards.filter(card => {
+        const name = card.dataset.name;
+        const description = card.dataset.description;
+        const version = card.dataset.version; // 获取版本号
+        return keywords.every(keyword =>
+          name.includes(keyword) ||
+          description.includes(keyword) ||
+          version.includes(keyword) // 搜索版本号
+        );
+      });
+
+      // 搜索脚本
+      filteredScripts = scriptCards.filter(card => {
+        const scriptName = card.dataset.scriptname;
+        return keywords.every(keyword => scriptName.includes(keyword));
+      });
+
+
+      // 更新插件列表
+      const pluginGrid = document.getElementById('pluginGrid');
+      pluginGrid.innerHTML = ''; // Clear existing content
+      filteredPlugins.forEach((card, index) => {
+        const clonedCard = card.cloneNode(true); // Clone to avoid modifying original cards
+        clonedCard.style.animationDelay = `${index * 0.015}s`; // Apply animation delay
+        pluginGrid.appendChild(clonedCard); // Append to grid
+      });
+
+
+      // 更新脚本列表
+      const scriptGrid = document.getElementById('scriptGrid');
+      scriptGrid.innerHTML = ''; // Clear existing content
+      filteredScripts.forEach((card, index) => {
+        const clonedCard = card.cloneNode(true); // Clone to avoid modifying original cards
+        clonedCard.style.animationDelay = `${index * 0.015}s`; // Apply animation delay
+        scriptGrid.appendChild(clonedCard); // Append to grid
+      });
+
+
+      // 更新 currentCards 为当前显示的卡片
+      const activeTab = document.querySelector('.sidebar-nav a.active').getAttribute('data-tab');
+      if (activeTab === 'plugins') {
+        currentCards = filteredPlugins.length > 0 ? Array.from(document.querySelectorAll('#pluginGrid .plugin-card')) : []; // 搜索结果为空时，currentCards 也应该为空，避免 handleScroll 报错
+      } else if (activeTab === 'scripts') {
+        currentCards = filteredScripts.length > 0 ? Array.from(document.querySelectorAll('#scriptGrid .plugin-card')) : [];
+      } else {
+        currentCards = [...Array.from(document.querySelectorAll('#pluginGrid .plugin-card')), ...Array.from(document.querySelectorAll('#scriptGrid .plugin-card'))]; // 如果有其他 tab，可能需要显示所有
+      }
+
+
+      handleScroll(); // 触发滚动检查
+    }
+
+
+    function switchTab(tabId) {
+      document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+
+      document.getElementById(tabId).classList.add('active');
+
+      document.querySelectorAll('.sidebar-nav a').forEach(a => a.classList.remove('active'));
+      const activeLink = document.querySelector(`.sidebar-nav a[data-tab="${tabId}"]`);
+      if (activeLink) {
+        activeLink.classList.add('active');
+      }
+
+      if (tabId === 'plugins') {
+        currentCards = Array.from(document.querySelectorAll('#pluginGrid .plugin-card')); // Re-query cards
+      } else if (tabId === 'scripts') {
+        currentCards = Array.from(document.querySelectorAll('#scriptGrid .plugin-card')); // Re-query cards
+      }
+
+      window.scrollTo(0, 0);
+      handleScroll();
+    }
+
+
+    document.addEventListener('DOMContentLoaded', () => {
+      // Shuffle plugin cards
+      const pluginGrid = document.getElementById('pluginGrid');
+      shuffleArray(pluginCards);
+      pluginGrid.innerHTML = ''; // Clear initial content
+      pluginCards.forEach(card => pluginGrid.appendChild(card)); // Append shuffled cards
+      applyAnimationDelays(Array.from(document.querySelectorAll('#pluginGrid .plugin-card'))); // Re-apply animation delays
+
+      // Shuffle script cards
+      const scriptGrid = document.getElementById('scriptGrid');
+      shuffleArray(scriptCards);
+      scriptGrid.innerHTML = ''; // Clear initial content
+      scriptCards.forEach(card => scriptGrid.appendChild(card)); // Append shuffled cards
+      applyAnimationDelays(Array.from(document.querySelectorAll('#scriptGrid .plugin-card'))); // Re-apply animation delays
+
+
+      switchTab('plugins');
+
+      document.querySelectorAll('.sidebar-nav a[data-tab]').forEach(link => {
+        link.addEventListener('click', function(event) {
+          event.preventDefault();
+          const tabId = this.getAttribute('data-tab');
+          switchTab(tabId);
+        });
+      });
+
+
+      handleScroll(); // Initial scroll check
+    });
+
+
+    window.addEventListener('scroll', handleScroll);
+    window.addEventListener('resize', handleScroll);
+  </script>
+</body>
+</html>
