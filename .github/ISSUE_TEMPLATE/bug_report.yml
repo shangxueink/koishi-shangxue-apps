@@ -96,7 +96,11 @@ body:
     attributes:
       label: 完整的报错日志
       description: 如果有报错信息，请提供完整的报错日志，这对于排查问题非常重要。请将日志粘贴到这里，并使用代码块包裹 (```)。
-      placeholder: ```\n[ERROR] 2023-10-27 10:00:00 ...\n...\n```
+      placeholder: |
+        ```
+        [ERROR] 2023-10-27 10:00:00 ...
+        ...
+        ```
     validations:
       required: false
 
