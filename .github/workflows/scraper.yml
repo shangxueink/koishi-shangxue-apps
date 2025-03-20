@@ -1,11 +1,12 @@
 name: QQNT-version-scraper
 
 on:
-  push:
-    branches:
-      - main
+#  push到仓库时，运行。可手动关闭
+#  push:
+#    branches:
+#      - main
   schedule:
-    - cron: '0 * * * *'
+    - cron: '0 */6 * * *' # 每 6 小时运行一次
   workflow_dispatch:
 
 jobs:
