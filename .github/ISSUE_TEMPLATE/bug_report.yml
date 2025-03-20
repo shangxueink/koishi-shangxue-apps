@@ -42,7 +42,7 @@ body:
     attributes:
       label: koishi webUI 的依赖列表
       description: 请提供 `koishi webUI` 的依赖列表，您可以在 `koishi webUI` 的控制台日志中找到 `package.json` 的依赖信息。 如果不清楚，可以留空。
-      placeholder: 例如：\n"@koishijs/plugin-admin": "^5.12.3",\n"@koishijs/plugin-console": "^5.12.3"\n...
+      placeholder: 例如："@koishijs/plugin-admin": "^5.12.3","@koishijs/plugin-console": "^5.12.3"...
     validations:
       required: false
 
