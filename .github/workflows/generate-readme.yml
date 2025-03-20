@@ -27,17 +27,17 @@ jobs:
       - name: 运行脚本生成 readme.html 🚀
         run: node ./scripts/koishi-shangxue-apps-list/readme.js
 
-      - name: 复制 readme.html 到 doc 目录 📂
+      - name: 复制 readme.html 到 docs 目录 📂
         run: |
-          mkdir -p doc # 确保 doc 目录存在
-          cp ./scripts/koishi-shangxue-apps-list/readme.html ./doc/readme.html
-          echo "readme.html 已复制到 doc 目录"
-          ls -l ./doc/ # 列出 doc 目录内容 (Debug)
+          mkdir -p docs # 确保 docs 目录存在
+          cp ./scripts/koishi-shangxue-apps-list/readme.html ./docs/readme.html
+          echo "readme.html 已复制到 docs 目录"
+          ls -l ./docs/ # 列出 docs 目录内容 (Debug)
 
       - name: 提交 readme.html 文件 ➕
         run: |
           git config --local user.email "actions@github.com"
           git config --local user.name "GitHub Actions"
-          git add ./scripts/koishi-shangxue-apps-list/readme.html ./doc/readme.html # 同时添加两个 readme.html
-          git commit -m "docs: 更新插件和脚本列表 (自动生成并复制到 doc 目录)" || echo "No changes to commit" # 如果没有更改，则不提交
+          git add ./scripts/koishi-shangxue-apps-list/readme.html ./docs/readme.html # 同时添加两个 readme.html
+          git commit -m "docs: 更新插件和脚本列表 (自动生成并复制到 docs 目录)" || echo "No changes to commit" # 如果没有更改，则不提交
           git push origin main
