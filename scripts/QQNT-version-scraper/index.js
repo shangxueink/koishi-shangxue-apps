@@ -1,3 +1,4 @@
+// 灵感来自 https://github.com/PRO-2684/qqnt-version-history/releases
 import { URL, fileURLToPath } from 'node:url';
 import { writeFile, readFile, access } from 'node:fs/promises';
 import { constants } from 'node:fs';
