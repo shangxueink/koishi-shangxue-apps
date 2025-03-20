@@ -28,7 +28,7 @@ body:
     validations:
       required: true
 
-  - type: select
+  - type: dropdown
     id: possible-bug
     attributes:
       label: 是否可能是 Bug？
