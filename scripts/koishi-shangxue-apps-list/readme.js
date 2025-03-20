@@ -29,8 +29,8 @@ const COLOR_SCHEMES = {
   }
 };
 
-const UPDATE_PLUGINS_FROM_GITHUB = false;
-const UPDATE_SCRIPTS_FROM_GITHUB = false;
+const UPDATE_PLUGINS_FROM_GITHUB = true;
+const UPDATE_SCRIPTS_FROM_GITHUB = true;
 
 // 仓库小插件配置
 const SMALL_PLUGINS_CONFIG = [
