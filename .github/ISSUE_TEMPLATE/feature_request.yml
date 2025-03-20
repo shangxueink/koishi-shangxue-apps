@@ -1,5 +1,5 @@
-name: Feature Request
-description: 提交一个新的功能请求
+name: 功能增改请求 (Feature Request)
+description: 提交一个关于 Koishi Shangxue Apps 插件的功能增改请求
 title: "[Feature]: "
 labels: ["feature"]
 assignees: []
@@ -8,13 +8,22 @@ body:
   - type: markdown
     attributes:
       value: |
-        感谢您提出功能请求！请尽可能详细地描述您希望添加的功能。
+        感谢您提出功能增改请求！请尽可能详细地描述您希望添加或修改的功能。
+
+  - type: input
+    id: plugin-name
+    attributes:
+      label: 需要增改的插件名称
+      description: 请提供您希望增改功能的插件名称
+      placeholder: 例如：koishi-plugin-example
+    validations:
+      required: true
 
   - type: textarea
     id: feature-description
     attributes:
       label: 详细描述你想要的功能
-      description: 请详细描述你希望添加的功能，包括它的用途、目标用户、以及解决什么问题。
+      description: 请详细描述你希望添加或修改的功能，包括它的用途、目标用户、以及解决什么问题。
       placeholder: 我希望添加一个 XXX 功能，它可以帮助用户...
     validations:
       required: true
@@ -22,8 +31,8 @@ body:
   - type: textarea
     id: proposed-solution
     attributes:
-      label: 你提出的解决方案 (可选)
-      description: 如果你有任何关于如何实现这个功能的想法，请在这里描述。
+      label: 可能的解决方案 (可选)
+      description: 如果您有任何关于如何实现这个功能的想法，请在这里描述。
       placeholder: 我认为可以通过 XXX 技术来实现...
     validations:
       required: false
@@ -43,5 +52,7 @@ body:
       label: 检查清单
       description: 提交前请检查以下事项
       options:
-        - label: 我已经搜索了已有的 Issue，确认没有重复的功能请求
-        - label: 我已经尽可能详细地描述了功能的需求和用途
+        - label: 我已经确认这是针对 Koishi Shangxue Apps 插件的功能请求。
+        - label: 我已经搜索了已有的 Issue，确认没有重复的功能请求。
+        - label: 我已经尽可能详细地描述了功能的需求和用途。
+
