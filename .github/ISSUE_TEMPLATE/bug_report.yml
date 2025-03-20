@@ -34,7 +34,6 @@ body:
       label: koishi webUI 的环境信息
       description: 请提供 `koishi webUI` 的环境信息，您可以在 `koishi webUI` 的 "关于" 页面或控制台日志中找到。例如：浏览器版本、操作系统版本等。
       placeholder: |
-        ```
         System:
             OS: Windows 10 10.0.19045
             CPU: (16) x64 12th Gen Intel(R) Core(TM) i5-12500H
@@ -47,7 +46,6 @@ body:
             Core: 4.18.7
             Console: 5.30.7
         ...
-        ```
     validations:
       required: true
 
@@ -57,7 +55,6 @@ body:
       label: koishi webUI 的依赖列表（可选）
       description: 请提供 `koishi webUI` 的依赖列表，您可以在 `koishi webUI` 的控制台日志中找到 `package.json` 的依赖信息。 如果不清楚，可以留空。
       placeholder: |
-        ```
         @koishijs/plugin-server	3.2.4 (最新)
         @koishijs/plugin-server-satori	2.9.0 (最新)
         @koishijs/plugin-server-temp	1.5.0 (最新)
@@ -65,7 +62,6 @@ body:
         koishi	4.18.7 (最新)
         koishi-plugin-android	0.0.1 (最新)
         ...
-        ```
     validations:
       required: false
 
@@ -93,12 +89,10 @@ body:
       label: 复现步骤
       description: 请提供清晰的复现步骤，方便我们重现问题。
       placeholder: |
-        ```
         1. 打开 XXX 功能
         2. 点击 XXX 按钮
         3. 出现错误...
         ...
-        ```
     validations:
       required: true
 
@@ -126,10 +120,8 @@ body:
       label: 完整的报错日志
       description: 如果有报错信息，请提供完整的报错日志，这对于排查问题非常重要。请将日志粘贴到这里，并使用代码块包裹 (```)。
       placeholder: |
-        ```
         [ERROR] 2023-10-27 10:00:00 ...
         ...
-        ```
     validations:
       required: false
 
