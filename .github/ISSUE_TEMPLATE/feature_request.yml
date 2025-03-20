@@ -11,7 +11,7 @@ body:
         感谢您反馈 Bug！为了帮助我们更快地定位和解决问题，请提供以下信息：
 
   - type: input
-    id: plugin-name
+    id: plugin-name        
     attributes:
       label: 使用的插件名称
       description: 请提供出现 Bug 的插件名称
@@ -20,7 +20,7 @@ body:
       required: true
 
   - type: input
-    id: plugin-version
+    id: plugin-version      
     attributes:
       label: 插件的版本号
       description: 请提供您使用的插件版本号，例如 v1.2.3
@@ -29,7 +29,7 @@ body:
       required: true
 
   - type: textarea
-    id: koishi-webui-env
+    id: koishi-webui-env    
     attributes:
       label: koishi webUI 的环境信息
       description: 请提供 `koishi webUI` 的环境信息，您可以在 `koishi webUI` 的 "关于" 页面或控制台日志中找到。例如：浏览器版本、操作系统版本等。
@@ -38,17 +38,17 @@ body:
       required: true
 
   - type: textarea
-    id: koishi-webui-deps
+    id: koishi-webui-deps   
     attributes:
       label: koishi webUI 的依赖列表（可选）
       description: 请提供 `koishi webUI` 的依赖列表，您可以在 `koishi webUI` 的控制台日志中找到 `package.json` 的依赖信息。 如果不清楚，可以留空。
       placeholder: |
-        ```	
-        @koishijs/plugin-server	3.2.4 (最新)	
-        @koishijs/plugin-server-satori	2.9.0 (最新)	
-        @koishijs/plugin-server-temp	1.5.0 (最新)	
+        ```
+        @koishijs/plugin-server	3.2.4 (最新)
+        @koishijs/plugin-server-satori	2.9.0 (最新)
+        @koishijs/plugin-server-temp	1.5.0 (最新)
         @koishijs/plugin-status	7.4.10 (最新)
-        koishi	4.18.7 (最新)	
+        koishi	4.18.7 (最新)
         koishi-plugin-android	0.0.1 (最新)
         ...
         ```
@@ -65,7 +65,7 @@ body:
       required: true
 
   - type: textarea
-    id: describe-bug
+    id: describe-bug        
     attributes:
       label: 请详细描述你遇到的 Bug
       description: 尽可能详细地描述 Bug 的现象。
@@ -74,7 +74,7 @@ body:
       required: true
 
   - type: textarea
-    id: reproduction-steps
+    id: reproduction-steps 
     attributes:
       label: 复现步骤
       description: 请提供清晰的复现步骤，方便我们重现问题。
@@ -89,7 +89,7 @@ body:
       required: true
 
   - type: textarea
-    id: expected-behavior
+    id: expected-behavior   
     attributes:
       label: 预期行为
       description: 你期望发生什么？
@@ -98,7 +98,7 @@ body:
       required: true
 
   - type: textarea
-    id: actual-behavior
+    id: actual-behavior     
     attributes:
       label: 实际行为
       description: 实际发生了什么？
@@ -107,7 +107,7 @@ body:
       required: true
 
   - type: textarea
-    id: error-log
+    id: error-log           
     attributes:
       label: 完整的报错日志
       description: 如果有报错信息，请提供完整的报错日志，这对于排查问题非常重要。请将日志粘贴到这里，并使用代码块包裹 (```)。
@@ -120,7 +120,7 @@ body:
       required: false
 
   - type: textarea
-    id: screenshots
+    id: screenshots        
     attributes:
       label: 截图 (可选)
       description: 如果可以，请提供 Bug 的截图，这有助于我们更好地理解问题。请将截图粘贴或拖拽到这里。
@@ -129,7 +129,7 @@ body:
       required: false
 
   - type: checkboxes
-    id: check-list
+    id: check-list         
     attributes:
       label: 检查清单
       description: 提交前请检查以下事项
