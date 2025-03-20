@@ -1,0 +1,53 @@
+name: 疑问、询问 (Question)
+description: 提出关于 Koishi Shangxue Apps 插件的疑问或询问
+title: "[Question]: "
+labels: ["question"]
+assignees: []
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        欢迎提出关于 Koishi Shangxue Apps 插件的疑问或询问！
+
+  - type: input
+    id: plugin-name
+    attributes:
+      label: 插件名称
+      description: 请提供您有疑问的插件名称
+      placeholder: 例如：koishi-plugin-example
+    validations:
+      required: true
+
+  - type: textarea
+    id: question-content
+    attributes:
+      label: 遇到的疑问、疑惑
+      description: 请详细描述您遇到的疑问或疑惑。
+      placeholder: 我想了解 XXX 功能是如何工作的...
+    validations:
+      required: true
+
+  - type: select
+    id: possible-bug
+    attributes:
+      label: 是否可能是 Bug？
+      description: 您认为这个问题可能是 Bug 吗？
+      options:
+        - label: 是，我认为可能是 Bug
+          value: yes
+        - label: 否，我认为不是 Bug，只是疑问
+          value: no
+        - label: 不确定
+          value: unsure
+    validations:
+      required: true
+
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: 补充说明 (可选)
+      description: 如果有其他需要补充说明的信息，请在这里填写。
+      placeholder: 例如，我是在 XXX 场景下遇到这个疑问的...
+    validations:
+      required: false
