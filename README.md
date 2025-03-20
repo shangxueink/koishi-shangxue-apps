@@ -97,7 +97,7 @@ publish/
 ├── npmpublish/
 │   ├── lib
 │   ├── dist
-│   ├── LICENSE.txt # 已经存在，无需上传
+│   ├── LICENSE.txt // 已经存在，无需上传
 │   ├── package.json
 │   ├── readme.md
 │   └── ...  # 上传其他需要发布的文件
