@@ -1,4 +1,3 @@
-
 name: QQNT-version-scraper
 
 on:
@@ -75,11 +74,10 @@ jobs:
         if: steps.check_update.outputs.updated == 'true'
         uses: softprops/action-gh-release@v1
         with:
-          name: QQNT-${{ steps.run_scraper_script.outputs.windows_version }}  # 使用 output
+          name: ${{ steps.run_scraper_script.outputs.release_name }}  # 使用 output
           body_path: ./scripts/QQNT-version-scraper/QQNT/versions.md
-          tag_name: QQNT-${{ steps.run_scraper_script.outputs.windows_version }} # 使用 output
+          tag_name: ${{ steps.run_scraper_script.outputs.release_tag }} # 使用 output
           generate_release_notes: false
           files: |
             ./scripts/QQNT-version-scraper/QQNT/versions.json
             ./scripts/QQNT-version-scraper/QQNT/versions.md
-
