@@ -1,5 +1,5 @@
 name: 疑问、询问 (Question)
-description: 提出关于 Koishi Shangxue Apps 插件的疑问或询问
+description: 提出关于 koishi-shangxue-app 插件的疑问或询问
 title: "[Question]: "
 labels: ["question"]
 assignees: []
@@ -8,7 +8,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        欢迎提出关于 Koishi Shangxue Apps 插件的疑问或询问！
+        欢迎提出关于 koishi-shangxue-app 插件的疑问 / 询问！
 
   - type: input
     id: plugin-name
@@ -41,7 +41,7 @@ body:
         - label: 不确定
           value: unsure
     validations:
-      required: true
+      required: false
 
   - type: textarea
     id: additional-context
