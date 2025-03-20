@@ -123,7 +123,7 @@ async function extractVersion(platformKey, html) {
 
 function generateMarkdown(versions) {
     let markdown = `
-| Platform/Arch | Version | .exe | .deb | .rpm | .AppImage | .dmg |
+| 平台/架构 | 版本 | .exe | .deb | .rpm | .AppImage | .dmg |
 |---|---|---|---|---|---|---|
 `;
 
@@ -131,26 +131,26 @@ function generateMarkdown(versions) {
     if (versions.windows) {
         const windows = versions.windows;
         const version = windows.versionCode; // 获取版本号
-        markdown += `| Windows x64 | ${version} | [Download](${windows.x64}) |   |   |   |   |\n`;
-        markdown += `| Windows x86 | ${version} | [Download](${windows.x86}) |   |   |   |   |\n`;
-        markdown += `| Windows arm | ${version} | [Download](${windows.arm}) |   |   |   |   |\n`;
+        markdown += `| Windows x64 | ${version} | [下载](${windows.x64}) |   |   |   |   |\n`;
+        markdown += `| Windows x86 | ${version} | [下载](${windows.x86}) |   |   |   |   |\n`;
+        markdown += `| Windows arm | ${version} | [下载](${windows.arm}) |   |   |   |   |\n`;
     }
 
     // Linux
     if (versions.linux) {
         const linux = versions.linux;
         const version = linux.versionCode; // 获取版本号
-        markdown += `| Linux x64 | ${version} |   | ${linux.x64?.deb ? `[Download](${linux.x64.deb})` : ''} | ${linux.x64?.rpm ? `[Download](${linux.x64.rpm})` : ''} | ${linux.x64?.appimage ? `[Download](${linux.x64.appimage})` : ''} |   |\n`;
-        markdown += `| Linux arm | ${version} |   | ${linux.arm?.deb ? `[Download](${linux.arm.deb})` : ''} | ${linux.arm?.rpm ? `[Download](${linux.arm.rpm})` : ''} | ${linux.arm?.appimage ? `[Download](${linux.arm.appimage})` : ''} |   |\n`;
-        markdown += `| Linux loongarch | ${version} |   | ${linux.loongarch?.deb ? `[Download](${linux.loongarch.deb})` : ''} |   |   |   |\n`;
-        markdown += `| Linux mips | ${version} |   | ${linux.mips?.deb ? `[Download](${linux.mips.deb})` : ''} |   |   |   |\n`;
+        markdown += `| Linux x64 | ${version} |   | ${linux.x64?.deb ? `[下载](${linux.x64.deb})` : ''} | ${linux.x64?.rpm ? `[下载](${linux.x64.rpm})` : ''} | ${linux.x64?.appimage ? `[下载](${linux.x64.appimage})` : ''} |   |\n`;
+        markdown += `| Linux arm | ${version} |   | ${linux.arm?.deb ? `[下载](${linux.arm.deb})` : ''} | ${linux.arm?.rpm ? `[下载](${linux.arm.rpm})` : ''} | ${linux.arm?.appimage ? `[下载](${linux.arm.appimage})` : ''} |   |\n`;
+        markdown += `| Linux loongarch | ${version} |   | ${linux.loongarch?.deb ? `[下载](${linux.loongarch.deb})` : ''} |   |   |   |\n`;
+        markdown += `| Linux mips | ${version} |   | ${linux.mips?.deb ? `[下载](${linux.mips.deb})` : ''} |   |   |   |\n`;
     }
 
     // macOS
     if (versions.mac) {
         const mac = versions.mac;
         const version = mac.versionCode; // 获取版本号
-        markdown += `| macOS Universal | ${version} |   |   |   |   | [Download](${mac.downloadUrl}) |\n`;
+        markdown += `| macOS Universal | ${version} |   |   |   |   | [下载](${mac.downloadUrl}) |\n`;
     }
 
     return markdown;
@@ -189,14 +189,27 @@ async function main() {
     await writeFile(markdownOutputPath, markdownContent);
     console.log(`versions.md 文件写入成功到 ${markdownOutputPath}.`);
 
-    // 获取 Windows 版本号，用于 Release 标题和 Tag
+    // 获取所有平台的版本号
     const windowsVersion = versions.windows ? versions.windows.versionCode : 'latest';
-    process.env.WINDOWS_VERSION = windowsVersion; // 设置环境变量 (虽然这个环境变量在后续步骤中不可直接用)
+    const linuxVersion = versions.linux ? versions.linux.versionCode : 'latest';
+    const macosVersion = versions.mac ? versions.mac.versionCode : 'latest';
 
-    // 输出 WINDOWS_VERSION 作为 GitHub Actions 的 output
-    console.log(`WINDOWS_VERSION=${windowsVersion}`); // 为了调试，先输出到控制台
-    console.log(`::set-output name=windows_version::${windowsVersion}`); // 设置 output，注意 output 名称要小写，用下划线分隔
+    // 构建 Release 名称和 Tag
+    const releaseName = `QQNT - Windows: ${windowsVersion}, Linux: ${linuxVersion}, macOS: ${macosVersion}`;
+    const releaseTag = `QQNT-Windows-${windowsVersion}-Linux-${linuxVersion}-macOS-${macosVersion}`;
 
+    // 输出所有平台的版本号作为 GitHub Actions 的 output
+    console.log(`WINDOWS_VERSION=${windowsVersion}`);
+    console.log(`LINUX_VERSION=${linuxVersion}`);
+    console.log(`MACOS_VERSION=${macosVersion}`);
+    console.log(`RELEASE_NAME=${releaseName}`);
+    console.log(`RELEASE_TAG=${releaseTag}`);
+
+    console.log(`::set-output name=windows_version::${windowsVersion}`);
+    console.log(`::set-output name=linux_version::${linuxVersion}`);
+    console.log(`::set-output name=macos_version::${macosVersion}`);
+    console.log(`::set-output name=release_name::${releaseName}`);
+    console.log(`::set-output name=release_tag::${releaseTag}`);
 }
 
 // 运行主函数
