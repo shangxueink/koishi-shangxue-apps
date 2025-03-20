@@ -32,7 +32,7 @@ body:
     id: koishi-webui-env    
     attributes:
       label: koishi webUI 的环境信息
-      description: 请提供 `koishi webUI` 的环境信息，您可以在 `koishi webUI` 的 "关于" 页面或控制台日志中找到。例如：浏览器版本、操作系统版本等。请使用代码块包裹 (```)。
+      description: 请提供 `koishi webUI` 的环境信息，您可以在 `koishi webUI` 的 左下角找到。例如：koishi 版本、操作系统版本等。请使用代码块包裹 (```)。
       placeholder: |
         ```
         System:
