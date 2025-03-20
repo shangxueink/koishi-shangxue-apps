@@ -9,7 +9,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  scrape_and_release:
+  scrape_and_update_versionlist:
     runs-on: ubuntu-latest
 
     steps:
@@ -39,26 +39,31 @@ jobs:
           ls -l ./scripts/QQNT-version-scraper/ # 再次列出目录内容，确认创建结果
 
       - name: 运行版本抓取脚本 🚀
-        id: run_scraper_script  # 添加步骤 ID
         run: node ./scripts/QQNT-version-scraper/index.js
 
       - name: 检查版本更新 🔍
         id: check_update
         run: |
-          if [[ -f ./scripts/QQNT-version-scraper/QQNT/versions.json ]]; then
-            NEW_VERSION=$(cat ./scripts/QQNT-version-scraper/QQNT/versions.json)
-            OLD_VERSION=$(git show origin/main:./scripts/QQNT-version-scraper/QQNT/versions.json)
+          UPDATED=false
+          for platform in windows linux mac; do
+            if [[ -f ./scripts/QQNT-version-scraper/QQNT/${platform}-versionlist.json ]]; then
+              NEW_VERSION_LIST=$(cat ./scripts/QQNT-version-scraper/QQNT/${platform}-versionlist.json)
+              OLD_VERSION_LIST=$(git show origin/main:./scripts/QQNT-version-scraper/QQNT/${platform}-versionlist.json)
 
-            if [[ "$NEW_VERSION" == "$OLD_VERSION" ]]; then
-              echo "版本没有更新，跳过发布。"
-              echo "updated=false" >> "$GITHUB_OUTPUT"
+              if [[ "$NEW_VERSION_LIST" != "$OLD_VERSION_LIST" ]]; then
+                echo "检测到 ${platform} 版本更新！"
+                UPDATED=true
+              fi
             else
-              echo "检测到版本更新！"
-              echo "updated=true" >> "$GITHUB_OUTPUT"
+              echo "未找到 ${platform}-versionlist.json，首次运行，将更新。"
+              UPDATED=true
             fi
-          else
-            echo "未找到 versions.json，首次运行，将发布 Release。"
+          done
+          if [[ "$UPDATED" == "true" ]]; then
             echo "updated=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "版本没有更新，跳过提交。"
+            echo "updated=false" >> "$GITHUB_OUTPUT"
           fi
 
       - name: 提交版本文件 ➕
@@ -66,18 +71,6 @@ jobs:
         run: |
           git config --local user.email "actions@github.com"
           git config --local user.name "GitHub Actions"
-          git add ./scripts/QQNT-version-scraper/QQNT/versions.json ./scripts/QQNT-version-scraper/QQNT/versions.md
-          git commit -m "✨ 更新 QQNT 版本信息"
+          git add ./scripts/QQNT-version-scraper/QQNT/*-versionlist.json ./scripts/QQNT-version-scraper/QQNT/*-versionlist.md
+          git commit -m "✨ 更新 QQNT 版本列表信息"
           git push
-
-      - name: 创建 Release 🏷️
-        if: steps.check_update.outputs.updated == 'true'
-        uses: softprops/action-gh-release@v1
-        with:
-          name: ${{ steps.run_scraper_script.outputs.release_name }}  # 使用 output
-          body_path: ./scripts/QQNT-version-scraper/QQNT/versions.md
-          tag_name: ${{ steps.run_scraper_script.outputs.release_tag }} # 使用 output
-          generate_release_notes: false
-          files: |
-            ./scripts/QQNT-version-scraper/QQNT/versions.json
-            ./scripts/QQNT-version-scraper/QQNT/versions.md
