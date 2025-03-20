@@ -41,8 +41,8 @@ body:
     id: alternatives-considered
     attributes:
       label: 考虑过的替代方案 (可选)
-      description: 是否有其他替代方案可以达到类似的效果？
-      placeholder: 我也考虑过 XXX 方案，但...
+      description: 已经考虑过了的方案，但效果不好，且使用上述方案解决会更优秀。
+      placeholder: 我也考虑过 XXX 方案，但...缺点...，如果采用上述方案...
     validations:
       required: false
 
