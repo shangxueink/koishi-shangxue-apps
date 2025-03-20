@@ -1,5 +1,5 @@
 name: Bug 反馈 (Bug Report)
-description: 提交一个关于 Koishi Shangxue Apps 插件的 Bug 报告
+description: 提交一个关于 koishi-shangxue-app 插件的 Bug 报告
 title: "[Bug]: "
 labels: ["bug"]
 assignees: []
@@ -33,14 +33,14 @@ body:
     attributes:
       label: koishi webUI 的环境信息
       description: 请提供 `koishi webUI` 的环境信息，您可以在 `koishi webUI` 的 "关于" 页面或控制台日志中找到。例如：浏览器版本、操作系统版本等。
-      placeholder: 例如：Chrome 114.0.5735.198, Windows 10
+      placeholder: 例如：System OS Windows 10 10.0.19045  CPU (16) x64 1xth Gen Intel(R) Core(TM) i5-12500H Binaries    Node 22.9.0    Yarn 4.5.3 Koishi    Core 4.18.7    Console 5.30.7
     validations:
-      required: false
+      required: true
 
   - type: textarea
     id: koishi-webui-deps
     attributes:
-      label: koishi webUI 的依赖列表
+      label: koishi webUI 的依赖列表（可选）
       description: 请提供 `koishi webUI` 的依赖列表，您可以在 `koishi webUI` 的控制台日志中找到 `package.json` 的依赖信息。 如果不清楚，可以留空。
       placeholder: '例如：\n```json\n{\n  "dependencies": {\n    "@koishijs/plugin-admin": "^5.12.3",\n    "@koishijs/plugin-console": "^5.12.3",\n    ...\n  }\n}\n```'
     validations:
@@ -58,7 +58,7 @@ body:
   - type: textarea
     id: describe-bug
     attributes:
-      label: 请详细描述你遇到的 Bug *
+      label: 请详细描述你遇到的 Bug
       description: 尽可能详细地描述 Bug 的现象、触发步骤、预期行为和实际行为。
       placeholder: 我在使用 XXX 功能时，遇到了 XXX 问题...
     validations:
@@ -119,6 +119,6 @@ body:
       label: 检查清单
       description: 提交前请检查以下事项
       options:
-        - label: 我已经确认这是 Koishi Shangxue Apps 插件的 Bug，而不是 Koishi 主框架或其他插件的问题。
+        - label: 我已经确认这是 koishi-shangxue-app 插件的 Bug，而不是 Koishi 主框架、其他插件或其他无关的问题。
         - label: 我已经提供了足够的信息来重现问题。
         - label: 我已经尽力提供了详细的报错日志和截图 (如果有)。
