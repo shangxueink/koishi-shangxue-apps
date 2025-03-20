@@ -1,0 +1,36 @@
+name: Generate README HTML
+
+on:
+  schedule:
+    - cron: '0 0 * * *' # 每天 UTC 时间 00:00 (午夜) 运行，即北京时间每天早上 8 点
+  workflow_dispatch: # 允许手动触发 workflow
+
+jobs:
+  generate_readme:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 检出代码 ⬇️
+        uses: actions/checkout@v3
+
+      - name: 设置 Node.js ⚙️
+        uses: actions/setup-node@v3
+        with:
+          node-version: '22'
+
+      - name: 显示当前工作目录 📂 (Debug)
+        run: pwd
+
+      - name: 列出 scripts/koishi-shangxue-apps-list 目录内容 📂 (Debug)
+        run: ls -l ./scripts/koishi-shangxue-apps-list/
+
+      - name: 运行脚本生成 readme.html 🚀
+        run: node ./scripts/koishi-shangxue-apps-list/readme.js
+
+      - name: 提交 readme.html 文件 ➕
+        run: |
+          git config --local user.email "actions@github.com"
+          git config --local user.name "GitHub Actions"
+          git add ./scripts/koishi-shangxue-apps-list/readme.html
+          git commit -m "docs: 更新插件和脚本列表 (自动生成)" || echo "No changes to commit" # 如果没有更改，则不提交
+          git push origin main
