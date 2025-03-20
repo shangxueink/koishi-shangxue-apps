@@ -1,39 +1,61 @@
-name: Bug Report  # 模板名称，用户看到的
-description: 提交一个 Bug 报告  # 模板描述，用户看到的
-title: "[Bug]: "  # Issue 标题的默认前缀，用户可以修改
-labels: ["bug"]  # 自动添加的标签
-assignees: [] # 默认的指派人，可以留空
+name: Bug 反馈
+description: 提交一个 Bug 报告
+title: "[Bug]: "
+labels: ["bug"]
+assignees: []
 
 body:
   - type: markdown
     attributes:
       value: |
-        感谢您提交 Bug 报告！在提交之前，请确保您已经：
-        - 仔细阅读了文档
-        - 搜索了已有的 Issue，确认没有重复的 Bug 报告
+        感谢您反馈 Bug！在提交之前，请先说明 Bug 发生时的情况：
 
   - type: input
-    id: version
+    id: plugin-name
     attributes:
-      label: 你使用的 Koishi Shangxue Apps 版本是什么？
-      description: 请提供你正在使用的 Koishi Shangxue Apps 的版本号，例如 v1.2.3
-      placeholder: v1.2.3
+      label: 使用的插件名称
+      placeholder: 例如：koishi-plugin-example
     validations:
       required: true
 
   - type: input
-    id: koishi-version
+    id: plugin-version
     attributes:
-      label: 你使用的 Koishi 版本是什么？
-      description: 请提供你正在使用的 Koishi 主框架的版本号，例如 v4.15.0
-      placeholder: v4.15.0
+      label: 插件的版本号
+      placeholder: 例如：v1.2.3
+    validations:
+      required: true
+
+  - type: textarea
+    id: koishi-webui-env
+    attributes:
+      label: `koishi webUI` 的环境信息
+      description: 如果在 `koishi webUI` 中遇到问题，请提供环境信息 (浏览器版本、操作系统等)
+      placeholder: 例如：Chrome 114.0.5735.198, Windows 10
+    validations:
+      required: false
+
+  - type: textarea
+    id: koishi-webui-deps
+    attributes:
+      label: `koishi webUI` 的依赖列表
+      description: 如果在 `koishi webUI` 中遇到问题，请提供 `koishi webUI` 的依赖列表 (可以在 `koishi webUI` 控制台中查看)
+      placeholder: 请粘贴依赖列表
+    validations:
+      required: false
+
+  - type: input
+    id: koishi-adapter-protocol
+    attributes:
+      label: 使用的 Koishi 适配器或协议
+      placeholder: 例如：onebot, discord, console
     validations:
       required: true
 
   - type: textarea
     id: describe-bug
     attributes:
-      label: 请详细描述你遇到的 Bug
+      label: 请详细描述你遇到的 Bug *
       description: 尽可能详细地描述 Bug 的现象、触发步骤、预期行为和实际行为。
       placeholder: 我在使用 XXX 功能时，遇到了 XXX 问题...
     validations:
@@ -67,9 +89,18 @@ body:
       required: true
 
   - type: textarea
+    id: error-log
+    attributes:
+      label: 完整的报错日志
+      description: 如果有报错信息，请提供完整的报错日志。
+      placeholder: 请粘贴完整的报错日志
+    validations:
+      required: false
+
+  - type: textarea
     id: screenshots
     attributes:
-      label: 截图 (可选)
+      label: 截图
       description: 如果可以，请提供 Bug 的截图，这有助于我们更好地理解问题。
       placeholder: 请将截图粘贴或拖拽到这里
     validations:
@@ -81,6 +112,7 @@ body:
       label: 检查清单
       description: 提交前请检查以下事项
       options:
-        - label: 我已经仔细阅读了文档
-        - label: 我已经搜索了已有的 Issue，确认没有重复的 Bug 报告
-        - label: 我已经提供了足够的信息来重现问题
+        - label: 我已经填写了插件名称和版本号
+        - label: 我已经详细描述了 Bug 现象和复现步骤
+        - label: 我已经提供了完整的报错日志 (如果有)
+        - label: 我已经尽可能提供了足够的信息来重现问题
