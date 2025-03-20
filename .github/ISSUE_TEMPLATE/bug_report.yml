@@ -1,5 +1,5 @@
-name: Bug 反馈
-description: 提交一个 Bug 报告
+name: Bug 反馈 (Bug Report)
+description: 提交一个关于 Koishi Shangxue Apps 插件的 Bug 报告
 title: "[Bug]: "
 labels: ["bug"]
 assignees: []
@@ -8,12 +8,13 @@ body:
   - type: markdown
     attributes:
       value: |
-        感谢您反馈 Bug！在提交之前，请先说明 Bug 发生时的情况：
+        感谢您反馈 Bug！为了帮助我们更快地定位和解决问题，请提供以下信息：
 
   - type: input
     id: plugin-name
     attributes:
       label: 使用的插件名称
+      description: 请提供出现 Bug 的插件名称
       placeholder: 例如：koishi-plugin-example
     validations:
       required: true
@@ -22,7 +23,8 @@ body:
     id: plugin-version
     attributes:
       label: 插件的版本号
-      placeholder: 例如：v1.2.3
+      description: 请提供您使用的插件版本号，例如 v1.2.3
+      placeholder: v1.2.3
     validations:
       required: true
 
@@ -30,7 +32,7 @@ body:
     id: koishi-webui-env
     attributes:
       label: `koishi webUI` 的环境信息
-      description: 如果在 `koishi webUI` 中遇到问题，请提供环境信息 (浏览器版本、操作系统等)
+      description: 请提供 `koishi webUI` 的环境信息，您可以在 `koishi webUI` 的 "关于" 页面或控制台日志中找到。例如：浏览器版本、操作系统版本等。
       placeholder: 例如：Chrome 114.0.5735.198, Windows 10
     validations:
       required: false
@@ -39,8 +41,8 @@ body:
     id: koishi-webui-deps
     attributes:
       label: `koishi webUI` 的依赖列表
-      description: 如果在 `koishi webUI` 中遇到问题，请提供 `koishi webUI` 的依赖列表 (可以在 `koishi webUI` 控制台中查看)
-      placeholder: 请粘贴依赖列表
+      description: 请提供 `koishi webUI` 的依赖列表，您可以在 `koishi webUI` 的控制台日志中找到 `package.json` 的依赖信息。 如果不清楚，可以留空。
+      placeholder: 例如：\n```json\n{\n  "dependencies": {\n    "@koishijs/plugin-admin": "^5.12.3",\n    "@koishijs/plugin-console": "^5.12.3",\n    ...\n  }\n}\n```
     validations:
       required: false
 
@@ -48,7 +50,8 @@ body:
     id: koishi-adapter-protocol
     attributes:
       label: 使用的 Koishi 适配器或协议
-      placeholder: 例如：onebot, discord, console
+      description: 请提供您使用的 Koishi 适配器或协议，例如：onebot, discord, telegram 等。
+      placeholder: 例如：onebot
     validations:
       required: true
 
@@ -92,16 +95,16 @@ body:
     id: error-log
     attributes:
       label: 完整的报错日志
-      description: 如果有报错信息，请提供完整的报错日志。
-      placeholder: 请粘贴完整的报错日志
+      description: 如果有报错信息，请提供完整的报错日志，这对于排查问题非常重要。请将日志粘贴到这里，并使用代码块包裹 (```)。
+      placeholder: ```\n[ERROR] 2023-10-27 10:00:00 ...\n...\n```
     validations:
       required: false
 
   - type: textarea
     id: screenshots
     attributes:
-      label: 截图
-      description: 如果可以，请提供 Bug 的截图，这有助于我们更好地理解问题。
+      label: 截图 (可选)
+      description: 如果可以，请提供 Bug 的截图，这有助于我们更好地理解问题。请将截图粘贴或拖拽到这里。
       placeholder: 请将截图粘贴或拖拽到这里
     validations:
       required: false
@@ -112,7 +115,7 @@ body:
       label: 检查清单
       description: 提交前请检查以下事项
       options:
-        - label: 我已经填写了插件名称和版本号
-        - label: 我已经详细描述了 Bug 现象和复现步骤
-        - label: 我已经提供了完整的报错日志 (如果有)
-        - label: 我已经尽可能提供了足够的信息来重现问题
+        - label: 我已经确认这是 Koishi Shangxue Apps 插件的 Bug，而不是 Koishi 主框架或其他插件的问题。
+        - label: 我已经提供了足够的信息来重现问题。
+        - label: 我已经尽力提供了详细的报错日志和截图 (如果有)。
+
