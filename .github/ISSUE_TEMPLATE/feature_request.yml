@@ -1,0 +1,47 @@
+name: Feature Request
+description: 提交一个新的功能请求
+title: "[Feature]: "
+labels: ["feature"]
+assignees: []
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        感谢您提出功能请求！请尽可能详细地描述您希望添加的功能。
+
+  - type: textarea
+    id: feature-description
+    attributes:
+      label: 详细描述你想要的功能
+      description: 请详细描述你希望添加的功能，包括它的用途、目标用户、以及解决什么问题。
+      placeholder: 我希望添加一个 XXX 功能，它可以帮助用户...
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposed-solution
+    attributes:
+      label: 你提出的解决方案 (可选)
+      description: 如果你有任何关于如何实现这个功能的想法，请在这里描述。
+      placeholder: 我认为可以通过 XXX 技术来实现...
+    validations:
+      required: false
+
+  - type: textarea
+    id: alternatives-considered
+    attributes:
+      label: 考虑过的替代方案 (可选)
+      description: 是否有其他替代方案可以达到类似的效果？
+      placeholder: 我也考虑过 XXX 方案，但...
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: check-list
+    attributes:
+      label: 检查清单
+      description: 提交前请检查以下事项
+      options:
+        - label: 我已经搜索了已有的 Issue，确认没有重复的功能请求
+        - label: 我已经尽可能详细地描述了功能的需求和用途
