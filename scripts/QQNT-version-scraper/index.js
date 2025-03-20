@@ -197,7 +197,9 @@ async function main() {
     // 构建 Release 名称和 Tag
     const releaseName = `QQNT - Windows: ${windowsVersion}, Linux: ${linuxVersion}, macOS: ${macosVersion}`;
     // 移除空格和括号，并将下划线替换为短横线
-    const releaseTag = `QQNT-Windows-${windowsVersion.replace(/_/g, '-')}-Linux-${linuxVersion}-macOS-${macosVersion}`;
+    let releaseTag = `QQNT-Windows-${windowsVersion.replace(/_/g, '-')}-Linux-${linuxVersion}-macOS-${macosVersion}`;
+    // 移除括号和括号内的内容
+    releaseTag = releaseTag.replace(/\s*\([^)]*\)/g, '');
 
     // 输出所有平台的版本号作为 GitHub Actions 的 output
     console.log(`WINDOWS_VERSION=${windowsVersion}`);
