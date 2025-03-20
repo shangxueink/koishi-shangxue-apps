@@ -1,8 +1,8 @@
 import { Context, Schema, h, Tables } from 'koishi';
 import { } from 'koishi-plugin-puppeteer';
 import { } from 'koishi-plugin-monetary'
+import fs from 'node:fs';
 import path from 'node:path';
-import fs from 'fs';
 export const name = 'deer-pipe';
 export const usage = `
 <!DOCTYPE html>
@@ -181,20 +181,38 @@ export const Config: Schema = Schema.intersect([
     })).role('table').description('货币平衡设置——**特殊价格表**<br>需在`store_item`右侧白框填入`用户ID`或者`频道ID`<br>涉及游戏平衡，谨慎修改')
   }).description('monetary·通用货币设置'),
   Schema.object({
+    fontPath: Schema.string().description("渲染排行榜使用的字体（包含emoji）。<br>请填写`.ttf 字体文件`的绝对路径<br>若渲染功能正常，请不要修改此项！以免出现问题<br>仅供部分显示有问题的用户使用-> [Noto+Color+Emoji](https://fonts.google.com/noto/specimen/Noto+Color+Emoji)"),
     calendarImagePreset1: Schema.union([
       Schema.const('0').description('自定义路径（参见下方的路径选择配置项）'),
-      Schema.const('1').description('鹿管（默认）'),
-      Schema.const('2').description('心奈'),
+      Schema.const('1').description('鹿管（默认-预设1）'),
+      Schema.const('2').description('心奈（预设2）'),
     ]).role('radio').description("日历图片预设1-背景图").default("1"),
     calendarImagePreset2: Schema.union([
       Schema.const('0').description('自定义路径（参见下方的路径选择配置项）'),
-      Schema.const('1').description('红勾（默认）'),
-      Schema.const('2').description('壹佰分盖章'),
+      Schema.const('1').description('红勾（默认-预设1）'),
+      Schema.const('2').description('壹佰分盖章（预设2）'),
     ]).role('radio').description("日历图片预设2-完成符号").default("1"),
-    calendarImagePath1: Schema.path().description('日历每日背景图像路径（请选择图片）<br>使用方法详见[readme](https://github.com/shangxueink/koishi-shangxue-apps/tree/main/plugins/deer-pipe)').experimental(),
-    calendarImagePath2: Schema.path().description('日历每日完成标志路径（请选择图片）<br>使用方法详见[readme](https://github.com/shangxueink/koishi-shangxue-apps/tree/main/plugins/deer-pipe)').experimental(),
+  }).description('调试设置'),
+  Schema.union([
+    Schema.object({
+      calendarImagePreset1: Schema.const("0").required(),
+      calendarImagePath1: Schema.path().description('日历每日背景图像路径（请选择图片）<br>使用方法详见[readme](https://github.com/shangxueink/koishi-shangxue-apps/tree/main/plugins/deer-pipe)').experimental(),
+    }),
+    Schema.object({
+    }),
+  ]),
+  Schema.union([
+    Schema.object({
+      calendarImagePreset2: Schema.const("0").required(),
+      calendarImagePath2: Schema.path().description('日历每日完成标志路径（请选择图片）<br>使用方法详见[readme](https://github.com/shangxueink/koishi-shangxue-apps/tree/main/plugins/deer-pipe)').experimental(),
+    }),
+    Schema.object({
+    }),
+  ]),
+
+  Schema.object({
     console: Schema.boolean().description('启用调试日志输出模式').default(false).experimental(),
-  }).description('调试设置')
+  }).description('开发者选项'),
 ]);
 interface DeerPipeTable {
   userid: string;
@@ -245,6 +263,23 @@ export async function apply(ctx: Context, config) {
   const calendarImagePath2 = config.calendarImagePreset2 === '0' ? config.calendarImagePath2 : presetPaths2[config.calendarImagePreset2];
   const calendarpngimagebase64_1 = await readFileAsBase64(calendarImagePath1);
   const calendarpngimagebase64_2 = await readFileAsBase64(calendarImagePath2);
+  // 读取字体文件并转换为 Base64
+  let fontBase64 = '';
+  try {
+    const fontPath = config.fontPath?.trim()
+    if (fontPath) {
+      const fontData = await fs.promises.readFile(fontPath);
+      loggerinfo(`读取字体路径：${config.fontPath}`)
+      fontBase64 = fontData.toString('base64');
+    } else {
+      loggerinfo(`默认，没有指定字体。`)
+    }
+  } catch (error) {
+    ctx.logger.error(`读取字体文件失败: ${error}`);
+    // return; // 阻止插件加载
+  }
+
+
   const zh_CN_default = {
     commands: {
       "戴锁": {
@@ -737,6 +772,13 @@ export async function apply(ctx: Context, config) {
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>鹿管排行榜</title>
 <style>
+@font-face {
+  font-family: 'MiSans';
+  src: url(data:font/truetype;charset=utf-8;base64,${fontBase64}) format('truetype');
+}
+* { 
+  font-family: 'MiSans', sans-serif;
+}
 body {
 font-family: 'Microsoft YaHei', Arial, sans-serif;
 background-color: #f0f4f8;
