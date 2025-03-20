@@ -33,7 +33,21 @@ body:
     attributes:
       label: koishi webUI 的环境信息
       description: 请提供 `koishi webUI` 的环境信息，您可以在 `koishi webUI` 的 "关于" 页面或控制台日志中找到。例如：浏览器版本、操作系统版本等。
-      placeholder: 例如：System OS Windows 10 10.0.19045  CPU (16) x64 1xth Gen Intel(R) Core(TM) i5-12500H Binaries    Node 22.9.0    Yarn 4.5.3 Koishi    Core 4.18.7    Console 5.30.7
+      placeholder: |
+        ```
+        System:
+            OS: Windows 10 10.0.19045
+            CPU: (16) x64 12th Gen Intel(R) Core(TM) i5-12500H
+
+        Binaries:
+            Node: 22.9.0
+            Yarn: 4.5.3
+
+        Koishi:
+            Core: 4.18.7
+            Console: 5.30.7
+        ...
+        ```
     validations:
       required: true
 
