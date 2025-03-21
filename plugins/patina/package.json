@@ -1,7 +1,7 @@
 {
   "name": "koishi-plugin-patina",
-  "version": "1.5.0",
-  "description": "/*有趣HTML合集*/ 幻影坦克、电子包浆、蒸気機、斜着看、像素化... 许多有趣的功能，旨在通过 puppeteer 来让你的bot获得更多功能！",
+  "version": "2.0.0",
+  "description": "幻影坦克、像素化... 旨在通过 puppeteer 来让你的bot获得更多功能！",
   "main": "lib/index.js",
   "typings": "lib/index.d.ts",
   "files": [
@@ -12,8 +12,8 @@
     "koishi",
     "plugin",
     "puppeteer",
-    "神奇海螺",
-    "幻影坦克、电子包浆、蒸気機、斜着看"
+    "像素化",
+    "幻影坦克"
   ],
   "homepage": "https://github.com/shangxueink/koishi-shangxue-apps/tree/main/oishi-plugin-jrys-prpr",
   "bugs": {
