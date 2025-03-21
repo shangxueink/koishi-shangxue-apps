@@ -29,14 +29,13 @@ jobs:
       - name: 运行脚本生成 readme.html 🚀
         run: node ./scripts/koishi-shangxue-apps-list/readme.js
 
-      - name: 复制 readme.html 到 docs 目录并重命名为 index.html 📂
+      - name: 复制 readme.html 到根目录并重命名为 index.html 📂
         run: |
-          mkdir -p docs # 确保 docs 目录存在
-          cp ./scripts/koishi-shangxue-apps-list/readme.html ./docs/index.html # 复制并重命名为 index.html
-          echo "readme.html 已复制到 docs 目录并重命名为 index.html"
-          ls -l ./docs/ # 列出 docs 目录内容 (Debug)
+          cp ./scripts/koishi-shangxue-apps-list/readme.html ./index.html # 复制并重命名为 index.html
+          echo "readme.html 已复制到根目录并重命名为 index.html"
+          ls -l ./ # 列出根目录内容 (Debug)
 
-      - name: 提交 index.html 文件到 gh-pages 分支的 docs 目录 ➕
+      - name: 提交 index.html 文件到 gh-pages 分支 ➕
         run: |
           git config --global user.email "actions@github.com"
           git config --global user.name "GitHub Actions"
@@ -44,17 +43,11 @@ jobs:
           # 切换到 gh-pages 分支，如果不存在则创建
           git checkout --orphan gh-pages || git checkout gh-pages
 
-          # 创建 docs 目录 (如果不存在)
-          mkdir -p docs
+          # 删除 gh-pages 分支上的所有文件
+          git rm -rf .
 
-          # 删除 gh-pages 分支上的 docs 目录下的所有文件
-          rm -rf docs/*
-
-          # 将 index.html 移动到 gh-pages 分支的 docs 目录下
-          mv ./docs/index.html ./docs/
-
-          # 添加所有更改
-          git add .
+          # 将 index.html 添加到暂存区
+          git add ./index.html
 
           # 提交更改
           git commit -m "docs: 更新插件和脚本列表 (自动生成 index.html)"
