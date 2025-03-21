@@ -1,7 +1,7 @@
 {
   "name": "@shangxueink/koishi-plugin-qq-onebot",
-  "version": "1.0.0",
-  "description": "神秘小插件。自用插件哦~",
+  "version": "1.1.0",
+  "description": "神秘小插件。QQ官方bot+野生实现伪主动哦~",
   "main": "lib/index.js",
   "typings": "lib/index.d.ts",
   "files": [
@@ -22,7 +22,7 @@
   "koishi": {
     "description": {
       "en": "",
-      "zh": "神秘小插件。自用插件哦~"
+      "zh": "神秘小插件。QQ官方bot+野生实现伪主动哦~"
     }
   },
   "peerDependencies": {

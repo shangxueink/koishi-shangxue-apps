@@ -47,7 +47,21 @@ exports.Config = Schema.intersect([
             qqid: Schema.string().description('官方机器人的QQ号'),
             channelId: Schema.string().description('群组ID（QQ群号）'),
         })).role('table').description('应用的群组'),
+        APIused: Schema.union([
+            Schema.const('callback.elaina.vin').description('callback.elaina.vin'),
+            Schema.const('tsyfun.eu.org').description('tsyfun.eu.org'),
+            Schema.const('custom').description('自定义后端'),
+        ]).role('radio').description("使用的API后端").default("tsyfun.eu.org"),
     }).description('基础配置'),
+    Schema.union([
+        Schema.object({
+            APIused: Schema.const("custom").required(),
+            APIusedarea: Schema.string().role('textarea', { rows: [2, 4] }).description("自定义API地址<br>需要使用`${appConfig.qqappid}`和`${channelId}`变量替换，消息内容使用`${msg}`").default("http://callback.elaina.vin/?appid=${appConfig.qqappid}&group=${channelId}"),
+        }),
+        Schema.object({
+
+        }),
+    ]),
 
     Schema.object({
         enable_logger: Schema.boolean().default(false).description("日志调试模式"),
@@ -67,6 +81,7 @@ function apply(ctx, config) {
     ctx.middleware(async (session, next) => {
         // logInfo(session);
         if (session.platform === "onebot") {
+            logInfo(session.content)
             const appConfig = config.table2.find(item => item.channelId === session.channelId);
             // 忽略来自配置中 qqid 的消息
             if (appConfig && session.userId === appConfig.qqid) {
@@ -90,15 +105,29 @@ function apply(ctx, config) {
         if (cacheContent.length > 0) {
             //logInfo(`[收到消息] 频道：${channelId} 内容：${cacheContent}`);
             cache2Content = cacheContent;
+
+            logInfo(`onebot想发送的内容：${session.content}`)
             session.content = ""; // 清空发送内容
-
+            logInfo(`onebot想发送的内容(已经清空)：${session.content}`)
+            let callbackAPI
+            if (config.APIused === "callback.elaina.vin") {
+                callbackAPI = `http://callback.elaina.vin/?appid=${appConfig.qqappid}&group=${channelId}`;
+            } else if (config.APIused === "tsyfun.eu.org") {
+                callbackAPI = `https://tsyfun.eu.org/callback?appid=${appConfig.qqappid}&group=${channelId}&msg=`;
+            } else if (config.APIused === "custom") {
+                // 使用用户自定义的 API 地址，并替换变量
+                callbackAPI = config.APIusedarea
+                    .replace(/\${appConfig.qqappid}/g, appConfig.qqappid)
+                    .replace(/\${channelId}/g, channelId)
+                    .replace(/\${msg}/g, encodeURIComponent(cacheContent)); // 消息内容需要进行URI编码
+            }
+            logInfo(`使用的API：${callbackAPI}`)
             try {
-                const callbackAPI = `http://callback.elaina.vin/?appid=${appConfig.qqappid}&group=${channelId}`;
                 const data = await ctx.http.get(callbackAPI);
-
-                // 检查 API 返回的字符串是否包含“执行结果：真”
-                if (data.includes("执行结果：真")) {
-                    //logInfo(`[API请求成功] 频道：${channelId} 内容准备发送：${cache2Content}`);
+                logInfo(data)
+                // 检查 API 返回的字符串是否包含“执行结果”
+                if (data.includes("执行结果")) {
+                    logInfo(`[API请求成功] 频道：${channelId} 内容准备发送：${cache2Content}`);
                 } else {
                     ctx.logger.info(`[API请求失败] 频道：${channelId}`);
                 }
@@ -120,20 +149,21 @@ function apply(ctx, config) {
     }
 
     ctx.on("interaction/button", async session => {
+        logInfo("收到回调按钮消息！");
         // 解码 HTML 实体
         cache2Content = decodeHTMLEntities(cache2Content);
 
         // 正则表达式匹配 <at id="字符串" name="用户昵称"/> 或 <at id="字符串"/>
         const atRegex = /<at id="(\d+)"(?: name="([^"]*)")?\s*\/>/g;
 
-        // 替换成 @用户昵称 或 @id
-        cache2Content = cache2Content.replace(atRegex, (match, id, name) => {
-            return `@${name || id}`;
-        });
+        if (cache2Content?.trim().length > 0) {
+            // 替换成 @用户昵称 或 @id
+            cache2Content = cache2Content.replace(atRegex, (match, id, name) => {
+                return `@${name || id}`;
+            });
+            cache2Content = cache2Content.replace("@@", "@")
+            logInfo(`cache2Content内容为：${cache2Content}`);
 
-        logInfo(cache2Content);
-
-        if (cache2Content.trim().length > 0) {
             await session.send(cache2Content); // 发送缓存的内容
             cache2Content = "";
         }
