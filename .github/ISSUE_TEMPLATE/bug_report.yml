@@ -55,7 +55,7 @@ body:
     id: koishi-webui-deps   
     attributes:
       label: koishi webUI 的依赖列表（可选）
-      description: 请提供 `koishi webUI` 的依赖列表，您可以在 `koishi webUI` 的控制台日志中找到 `package.json` 的依赖信息。 如果不清楚，可以留空。请使用代码块包裹 (```)。
+      description: 请提供 `koishi webUI` 的依赖列表，您可以在 `koishi webUI` 的`依赖管理`找到依赖信息。 如果不清楚，可以留空。请使用代码块包裹 (```)。
       placeholder: |
         ```
         @koishijs/plugin-server	3.2.4 (最新)
