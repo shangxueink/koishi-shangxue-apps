@@ -36,7 +36,7 @@ jobs:
           echo "readme.html 已复制到 docs 目录并重命名为 index.html"
           ls -l ./docs/ # 列出 docs 目录内容 (Debug)
 
-      - name: 提交 index.html 文件到 gh-pages 分支 ➕
+      - name: 提交 index.html 文件到 gh-pages 分支的 docs 目录 ➕
         run: |
           git config --global user.email "actions@github.com"
           git config --global user.name "GitHub Actions"
@@ -44,11 +44,14 @@ jobs:
           # 切换到 gh-pages 分支，如果不存在则创建
           git checkout --orphan gh-pages || git checkout gh-pages
 
-          # 删除 gh-pages 分支上的所有文件
-          git rm -rf .
+          # 创建 docs 目录 (如果不存在)
+          mkdir -p docs
 
-          # 检出 main 分支的 docs 目录到当前 gh-pages 分支
-          git checkout main -- docs
+          # 删除 gh-pages 分支上的 docs 目录下的所有文件
+          rm -rf docs/*
+
+          # 将 index.html 移动到 gh-pages 分支的 docs 目录下
+          mv ./docs/index.html ./docs/
 
           # 添加所有更改
           git add .
