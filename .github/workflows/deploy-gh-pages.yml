@@ -22,8 +22,19 @@ jobs:
           node-version: 22
           cache: 'yarn' # 使用 yarn 缓存
 
-      - name: Install Dependencies
+      - name: Check if yarn.lock exists
+        id: check_yarn_lock
+        uses: andstor/file-existence-action@v3
+        with:
+          files: yarn.lock
+
+      - name: Install Dependencies (if yarn.lock doesn't exist)
+        if: steps.check_yarn_lock.outputs.exists == 'false'
         run: yarn install
+
+      - name: Install Dependencies (if yarn.lock exists)
+        if: steps.check_yarn_lock.outputs.exists == 'true'
+        run: yarn install --frozen-lockfile
 
       - name: Build VitePress Site
         run: yarn build
