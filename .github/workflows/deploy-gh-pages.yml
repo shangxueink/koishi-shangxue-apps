@@ -32,7 +32,9 @@ jobs:
           key: deps-${{ runner.os }}-${{ hashFiles('main/yarn.lock') }}
 
       - name: Install Dependencies
-        run: cd main && yarn install --frozen-lockfile
+        run: |
+          cd main
+          yarn install # 不使用 --frozen-lockfile，允许更新 yarn.lock
 
       - name: Build VitePress Site
         run: cd main && yarn build
