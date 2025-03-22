@@ -1,0 +1,1 @@
+import{_ as a,z as i,m as t,ap as o}from"./chunks/framework.Bhy9DMih.js";const p=JSON.parse('{"title":"项目简介📚","description":"","frontmatter":{},"headers":[],"relativePath":"index.md","filePath":"index.md"}'),s={name:"index.md"};function r(n,e,l,h,u,c){return t(),i("div",null,e[0]||(e[0]=[o("",11)]))}const m=a(s,[["render",r]]);export{p as __pageData,m as default};
