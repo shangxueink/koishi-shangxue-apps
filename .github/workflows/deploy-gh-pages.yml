@@ -26,10 +26,10 @@ jobs:
           cache: 'yarn' # 使用 yarn 缓存
 
       - name: Install Dependencies
-        run: cd main && yarn install
+        run: yarn install --cwd main # 指定 yarn.lock 文件的位置
 
       - name: Build VitePress Site
-        run: cd main && yarn build
+        run: yarn build --cwd main
 
       - name: Checkout gh-pages branch
         uses: actions/checkout@v4
