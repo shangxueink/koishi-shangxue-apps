@@ -23,13 +23,19 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: 'yarn' # 使用 yarn 缓存
+
+      - name: Cache Dependencies
+        uses: actions/cache@v3
+        id: cache-dependencies
+        with:
+          path: main/node_modules
+          key: deps-${{ runner.os }}-${{ hashFiles('main/yarn.lock') }}
 
       - name: Install Dependencies
-        run: yarn install --cwd main # 指定 yarn.lock 文件的位置
+        run: cd main && yarn install --frozen-lockfile
 
       - name: Build VitePress Site
-        run: yarn build --cwd main
+        run: cd main && yarn build
 
       - name: Checkout gh-pages branch
         uses: actions/checkout@v4
@@ -51,4 +57,3 @@ jobs:
           git add .
           git commit -m "Deploy VitePress site to gh-pages" || echo "No changes to commit"
           git push origin gh-pages
-
