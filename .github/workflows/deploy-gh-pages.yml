@@ -1,0 +1,36 @@
+name: Deploy VitePress Docs to GitHub Pages
+
+on:
+  push:
+    branches:
+      - gh-pages  # 仅在 gh-pages 分支推送时触发
+  workflow_dispatch:  # 允许手动触发
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: gh-pages # 检出 gh-pages 分支
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'yarn' # 使用 yarn 缓存
+
+      - name: Install Dependencies
+        run: yarn install
+
+      - name: Build VitePress Site
+        run: yarn build
+
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: docs/.vitepress/dist  # 构建输出目录
+          force_orphan: true # 如果 gh-pages 分支不存在，则强制创建
