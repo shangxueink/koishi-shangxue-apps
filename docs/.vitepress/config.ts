@@ -7,7 +7,6 @@ export default defineConfig({
   ignoreDeadLinks: true, // 忽略所有死链接
   head: [
     ['link', { rel: 'icon', href: 'https://koishi.chat/logo.png' }],
-    ['link', { rel: 'manifest', href: '/manifest.json' }],
     ['meta', { name: 'theme-color', content: '#5546a3' }],
   ],
 
