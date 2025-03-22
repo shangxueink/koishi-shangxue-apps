@@ -5,6 +5,7 @@ export default defineConfig({
   title: 'koishi-shangxue-apps',
   description: '是小学基于 Koishi 开发的各种插件！',
   ignoreDeadLinks: true, // 忽略所有死链接
+  base: '/docs/', // 添加 base 配置，确保路径正确
   head: [
     ['link', { rel: 'icon', href: 'https://koishi.chat/logo.png' }],
     ['meta', { name: 'theme-color', content: '#5546a3' }],
