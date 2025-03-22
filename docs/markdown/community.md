@@ -13,4 +13,3 @@
 | QQ 群    | [QQ 群 948266958](https://qm.qq.com/q/7C9E9rjR0Q)            | Koishi 官方用户群   |
 | 论坛     | [Koishi official forum](https://forum.koishi.xyz/)           | Koishi 官方论坛     |
 | 论坛     | [Koishi Unofficial forum](https://forum.itzdrli.cc/)         | Koishi 非官方论坛   |
-

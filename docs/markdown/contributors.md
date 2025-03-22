@@ -18,7 +18,7 @@
 
 ## 文档模板
 
-感谢 **`@koishijs/vitepress`** 和 **`@cordisjs/vitepress`** 提供的优秀文档模板。
+感谢 **[`@koishijs/vitepress`](https://github.com/koishijs/vitepress-theme)** 和 **[`@cordisjs/vitepress`](https://github.com/cordiverse/vitepress-theme)** 提供的优秀文档模板。
 
 ## 其他鸣谢
 
