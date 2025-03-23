@@ -30,6 +30,7 @@ export default defineConfig({
       {
         text: '社区与贡献',
         items: [
+          { text: '遇到问题', link: '/markdown/FAQ' },
           { text: '社区帮助', link: '/markdown/community' },
           { text: '编辑文档', link: '/markdown/gh-pages' },
           { text: '贡献鸣谢', link: '/markdown/contributors' },
@@ -38,7 +39,6 @@ export default defineConfig({
       {
         text: '其他',
         items: [
-          { text: '常见问题', link: '/markdown/FAQ' },
           { text: '项目地址', link: 'https://github.com/shangxueink/koishi-shangxue-apps/tree/main' },
           { text: '许可证', link: 'https://github.com/shangxueink/koishi-shangxue-apps/blob/main/LICENSE' },
           { text: '支持作者', link: 'https://afdian.com/a/shangxue' },
