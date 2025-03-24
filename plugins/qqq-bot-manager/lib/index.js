@@ -215,12 +215,9 @@ function apply(ctx, config) {
 
   ctx.command(`${config.commandName}.${config.logincommandName}`)
     .action(async ({ session }) => {
-      if (config.onlysessiondirect) {
-        if (!session.isDirect) {
-          return '请在私聊中使用此指令';
-        }
+      if (config.onlysessiondirect && !session.isDirect) {
+        return '请在私聊中使用此指令';
       }
-
       const userId = session.userId;
 
       if (loginStatus[userId] && loginStatus[userId].loginTime) {
@@ -345,6 +342,9 @@ function apply(ctx, config) {
 
   ctx.command(`${config.commandName}.${config.cancellogincommandName}`) // 取消登录指令
     .action(async ({ session }) => {
+      if (config.onlysessiondirect && !session.isDirect) {
+        return '请在私聊中使用此指令';
+      }
       const userId = session.userId;
       if (loginStatus[userId] && loginStatus[userId].loginTime) {
         delete loginStatus[userId]; // 清除登录状态，取消登录
@@ -358,6 +358,9 @@ function apply(ctx, config) {
 
   ctx.command(`${config.commandName}.${config.messagecommandName} [innumber:number]`)
     .action(async ({ session }, innumber) => {
+      if (config.onlysessiondirect && !session.isDirect) {
+        return '请在私聊中使用此指令';
+      }
       const userId = session.userId;
       const userLoginInfo = loginStatus[userId];
 
