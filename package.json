@@ -7,7 +7,6 @@
   "devDependencies": {
     "@vueuse/core": "13.0.0",
     "typescript": "5.8.2",
-    "vitepress": "1.6.3",
     "vue-tsc": "2.2.8"
   },
   "dependencies": {
