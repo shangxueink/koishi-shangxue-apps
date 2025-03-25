@@ -73,6 +73,9 @@ exports.Config = Schema.intersect([
     }).description('高级设置'),
     Schema.object({
         broadcast: Schema.boolean().default(false).description("是否遍历数据库qq平台的`群组` 以实现广播推送主动消息 `谨慎开启！`"),
+        broadcastcooldowntime: Schema.number().default(100).description("每个群组的广播间隔（毫秒）。<br>例如：` 1000 即为1秒，100 即为0.1秒`"),
+    }).description('广播设置'),
+    Schema.object({
         consoleinfo: Schema.boolean().default(false).description("日志调试模式`日常使用无需开启`"),
     }).description('调试设置'),
 ])
@@ -82,6 +85,7 @@ let lastBroadcastTime = 0;
 const broadcastCooldown = 15 * 60 * 1000;
 // 用于存储已发送消息的 channelId，每次广播后重新填充并逐步清空
 let sentChannelIds = new Set();
+
 function apply(ctx, config) {
     ctx.on('ready', () => {
         // 使用配置项中的 file_name 数组构建 baseDir 路径
@@ -117,7 +121,7 @@ function apply(ctx, config) {
                 if (buttoncontent) {
                     logInfo(`接收到回调按钮内容：\n${buttoncontent}`)
                     try {
-                        session.qq.acknowledgeInteraction(session.event._data.id, { code: 0 }).catch(error => {     // 非阻塞执行 
+                        session.qq.acknowledgeInteraction(session.event._data.id, { code: 0 }).catch(error => {     // 非阻塞执行
                             ctx.logger.error(`执行 acknowledgeInteraction 时出错 (后台任务):`, error);
                             // 只记录错误
                         });
@@ -155,7 +159,7 @@ function apply(ctx, config) {
                     if (!config.broadcast) {
                         await sendsomeMessage(Menu_message, session);
                     } else {
-                        // 检查是否在冷却时间内
+                        // 检查是否在冷却时间内 (防止用户不小心多次触发指令)
                         const now = Date.now();
                         if (now - lastBroadcastTime < broadcastCooldown) {
                             const timeLeft = Math.ceil((broadcastCooldown - (now - lastBroadcastTime)) / 60000);
@@ -204,7 +208,9 @@ function apply(ctx, config) {
                             } else if (session.qqguild) {
                                 await session.qqguild.sendMessage(channelId, message); // 理论上广播到群组应该用 session.qq
                             }
-                            logInfo(`已向群组频道 ${channelId} 发送广播消息。`);
+                            logInfo(`已向群组频道 ${channelId} 发送广播消息。${config.broadcastcooldowntime} ms后广播下一个群组。`);
+                            // 关键修改：等待 broadcastcooldowntime 毫秒
+                            await new Promise(resolve => ctx.setTimeout(resolve, config.broadcastcooldowntime));
                         } else {
                             logInfo(`群组频道记录 ${channel} 缺少 channelId 或已发送，跳过发送。`);
                         }
@@ -274,7 +280,7 @@ function apply(ctx, config) {
                 allVariables.markdown = markdownContent;
                 const rawJsonObject = JSON.parse(rawJsonData);
                 const replacedJsonObject = replacePlaceholders(rawJsonObject);
-                // 根据 session.messageId 是否存在，动态删除 JSON 对象中不需要的 ID 字段 
+                // 根据 session.messageId 是否存在，动态删除 JSON 对象中不需要的 ID 字段
                 if (session.messageId) {
                     if (replacedJsonObject.msg_id) { // 检查 msg_id 字段是否存在
                         // session.messageId 存在，删除 event_id
