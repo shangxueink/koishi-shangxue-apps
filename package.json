@@ -4,14 +4,13 @@
   "main": "index.js",
   "license": "MIT",
   "type": "module",
-  "devDependencies": {
-    "@vueuse/core": "13.0.0",
-    "typescript": "5.8.2",
-    "vue-tsc": "2.2.8"
-  },
   "dependencies": {
-    "@cordisjs/vitepress": "4.0.1",
-    "vue": "3"
+    "@cordisjs/vitepress": "^4.0.1",
+    "@vueuse/core": "^13.0.0",
+    "typescript": "^5.8.2",
+    "vitepress": "^1.6.3",
+    "vue": "3",
+    "vue-tsc": "^2.2.8"
   },
   "scripts": {
     "dev": "vitepress dev docs",
