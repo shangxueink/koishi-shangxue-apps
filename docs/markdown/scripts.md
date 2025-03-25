@@ -1,9 +1,14 @@
 # 小工具合集
 
-## Koimux
+## Koimux ！
 [**戳我看项目地址**](https://github.com/shangxueink/koishi-shangxue-apps/tree/main/scripts/termux) 
 
 为 [`ZeroTermux`](https://github.com/hanxinhao000/ZeroTermux/releases) 环境制作的 搭建koishi项目模板 的`TUI交互`工具。
+
+## Koinix ！
+[**戳我看项目地址**](https://github.com/shangxueink/koishi-shangxue-apps/tree/main/scripts/linux) 
+
+为 `Linux`无桌面环境写的`TUI交互`工具。
 
 ## Bilibili专栏原图链接提取2024改版
 [**戳我看项目地址**](https://github.com/shangxueink/koishi-shangxue-apps/tree/main/scripts/Bilibili专栏原图链接提取2024改版) 
