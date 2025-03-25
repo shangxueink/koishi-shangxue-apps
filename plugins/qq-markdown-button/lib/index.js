@@ -79,26 +79,33 @@ exports.Config = Schema.intersect([
             broadcast: Schema.const(true).required(),
             broadcastcooldowntime: Schema.number().default(100).description("每个群组的广播间隔（毫秒）。<br>例如：` 1000 即为1秒，100 即为0.1秒`"),
             broadcastblakclist: Schema.array(String).role('table').description("屏蔽广播的频道ID列表。<br>广播时 不对下面的群组处理。不影响其他情况。"),
+            antitouchCooldown: Schema.number().default(30).description("指令可用间隔（分钟）。防止误触导致的多次触发。"),
         }),
         Schema.object({
         }),
     ]),
     Schema.object({
-        consoleinfo: Schema.boolean().default(false).description("日志调试模式`日常使用无需开启`"),
+        consoleinfo: Schema.boolean().default(false).description("日志调试模式`推荐主动广播时开启，以查看日志错误`"),
     }).description('调试设置'),
-])
-// 用于存储上次广播的时间戳
-let lastBroadcastTime = 0;
-// 广播冷却时间 (15 分钟)
-const broadcastCooldown = 15 * 60 * 1000;
-// 用于存储已发送消息的 channelId，每次广播后重新填充并逐步清空
-let sentChannelIds = new Set();
+    Schema.object({
+        RangeBroadcasting: Schema.boolean().default(false).description("范围广播测试。模拟数据库的全部群组数据`非开发者请勿改动`"),
+        RangeBroadcastList: Schema.array(String).role('table').description("范围广播测试。模拟全部群组数据。填入所需广播的频道ID。`非开发者请勿改动`"),
+    }).description('开发者选项'),
 
+])
 function apply(ctx, config) {
+    // 用于存储上次广播的时间戳
+    let lastBroadcastTime = 0;
+    // 用于存储已发送消息的 channelId，每次广播后重新填充并逐步清空
+    let sentChannelIds = new Set();
+    // 广播冷却时间 (15 分钟)
+    const broadcastCooldown = config.antitouchCooldown * 60 * 1000;
+
     ctx.on('ready', () => {
         // 使用配置项中的 file_name 数组构建 baseDir 路径
         const baseDirArray = [ctx.baseDir].concat(config.file_name);
         const baseDir = path.join(...baseDirArray);
+        logInfo(baseDir)
         // 确保目录存在，如果不存在则创建 (包括子目录)
         if (!fs.existsSync(baseDir)) {
             fs.mkdirSync(baseDir, { recursive: true });
@@ -183,6 +190,7 @@ function apply(ctx, config) {
                     ctx.logger.error(`处理命令时出错: ${error}`);
                 }
             });
+
         function logInfo(message, message2) {
             if (config.consoleinfo) {
                 if (message2) {
@@ -194,19 +202,42 @@ function apply(ctx, config) {
         }
         async function sendbroadcastMessage(message, session) {
             try {
-                // 获取所有 QQ 平台的群组列表
-                const channels = await ctx.database.get('channel', {
-                    platform: "qq",
-                });
+                let channels;
+                if (config.RangeBroadcasting) {
+                    // 当 RangeBroadcasting 为 true 时，使用 RangeBroadcastList 中的频道 ID
+                    if (config.RangeBroadcastList && config.RangeBroadcastList.length > 0) {
+                        channels = config.RangeBroadcastList.map(channelId => ({ id: channelId })); // 模拟数据库返回的频道对象数组，每个对象至少包含 id 属性
+                        logInfo(`[范围广播测试] 使用配置项 RangeBroadcastList 中的 ${channels.length} 个频道 ID 进行广播.`);
+                    } else {
+                        logInfo("[范围广播测试] RangeBroadcasting 已开启，但 RangeBroadcastList 为空，广播已取消。");
+                        return;
+                    }
+                } else {
+                    // 否则，从数据库获取所有 QQ 平台的群组列表 (原有逻辑)
+                    channels = await ctx.database.get('channel', {
+                        platform: "qq",
+                    });
+                }
+
+
                 if (!channels || channels.length === 0) {
                     logInfo("没有找到任何 QQ 群组频道，广播消息已取消。");
                     return;
                 }
-                logInfo(`开始向 ${channels.length} 个 QQ 群组频道广播消息...`);
+                const totalChannels = channels.length;
+                logInfo(`开始向 ${totalChannels} 个 QQ 群组频道广播消息...`);
+
                 // 在广播前，填充 sentChannelIds
                 sentChannelIds = new Set(channels.map(channel => channel.id));
+
+                // 用于存储广播失败的群组及其原因
+                const failedChannels = {};
+
+                const startTime = Date.now();
+
                 // 遍历群组列表并发送消息
-                for (const channel of channels) {
+                for (let i = 0; i < channels.length; i++) {
+                    const channel = channels[i];
                     try {
                         const channelId = channel.id; // 从数据库记录中获取 channelId
 
@@ -222,7 +253,8 @@ function apply(ctx, config) {
                             } else if (session.qqguild) {
                                 await session.qqguild.sendMessage(channelId, message); // 理论上广播到群组应该用 session.qq
                             }
-                            logInfo(`已向群组频道 ${channelId} 发送广播消息。${config.broadcastcooldowntime} ms后广播下一个群组。`);
+                            const progress = Math.round(((i + 1) / totalChannels) * 100);
+                            logInfo(`已向群组频道 ${channelId} 发送广播消息。${config.broadcastcooldowntime} ms后广播下一个群组。当前进度${progress}%`);
                             // 等待 broadcastcooldowntime 毫秒
                             await new Promise(resolve => ctx.setTimeout(resolve, config.broadcastcooldowntime));
                         } else {
@@ -230,6 +262,7 @@ function apply(ctx, config) {
                         }
                     } catch (error) {
                         ctx.logger.error(`向群组频道 ${channel.id} 广播消息时出错:`, error);
+                        failedChannels[channel.id] = error.message || 'Unknown error';
                         // 出错了也继续广播
                     } finally {
                         // 无论成功与否，都从 sentChannelIds 中移除，确保最终清空
@@ -242,7 +275,22 @@ function apply(ctx, config) {
                         }
                     }
                 }
-                logInfo("QQ 群组频道广播消息发送完成。");
+
+                const endTime = Date.now();
+                const duration = Math.round((endTime - startTime) / 1000); // 总耗时，单位秒
+                const minutes = Math.floor(duration / 60);
+                const seconds = duration % 60;
+
+                let failedMessage = "";
+                if (Object.keys(failedChannels).length > 0) {
+                    failedMessage = "\n本次广播有以下群组未能成功广播：\n" + Object.entries(failedChannels)
+                        .map(([channelId, error]) => `${channelId}: ${error}`)
+                        .join('\n');
+                }
+
+                logInfo(`QQ 群组频道广播消息发送完成。`);
+                logInfo(`本次广播共耗时${minutes}分钟${seconds}秒。${failedMessage}`);
+
                 // 清空 sentChannelIds
                 sentChannelIds.clear();
             } catch (error) {
