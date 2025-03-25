@@ -298,7 +298,8 @@ function create_koishi_instance {
 
     yarn create koishi
 
-    # main_menu  # 创建后不立即返回主菜单
+    # 退出脚本，不再返回 UI
+    exit 0
 }
 
 # 删除 Koishi 实例 
@@ -338,14 +339,9 @@ function koishi_control {
                         3>&1 1>&2 2>&3)
 
         case $choice in
-            1)
-                clear
+            1)                
                 echo "正在启动 Koishi，请稍候..."
-                cd "$KOISHI_APP_DIR" || { dialog --msgbox "无法进入目录: $KOISHI_APP_DIR" 6 50; return 1; }
-                # yarn start &  # 后台运行
-                yarn start   # 前台运行
-                echo "Koishi 已启动，请查看 Koishi 控制台。"
-                #confirm_return  # 启动后不立即返回主菜单
+                run_command "yarn start" "$KOISHI_APP_DIR" "启动 Koishi"
                 ;;
             2)
                 run_command "yarn" "$KOISHI_APP_DIR" "整理依赖"
