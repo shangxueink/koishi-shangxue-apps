@@ -13,42 +13,66 @@ exports.inject = {
 };
 exports.usage = `
 <div>
-  <p>本插件可帮助你自定义QQ官方机器人按钮菜单，支持以下三种类型的菜单配置：</p>
-  <ol>
-    <li><strong>JSON 按钮</strong>：可以发送带有交互按钮的JSON消息。</li>
-    <li><strong>被动模板 Markdown</strong>：适用于发送自定义的Markdown模板消息。</li>
-    <li><strong>原生 Markdown</strong>：支持发送更复杂的原生Markdown消息。</li>
-  </ol>
+<p>本插件可帮助你自定义QQ官方机器人按钮菜单，支持以下三种类型的菜单配置：</p>
+<ol>
+<li><strong>JSON 按钮</strong>：可以发送带有交互按钮的JSON消息。</li>
+<li><strong>被动模板 Markdown</strong>：适用于发送自定义的Markdown模板消息。</li>
+<li><strong>原生 Markdown</strong>：支持发送更复杂的原生Markdown消息。</li>
+</ol>
 
-  <h3>如何配置</h3>
-  <ul>
-    <li>在左侧活动栏找到【资源管理器】->【data】->【qq-markdown-button】->【按钮菜单配置1】目录，在该目录下，你会看到对应的文件夹下有<code>.md</code> 和 <code>.json</code> 文件。</li>
-    <li>根据你选择的菜单类型，编辑对应的 <code>.md</code> 和 <code>.json</code> 文件，修改你的菜单配置。</li>
-  </ul>
+<h3>如何配置</h3>
+<ul>
+<li>在左侧活动栏找到【资源管理器】->【data】->【qq-markdown-button】->【按钮菜单配置1】目录，在该目录下，你会看到对应的文件夹下有<code>.md</code> 和 <code>.json</code> 文件。</li>
+<li>根据你选择的菜单类型，编辑对应的 <code>.md</code> 和 <code>.json</code> 文件，修改你的菜单配置。</li>
+</ul>
 
-  <h3>关于变量替换</h3>
-  <p>在配置文件（例如 <code>.json</code>）中，你可能会看到一些变量占位符，如：</p>
-  <ul>
-    <li><code>\${session.messageId}</code>：运行时会替换为当前会话的消息ID。</li>
-    <li><code>\${INTERACTION_CREATE}</code>：运行时会替换为当前回调按钮的interaction_id。</li>
-    <li><code>\${markdown}</code>：会被替换为从对应 <code>.md</code> 文件读取的Markdown内容。</li>
-  </ul>
-  <p>无需手动修改这些变量，它们将在运行时自动替换为相应的真实值。</p>
+<h3>关于变量替换</h3>
+<p>在配置文件（例如 <code>.json</code>）中，你可能会看到一些变量占位符，如：</p>
+<ul>
+<li><code>\${session.messageId}</code>：运行时会替换为当前会话的消息ID。</li>
+<li><code>\${INTERACTION_CREATE}</code>：运行时会替换为当前回调按钮的interaction_id。</li>
+<li><code>\${markdown}</code>：会被替换为从对应 <code>.md</code> 文件读取的Markdown内容。</li>
+</ul>
+<p>无需手动修改这些变量，它们将在运行时自动替换为相应的真实值。</p>
 
-  <p>支持重用，你可以开多个这个插件，然后改成不同的指令名称/文件夹名称，以注册多个按钮菜单功能</p>
-  <p>本插件会自动使用对应的文件夹下的 json / markdown 文件来发送消息<br>使用多重配置时，你通常只需要修改 <code>按钮菜单配置1</code> 那一行</p>
-  <p>不要手动重命名 json/md文件！</p>
-  <hr>
-  <p>赶快选择你需要的配置，开始自定义你的菜单吧！</p>
-  <p>更多说明 <a href="https://github.com/shangxueink/koishi-shangxue-apps/tree/main/plugins/qq-markdown-button" target="_blank">详见➩项目README</a></p>
+<h3>新增功能说明</h3>
+<h4>1. 频道数据导入导出功能</h4>
+<ul>
+<li><strong>导出功能</strong>：可以将当前数据库中的QQ频道数据导出为JSON文件。</li>
+<li><strong>导出的文件地址</strong>：<code>data/qq-markdown-button/按钮菜单配置1/channelofqq.json</code>。</li>
+<li><strong>导入功能</strong>：可以将导出的JSON文件内容导入到数据库中，支持增量导入（跳过已存在的频道数据）。</li>
+<li><strong>导入的内容地址</strong>：<code>data/qq-markdown-button/按钮菜单配置1/channelofqq.json</code>。</li>
+</ul>
 
-  <p>相关链接：</p>
-  <ul>
-    <li><a href="https://github.com/shangxueink/koishi-shangxue-apps/tree/main/plugins/qq-markdown-button" target="_blank">https://github.com/shangxueink/koishi-shangxue-apps/tree/main/plugins/qq-markdown-button</a></li>
-    <li><a href="https://forum.koishi.xyz/t/topic/10439" target="_blank">https://forum.koishi.xyz/t/topic/10439</a></li>
-  </ul>
+<h4>2. 屏蔽广播的频道ID列表功能</h4>
+<ul>
+<li>在广播消息时，可以指定某些频道ID不进行广播。</li>
+<li>这些频道ID会被添加到屏蔽列表中，广播时会自动跳过这些频道。</li>
+<li>屏蔽列表可以在配置项中设置，支持动态修改。</li>
+</ul>
+
+<h4>3. 群组广播间隔功能</h4>
+<ul>
+<li>在广播消息时，可以设置每个群组的广播间隔时间。</li>
+<li>间隔时间以毫秒为单位，例如：<code>1000</code> 表示1秒，<code>100</code> 表示0.1秒。</li>
+<li>该功能可以有效控制广播速度，避免对服务器造成过大压力。</li>
+</ul>
+
+<p>支持重用，你可以开多个这个插件，然后改成不同的指令名称/文件夹名称，以注册多个按钮菜单功能</p>
+<p>本插件会自动使用对应的文件夹下的 json / markdown 文件来发送消息<br>使用多重配置时，你通常只需要修改 <code>按钮菜单配置1</code> 那一行</p>
+<p>不要手动重命名 json/md文件！</p>
+<hr>
+<p>赶快选择你需要的配置，开始自定义你的菜单吧！</p>
+<p>更多说明 <a href="https://github.com/shangxueink/koishi-shangxue-apps/tree/main/plugins/qq-markdown-button" target="_blank">详见➩项目README</a></p>
+
+<p>相关链接：</p>
+<ul>
+<li><a href="https://github.com/shangxueink/koishi-shangxue-apps/tree/main/plugins/qq-markdown-button" target="_blank">https://github.com/shangxueink/koishi-shangxue-apps/tree/main/plugins/qq-markdown-button</a></li>
+<li><a href="https://forum.koishi.xyz/t/topic/10439" target="_blank">https://forum.koishi.xyz/t/topic/10439</a></li>
+</ul>
 </div>
 `;
+
 exports.Config = Schema.intersect([
     Schema.object({
         command_name: Schema.string().default('按钮菜单').description('注册的指令名称'),
@@ -87,11 +111,29 @@ exports.Config = Schema.intersect([
     Schema.object({
         consoleinfo: Schema.boolean().default(false).description("日志调试模式`推荐主动广播时开启，以查看日志错误`"),
     }).description('调试设置'),
-    Schema.object({
-        RangeBroadcasting: Schema.boolean().default(false).description("范围广播测试。模拟数据库的全部群组数据`非开发者请勿改动`"),
-        RangeBroadcastList: Schema.array(String).role('table').description("范围广播测试。模拟全部群组数据。填入所需广播的频道ID。`非开发者请勿改动`"),
-    }).description('开发者选项'),
 
+    Schema.object({
+        channelcommand: Schema.boolean().default(false).description("是否启用 数据库channel导入导出功能。<br>多开 本插件时 务必 注意 指令 不要重复。").experimental(),
+    }).description('数据导入设置'),
+    Schema.union([
+        Schema.object({
+            channelcommand: Schema.const(true).required(),
+            command_name_channelout: Schema.string().default('channel导出').description('导出channel表 注册的指令名称<br>注意数据会导出到`file_name`配置项下的`channelofqq.json`文件。').experimental(),
+            command_name_channelin: Schema.string().default('channel导入').description('导出channel表 注册的指令名称').experimental(),
+        }),
+        Schema.object({}),
+    ]),
+
+    Schema.object({
+        RangeBroadcasting: Schema.boolean().default(false).description("范围广播测试。模拟数据库的全部群组数据`非开发者请勿改动`").experimental(),
+    }).description('开发者选项'),
+    Schema.union([
+        Schema.object({
+            RangeBroadcasting: Schema.const(true).required(),
+            RangeBroadcastList: Schema.array(String).role('table').description("范围广播测试。模拟全部群组数据。填入所需广播的频道ID。`非开发者请勿改动`").experimental(),
+        }),
+        Schema.object({}),
+    ]),
 ])
 function apply(ctx, config) {
     // 用于存储上次广播的时间戳
@@ -148,6 +190,7 @@ function apply(ctx, config) {
                 }
             })
         }
+
         ctx.command(`${config.command_name}`, '发送按钮菜单')
             .action(async ({ session }) => {
                 if (!(session.platform === "qq" || session.platform === "qqguild")) {
@@ -190,6 +233,90 @@ function apply(ctx, config) {
                     ctx.logger.error(`处理命令时出错: ${error}`);
                 }
             });
+
+        if (config.channelcommand) {
+
+            ctx.command(`${config.command_name_channelout}`, '导出 QQ 频道数据')
+                .action(async ({ session }) => {
+                    const baseDirArray = [ctx.baseDir].concat(config.file_name);
+                    const baseDir = path.join(...baseDirArray);
+                    const exportPath = path.join(baseDir, 'channelofqq.json');
+
+                    try {
+                        const channels = await ctx.database.get('channel', { platform: "qq" });
+                        const jsonData = JSON.stringify(channels, null, 2);
+
+                        // 确保目录存在
+                        if (!fs.existsSync(baseDir)) {
+                            fs.mkdirSync(baseDir, { recursive: true });
+                        }
+
+                        fs.writeFileSync(exportPath, jsonData);
+                        logInfo(`已将 ${channels.length} 条 QQ 频道数据导出到 ${exportPath}`);
+                        await session.send(`已将 ${channels.length} 条 QQ 频道数据导出到 ${exportPath}`);
+                    } catch (error) {
+                        ctx.logger.error(`导出 QQ 频道数据时出错:`, error);
+                        await session.send(`导出 QQ 频道数据时出错: ${error.message}`);
+                    }
+                });
+
+            ctx.command(`${config.command_name_channelin}`, '导入 QQ 频道数据')
+                .action(async ({ session }) => {
+                    const baseDirArray = [ctx.baseDir].concat(config.file_name);
+                    const baseDir = path.join(...baseDirArray);
+                    const importPath = path.join(baseDir, 'channelofqq.json');
+
+                    try {
+                        if (!fs.existsSync(importPath)) {
+                            await session.send(`未找到导入文件 ${importPath}`);
+                            return;
+                        }
+
+                        const rawData = fs.readFileSync(importPath, 'utf-8');
+                        const channels = JSON.parse(rawData);
+
+                        if (!Array.isArray(channels)) {
+                            await session.send('导入文件内容格式不正确，应为数组');
+                            return;
+                        }
+
+                        const total = channels.length;
+                        let imported = 0;
+
+                        for (let i = 0; i < total; i++) {
+                            const channel = channels[i];
+                            try {
+                                // 检查是否已存在相同 id 和 platform 的数据，避免重复插入
+                                const existingChannels = await ctx.database.get('channel', { id: channel.id, platform: channel.platform });
+                                if (existingChannels.length > 0) {
+                                    logInfo(`频道 ${channel.id} (${channel.platform}) 已存在，跳过导入`);
+                                } else {
+                                    await ctx.database.create('channel', channel);
+                                    imported++;
+                                    logInfo(`已导入频道 ${channel.id} (${channel.platform})`);
+                                }
+                            } catch (error) {
+                                ctx.logger.error(`导入频道 ${channel.id} (${channel.platform}) 时发生错误：${error.message}`);
+                            }
+                            const progress = Math.round(((i + 1) / total) * 100);
+                            logInfo(`导入进度：${progress}%`);
+
+                            // 添加 10ms 间隔
+                            await new Promise(resolve => ctx.setTimeout(resolve, 10));
+
+                        }
+
+                        logInfo(`数据库写入完成！成功导入 ${imported} 条频道数据，跳过 ${total - imported} 条已存在数据。`);
+                        await session.send(`数据库写入完成！成功导入 ${imported} 条频道数据，跳过 ${total - imported} 条已存在数据。`);
+
+                    } catch (error) {
+                        ctx.logger.error(`导入 QQ 频道数据时出错:`, error);
+                        await session.send(`导入 QQ 频道数据时出错: ${error.message}`);
+                    }
+                });
+
+
+        }
 
         function logInfo(message, message2) {
             if (config.consoleinfo) {
