@@ -119,7 +119,7 @@ exports.Config = Schema.intersect([
         Schema.object({
             channelcommand: Schema.const(true).required(),
             command_name_channelout: Schema.string().default('channel导出').description('导出channel表 注册的指令名称<br>注意数据会导出到`file_name`配置项下的`channelofqq.json`文件。').experimental(),
-            command_name_channelin: Schema.string().default('channel导入').description('导出channel表 注册的指令名称').experimental(),
+            command_name_channelin: Schema.string().default('channel导入').description('导入channel表 注册的指令名称<br>注意数据会从`file_name`配置项下的`channelofqq.json`文件导入到你的数据库！请提前放好文件。').experimental(),
         }),
         Schema.object({}),
     ]),
