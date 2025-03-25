@@ -73,8 +73,16 @@ exports.Config = Schema.intersect([
     }).description('高级设置'),
     Schema.object({
         broadcast: Schema.boolean().default(false).description("是否遍历数据库qq平台的`群组` 以实现广播推送主动消息 `谨慎开启！`"),
-        broadcastcooldowntime: Schema.number().default(100).description("每个群组的广播间隔（毫秒）。<br>例如：` 1000 即为1秒，100 即为0.1秒`"),
     }).description('广播设置'),
+    Schema.union([
+        Schema.object({
+            broadcast: Schema.const(true).required(),
+            broadcastcooldowntime: Schema.number().default(100).description("每个群组的广播间隔（毫秒）。<br>例如：` 1000 即为1秒，100 即为0.1秒`"),
+            broadcastblakclist: Schema.array(String).role('table').description("屏蔽广播的频道ID列表。<br>广播时 不对下面的群组处理。不影响其他情况。"),
+        }),
+        Schema.object({
+        }),
+    ]),
     Schema.object({
         consoleinfo: Schema.boolean().default(false).description("日志调试模式`日常使用无需开启`"),
     }).description('调试设置'),
@@ -201,6 +209,12 @@ function apply(ctx, config) {
                 for (const channel of channels) {
                     try {
                         const channelId = channel.id; // 从数据库记录中获取 channelId
+
+                        if (config.broadcastblakclist && config.broadcastblakclist.includes(channelId)) {
+                            logInfo(`群组频道 ${channelId} 在广播黑名单中，跳过发送。`);
+                            continue; // 跳过当前频道
+                        }
+
                         if (channelId && sentChannelIds.has(channelId)) {
                             logInfo(`正在向群组频道 ${channelId} 发送广播消息...`);
                             if (session.qq) {
@@ -209,7 +223,7 @@ function apply(ctx, config) {
                                 await session.qqguild.sendMessage(channelId, message); // 理论上广播到群组应该用 session.qq
                             }
                             logInfo(`已向群组频道 ${channelId} 发送广播消息。${config.broadcastcooldowntime} ms后广播下一个群组。`);
-                            // 关键修改：等待 broadcastcooldowntime 毫秒
+                            // 等待 broadcastcooldowntime 毫秒
                             await new Promise(resolve => ctx.setTimeout(resolve, config.broadcastcooldowntime));
                         } else {
                             logInfo(`群组频道记录 ${channel} 缺少 channelId 或已发送，跳过发送。`);
@@ -235,6 +249,7 @@ function apply(ctx, config) {
                 ctx.logger.error(`获取 QQ 群组频道列表或广播消息时出错:`, error);
             }
         }
+
         async function sendsomeMessage(message, session) {
             try {
                 const { guild, user } = session.event;
