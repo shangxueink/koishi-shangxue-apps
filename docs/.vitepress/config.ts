@@ -30,8 +30,12 @@ export default defineConfig(
           "text": "插件与工具",
           "items": [
             {
-              "text": "功能展示",
+              "text": "插件展示",
               "link": "/markdown/pluginsbeshowed"
+            },
+            {
+              "text": "脚本展示",
+              "link": "/markdown/scriptsbeshowed"
             },
             {
               "text": "插件列表",
