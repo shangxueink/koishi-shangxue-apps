@@ -62,7 +62,7 @@ exports.Config = Schema.intersect([
     searchaddress: Schema.union([
       Schema.const('https://registry.npmjs.org/').description('官方 NPM 镜像 (registry.npmjs.org)'),
       Schema.const('https://registry.npmmirror.com/').description('淘宝 NPM 镜像 (registry.npmmirror.com)'),
-    ]).default('https://registry.npmmirror.com/').description("使用的 NPM 平台地址").role('radio'),
+    ]).default('https://registry.npmmirror.com/').description("使用的 NPM 平台地址<br>暂时仅支持npm淘宝镜像源，官方源有严重的问题").disabled().role('radio'),
     bundlePath: Schema.string().default('./bundle.json').description("分类文件（bundle.json）的相对路径。相对于本插件的`index.js`目录<br>存本地是为了解决网络问题，原地址：https://koishi-registry.github.io/categories/bundle.json<br>默认使用本地json。若此项非默认值，则使用网络json"),
     responsetimeout: Schema.number().default(25).min(10).description("请求数据的超时时间（秒）"),
     retryDelay: Schema.number().default(1).min(0.1).description("请求失败时的重试间隔（秒）"),
