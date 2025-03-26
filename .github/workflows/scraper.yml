@@ -25,7 +25,9 @@ jobs:
           node-version: '22'
 
       - name: 安装依赖 📦
-        run: npm install cheerio
+        run: |
+          cd ./scripts/QQNT-version-scraper/
+          npm install
 
       - name: 显示当前工作目录 📂 (Debug)
         run: pwd
