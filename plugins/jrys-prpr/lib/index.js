@@ -1184,7 +1184,7 @@ ${dJson.unsignText}
     const md5 = crypto.createHash('md5');
     const hash = crypto.createHash('sha256');
     // 获取当前时间
-    let now = convertToTimeZone(new Date(), config.timezone); // 使用时区转换函数
+    let now = new Date(); // 使用时区转换函数
     let etime = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime(); // 使用当天的0点时间戳
     let userId;
     // 获取用户ID
@@ -1229,15 +1229,20 @@ ${dJson.unsignText}
 
   async function getFormattedDate() {
     // 获取当前时间
-    const today = convertToTimeZone(new Date(), config.timezone); // 使用时区转换函数
+    const today = new Date(); // 使用时区转换函数
+
     logInfo(`使用时区日期: ${today}`);
     let year = today.getFullYear();  // 获取年份
     let month = today.getMonth() + 1;  // 获取月份，月份是从0开始的，所以需要加1
     let day = today.getDate();  // 获取日
+    logInfo(year);
+    logInfo(month);
+    logInfo(day);
     // 格式化日期
     month = month < 10 ? '0' + month : month;
     day = day < 10 ? '0' + day : day;
     let formattedDate = `${year}/${month}/${day}`;
+    logInfo(formattedDate);
     return formattedDate;
   }
 
@@ -1295,7 +1300,7 @@ ${dJson.unsignText}
 
   // 记录用户签到时间
   async function recordSignIn(ctx, userId, channelId) {
-    const currentTime = convertToTimeZone(new Date(), config.timezone); // 使用时区转换函数
+    const currentTime = new Date(); // 使用时区转换函数
     const dateString = currentTime.toISOString().split('T')[0]; // 获取当前日期字符串
 
     const [record] = await ctx.database.get('jrysprprdata', { userid: userId, channelId });
@@ -1311,7 +1316,7 @@ ${dJson.unsignText}
 
   // 检查用户是否已签到
   async function alreadySignedInToday(ctx, userId, channelId) {
-    const currentTime = convertToTimeZone(new Date(), config.timezone); // 使用时区转换函数
+    const currentTime = new Date(); // 使用时区转换函数
     const dateString = currentTime.toISOString().split('T')[0]; // 获取当前日期字符串
 
     if (!config.Repeated_signin_for_different_groups) {
@@ -1336,31 +1341,3 @@ ${dJson.unsignText}
 
 }
 exports.apply = apply;
-
-function timezoneOffsetToIANA(offset) {
-  const offsetString = offset >= 0 ? `Etc/GMT${offset * -1}` : `Etc/GMT+${offset * -1}`;
-  return offsetString;
-}
-
-function convertToTimeZone(date, timezoneOffset) {
-  // 将时区偏移量转换为 IANA 时区名称
-  const timezone = timezoneOffsetToIANA(timezoneOffset);
-
-  // 创建 Intl.DateTimeFormat 对象，指定时区
-  const formatter = new Intl.DateTimeFormat('zh-CN', { // 可以根据需要修改语言环境
-    timeZone: timezone,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    hour12: false, // 使用 24 小时制
-  });
-
-  // 格式化日期
-  const formatted = formatter.format(date);
-
-  // 将格式化后的字符串转换为 Date 对象
-  return new Date(formatted);
-}
