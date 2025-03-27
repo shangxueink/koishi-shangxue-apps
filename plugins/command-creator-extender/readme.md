@@ -18,17 +18,17 @@
 <h2>使用示例</h2>
 <p>假设您的 全局设置 里前缀只有 <code>["++", "/"]</code>：</p>
 <ul>
-    <li><strong>默认配置项</strong>（例如 <code>rawCommand: "一键打卡"</code>）：
-        <ul>
-            <li><strong>私聊</strong>：可以使用 <code>一键打卡</code>、<code>++一键打卡</code> 或 <code>/一键打卡</code> 触发。</li>
-            <li><strong>群聊</strong>：必须使用 <code>++一键打卡</code> 或 <code>/一键打卡</code> 触发。</li>
-        </ul>
-    </li>
-    <li><strong>修改配置项</strong>（例如 <code>rawCommand: "**一键打卡"</code>）：
-        <ul>
-            <li><strong>私聊、群聊</strong>：必须使用 <code>++**一键打卡</code> 或 <code>/**一键打卡</code> 触发。（即使配置中包含了其他字符，全局前缀仍然是必需的）</li>
-        </ul>
-    </li>
+<li><strong>默认配置项</strong>（例如 <code>rawCommand: "一键打卡"</code>）：
+<ul>
+<li><strong>私聊</strong>：可以使用 <code>一键打卡</code>、<code>++一键打卡</code> 或 <code>/一键打卡</code> 触发。</li>
+<li><strong>群聊</strong>：必须使用 <code>++一键打卡</code> 或 <code>/一键打卡</code> 触发。</li>
+</ul>
+</li>
+<li><strong>修改配置项</strong>（例如 <code>rawCommand: "**一键打卡"</code>）：
+<ul>
+<li><strong>私聊、群聊</strong>：必须使用 <code>++**一键打卡</code> 或 <code>/**一键打卡</code> 触发。（即使配置中包含了其他字符，全局前缀仍然是必需的）</li>
+</ul>
+</li>
 </ul>
 
 <code>即，解析rawCommand的行为 与指令效果 一致</code>
