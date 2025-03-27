@@ -218,7 +218,7 @@ async function apply(ctx, config) {
           type: Universal.Channel.Type.TEXT
         },
         guild: {
-          id: task.channelId
+          id: `${task.channelId}`.replace("private:", "")
         },
         timestamp,
         _type: bot.platform,
