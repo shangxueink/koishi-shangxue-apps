@@ -384,7 +384,9 @@ display: none !important;
     //提取链接 
     async function extractLinks(session, config, ctx, links) {
         let ret = "";
-        ret += [(0, h)("quote", { id: session.messageId })];
+        if (!config.isfigure) {
+            ret += [(0, h)("quote", { id: session.messageId })];
+        }
         let countLink = 0;
         let tp_ret;
 
