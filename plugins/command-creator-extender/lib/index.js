@@ -7,7 +7,7 @@ const name = "command-creator-extender";
 const usage = `
 
 本插件效果预览：
-<li><a href="https://i0.hdslb.com/bfs/article/c3a90e76082632cd5321d23582f9bc0d312276085.png" target="_blank" referrerpolicy="no-referrer">一次调用多个指令</a></li>
+<li><a href="https://i0.hdslb.com/bfs/article/c3a90e76082632cd5321d23582f29bc0d312276085.png" target="_blank" referrerpolicy="no-referrer">一次调用多个指令</a></li>
 <li><a href="https://i0.hdslb.com/bfs/article/b130e445dcfe99a89e841ee7615a4e61312276085.png" target="_blank" referrerpolicy="no-referrer">同一个指令，不同群里调用不同指令</a></li>
 
 ---
@@ -101,7 +101,16 @@ const Config = Schema.intersect([
           channelId: Schema.string().description("频道ID"),
           executecommand: Schema.string().description("执行指令"),
           scheduletime: Schema.string().role('datetime').description("定时时间"),
-          everyday: Schema.boolean().default(false).description("每日执行"),
+          every: Schema.union([
+            Schema.const('once').description('仅一次'),
+            Schema.const('sec').description('每秒'),
+            Schema.const('min').description('每分钟'),
+            Schema.const('hour').description('每小时'),
+            Schema.const('day').description('每天'),
+            Schema.const('week').description('每周'),
+            Schema.const('month').description('每月'),
+            Schema.const('year').description('每年'),
+          ]).role('radio').description("执行周期").default("once"),
         })).role('table').description("schedule 定时表<br>不受`table2`指令映射表影响"),
     }),
     Schema.object({}),
@@ -233,59 +242,6 @@ async function apply(ctx, config) {
       });
     }
 
-    // 创建定时任务
-    function createSchedule(task, index) {
-      // 标准化时间格式（配置项输入格式只能是YYYY/MM/DD HH:mm:ss）
-      const normalizedTime = task.scheduletime.replace(/\//g, '-');
-      let targetTime = new Date(normalizedTime);
-
-      // 每日任务处理逻辑
-      if (task.everyday) {
-        const now = new Date();
-        const [hours, minutes, seconds] = normalizedTime.split(' ')[1].split(':');
-
-        // 创建当天的时间对象
-        targetTime = new Date();
-        targetTime.setHours(hours);
-        targetTime.setMinutes(minutes);
-        targetTime.setSeconds(seconds);
-
-        // 如果已经过了当天时间，设置为明天
-        if (targetTime <= now) {
-          targetTime.setDate(targetTime.getDate() + 1);
-        }
-      }
-
-      // 有效性校验
-      if (isNaN(targetTime)) {
-        logger.error(`[任务${index}] 时间解析失败: ${task.scheduletime}`);
-        return null;
-      }
-
-      const delay = targetTime - Date.now();
-      if (delay < 0 && !task.everyday) {
-        logger.error(`[任务${index}] 跳过过期任务: ${task.scheduletime}`);
-        return null;
-      }
-
-      // Bot状态预检
-      const bot = Object.values(ctx.bots).find(b =>
-        b.selfId === task.botId || b.user?.id === task.botId
-      );
-      if (!bot || bot.status !== Universal.Status.ONLINE) {
-        logger.error(`[任务${index}] 机器人离线或未找到: ${task.botId}`);
-        return null;
-      }
-
-      logInfo(`初始化定时任务 #${index}`, {
-        bot: task.botId,
-        executeAt: targetTime.toISOString(),
-        command: task.executecommand,
-        type: task.everyday ? '每日任务' : '单次任务'
-      });
-      return { bot, targetTime, delay };
-    }
-
     // 执行任务逻辑
     async function executeTask(bot, task, index) {
       try {
@@ -295,7 +251,7 @@ async function apply(ctx, config) {
         logInfo(task.executecommand);
         logInfo(result);
         if (result === undefined) {
-          logger.error(`[任务${index}] 指令执行无返回: ${task.executecommand}`);
+          logger.warn(`[任务${index}] 指令执行无返回: ${task.executecommand}`);
         }
 
         logInfo(`任务执行成功 #${index}`);
@@ -305,34 +261,108 @@ async function apply(ctx, config) {
       }
     }
 
+    // 计算下一次执行时间
+    function getNextTime(task, now) {
+      const normalizedTime = task.scheduletime.replace(/\//g, '-');
+      const [datePart, timePart] = normalizedTime.split(' ');
+      const [hours, minutes, seconds] = timePart.split(':').map(Number);
+
+      let nextTime = new Date(now);
+      nextTime.setHours(hours);
+      nextTime.setMinutes(minutes);
+      nextTime.setSeconds(seconds);
+      nextTime.setMilliseconds(0); // 确保毫秒为0，避免误差
+
+      if (nextTime <= now) {
+        switch (task.every) {
+          case 'sec':
+            nextTime = new Date(now.getTime() + 1000);
+            break;
+          case 'min':
+            nextTime = new Date(now.getTime() + 60000);
+            break;
+          case 'hour':
+            nextTime = new Date(now.getTime() + 3600000);
+            break;
+          case 'day':
+            nextTime.setDate(nextTime.getDate() + 1);
+            break;
+          case 'week':
+            nextTime.setDate(nextTime.getDate() + 7);
+            break;
+          case 'month':
+            nextTime.setMonth(nextTime.getMonth() + 1);
+            break;
+          case 'year':
+            nextTime.setFullYear(nextTime.getFullYear() + 1);
+            break;
+        }
+      }
+
+      return nextTime;
+    }
+
     // 定时任务处理器
     function setupSchedules() {
       if (!config.enablescheduletable || !config.scheduletable) return;
 
       config.scheduletable.forEach(async (task, index) => {
         try {
-          const schedule = createSchedule(task, index);
-          if (!schedule) return;
-
-          const { bot, targetTime, delay } = schedule;
-
-          // 单次任务
-          if (!task.everyday) {
-            ctx.setTimeout(() => executeTask(bot, task, index), delay);
+          // Bot状态预检
+          const bot = Object.values(ctx.bots).find(b =>
+            b.selfId === task.botId || b.user?.id === task.botId
+          );
+          if (!bot || bot.status !== Universal.Status.ONLINE) {
+            logger.error(`[任务${index}] 机器人离线或未找到: ${task.botId}`);
             return;
           }
 
-          // 每日重复任务
-          const wrapper = () => {
+          const now = new Date();
+          let nextTime = getNextTime(task, now);
+
+          if (isNaN(nextTime.getTime())) {
+            logger.error(`[任务${index}] 时间解析失败: ${task.scheduletime}`);
+            return;
+          }
+
+          const delay = nextTime.getTime() - now.getTime();
+
+          logInfo(`初始化定时任务 #${index}`, {
+            bot: task.botId,
+            executeAt: nextTime.toISOString(),
+            command: task.executecommand,
+            every: task.every
+          });
+
+          // 定时执行
+          const scheduleTask = () => {
             executeTask(bot, task, index);
-            // 重新设置明天的定时
-            const nextDelay = 86400000 - (Date.now() - targetTime);
-            ctx.setTimeout(wrapper, nextDelay);
+
+            if (task.every !== 'once') {
+              const now = new Date();
+              nextTime = getNextTime(task, now);
+              const nextDelay = nextTime.getTime() - now.getTime();
+
+              logInfo(`下次执行时间 #${index}`, {
+                executeAt: nextTime.toISOString(),
+                every: task.every
+              });
+
+              ctx.setTimeout(scheduleTask, nextDelay);
+            }
           };
 
-          ctx.setTimeout(wrapper, delay);
+          // 对于 once 任务，如果时间已过，则不执行
+          if (task.every === 'once' && delay < 0) {
+            logger.warn(`[任务${index}] 时间已过，跳过执行: ${task.scheduletime}`);
+            return;
+          }
+
+          ctx.setTimeout(scheduleTask, delay);
+
         } catch (error) {
           logger.error(`[任务${index}] 初始化异常: ${error.message}`);
+          logger.error(error.stack);
         }
       });
     }
