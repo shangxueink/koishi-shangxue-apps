@@ -1,7 +1,7 @@
 {
   "name": "koishi-plugin-auto-withdraw",
   "description": "[<ruby>**代理发送消息！**<rp>（</rp><rt>点我查看效果预览图</rt><rp>）</rp></ruby>](https://www.npmjs.com/package/@shangxueink/koishi-plugin-content-guard) 支持强制回复指令、指令撤回时 自动撤回响应。",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "main": "lib/index.js",
   "typings": "lib/index.d.ts",
   "files": [

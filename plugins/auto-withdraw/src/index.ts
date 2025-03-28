@@ -60,17 +60,48 @@ export const usage = `
 
 `;
 
-export interface Config {
-  quoteEnable?: boolean;
-  loggerinfo?: boolean;
-  withdrawExpire?: number;
-}
 
-export const Config: Schema<Config> = Schema.object({
-  quoteEnable: Schema.boolean().default(false).description("是否 以引用方式 回复指令"),
-  withdrawExpire: Schema.number().default(60).description("记录`session.sn`的过期时间 (秒)"),
-  loggerinfo: Schema.boolean().default(false).description("日志调试输出").experimental(),
-});
+export const Config =
+  Schema.intersect([
+    Schema.object({
+      quoteEnable: Schema.boolean().default(false).description("是否 以引用的方式 回复指令<br>可能会有兼容问题，谨慎开启"),
+      returnquotetable: Schema.array(Schema.object({
+        include: Schema.string().description("关键词"),
+      })).role('table').description("当`响应内容`包含特定字符时，不进行回复发送，而是使用原始方法<br>注意：一般这里会填入 不支持回复发送 的消息元素关键词").default(
+        [
+          {
+            "include": "<figure"
+          },
+          {
+            "include": "<quote"
+          },
+          {
+            "include": "<audio"
+          },
+          {
+            "include": "<file"
+          },
+          {
+            "include": "<video"
+          },
+          {
+            "include": "<message"
+          }
+        ]
+      )
+    }).description('基础设置'),
+
+    Schema.object({
+      withdrawExpire: Schema.number().default(60).description("记录`session.sn`的过期时间 (秒)"),
+      returntable: Schema.array(Schema.object({
+        include: Schema.string().description("关键词"),
+      })).role('table').description("`响应内容`包含特定字符时，不进行代理发送<br>即 消息包含下面的任意一个内容时，跳过本插件逻辑")
+    }).description('进阶设置'),
+
+    Schema.object({
+      loggerinfo: Schema.boolean().default(false).description("日志调试输出").experimental(),
+    }).description('调试设置'),
+  ]);
 
 
 interface MessageIdMap {
@@ -84,7 +115,7 @@ const messageIdMap: MessageIdMap = {};
 const withdrawnSessions = new Set<number>(); // 记录已撤回的session.sn
 const pendingCleanup = new Map<number, () => void>(); // 记录清理定时器
 
-export async function apply(ctx: Context, config: Config) {
+export async function apply(ctx: Context, config) {
 
   ctx.on('ready', () => {
 
@@ -101,7 +132,7 @@ export async function apply(ctx: Context, config: Config) {
     if (config.loggerinfo) {
       ctx.command('撤回测试')
         .action(async ({ session },) => {
-          await session.send("即时回复111");
+          await session.send(h.quote(session.messageId) + "即时回复111");
           await session.send("即时回复222");
           await sleep(10000);
           await session.send("延迟回复111");
@@ -149,6 +180,14 @@ export async function apply(ctx: Context, config: Config) {
         return false;
       }
 
+      const shouldSkip = config.returntable.some(item => outputContent.includes(item.include));
+      if (shouldSkip) {
+        logInfo("消息内容包含特定内容，跳过处理");
+        return; // 直接返回，不执行后续逻辑
+      }
+
+      const shouldReturnOriginal = config.returnquotetable.some(item => outputContent.includes(item.include));
+
       if (!inputMessageId) {
         logInfo("警告: inputMessageId 为空，无法记录消息映射");
         return;
@@ -161,13 +200,19 @@ export async function apply(ctx: Context, config: Config) {
           sessionSn: sessionSn
         };
       }
-      const sendoutputContent = [
-        h.quote(inputMessageId),
-        outputContent,
-      ]
+
       // 发送消息并记录消息ID
       try {
-        const sendmessageIds = await outputSession.send(sendoutputContent);
+        let messageToSend: string | h = outputContent;
+
+        if (config.quoteEnable && !shouldReturnOriginal) {
+          logInfo("手动回复指令:", config.quoteEnable);
+          messageToSend = h.quote(inputMessageId) + messageToSend;
+        }
+
+        logInfo("发送内容:", messageToSend);
+        const sendmessageIds = await outputSession.send(messageToSend);
+
         logInfo("手动发送消息成功，消息 IDs:", sendmessageIds);
 
         // 将新消息ID添加到映射中
