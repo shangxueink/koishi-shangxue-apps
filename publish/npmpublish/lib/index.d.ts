@@ -1,10 +1,33 @@
 import { Context, Schema } from "koishi";
 export declare const name = "auto-withdraw";
 export declare const usage = "\n---\n\n<h2>\u7B80\u4ECB</h2>\n\n<p>\u81EA\u52A8\u64A4\u56DE Koishi \u673A\u5668\u4EBA\u53D1\u9001\u7684\u6D88\u606F\uFF0C\u5E76\u5728\u6D88\u606F\u88AB\u64A4\u56DE\u540E\uFF0C\u81EA\u52A8\u64A4\u56DE\u673A\u5668\u4EBA\u56DE\u590D\u7684\u5173\u8054\u6D88\u606F\u3002</p>\n\n---\n\n<h2>\u7279\u6027</h2>\n\n<ul>\n<li><b>\u81EA\u52A8\u5173\u8054\u64A4\u56DE:</b> \u5F53\u7528\u6237\u64A4\u56DE\u6D88\u606F\u65F6\uFF0C\u81EA\u52A8\u64A4\u56DE\u673A\u5668\u4EBA\u56DE\u590D\u7684\u5173\u8054\u6D88\u606F (\u901A\u8FC7\u5F15\u7528)\u3002</li>\n<li><b>\u53EF\u914D\u7F6E\u7684\u8FC7\u671F\u65F6\u95F4:</b> \u53EF\u4EE5\u8BBE\u7F6E\u8BB0\u5F55 <code>session.sn</code> \u7684\u8FC7\u671F\u65F6\u95F4\uFF0C\u9632\u6B62\u5185\u5B58\u5360\u7528\u8FC7\u591A\u3002</li>\n<li><b>\u53EF\u914D\u7F6E\u7684\u5F15\u7528\u56DE\u590D:</b> \u53EF\u4EE5\u9009\u62E9\u662F\u5426\u4EE5\u5F15\u7528\u7684\u65B9\u5F0F\u56DE\u590D\u6307\u4EE4\uFF0C\u65B9\u4FBF\u7528\u6237\u8FFD\u6EAF\u4E0A\u4E0B\u6587\u3002</li>\n<li><b>\u65E5\u5FD7\u8C03\u8BD5:</b> \u63D0\u4F9B\u8BE6\u7EC6\u7684\u65E5\u5FD7\u8F93\u51FA\uFF0C\u65B9\u4FBF\u5F00\u53D1\u8005\u8C03\u8BD5\u548C\u6392\u67E5\u95EE\u9898\u3002</li>\n<li><b>\u9632\u6B62\u64A4\u56DE\u6307\u4EE4\u7684\u53D1\u9001:</b> \u62E6\u622A\u5DF2\u64A4\u56DE session \u7684\u540E\u7EED\u6D88\u606F\uFF0C\u907F\u514D\u6D88\u606F\u7EE7\u7EED\u53D1\u9001\u3002</li>\n</ul>\n\n---\n\n<h2>\u914D\u7F6E</h2>\n\n<p>\u63D2\u4EF6\u63D0\u4F9B\u4EE5\u4E0B\u914D\u7F6E\u9009\u9879\uFF1A</p>\n\n<ul>\n<li><b><code>quoteEnable</code> (boolean):</b> \u662F\u5426\u4EE5\u5F15\u7528\u7684\u65B9\u5F0F\u56DE\u590D\u7528\u6237\u7684\u6307\u4EE4\u3002\u5982\u679C\u542F\u7528\uFF0C\u673A\u5668\u4EBA\u56DE\u590D\u7684\u6D88\u606F\u4F1A\u5F15\u7528\u7528\u6237\u7684\u539F\u59CB\u6D88\u606F\u3002 \u9ED8\u8BA4\u4E3A <code>false</code>\u3002</li>\n<li><b><code>withdrawExpire</code> (number):</b> \u8BB0\u5F55 <code>session.sn</code> \u7684\u8FC7\u671F\u65F6\u95F4\uFF0C\u5355\u4F4D\u4E3A\u79D2\u3002 \u8D85\u8FC7\u8FD9\u4E2A\u65F6\u95F4\u540E\uFF0C\u63D2\u4EF6\u4F1A\u6E05\u7406\u5DF2\u64A4\u56DE\u7684 <code>session.sn</code> \u8BB0\u5F55\uFF0C\u91CA\u653E\u5185\u5B58\u3002\u9ED8\u8BA4\u4E3A <code>60</code> \u79D2\u3002</li>\n<li><b><code>loggerinfo</code> (boolean):</b> \u662F\u5426\u5F00\u542F\u8BE6\u7EC6\u7684\u65E5\u5FD7\u8C03\u8BD5\u8F93\u51FA\u3002 \u5F00\u542F\u540E\uFF0C\u63D2\u4EF6\u4F1A\u5728\u63A7\u5236\u53F0\u8F93\u51FA\u66F4\u591A\u7684\u8C03\u8BD5\u4FE1\u606F\uFF0C\u65B9\u4FBF\u5F00\u53D1\u8005\u6392\u67E5\u95EE\u9898\u3002 \u9ED8\u8BA4\u4E3A <code>false</code>\u3002 <b>\u8B66\u544A\uFF1A</b> \u5F00\u542F\u6B64\u9009\u9879\u53EF\u80FD\u4F1A\u4EA7\u751F\u5927\u91CF\u7684\u65E5\u5FD7\u8F93\u51FA\u3002</li>\n</ul>\n\n---\n\n<h2>\u4F7F\u7528\u65B9\u6CD5</h2>\n\n<ol>\n<li>\u5B89\u88C5\u5E76\u914D\u7F6E\u63D2\u4EF6\u540E\uFF0C\u63D2\u4EF6\u4F1A\u81EA\u52A8\u76D1\u542C <code>message-deleted</code> \u4E8B\u4EF6\u3002</li>\n<li>\u5F53\u7528\u6237\u64A4\u56DE\u6D88\u606F\u65F6\uFF0C\u63D2\u4EF6\u4F1A\u81EA\u52A8\u64A4\u56DE\u673A\u5668\u4EBA\u56DE\u590D\u7684\u5173\u8054\u6D88\u606F (\u5982\u679C\u5B58\u5728)\u3002</li>\n<li>\u5982\u679C\u5F00\u542F\u4E86 <code>quoteEnable</code> \u9009\u9879\uFF0C\u673A\u5668\u4EBA\u4F1A\u4EE5\u5F15\u7528\u7684\u65B9\u5F0F\u56DE\u590D\u7528\u6237\u7684\u6307\u4EE4\u3002</li>\n</ol>\n\n---\n\n<h2>\u6CE8\u610F\u4E8B\u9879</h2>\n\n<ul>\n<li>\u786E\u4FDD Koishi \u673A\u5668\u4EBA\u5177\u6709\u64A4\u56DE\u6D88\u606F\u7684\u6743\u9650\u3002</li>\n<li><code>withdrawExpire</code> \u8BBE\u7F6E\u5F97\u592A\u5C0F\u53EF\u80FD\u4F1A\u5BFC\u81F4\u63D2\u4EF6\u65E0\u6CD5\u6B63\u786E\u64A4\u56DE\u6D88\u606F\u3002</li>\n<li><code>loggerinfo</code> \u9009\u9879\u4EC5\u7528\u4E8E\u8C03\u8BD5\u76EE\u7684\uFF0C\u4E0D\u5EFA\u8BAE\u5728\u751F\u4EA7\u73AF\u5883\u4E2D\u5F00\u542F\u3002</li>\n</ul>\n\n<h2>\u7075\u611F\u6765\u6E90</h2>\n<p>\u7075\u611F\u6765\u81EA\u8FD9\u4E2A\u9879\u76EE\uFF1A<a href=\"https://github.com/Kabuda-czh/koishi-plugin-autowithdraw/\">https://github.com/Kabuda-czh/koishi-plugin-autowithdraw/</a></p>\n\n---\n\n";
-export interface Config {
-    quoteEnable?: boolean;
-    loggerinfo?: boolean;
-    withdrawExpire?: number;
-}
-export declare const Config: Schema<Config>;
-export declare function apply(ctx: Context, config: Config): Promise<void>;
+export declare const Config: Schema<Schemastery.ObjectS<{
+    quoteEnable: Schema<boolean, boolean>;
+    returnquotetable: Schema<Schemastery.ObjectS<{
+        include: Schema<string, string>;
+    }>[], Schemastery.ObjectT<{
+        include: Schema<string, string>;
+    }>[]>;
+}> | Schemastery.ObjectS<{
+    withdrawExpire: Schema<number, number>;
+    returntable: Schema<Schemastery.ObjectS<{
+        include: Schema<string, string>;
+    }>[], Schemastery.ObjectT<{
+        include: Schema<string, string>;
+    }>[]>;
+}> | Schemastery.ObjectS<{
+    loggerinfo: Schema<boolean, boolean>;
+}>, {
+    quoteEnable: boolean;
+    returnquotetable: Schemastery.ObjectT<{
+        include: Schema<string, string>;
+    }>[];
+} & import("cosmokit").Dict & {
+    withdrawExpire: number;
+    returntable: Schemastery.ObjectT<{
+        include: Schema<string, string>;
+    }>[];
+} & {
+    loggerinfo: boolean;
+}>;
+export declare function apply(ctx: Context, config: any): Promise<void>;
