@@ -1,6 +1,6 @@
 import { Context, Schema, sleep, h } from "koishi";
 
-export const name = "auto-withdraw";
+export const name = "autowithdraw-fix";
 // export const inject = [];
 export const usage = `
 ---

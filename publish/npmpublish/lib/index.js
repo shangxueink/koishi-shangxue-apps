@@ -27,7 +27,7 @@ __export(src_exports, {
 });
 module.exports = __toCommonJS(src_exports);
 var import_koishi = require("koishi");
-var name = "auto-withdraw";
+var name = "autowithdraw-fix";
 var usage = `
 ---
 
