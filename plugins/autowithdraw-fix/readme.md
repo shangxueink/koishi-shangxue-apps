@@ -55,6 +55,6 @@
 </ul>
 
 <h2>灵感来源</h2>
-<p>灵感来自这个项目：<a href="https://github.com/Kabuda-czh/koishi-plugin-autowithdraw/">https://github.com/Kabuda-czh/koishi-plugin-autowithdraw/</a></p>
+<p>灵感来自这个项目：<a href="https://github.com/Kabuda-czh/koishi-plugin-autowithdraw/" target="_blank">github.com/Kabuda-czh/koishi-plugin-autowithdraw</a></p>
 
 ---

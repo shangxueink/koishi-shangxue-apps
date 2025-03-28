@@ -54,7 +54,7 @@ export const usage = `
 </ul>
 
 <h2>灵感来源</h2>
-<p>灵感来自这个项目：<a href="https://github.com/Kabuda-czh/koishi-plugin-autowithdraw/">https://github.com/Kabuda-czh/koishi-plugin-autowithdraw/</a></p>
+<p>灵感来自这个项目：<a href="https://github.com/Kabuda-czh/koishi-plugin-autowithdraw/" target="_blank">github.com/Kabuda-czh/koishi-plugin-autowithdraw</a></p>
 
 ---
 
@@ -65,31 +65,38 @@ export const Config =
   Schema.intersect([
     Schema.object({
       quoteEnable: Schema.boolean().default(false).description("是否 以引用的方式 回复指令<br>可能会有兼容问题，谨慎开启"),
-      returnquotetable: Schema.array(Schema.object({
-        include: Schema.string().description("关键词"),
-      })).role('table').description("当`响应内容`包含特定字符时，不进行回复发送，而是使用原始方法<br>注意：一般这里会填入 不支持回复发送 的消息元素关键词").default(
-        [
-          {
-            "include": "<figure"
-          },
-          {
-            "include": "<quote"
-          },
-          {
-            "include": "<audio"
-          },
-          {
-            "include": "<file"
-          },
-          {
-            "include": "<video"
-          },
-          {
-            "include": "<message"
-          }
-        ]
-      )
+
     }).description('基础设置'),
+    Schema.union([
+      Schema.object({
+        quoteEnable: Schema.const(true).required(),
+        returnquotetable: Schema.array(Schema.object({
+          include: Schema.string().description("关键词"),
+        })).role('table').description("当`响应内容`包含特定字符时，不进行回复发送，而是使用原始方法<br>注意：一般这里会填入 不支持回复发送 的消息元素关键词").default(
+          [
+            {
+              "include": "<figure"
+            },
+            {
+              "include": "<quote"
+            },
+            {
+              "include": "<audio"
+            },
+            {
+              "include": "<file"
+            },
+            {
+              "include": "<video"
+            },
+            {
+              "include": "<message"
+            }
+          ]
+        )
+      }),
+      Schema.object({}),
+    ]),
 
     Schema.object({
       withdrawExpire: Schema.number().default(60).description("记录`session.sn`的过期时间 (秒)"),
@@ -186,7 +193,6 @@ export async function apply(ctx: Context, config) {
         return; // 直接返回，不执行后续逻辑
       }
 
-      const shouldReturnOriginal = config.returnquotetable.some(item => outputContent.includes(item.include));
 
       if (!inputMessageId) {
         logInfo("警告: inputMessageId 为空，无法记录消息映射");
@@ -205,9 +211,12 @@ export async function apply(ctx: Context, config) {
       try {
         let messageToSend: string | h = outputContent;
 
-        if (config.quoteEnable && !shouldReturnOriginal) {
-          logInfo("手动回复指令:", config.quoteEnable);
-          messageToSend = h.quote(inputMessageId) + messageToSend;
+        if (config.quoteEnable) {
+          const shouldReturnOriginal = config.returnquotetable.some(item => outputContent.includes(item.include));
+          if (!shouldReturnOriginal) {
+            logInfo("手动回复指令:", config.quoteEnable);
+            messageToSend = h.quote(inputMessageId) + messageToSend;
+          }
         }
 
         logInfo("发送内容:", messageToSend);
