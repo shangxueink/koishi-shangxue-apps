@@ -32,4 +32,5 @@
 | **渲染菜单**      | <img src="https://i0.hdslb.com/bfs/article/b89dee57e0464e05566034a8b3454082312276085.png" referrerpolicy="no-referrer" width="500"> |
 | **无语典型**      | <img src="https://i0.hdslb.com/bfs/article/00bf52c9f36bf40e63fd28334338a71d312276085.png" referrerpolicy="no-referrer" width="500"> |
 | **旧词新解**      | <img src="https://i0.hdslb.com/bfs/article/82cf9827aad9b151b21f28dde61f13ca312276085.gif" referrerpolicy="no-referrer" width="500"> |
+| **自动撤回**      | <img src="https://i0.hdslb.com/bfs/article/585ce85165936462a105f0162b4ddde8312276085.gif" referrerpolicy="no-referrer" width="500"> |
 | **更多功能**      | 待添加...                                                                                                                           |
