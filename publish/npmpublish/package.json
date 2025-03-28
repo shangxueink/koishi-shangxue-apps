@@ -1,7 +1,7 @@
 {
   "name": "koishi-plugin-auto-withdraw",
-  "description": "[<ruby>**代理发送消息！**<rp>（</rp><rt>点我查看效果预览图</rt><rp>）</rp></ruby>](https://www.npmjs.com/package/@shangxueink/koishi-plugin-content-guard) 支持强制回复指令、指令撤回时 自动撤回响应。",
-  "version": "1.1.0",
+  "description": "[<ruby>**代理发送消息！**<rp>（</rp><rt>点我查看效果预览图</rt><rp>）</rp></ruby>](https://i0.hdslb.com/bfs/article/585ce85165936462a105f0162b4ddde8312276085.gif) 支持强制回复指令、指令撤回时 自动撤回响应。",
+  "version": "1.2.0",
   "main": "lib/index.js",
   "typings": "lib/index.d.ts",
   "files": [
@@ -15,8 +15,9 @@
     "auto-withdraw",
     "自动撤回"
   ],
-  "repository": {
-    "url": "https://github.com/shangxueink/koishi-shangxue-apps/"
+  "homepage": "https://github.com/shangxueink/koishi-shangxue-apps/tree/main/",
+  "bugs": {
+    "url": "https://github.com/shangxueink/koishi-shangxue-apps/issues"
   },
   "peerDependencies": {
     "koishi": "^4.13.8"
