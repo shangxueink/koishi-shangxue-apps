@@ -1,6 +1,6 @@
-# koishi-plugin-auto-withdraw
+# koishi-plugin-autowithdraw-fix
 
-[![npm](https://img.shields.io/npm/v/koishi-plugin-auto-withdraw?style=flat-square)](https://www.npmjs.com/package/koishi-plugin-auto-withdraw)
+[![npm](https://img.shields.io/npm/v/koishi-plugin-autowithdraw-fix?style=flat-square)](https://www.npmjs.com/package/koishi-plugin-autowithdraw-fix)
 
 
 
