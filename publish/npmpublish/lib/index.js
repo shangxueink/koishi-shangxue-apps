@@ -1,0 +1,262 @@
+var __defProp = Object.defineProperty;
+var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
+var __getOwnPropNames = Object.getOwnPropertyNames;
+var __hasOwnProp = Object.prototype.hasOwnProperty;
+var __name = (target, value) => __defProp(target, "name", { value, configurable: true });
+var __export = (target, all) => {
+  for (var name2 in all)
+    __defProp(target, name2, { get: all[name2], enumerable: true });
+};
+var __copyProps = (to, from, except, desc) => {
+  if (from && typeof from === "object" || typeof from === "function") {
+    for (let key of __getOwnPropNames(from))
+      if (!__hasOwnProp.call(to, key) && key !== except)
+        __defProp(to, key, { get: () => from[key], enumerable: !(desc = __getOwnPropDesc(from, key)) || desc.enumerable });
+  }
+  return to;
+};
+var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
+
+// src/index.ts
+var src_exports = {};
+__export(src_exports, {
+  Config: () => Config,
+  apply: () => apply,
+  name: () => name,
+  usage: () => usage
+});
+module.exports = __toCommonJS(src_exports);
+var import_koishi = require("koishi");
+var name = "autowithdraw-fix";
+var usage = `
+---
+
+<h2>简介</h2>
+
+<p>在用户输入被撤回后，自动撤回机器人响应的关联消息。</p>
+
+---
+
+<h2>注意事项</h2>
+
+<ul>
+<li>确保 Koishi 机器人具有撤回消息的权限。</li>
+<li><code>withdrawExpire</code> 设置得太小可能会导致插件无法正确撤回消息。</li>
+<li><code>loggerinfo</code> 选项仅用于调试目的，不建议在生产环境中开启。</li>
+</ul>
+
+<h2>灵感来源</h2>
+<p>灵感来自这个项目：<a href="https://github.com/Kabuda-czh/koishi-plugin-autowithdraw/" target="_blank">github.com/Kabuda-czh/koishi-plugin-autowithdraw</a></p>
+
+---
+
+`;
+var Config = import_koishi.Schema.intersect([
+  import_koishi.Schema.object({
+    quoteEnable: import_koishi.Schema.boolean().default(false).description("是否 以引用的方式发送 回复指令<br>可能会有兼容问题，谨慎开启")
+  }).description("基础设置"),
+  import_koishi.Schema.union([
+    import_koishi.Schema.object({
+      quoteEnable: import_koishi.Schema.const(true).required(),
+      returnquotetable: import_koishi.Schema.array(import_koishi.Schema.object({
+        include: import_koishi.Schema.string().description("关键词")
+      })).role("table").description("当`响应内容`包含特定字符时，不进行回复发送，而是使用原始方法<br>注意：一般这里会填入 不支持回复发送 的消息元素关键词").default(
+        [
+          {
+            "include": "<figure"
+          },
+          {
+            "include": "<quote"
+          },
+          {
+            "include": "<audio"
+          },
+          {
+            "include": "<file"
+          },
+          {
+            "include": "<video"
+          },
+          {
+            "include": "<message"
+          }
+        ]
+      )
+    }),
+    import_koishi.Schema.object({})
+  ]),
+  import_koishi.Schema.object({
+    withdrawExpire: import_koishi.Schema.number().default(150).description("记录`session.sn`的过期时间 (秒)<br>超出此时间的`session.sn`将被清除记录，不再能找到对应需要撤回的消息ID<br>此时间应该大于用户限定撤回时间，例如`onebot`平台：两分钟`（120秒）`"),
+    returntable: import_koishi.Schema.array(import_koishi.Schema.object({
+      include: import_koishi.Schema.string().description("关键词")
+    })).role("table").description("`响应内容`包含特定字符时，不进行代理发送<br>即 消息包含下面的任意一个内容时，跳过本插件逻辑")
+  }).description("进阶设置"),
+  import_koishi.Schema.object({
+    autodeleteMessage: import_koishi.Schema.boolean().default(false).description("自动定时撤回机器人的所有消息<br>不论有没有用户有没有撤回输入，都定时撤回已发送的内容").experimental()
+  }).description("自动撤回设置"),
+  import_koishi.Schema.union([
+    import_koishi.Schema.object({
+      autodeleteMessage: import_koishi.Schema.const(true).required(),
+      autodeleteMessagewithdrawExpire: import_koishi.Schema.number().default(60).description("设定阈值时间。发送多少秒后撤回消息 (秒)<br>需注意部分平台可能有撤回时间最大值限制，例如`onebot`平台：两分钟`（120秒）`")
+    }),
+    import_koishi.Schema.object({})
+  ]),
+  import_koishi.Schema.object({
+    loggerinfo: import_koishi.Schema.boolean().default(false).description("日志调试：一般输出").experimental(),
+    loggerinfo_content: import_koishi.Schema.boolean().default(false).description("日志调试：代发内容输出(content)").experimental()
+  }).description("调试设置")
+]);
+var messageIdMap = {};
+var withdrawnSessions = /* @__PURE__ */ new Set();
+var pendingCleanup = /* @__PURE__ */ new Map();
+async function apply(ctx, config) {
+  ctx.on("ready", () => {
+    function logInfo(message, detail) {
+      if (config.loggerinfo) {
+        if (detail) {
+          ctx.logger.info(message, detail);
+        } else {
+          ctx.logger.info(message);
+        }
+      }
+    }
+    __name(logInfo, "logInfo");
+    if (config.loggerinfo) {
+      ctx.command("撤回测试").action(async ({ session }) => {
+        await session.send(import_koishi.h.quote(session.messageId) + "即时回复111");
+        await session.send("即时回复222");
+        await (0, import_koishi.sleep)(1e4);
+        await session.send("延迟回复111");
+        await session.send("延迟回复222");
+      });
+    }
+    function scheduleCleanup(originId, sessionSn) {
+      if (pendingCleanup.has(originId)) {
+        pendingCleanup.get(originId)();
+      }
+      const timer = ctx.setTimeout(() => {
+        delete messageIdMap[originId];
+        pendingCleanup.delete(originId);
+        logInfo(`[withdrawExpire] 已定时清理 messageIdMap 记录, originId: ${originId}, sessionSn: ${sessionSn}`);
+      }, config.withdrawExpire * 1e3);
+      pendingCleanup.set(originId, timer);
+    }
+    __name(scheduleCleanup, "scheduleCleanup");
+    ctx.on("before-send", async (_session, options) => {
+      if (!options?.session) {
+        return;
+      }
+      const inputSession = options.session;
+      const outputSession = _session;
+      const inputMessageId = inputSession.messageId;
+      const outputContent = outputSession.content;
+      const sessionSn = inputSession.sn;
+      logInfo("========= before-send 事件触发 =========");
+      logInfo("用户输入消息 ID:", inputMessageId);
+      if (config.loggerinfo_content) logInfo("原始响应发送内容:", outputContent);
+      logInfo("Session SN:", sessionSn);
+      if (withdrawnSessions.has(sessionSn)) {
+        logInfo(`拦截已撤回session的后续消息: SN=${sessionSn}`);
+        outputSession.content = "";
+        logInfo("========= before-send 事件结束 =========");
+        return false;
+      }
+      const shouldSkip = config.returntable.some((item) => outputContent.includes(item.include));
+      if (shouldSkip) {
+        logInfo("消息内容包含特定内容，跳过处理");
+        logInfo("========= before-send 事件结束 =========");
+        return;
+      }
+      if (!inputMessageId) {
+        logInfo("警告: inputMessageId 为空，无法记录消息映射");
+        logInfo("========= before-send 事件结束 =========");
+        return;
+      } else {
+        logInfo("inputMessageId: ", inputMessageId);
+      }
+      if (inputMessageId && !messageIdMap[inputMessageId]) {
+        messageIdMap[inputMessageId] = {
+          replyIds: [],
+          sessionSn
+        };
+      }
+      try {
+        let messageToSend = outputContent;
+        if (config.quoteEnable) {
+          const shouldReturnOriginal = config.returnquotetable.some((item) => outputContent.includes(item.include));
+          if (!shouldReturnOriginal) {
+            logInfo("手动回复指令:", config.quoteEnable);
+            messageToSend = import_koishi.h.quote(inputMessageId) + messageToSend;
+          }
+        }
+        if (config.loggerinfo_content) logInfo("发送内容:", messageToSend);
+        const sendmessageIds = await outputSession.send(messageToSend);
+        logInfo("手动发送消息成功，消息 IDs:", sendmessageIds);
+        messageIdMap[inputMessageId].replyIds.push(...sendmessageIds);
+        logInfo(`messageIdMap 更新 (添加记录)`, {
+          originId: inputMessageId,
+          replyIds: sendmessageIds,
+          currentMap: messageIdMap
+        });
+        scheduleCleanup(inputMessageId, sessionSn);
+        if (config.autodeleteMessage) {
+          ctx.setTimeout(async () => {
+            for (const id of sendmessageIds) {
+              try {
+                await outputSession.bot.deleteMessage(outputSession.channelId, id);
+                logInfo(`[autodeleteMessage] 自动撤回成功, 消息ID: ${id}`);
+              } catch (error) {
+                ctx.logger.error(`[autodeleteMessage] 自动撤回失败, 消息ID: ${id}`, error);
+              }
+            }
+            delete messageIdMap[inputMessageId];
+            logInfo(`messageIdMap 更新 (autodeleteMessage 自动撤回后删除记录)`, {
+              currentMap: messageIdMap
+            });
+          }, config.autodeleteMessagewithdrawExpire * 1e3);
+        }
+        outputSession.content = "";
+        logInfo("========= before-send 事件结束 =========");
+        return false;
+      } catch (error) {
+        ctx.logger.error("手动发送消息失败:", error);
+        logInfo("========= before-send 事件结束 =========");
+        return false;
+      }
+    }, true);
+    ctx.on("message-deleted", async (session) => {
+      const originId = session.messageId;
+      if (!originId || !messageIdMap[originId]) {
+        logInfo("[message-deleted] 警告: 未找到关联的回复消息");
+        return;
+      }
+      const { replyIds, sessionSn } = messageIdMap[originId];
+      logInfo(`[message-deleted] 撤回处理, 原始消息ID: ${originId}`, {
+        associatedIds: replyIds,
+        sessionSn
+      });
+      withdrawnSessions.add(sessionSn);
+      logInfo(`[message-deleted] 已标记session.sn为已撤回: ${sessionSn}`);
+      for (const id of replyIds) {
+        try {
+          await session.bot.deleteMessage(session.channelId, id);
+          logInfo(`[message-deleted] 撤回成功, 消息ID: ${id}`);
+        } catch (error) {
+          ctx.logger.error(`[message-deleted] 撤回失败, 消息ID: ${id}`, error);
+        }
+      }
+      delete messageIdMap[originId];
+      logInfo(`messageIdMap 更新 (message-deleted 用户撤回后删除记录)`, {
+        currentMap: messageIdMap
+      });
+    });
+  });
+}
+__name(apply, "apply");
+// Annotate the CommonJS export names for ESM import in node:
+0 && (module.exports = {
+  Config,
+  apply,
+  name,
+  usage
+});
