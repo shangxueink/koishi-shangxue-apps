@@ -9,7 +9,7 @@ const crypto = require('node:crypto');
 
 exports.name = "patina";
 exports.inject = {
-    required: ['puppeteer']
+  required: ["http", "logger", "puppeteer"]
 };
 exports.usage = `
 <details>
@@ -60,6 +60,23 @@ exports.usage = `
 <p>如果不指定参数，将使用默认配置。</p>
 </details>
 
+<details>
+<summary>点击此处查看——相机镜框滤镜</summary>
+<h2>功能示例</h2>
+<ul>
+<li><code>相机镜框</code>：指令触发后，系统会提示上传图片。</li>
+<li><code>相机镜框 [图片]</code>：上传一张图片，并且返回添加相机镜框之后的图。</li>
+<li><code>相机镜框 QQ号</code>：使用 QQ 号的头像，并且返回添加相机镜框之后的图。</li>
+<li><code>相机镜框 @用户</code>：使用用户的头像，并且返回添加相机镜框之后的图。</li>
+</ul>
+<pre>
+相机镜框  [图片]
+</pre>
+<p>触发指令后会返回处理后的图片。</p>
+<h3>参数说明</h3>
+<p>此功能目前没有可配置的指令参数，但可以通过插件配置调整图片对齐方式和压缩质量。</p>
+</details>
+
 
 ---
 
@@ -71,124 +88,262 @@ exports.usage = `
 `;
 
 exports.Config = Schema.intersect([
+  Schema.object({
+    enablecommand1: Schema.boolean().description("是否启用此功能").default(true),
+  }).description('幻影坦克生成器'),
+  Schema.union([
     Schema.object({
-        enablecommand1: Schema.boolean().description("是否启用此功能").default(true),
-    }).description('幻影坦克生成器'),
-    Schema.union([
-        Schema.object({
-            enablecommand1: Schema.const(false).required(),
-        }),
-        Schema.object({
-            enablecommand1: Schema.const(true),
-            Full_color_output: Schema.boolean().default(false).description("全彩输出，关闭后变成黑白图<br>黑白可能效果更好  可以前往 https://uyanide.github.io/Mirage_Colored/ 体验"),
-            Output_Size: Schema.number().default(1200).description("输出尺寸<br>(指 长和宽 中的较大值)<br>(0 即为不指定)"),
-            Mixed_Weight: Schema.number().role('slider').min(0).max(1).step(0.02).default(0.7).description("【里图】混合权重<br>数值越大 里图 越隐隐约约可以看见"),
-        }),
-    ]),
+      enablecommand1: Schema.const(false).required(),
+    }),
+    Schema.object({
+      enablecommand1: Schema.const(true),
+      Full_color_output: Schema.boolean().default(false).description("全彩输出，关闭后变成黑白图<br>黑白可能效果更好  可以前往 https://uyanide.github.io/Mirage_Colored/ 体验"),
+      Output_Size: Schema.number().default(1200).description("输出尺寸<br>(指 长和宽 中的较大值)<br>(0 即为不指定)"),
+      Mixed_Weight: Schema.number().role('slider').min(0).max(1).step(0.02).default(0.7).description("【里图】混合权重<br>数值越大 里图 越隐隐约约可以看见"),
+    }),
+  ]),
 
+  Schema.object({
+    enablecommand2: Schema.boolean().description("是否启用此功能").default(true),
+  }).description('像素化'),
+  Schema.union([
     Schema.object({
-        enablecommand2: Schema.boolean().description("是否启用此功能").default(true),
-    }).description('像素化'),
-    Schema.union([
-        Schema.object({
-            enablecommand2: Schema.const(false).required(),
-        }),
-        Schema.object({
-            enablecommand2: Schema.const(true),
-            pixelate: Schema.number().role('slider').min(0).max(100).step(1).default(80).description("默认像素化百分比<br>原项目地址 https://lab.miguelmota.com/pixelate/example/"),
-        }),
-    ]),
+      enablecommand2: Schema.const(false).required(),
+    }),
+    Schema.object({
+      enablecommand2: Schema.const(true),
+      pixelate: Schema.number().role('slider').min(0).max(100).step(1).default(80).description("默认像素化百分比<br>原项目地址 https://lab.miguelmota.com/pixelate/example/"),
+    }),
+  ]),
 
+  Schema.object({
+    enablecommand3: Schema.boolean().description("是否启用此功能").default(true),
+  }).description('相机镜框滤镜'),
+  Schema.union([
     Schema.object({
-        loggerinfo: Schema.boolean().default(false).description("日志调试模式"),
-    }).description('调试设置'),
+      enablecommand3: Schema.const(false).required(),
+    }),
+    Schema.object({
+      enablecommand3: Schema.const(true),
+      cameraAlignmentLogic: Schema.union([
+        Schema.const('居中填充').description('居中填充'),
+        Schema.const('拉伸').description('拉伸'),
+        Schema.const('适应').description('适应'),
+      ]).role('radio').description('输入图片的对齐逻辑').default("居中填充"),
+      camerascreenshotquality: Schema.number().role('slider').min(0).max(100).step(1).default(50).description('设置图片压缩质量（%）'),
+    }),
+  ]),
+
+
+  Schema.object({
+    loggerinfo: Schema.boolean().default(false).description("日志调试模式"),
+  }).description('调试设置'),
 ]);
 
 
 
 async function apply(ctx, config) {
-    const loggerinfo = (message) => {
-        if (config.loggerinfo) {
-            ctx.logger.info(message);
-        }
-    };
-    async function downloadImage(ctx, url, filepath) {
-        const response = await ctx.http.get(url);
-        const buffer = Buffer.from(await response);
-        fs.writeFileSync(filepath, buffer);
+
+  const loggerinfo = (message) => {
+    if (config.loggerinfo) {
+      ctx.logger.info(message);
     }
-    function generateTempFilePath() {
-        const uniqueId = crypto.randomBytes(16).toString('hex');
-        return path.join(__dirname, `temp-image-${uniqueId}.jpg`);
-    }
-    function extractImageUrl(input) {
-        const parsedElements = h.parse(input);
-        // 遍历解析后的元素
-        for (const element of parsedElements) {
-            // 检查是否为 'at' 类型
-            if (element.type === 'at') {
-                const { id } = element.attrs;
-                if (id) {
-                    // 返回 QQ 头像 URL
-                    return `http://q.qlogo.cn/headimg_dl?dst_uin=${id}&spec=640`;
-                }
-            }
-            // 检查是否为 'img' 类型
-            if (element.type === 'img') {
-                const { src } = element.attrs;
-                if (src) {
-                    // 返回图片的 src 属性
-                    return src;
-                }
-            }
+  };
+
+  async function downloadImage(ctx, url, filepath) {
+    const response = await ctx.http.get(url);
+    const buffer = Buffer.from(await response);
+    fs.writeFileSync(filepath, buffer);
+  }
+
+  function generateTempFilePath() {
+    const uniqueId = crypto.randomBytes(16).toString('hex');
+    return path.join(__dirname, `temp-image-${uniqueId}.jpg`);
+  }
+
+  function extractImageUrl(input) {
+    const parsedElements = h.parse(input);
+    // 遍历解析后的元素
+    for (const element of parsedElements) {
+      // 检查是否为 'at' 类型
+      if (element.type === 'at') {
+        const { id } = element.attrs;
+        if (id) {
+          // 返回 QQ 头像 URL
+          return `http://q.qlogo.cn/headimg_dl?dst_uin=${id}&spec=640`;
         }
-        // 检查输入是否为纯数字（QQ 号）
-        if (/^\d+$/.test(input)) {
-            return `http://q.qlogo.cn/headimg_dl?dst_uin=${input}&spec=640`;
+      }
+      // 检查是否为 'img' 类型
+      if (element.type === 'img') {
+        const { src } = element.attrs;
+        if (src) {
+          // 返回图片的 src 属性
+          return src;
+        }
+      }
+    }
+    // 检查输入是否为纯数字（QQ 号）
+    if (/^\d+$/.test(input)) {
+      return `http://q.qlogo.cn/headimg_dl?dst_uin=${input}&spec=640`;
+    }
+
+    // 如果未找到有效的图片 URL，返回原始输入
+    return input;
+  }
+
+  ctx.command("patina", "网页小合集")
+
+  if (config.enablecommand3) {
+    ctx.command("patina/相机镜框 <image>", "为图片添加相机镜框")
+      .alias("相机镜框")
+      .example("相机镜框")
+      .example("相机镜框 [图片]")
+      .example("相机镜框 QQ号")
+      .example("相机镜框 @用户")
+      .action(async ({ session }, image) => {
+        // 检查 puppeteer 是否可用
+        if (!ctx.puppeteer) {
+          await session.send("没有开启puppeteer服务");
+          return;
         }
 
-        // 如果未找到有效的图片 URL，返回原始输入
-        return input;
-    }
+        // 检查用户是否提供了图片
+        if (!image) {
+          await session.send("请发送一张图片：");
+          image = await session.prompt(30000);
+        }
 
-    ctx.command("patina", "网页小合集")
+        // 提取图片 URL
+        const imageURL = extractImageUrl(image);
+        loggerinfo(`图片URL: ${imageURL}`); // 记录日志，方便调试
+
+        try {
+
+          // 将用户图片转换为 Base64
+          const userImageBase64 = await ctx.http.get(imageURL)
+            .then(buffer => `data:image/png;base64,${Buffer.from(buffer).toString('base64')}`);
+
+          // 读取相机镜框图片
+          const cameraFramePath = path.join(__dirname, './../html/pics/camera.png');
+          const cameraFrameBuffer = fs.readFileSync(cameraFramePath);
+          const cameraFrameBase64 = `data:image/png;base64,${cameraFrameBuffer.toString('base64')}`;
+
+          // 使用 Puppeteer 处理图片
+          const page = await ctx.puppeteer.page();
+
+          let objectFitStyle = 'cover'; // 默认居中填充
+          if (config.cameraAlignmentLogic === '拉伸') {
+            objectFitStyle = 'fill';
+          } else if (config.cameraAlignmentLogic === '适应') {
+            objectFitStyle = 'contain';
+          }
+
+          // 设置 HTML 内容
+          const htmlContent = `
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    body { margin: 0; }
+    #container {
+      position: relative;
+      width: 1080px;
+      height: 2400px;
+    }
+    #userImage {
+      position: absolute;
+      top: 9.82%;
+      left: 0;
+      width: 100%;
+      height: 70%;
+      object-fit: ${objectFitStyle}; /* 应用对齐逻辑 */
+      z-index: 1;
+    }
+    #cameraFrame {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 2;
+    }
+  </style>
+</head>
+<body>
+  <div id="container">
+    <img id="userImage" src="${userImageBase64}" />
+    <img id="cameraFrame" src="${cameraFrameBase64}" />
+  </div>
+</body>
+</html>
+`;
+          await page.setContent(htmlContent, { waitUntil: 'networkidle2' });
+
+          // 截图
+          const container = await page.$('#container');
+          const outputImageBase64 = await container.screenshot({
+            type: "jpeg",  // 使用 JPEG 格式
+            encoding: "base64",
+            quality: config.camerascreenshotquality  // 设置图片质量
+          });
+
+          // 发送图片
+          if (outputImageBase64) {
+            const imageUrl = `data:image/jpeg;base64,${outputImageBase64}`; // 构建 data URL
+            await session.send(h.image(imageUrl)); // 使用 h.image(URL)
+          } else {
+            await session.send("处理图像时出错，请重试。");
+          }
+
+          if (page && !page?.isClosed()) {
+            await page?.close();
+          }
+
+        } catch (error) {
+          ctx.logger.error('处理图像时出错:', error);
+          await session.send("处理图像时出错，请重试。");
+        }
+      });
+  }
+
+  if (config.enablecommand2) {
     ctx.command("patina/像素化 <image>", "像素化一张图")
-        .alias("像素画")
-        .example("像素化")
-        .example("像素化 [图片]")
-        .example("像素化 QQ号")
-        .example("像素化 @用户")
-        .option('pixelate', '-p <pixelate:number> 像素化百分比')
-        .action(async ({ session, options }, image) => {
-            // 检查 puppeteer 是否可用
-            if (!ctx.puppeteer) {
-                await session.send("没有开启puppeteer服务");
-                return;
-            }
+      .alias("像素画")
+      .example("像素化")
+      .example("像素化 [图片]")
+      .example("像素化 QQ号")
+      .example("像素化 @用户")
+      .option('pixelate', '-p <pixelate:number> 像素化百分比')
+      .action(async ({ session, options }, image) => {
+        // 检查 puppeteer 是否可用
+        if (!ctx.puppeteer) {
+          await session.send("没有开启puppeteer服务");
+          return;
+        }
 
-            // 检查用户是否提供了图片
-            if (!image) {
-                await session.send("请发送一张图片：");
-                image = await session.prompt(30000);
-            }
+        // 检查用户是否提供了图片
+        if (!image) {
+          await session.send("请发送一张图片：");
+          image = await session.prompt(30000);
+        }
 
-            // 提取图片 URL
-            const imageURL = extractImageUrl(image);
-            loggerinfo(`图片URL: ${imageURL}`); // 记录日志，方便调试
+        // 提取图片 URL
+        const imageURL = extractImageUrl(image);
+        loggerinfo(`图片URL: ${imageURL}`); // 记录日志，方便调试
 
-            try {
-                // 将图片转换为 Base64
-                const imageBase64 = await ctx.http.get(imageURL)
-                    .then(buffer => `data:image/png;base64,${Buffer.from(buffer).toString('base64')}`);
+        try {
+          // 将图片转换为 Base64
+          const imageBase64 = await ctx.http.get(imageURL)
+            .then(buffer => `data:image/png;base64,${Buffer.from(buffer).toString('base64')}`);
 
-                // 打开一个新的 Puppeteer 页面
-                const page = await ctx.puppeteer.page();
+          // 打开一个新的 Puppeteer 页面
+          const page = await ctx.puppeteer.page();
 
-                // 获取像素化百分比参数
-                const pixelateValue = options.pixelate !== undefined ? options.pixelate : config.pixelate;
-                loggerinfo(`像素化百分比: ${pixelateValue}`); // 记录日志，方便调试
-                // 设置 HTML 内容
-                const htmlContent = `
+          // 获取像素化百分比参数
+          const pixelateValue = options.pixelate !== undefined ? options.pixelate : config.pixelate;
+          loggerinfo(`像素化百分比: ${pixelateValue}`); // 记录日志，方便调试
+          // 设置 HTML 内容
+          const htmlContent = `
 <!DOCTYPE html>
 <html lang="en-US">
 <head>
@@ -378,152 +533,156 @@ async function apply(ctx, config) {
 </html>
             `;
 
-                // 设置 Puppeteer 页面内容
-                await page.setContent(htmlContent, { waitUntil: 'networkidle2' });
+          // 设置 Puppeteer 页面内容
+          await page.setContent(htmlContent, { waitUntil: 'networkidle2' });
 
-                // 使用 Puppeteer 模拟滑块的像素化操作
-                await page.evaluate((pixelateValue) => {
-                    const slider = document.querySelector('.slider');
-                    slider.value = pixelateValue; // 设置滑块的值
-                    slider.dispatchEvent(new Event('input')); // 触发滑块的值变化事件
-                }, pixelateValue);
+          // 使用 Puppeteer 模拟滑块的像素化操作
+          await page.evaluate((pixelateValue) => {
+            const slider = document.querySelector('.slider');
+            slider.value = pixelateValue; // 设置滑块的值
+            slider.dispatchEvent(new Event('input')); // 触发滑块的值变化事件
+          }, pixelateValue);
 
-                // 等待页面中 canvas 元素生成
-                await page.waitForSelector('canvas', { timeout: 10000 });
+          // 等待页面中 canvas 元素生成
+          await page.waitForSelector('canvas', { timeout: 10000 });
 
-                // 获取目标 canvas 的 Base64 编码数据
-                const outputImageBase64 = await page.evaluate(() => {
-                    // 定位到最后一个 canvas
-                    const canvases = document.querySelectorAll('canvas');
-                    const targetCanvas = canvases[canvases.length - 1];
-                    return targetCanvas ? targetCanvas.toDataURL('image/png') : null; // 获取数据
-                });
+          // 获取目标 canvas 的 Base64 编码数据
+          const outputImageBase64 = await page.evaluate(() => {
+            // 定位到最后一个 canvas
+            const canvases = document.querySelectorAll('canvas');
+            const targetCanvas = canvases[canvases.length - 1];
+            return targetCanvas ? targetCanvas.toDataURL('image/png') : null; // 获取数据
+          });
 
-                // 如果成功获取图像数据，发送到用户
-                if (outputImageBase64) {
-                    await session.send(h.image(outputImageBase64));
-                } else {
-                    await session.send("处理图像时出错，请重试。");
-                }
-                // 关闭 Puppeteer 页面，释放资源
-                await page.close();
-            } catch (error) {
-                // 捕获错误并记录日志
-                ctx.logger.error('处理图像时出错:', error);
-                await session.send("处理图像时出错，请重试。");
-            }
-        });
+          // 如果成功获取图像数据，发送到用户
+          if (outputImageBase64) {
+            await session.send(h.image(outputImageBase64));
+          } else {
+            await session.send("处理图像时出错，请重试。");
+          }
+          // 关闭 Puppeteer 页面，释放资源
+          await page.close();
+        } catch (error) {
+          // 捕获错误并记录日志
+          ctx.logger.error('处理图像时出错:', error);
+          await session.send("处理图像时出错，请重试。");
+        }
+      });
+  }
 
+  if (config.enablecommand1) {
     ctx.command("patina/幻影 <img1> <img2>", "制作幻影坦克图片")
-        .alias("幻影坦克")
-        .example("幻影").example("幻影 [图片]").example("幻影 [图片] [图片]").example("幻影 QQ号 QQ号").example("幻影 @用户 @用户")
-        .option('fullColor', '-f', '全彩输出')
-        .option('size', '-s <size:number>', '输出尺寸')
-        .option('weight', '-w <weight:number>', '里图混合权重')
-        .action(async ({ session, options }, img1, img2) => {
-            const miragehtml = path.join(__dirname, '../html/mirage/mirage.html');
-            loggerinfo(img1);
-            loggerinfo(img2);
-            if (!ctx.puppeteer) {
-                await session.send("没有开启puppeteer服务");
-                return;
+      .alias("幻影坦克")
+      .example("幻影").example("幻影 [图片]").example("幻影 [图片] [图片]").example("幻影 QQ号 QQ号").example("幻影 @用户 @用户")
+      .option('fullColor', '-f', '全彩输出')
+      .option('size', '-s <size:number>', '输出尺寸')
+      .option('weight', '-w <weight:number>', '里图混合权重')
+      .action(async ({ session, options }, img1, img2) => {
+        const miragehtml = path.join(__dirname, '../html/mirage/mirage.html');
+        loggerinfo(img1);
+        loggerinfo(img2);
+        if (!ctx.puppeteer) {
+          await session.send("没有开启puppeteer服务");
+          return;
+        }
+        // 获取表图
+        if (!img1) {
+          await session.send("请发送一张图片作为【表图】：");
+          img1 = await session.prompt(30000);
+        }
+        img1 = extractImageUrl(img1);
+        // 获取里图
+        if (!img2) {
+          await session.send("请发送一张图片作为【里图】：");
+          img2 = await session.prompt(30000);
+        }
+        img2 = extractImageUrl(img2);
+        if (!img1 || !img2) {
+          await session.send("未检测到有效的图片，请重试。");
+          return;
+        }
+        loggerinfo(`图片URL1: ${img1}`);
+        loggerinfo(`图片URL2: ${img2}`);
+
+        const page = await ctx.puppeteer.page();
+        // 将原来的固定路径改为动态生成的临时路径
+        const tempCoverPath = generateTempFilePath('cover');
+        const tempInnerPath = generateTempFilePath('inner');
+
+        try {
+          // 下载并保存图片
+          await downloadImage(ctx, img1, tempCoverPath);
+          await downloadImage(ctx, img2, tempInnerPath);
+
+          await page.goto(`file://${miragehtml}`, { waitUntil: 'networkidle2' });
+
+          // 配置全彩输出
+          const fullColor = options.fullColor !== undefined ? options.fullColor : config.Full_color_output;
+          await page.evaluate((fullColor) => {
+            const checkbox = document.getElementById('isColoredCheckbox');
+            if (checkbox && checkbox.checked !== fullColor) {
+              checkbox.click();
             }
-            // 获取表图
-            if (!img1) {
-                await session.send("请发送一张图片作为【表图】：");
-                img1 = await session.prompt(30000);
+          }, fullColor);
+
+          // 配置输出尺寸
+          const size = options.size !== undefined ? options.size : config.Output_Size;
+          await page.evaluate((size) => {
+            const sizeInput = document.getElementById('maxSizeInput');
+            if (sizeInput) {
+              sizeInput.value = size;
+              sizeInput.dispatchEvent(new Event('input'));
             }
-            img1 = extractImageUrl(img1);
-            // 获取里图
-            if (!img2) {
-                await session.send("请发送一张图片作为【里图】：");
-                img2 = await session.prompt(30000);
+          }, size);
+
+          // 配置里图混合权重
+          const weight = options.weight !== undefined ? options.weight : config.Mixed_Weight;
+          await page.evaluate((weight) => {
+            const weightInput = document.getElementById('innerWeightRange');
+            if (weightInput) {
+              weightInput.value = weight;
+              weightInput.dispatchEvent(new Event('input'));
             }
-            img2 = extractImageUrl(img2);
-            if (!img1 || !img2) {
-                await session.send("未检测到有效的图片，请重试。");
-                return;
-            }
-            loggerinfo(`图片URL1: ${img1}`);
-            loggerinfo(`图片URL2: ${img2}`);
+          }, weight);
 
-            const page = await ctx.puppeteer.page();
-            // 将原来的固定路径改为动态生成的临时路径
-            const tempCoverPath = generateTempFilePath('cover');
-            const tempInnerPath = generateTempFilePath('inner');
+          // 上传表图
+          const [coverFileChooser] = await Promise.all([
+            page.waitForFileChooser(),
+            page.click('label[for="coverFileInput"]'),
+          ]);
+          await coverFileChooser.accept([tempCoverPath]);
 
-            try {
-                // 下载并保存图片
-                await downloadImage(ctx, img1, tempCoverPath);
-                await downloadImage(ctx, img2, tempInnerPath);
+          // 上传里图
+          const [innerFileChooser] = await Promise.all([
+            page.waitForFileChooser(),
+            page.click('label[for="innerFileInput"]'),
+          ]);
+          await innerFileChooser.accept([tempInnerPath]);
 
-                await page.goto(`file://${miragehtml}`, { waitUntil: 'networkidle2' });
+          // 等待生成的输出图像
+          await page.waitForSelector('#outputCanvas', { timeout: 10000 });
 
-                // 配置全彩输出
-                const fullColor = options.fullColor !== undefined ? options.fullColor : config.Full_color_output;
-                await page.evaluate((fullColor) => {
-                    const checkbox = document.getElementById('isColoredCheckbox');
-                    if (checkbox && checkbox.checked !== fullColor) {
-                        checkbox.click();
-                    }
-                }, fullColor);
+          const outputImageBase64 = await page.evaluate(() => {
+            const canvas = document.getElementById('outputCanvas');
+            return canvas ? canvas.toDataURL('image/png') : null;
+          });
 
-                // 配置输出尺寸
-                const size = options.size !== undefined ? options.size : config.Output_Size;
-                await page.evaluate((size) => {
-                    const sizeInput = document.getElementById('maxSizeInput');
-                    if (sizeInput) {
-                        sizeInput.value = size;
-                        sizeInput.dispatchEvent(new Event('input'));
-                    }
-                }, size);
+          if (outputImageBase64) {
+            await session.send(h.image(outputImageBase64));
+          } else {
+            await session.send("处理图像时出错，请重试。");
+          }
+        } catch (error) {
+          ctx.logger.error('处理图像时出错:', error);
+          await session.send("处理图像时出错，请重试。");
+        } finally {
+          if (fs.existsSync(tempCoverPath)) fs.unlinkSync(tempCoverPath);
+          if (fs.existsSync(tempInnerPath)) fs.unlinkSync(tempInnerPath);
+          await page.close();
+        }
+      });
+  }
 
-                // 配置里图混合权重
-                const weight = options.weight !== undefined ? options.weight : config.Mixed_Weight;
-                await page.evaluate((weight) => {
-                    const weightInput = document.getElementById('innerWeightRange');
-                    if (weightInput) {
-                        weightInput.value = weight;
-                        weightInput.dispatchEvent(new Event('input'));
-                    }
-                }, weight);
-
-                // 上传表图
-                const [coverFileChooser] = await Promise.all([
-                    page.waitForFileChooser(),
-                    page.click('label[for="coverFileInput"]'),
-                ]);
-                await coverFileChooser.accept([tempCoverPath]);
-
-                // 上传里图
-                const [innerFileChooser] = await Promise.all([
-                    page.waitForFileChooser(),
-                    page.click('label[for="innerFileInput"]'),
-                ]);
-                await innerFileChooser.accept([tempInnerPath]);
-
-                // 等待生成的输出图像
-                await page.waitForSelector('#outputCanvas', { timeout: 10000 });
-
-                const outputImageBase64 = await page.evaluate(() => {
-                    const canvas = document.getElementById('outputCanvas');
-                    return canvas ? canvas.toDataURL('image/png') : null;
-                });
-
-                if (outputImageBase64) {
-                    await session.send(h.image(outputImageBase64));
-                } else {
-                    await session.send("处理图像时出错，请重试。");
-                }
-            } catch (error) {
-                ctx.logger.error('处理图像时出错:', error);
-                await session.send("处理图像时出错，请重试。");
-            } finally {
-                if (fs.existsSync(tempCoverPath)) fs.unlinkSync(tempCoverPath);
-                if (fs.existsSync(tempInnerPath)) fs.unlinkSync(tempInnerPath);
-                await page.close();
-            }
-        });
 }
 
 exports.apply = apply;

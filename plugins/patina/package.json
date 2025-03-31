@@ -1,7 +1,7 @@
 {
   "name": "koishi-plugin-patina",
-  "version": "2.0.0",
-  "description": "幻影坦克、像素化... 旨在通过 puppeteer 来让你的bot获得更多功能！",
+  "version": "2.1.0",
+  "description": "幻影坦克、像素化、相机镜框... 旨在通过 puppeteer 来让你的bot获得更多功能！",
   "main": "lib/index.js",
   "typings": "lib/index.d.ts",
   "files": [
@@ -15,7 +15,7 @@
     "像素化",
     "幻影坦克"
   ],
-  "homepage": "https://github.com/shangxueink/koishi-shangxue-apps/tree/main/oishi-plugin-jrys-prpr",
+  "homepage": "https://github.com/shangxueink/koishi-shangxue-apps/",
   "bugs": {
     "url": "https://github.com/shangxueink/koishi-shangxue-apps/issues"
   },
