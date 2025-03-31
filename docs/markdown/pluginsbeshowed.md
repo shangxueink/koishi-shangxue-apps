@@ -29,7 +29,7 @@
 | **Markdown菜单**  | <img src="https://i0.hdslb.com/bfs/article/491742240a8d4f38723c024c66279afa312276085.png" referrerpolicy="no-referrer" width="500"> |
 | **booru图源**     | <img src="https://i0.hdslb.com/bfs/article/d85d0a1152bf7c5927caa61f3eb37d85312276085.gif" referrerpolicy="no-referrer" width="500"> |
 | **插件市场搜索**  | <img src="https://i0.hdslb.com/bfs/article/f376622b95f4d4c1d059b7927f32ffdc312276085.png" referrerpolicy="no-referrer" width="500"> |
-| **渲染菜单**      | <img src="https://i0.hdslb.com/bfs/article/b89dee57e0464e05566034a8b3454082312276085.png" referrerpolicy="no-referrer" width="500"> |
+| **渲染菜单**      | <img src="https://i0.hdslb.com/bfs/article/972a9a876988c973785d97daeb8027e7312276085.png" referrerpolicy="no-referrer" width="500"> |
 | **无语典型**      | <img src="https://i0.hdslb.com/bfs/article/00bf52c9f36bf40e63fd28334338a71d312276085.png" referrerpolicy="no-referrer" width="500"> |
 | **旧词新解**      | <img src="https://i0.hdslb.com/bfs/article/82cf9827aad9b151b21f28dde61f13ca312276085.gif" referrerpolicy="no-referrer" width="500"> |
 | **自动撤回**      | <img src="https://i0.hdslb.com/bfs/article/585ce85165936462a105f0162b4ddde8312276085.gif" referrerpolicy="no-referrer" width="500"> |
