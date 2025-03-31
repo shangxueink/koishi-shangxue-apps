@@ -86,11 +86,10 @@ export const Config =
       Schema.object({}),
     ]),
 
-
     Schema.object({
-      loggerinfo: Schema.boolean().default(false).description("日志调试：一般输出").experimental(),
-      loggerinfo_content: Schema.boolean().default(false).description("日志调试：代发内容输出(content)").experimental(),
-      loggerinfo_setInterval: Schema.boolean().default(false).description("日志调试：定时打印 messageIdMap 视检").experimental(),
+      loggerinfo: Schema.boolean().default(false).description("日志调试：一般输出<br>提issue是请使用此功能").experimental(),
+      loggerinfo_content: Schema.boolean().default(false).description("日志调试：代发内容输出(content)<br>非开发者请勿改动").experimental(),
+      loggerinfo_setInterval: Schema.boolean().default(false).description("日志调试：20 秒 定时打印 变量-视检<br>非开发者请勿改动").experimental(),
     }).description('调试设置'),
   ]);
 
@@ -132,7 +131,8 @@ export async function apply(ctx: Context, config) {
       if (config.loggerinfo_setInterval) {
         // 定时打印 messageIdMap 视检
         ctx.setInterval(() => {
-          logInfo("messageIdMap 内容 (每 15 秒打印):", messageIdMap);
+          logInfo("messageIdMap 内容 (每 20 秒打印):", messageIdMap);
+          logInfo("withdrawnSessions 内容 (每 20 秒打印):", withdrawnSessions);
         }, 20 * 1000);
       }
     }
@@ -276,6 +276,13 @@ export async function apply(ctx: Context, config) {
       // 标记该session.sn为已撤回
       withdrawnSessions.add(sessionSn);
       logInfo(`[message-deleted] 已标记session.sn为已撤回: ${sessionSn}`);
+
+      // 在 withdrawExpire 秒后从 withdrawnSessions 中移除该 session.sn
+      ctx.setTimeout(() => {
+        withdrawnSessions.delete(sessionSn);
+        logInfo(`[withdrawnSessions] 已定时清理 session.sn: ${sessionSn}`);
+      }, config.withdrawExpire * 1000);
+
 
       // 撤回所有已发送的消息
       for (const id of replyIds) {
