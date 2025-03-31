@@ -91,7 +91,7 @@ exports.Config = Schema.intersect([
         ]).default("bv").description("ID 偏好").hidden(),
 
         bVideo_area: Schema.string().role('textarea', { rows: [8, 16] }).description("图文解析的返回格式<br>注意变量格式，以及变量名称。<br>比如 `${标题}` 不可以变成`${标题123}`，你可以直接删掉但是不能修改变量名称哦<br>当然变量也不能无中生有，下面的默认值内容 就是所有变量了，你仅可以删去变量 或者修改变量之外的格式。<br>· 特殊变量`${~~~}`表示分割线，会把上下内容分为两个信息单独发送。")
-            .default("${标题} --- ${UP主}\n---\n${封面}\n---\n${简介}\n---\n${点赞} --- ${投币}\n${收藏} --- ${转发}\n${观看} --- ${弹幕}"),
+            .default("${标题} --- ${UP主}\n${简介}\n点赞：${点赞} --- 投币：${投币}\n收藏：${收藏} --- 转发：${转发}\n观看：${观看} --- 弹幕：${弹幕}\n${~~~}\n${封面}"),
         bVideoShowLink: Schema.boolean().default(false).description("在末尾显示视频的链接地址 `开启可能会导致其他bot循环解析`"),
         bVideoShowIntroductionTofixed: Schema.number().default(50).description("视频的`简介`最大的字符长度<br>超出部分会使用 `...` 代替"),
     }).description("链接的图文解析设置"),
@@ -704,12 +704,12 @@ display: none !important;
                 '${UP主}': info["data"]["owner"]["name"],
                 '${封面}': `<img src="${info["data"]["pic"]}"/>`,
                 '${简介}': description, // 使用处理后的简介
-                '${点赞}': `点赞：${(0, numeral)(info["data"]["stat"]["like"], this.config)}`,
-                '${投币}': `投币：${(0, numeral)(info["data"]["stat"]["coin"], this.config)}`,
-                '${收藏}': `收藏：${(0, numeral)(info["data"]["stat"]["favorite"], this.config)}`,
-                '${转发}': `转发：${(0, numeral)(info["data"]["stat"]["share"], this.config)}`,
-                '${观看}': `观看：${(0, numeral)(info["data"]["stat"]["view"], this.config)}`,
-                '${弹幕}': `弹幕：${(0, numeral)(info["data"]["stat"]["danmaku"], this.config)}`,
+                '${点赞}': `${(0, numeral)(info["data"]["stat"]["like"], this.config)}`,
+                '${投币}': `${(0, numeral)(info["data"]["stat"]["coin"], this.config)}`,
+                '${收藏}': `${(0, numeral)(info["data"]["stat"]["favorite"], this.config)}`,
+                '${转发}': `${(0, numeral)(info["data"]["stat"]["share"], this.config)}`,
+                '${观看}': `${(0, numeral)(info["data"]["stat"]["view"], this.config)}`,
+                '${弹幕}': `${(0, numeral)(info["data"]["stat"]["danmaku"], this.config)}`,
             };
 
             // 根据配置项中的格式替换占位符
