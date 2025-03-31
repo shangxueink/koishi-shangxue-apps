@@ -1,7 +1,7 @@
 import { Context, Schema, sleep, h } from "koishi";
 
 export const name = "autowithdraw-fix";
-// export const inject = [];
+export const inject = ["logger"];
 export const usage = `
 ---
 
@@ -23,6 +23,10 @@ export const usage = `
 <p>灵感来自这个项目：<a href="https://github.com/Kabuda-czh/koishi-plugin-autowithdraw/" target="_blank">github.com/Kabuda-czh/koishi-plugin-autowithdraw</a></p>
 
 ---
+
+目前仅在 onebot 平台测试 实际可用！
+
+已知bug：在qq平台使用会导致报错，发不出消息。
 
 `;
 
@@ -86,6 +90,7 @@ export const Config =
     Schema.object({
       loggerinfo: Schema.boolean().default(false).description("日志调试：一般输出").experimental(),
       loggerinfo_content: Schema.boolean().default(false).description("日志调试：代发内容输出(content)").experimental(),
+      loggerinfo_setInterval: Schema.boolean().default(false).description("日志调试：定时打印 messageIdMap 视检").experimental(),
     }).description('调试设置'),
   ]);
 
@@ -124,13 +129,12 @@ export async function apply(ctx: Context, config) {
           await session.send("延迟回复111");
           await session.send("延迟回复222");
         });
-
-      /*
-      // 定时打印 messageIdMap  视检
-      ctx.setInterval(() => {
-        logInfo("messageIdMap 内容 (每 15 秒打印):", messageIdMap);
-      }, 15 * 1000);
-      */
+      if (config.loggerinfo_setInterval) {
+        // 定时打印 messageIdMap 视检
+        ctx.setInterval(() => {
+          logInfo("messageIdMap 内容 (每 15 秒打印):", messageIdMap);
+        }, 20 * 1000);
+      }
     }
 
     // 清理 messageIdMap 记录
@@ -224,10 +228,10 @@ export async function apply(ctx: Context, config) {
           currentMap: messageIdMap
         });
 
-        // 启动定时清理 (withdrawExpire)
+        // 启动定时清理
         scheduleCleanup(inputMessageId, sessionSn);
 
-        // 自动撤回逻辑 (autodeleteMessage)
+        // 自动撤回逻辑
         if (config.autodeleteMessage) {
           ctx.setTimeout(async () => {
             for (const id of sendmessageIds) {
@@ -238,7 +242,7 @@ export async function apply(ctx: Context, config) {
                 ctx.logger.error(`[autodeleteMessage] 自动撤回失败, 消息ID: ${id}`, error);
               }
             }
-            // 自动撤回后立即删除 messageIdMap 记录 (autodeleteMessage)
+            // 自动撤回后立即删除 messageIdMap 记录
             delete messageIdMap[inputMessageId];
             logInfo(`messageIdMap 更新 (autodeleteMessage 自动撤回后删除记录)`, {
               currentMap: messageIdMap
@@ -259,18 +263,6 @@ export async function apply(ctx: Context, config) {
     }, true);
 
 
-
-
-    /*
-        ctx.once("before-send", async (_session) => {
-          if (!_session) {
-            return;
-          }
-          logInfo(_session);
-          await _session.send("11")
-        }, true);
-    */
-
     ctx.on("message-deleted", async (session) => {
       const originId = session.messageId;
       if (!originId || !messageIdMap[originId]) {
@@ -284,7 +276,7 @@ export async function apply(ctx: Context, config) {
         sessionSn: sessionSn
       });
 
-      // 标记该session.sn为已撤回 (这个逻辑可能不再需要，因为 withdrawExpire 会定时清理)
+      // 标记该session.sn为已撤回
       withdrawnSessions.add(sessionSn);
       logInfo(`[message-deleted] 已标记session.sn为已撤回: ${sessionSn}`);
 
@@ -297,7 +289,7 @@ export async function apply(ctx: Context, config) {
           ctx.logger.error(`[message-deleted] 撤回失败, 消息ID: ${id}`, error);
         }
       }
-      // 用户撤回后立即删除 messageIdMap 记录 (message-deleted)
+      // 用户撤回后立即删除 messageIdMap 记录
       delete messageIdMap[originId];
       logInfo(`messageIdMap 更新 (message-deleted 用户撤回后删除记录)`, {
         currentMap: messageIdMap
