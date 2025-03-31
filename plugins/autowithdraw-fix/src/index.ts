@@ -154,9 +154,6 @@ export async function apply(ctx: Context, config) {
       pendingCleanup.set(originId, timer);
     }
 
-
-
-
     ctx.on("before-send", async (_session, options) => {
       if (!options?.session) {
         return;
@@ -168,8 +165,13 @@ export async function apply(ctx: Context, config) {
       const outputContent = outputSession.content;
       const sessionSn = inputSession.sn;
 
-      logInfo("========= before-send 事件触发 =========");
-      logInfo("用户输入消息 ID:", inputMessageId);
+      if (!inputMessageId) {
+        return;
+      } else {
+        logInfo("========= before-send 事件触发 =========");
+        logInfo("inputMessageId: ", inputMessageId);
+      }
+
       if (config.loggerinfo_content) logInfo("原始响应发送内容:", outputContent);
       logInfo("Session SN:", sessionSn);
 
@@ -188,14 +190,6 @@ export async function apply(ctx: Context, config) {
         return; // 直接返回，不执行后续逻辑
       }
 
-
-      if (!inputMessageId) {
-        logInfo("警告: inputMessageId 为空，无法记录消息映射");
-        logInfo("========= before-send 事件结束 =========");
-        return;
-      } else {
-        logInfo("inputMessageId: ", inputMessageId);
-      }
       // 初始化或获取记录
       if (inputMessageId && !messageIdMap[inputMessageId]) {
         messageIdMap[inputMessageId] = {
@@ -250,7 +244,6 @@ export async function apply(ctx: Context, config) {
           }, config.autodeleteMessagewithdrawExpire * 1000);
         }
 
-
         // 清空原始内容防止重复发送
         outputSession.content = '';
         logInfo("========= before-send 事件结束 =========");
@@ -262,11 +255,15 @@ export async function apply(ctx: Context, config) {
       }
     }, true);
 
-
     ctx.on("message-deleted", async (session) => {
+      if (session.userId === session.selfId) { // 不处理bot的撤回
+        return;
+      }
+      logInfo("========= message-deleted 事件触发 =========");
       const originId = session.messageId;
       if (!originId || !messageIdMap[originId]) {
         logInfo('[message-deleted] 警告: 未找到关联的回复消息');
+        logInfo("========= message-deleted 事件结束 =========");
         return;
       }
 
@@ -294,7 +291,8 @@ export async function apply(ctx: Context, config) {
       logInfo(`messageIdMap 更新 (message-deleted 用户撤回后删除记录)`, {
         currentMap: messageIdMap
       });
+      logInfo("========= message-deleted 事件结束 =========");
     });
-
   });
+
 }
