@@ -76,7 +76,7 @@ exports.Config = Schema.intersect([
                 qqappid: Schema.string().description('官方机器人appid'),
                 channelId: Schema.string().description('群组ID（真实QQ群号）'),
             })).role('table').description('应用的群组'),
-            broadcastcontent: Schema.string().description('广播内容 (元素消息)').role('textarea', { rows: [4, 4] }).default("你好  <img src=\"https://koishi.chat/logo.png\">"),
+            broadcastcontent: Schema.string().description('广播内容 (元素消息)').role('textarea', { rows: [4, 4] }).default("你好啊<img src=\"https://koishi.chat/logo.png\"/>你好啊<img src=\"https://koishi.chat/logo.png\"/>"),
         }),
         Schema.object({
             enabletable: Schema.const("table2"),
