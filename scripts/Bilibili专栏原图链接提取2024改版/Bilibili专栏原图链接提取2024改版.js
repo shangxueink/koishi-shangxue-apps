@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Bilibili专栏原图链接提取2024改版
 // @namespace    https://github.com/shangxueink
-// @version      3.0
+// @version      3.3
 // @description  PC端B站专栏图片默认是经压缩过的webp。此脚本帮助用户点击按钮后获取哔哩哔哩专栏中所有原图的直链，方便使用其他工具批量下载原图。
 // @author       shangxueink
 // @license      GPLv3
