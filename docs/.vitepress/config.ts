@@ -30,11 +30,11 @@ export default defineConfig(
           "text": "插件与工具",
           "items": [
             {
-              "text": "插件展示",
+              "text": "插件效果展示",
               "link": "/markdown/pluginsbeshowed"
             },
             {
-              "text": "脚本展示",
+              "text": "脚本效果展示",
               "link": "/markdown/scriptsbeshowed"
             },
             {
@@ -71,6 +71,10 @@ export default defineConfig(
         {
           "text": "其他",
           "items": [
+            {
+              "text": "MeMe Downloader",
+              "link": "https://shangxueink.github.io/MemeDownloader/"
+            },
             {
               "text": "许可证",
               "link": "https://github.com/shangxueink/koishi-shangxue-apps/blob/main/LICENSE"
