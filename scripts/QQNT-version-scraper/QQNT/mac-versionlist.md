@@ -4,3 +4,5 @@
 |---|---|---|---|---|---|---|
 | macOS Universal | 6.9.67 (Intel+Apple Silicon) |   |   |   |   | [下载](https://dldir1.qq.com/qqfile/qq/QQNT/Mac/QQ_6.9.67_250318_01.dmg) |
 |   |   |   |   |   |   |   |
+| macOS Universal | 6.9.68 (Intel+Apple Silicon) |   |   |   |   | [下载](https://dldir1.qq.com/qqfile/qq/QQNT/Mac/QQ_6.9.68_250401_01.dmg) |
+|   |   |   |   |   |   |   |

@@ -6,5 +6,13 @@
       "x86": "https://dldir1.qq.com/qqfile/qq/QQNT/Windows/QQ_9.9.18_250318_x86_01.exe",
       "arm": "https://dldir1.qq.com/qqfile/qq/QQNT/Windows/QQ_9.9.18_250318_arm64_01.exe"
     }
+  },
+  {
+    "windows": {
+      "versionCode": "9.9.18_250401",
+      "x64": "https://dldir1.qq.com/qqfile/qq/QQNT/Windows/QQ_9.9.18_250401_x64_01.exe",
+      "x86": "https://dldir1.qq.com/qqfile/qq/QQNT/Windows/QQ_9.9.18_250401_x86_01.exe",
+      "arm": "https://dldir1.qq.com/qqfile/qq/QQNT/Windows/QQ_9.9.18_250401_arm64_01.exe"
+    }
   }
 ]
