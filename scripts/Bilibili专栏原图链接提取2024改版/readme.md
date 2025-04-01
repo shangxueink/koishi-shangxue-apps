@@ -16,7 +16,9 @@
 
 我们推荐使用 [Tampermonkey](https://www.tampermonkey.net/)，它支持多种浏览器，包括但不限于 Chrome、Firefox 和 Edge。
 
-作为备选，你也可以使用 [ScriptCat](https://docs.scriptcat.org/)。
+注意：请按照 [tampermonkey#Q209](https://www.tampermonkey.net/faq.php#Q209) 操作，开启开发者模式。
+
+作为备选，你也可以使用 [ScriptCat](https://docs.scriptcat.org/) 等其他脚本管理器。
 
 安装脚本:
    - [点击此处安装 Bilibili专栏原图链接提取2024改版](https://greasyfork.org/zh-CN/scripts/521666-bilibili%E4%B8%93%E6%A0%8F%E5%8E%9F%E5%9B%BE%E9%93%BE%E6%8E%A5%E6%8F%90%E5%8F%962024%E6%94%B9%E7%89%88)
