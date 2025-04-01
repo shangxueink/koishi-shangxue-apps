@@ -227,10 +227,15 @@ exports.Config =
     }).description('monetary·通用货币设置'),
 
     Schema.object({
-      timezone: Schema.number().min(-12).max(+12).step(1).default(+8).description("时区设置。默认`中国东八区：+8`"),
       retryexecute: Schema.boolean().default(false).description(" `重试机制`。触发`渲染失败`时，是否自动重新执行"),
-      maxretrytimes: Schema.number().role('slider').min(0).max(10).step(1).default(1).description("最大的重试次数<br>`0`代表`不重试`"),
     }).description('进阶功能'),
+    Schema.union([
+      Schema.object({
+        retryexecute: Schema.const(true).required(),
+        maxretrytimes: Schema.number().role('slider').min(0).max(10).step(1).default(1).description("最大的重试次数<br>`0`代表`不重试`"),
+      }),
+      Schema.object({}),
+    ]),
 
     Schema.object({
       Repeated_signin_for_different_groups: Schema.boolean().default(false).description("允许同一个用户从不同群组签到"),
