@@ -76,7 +76,6 @@ exports.Config = Schema.intersect([
                 qqappid: Schema.string().description('官方机器人appid'),
                 channelId: Schema.string().description('群组ID（真实QQ群号）'),
             })).role('table').description('应用的群组'),
-
             broadcastcontent: Schema.string().description('广播内容 (元素消息)').role('textarea', { rows: [4, 4] }).default("你好  <img src=\"https://koishi.chat/logo.png\">"),
         }),
         Schema.object({
@@ -118,17 +117,6 @@ function apply(ctx, config) {
         }
     }
 
-    function decodeHTMLEntities(text) {
-        const entities = {
-            '&lt;': '<',
-            '&gt;': '>',
-            '&amp;': '&',
-            '&quot;': '"',
-            '&#39;': "'"
-        };
-        return text.replace(/&lt;|&gt;|&amp;|&quot;|&#39;/g, match => entities[match]);
-    }
-
     let cache2Content;
 
     if (config.enabletable === "table1") {
@@ -168,7 +156,7 @@ function apply(ctx, config) {
                     isWaitingForResponse = true;
                     return true; // API 请求成功
                 } else {
-                    ctx.logger.warn(`[Table1] API请求失败，频道: ${channelId}`);
+                    ctx.logger.error(`[Table1] API请求失败，频道: ${channelId}`);
                     return false;
                 }
             } catch (error) {
@@ -185,10 +173,7 @@ function apply(ctx, config) {
             try {
                 // 确保 broadcastcontent 有值
                 if (broadcastcontent) {
-                    let contentToSend = decodeHTMLEntities(broadcastcontent);
-
-                    // 处理@消息
-                    contentToSend = contentToSend.replace(/<at id="(\d+)"(?: name="([^"]*)")?\s*\/>/g, (_, id, name) => `@${name || id}`).replace("@@", "@");
+                    let contentToSend = broadcastcontent;
 
                     logInfo(`准备发送的内容：${contentToSend}`);
 
@@ -196,7 +181,7 @@ function apply(ctx, config) {
                     if (messageIdsended) {
                         logInfo(`[Table1] 消息发送成功到频道: ${session.channelId}`);
                     } else {
-                        ctx.logger.warn(`[Table1] 消息发送失败到频道: ${session.channelId}`);
+                        ctx.logger.error(`[Table1] 消息发送失败到频道: ${session.channelId}`);
                     }
                 } else {
                     logInfo("[Table1] broadcastcontent 为空，无法发送消息。");
@@ -264,10 +249,21 @@ function apply(ctx, config) {
             });
     }
 
-
-
     if (config.enabletable === "table2") {
         let cacheContent;
+
+
+        function decodeHTMLEntities(text) {
+            const entities = {
+                '&lt;': '<',
+                '&gt;': '>',
+                '&amp;': '&',
+                '&quot;': '"',
+                '&#39;': "'"
+            };
+            return text.replace(/&lt;|&gt;|&amp;|&quot;|&#39;/g, match => entities[match]);
+        }
+
 
         ctx.middleware(async (session, next) => {
             // logInfo(session);
