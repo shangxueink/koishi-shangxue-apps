@@ -9,7 +9,11 @@ exports.usage = `
 
 ---
 
-本项目可以实现官方机器人无前缀触发，实现 “伪主动” 效果
+本项目可以实现官方机器人无前缀触发，实现 “伪主动” 效果。
+
+模式一，可由一个官方bot工作，广播消息。
+
+模式二，需要官方+野生，实现监听触发+伪主动
 
 ---
 
@@ -62,11 +66,12 @@ exports.Config = Schema.intersect([
         enabletable: Schema.union([
             Schema.const('table1').description('模式 1 - 广播消息（触发指令后开始广播）'),
             Schema.const('table2').description('模式 2 - 伪主动'),
-        ]).role('radio').description("工作模式选择。<br>模式一，可由一个官方bot工作，广播消息。<br>模式二，需要官方+野生，实现监听触发+伪主动").default("table2"),
+        ]).role('radio').description("工作模式选择。").default("table2"),
     }).description('基础配置'),
     Schema.union([
         Schema.object({
             enabletable: Schema.const("table1").required(),
+            table1command: Schema.string().default("开始发广播").description("启动广播发消息的指令"),
             table1: Schema.array(Schema.object({
                 qqappid: Schema.string().description('官方机器人appid'),
                 channelId: Schema.string().description('群组ID（真实QQ群号）'),
@@ -252,7 +257,7 @@ function apply(ctx, config) {
             await processNextBroadcast();
         }
 
-        ctx.command('开始广播table')
+        ctx.command(`${config.table1command}`)
             .action(async ({ session }) => {
                 await startBroadcasting();
                 return '开始执行 Table1 广播流程。';
