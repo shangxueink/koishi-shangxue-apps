@@ -245,208 +245,208 @@ exports.Config =
 
 
 function apply(ctx, config) {
-  const root = path.join(ctx.baseDir, 'data', 'jrys-prpr');
-  const jsonFilePath = path.join(root, 'OriginalImageURL_data.json');
-  if (!fs.existsSync(root)) {
-    fs.mkdirSync(root, { recursive: true });
-  }
-  //
-  // 检查并创建 JSON 文件
-  if (!fs.existsSync(jsonFilePath)) {
-    fs.writeFileSync(jsonFilePath, JSON.stringify([]));
-  }
-  ctx.model.extend("jrysprprdata", {
-    userid: "string",
-    // 用户ID唯一标识
-    channelId: "string",
-    // 频道ID
-    lastSignIn: "string"
-    // 最后签到日期
-  }, {
-    primary: ["userid", "channelId"]
-  });
+  ctx.on('ready', async () => {
+    const root = path.join(ctx.baseDir, 'data', 'jrys-prpr');
+    const jsonFilePath = path.join(root, 'OriginalImageURL_data.json');
+    if (!fs.existsSync(root)) {
+      fs.mkdirSync(root, { recursive: true });
+    }
+    //
+    // 检查并创建 JSON 文件
+    if (!fs.existsSync(jsonFilePath)) {
+      fs.writeFileSync(jsonFilePath, JSON.stringify([]));
+    }
+    ctx.model.extend("jrysprprdata", {
+      userid: "string",
+      // 用户ID唯一标识
+      channelId: "string",
+      // 频道ID
+      lastSignIn: "string"
+      // 最后签到日期
+    }, {
+      primary: ["userid", "channelId"]
+    });
 
-  const zh_CN_default = {
-    commands: {
-      [config.command]: {
-        description: "查看今日运势",
-        messages: {
-          Getbackgroundimage: "获取原图，请发送：{0}",
-          CurrencyGetbackgroundimage: "签到成功！获得点数: {0}\n获取原图，请发送：{1}",
-          CurrencyGetbackgroundimagesplit: "签到成功！获得点数: {0}",
-          hasSignedInTodaysplit: "今天已经签到过了，不再获得货币。",
-          hasSignedInToday: "今天已经签到过了，不再获得货币。\n获取原图，请发送：{0}",
+    const zh_CN_default = {
+      commands: {
+        [config.command]: {
+          description: "查看今日运势",
+          messages: {
+            Getbackgroundimage: "获取原图，请发送：{0}",
+            CurrencyGetbackgroundimage: "签到成功！获得点数: {0}\n获取原图，请发送：{1}",
+            CurrencyGetbackgroundimagesplit: "签到成功！获得点数: {0}",
+            hasSignedInTodaysplit: "今天已经签到过了，不再获得货币。",
+            hasSignedInToday: "今天已经签到过了，不再获得货币。\n获取原图，请发送：{0}",
+          }
+        },
+        [config.command2]: {
+          description: "获取运势原图",
+          messages: {
+            Inputerror: "请回复一张运势图，或者输入运势图的消息ID 以获取原图哦\~",
+            QQInputerror: "请输入运势图的消息ID以获取原图哦\~",
+            FetchIDfailed: "未能提取到消息ID，请确认回复的消息是否正确。",
+            aleadyFetchID: "该消息背景已被获取过啦~ 我已经忘掉了~找不到咯",
+            Failedtogetpictures: "获取运势图原图失败，请稍后再试"
+          }
         }
-      },
-      [config.command2]: {
-        description: "获取运势原图",
-        messages: {
-          Inputerror: "请回复一张运势图，或者输入运势图的消息ID 以获取原图哦\~",
-          QQInputerror: "请输入运势图的消息ID以获取原图哦\~",
-          FetchIDfailed: "未能提取到消息ID，请确认回复的消息是否正确。",
-          aleadyFetchID: "该消息背景已被获取过啦~ 我已经忘掉了~找不到咯",
-          Failedtogetpictures: "获取运势图原图失败，请稍后再试"
+      }
+    };
+    ctx.i18n.define("zh-CN", zh_CN_default);
+
+    function logInfo(message, message2) {
+      if (config.consoleinfo) {
+        if (message2) {
+          ctx.logger.info(`${message} ${message2}`)
+        } else {
+          ctx.logger.info(message);
         }
       }
     }
-  };
-  ctx.i18n.define("zh-CN", zh_CN_default);
 
-  function logInfo(message, message2) {
-    if (config.consoleinfo) {
-      if (message2) {
-        ctx.logger.info(`${message} ${message2}`)
-      } else {
-        ctx.logger.info(message);
+    // 读取 TTF 字体文件并转换为 Base64 编码
+    function getFontBase64(fontPath) {
+      const fontBuffer = fs.readFileSync(fontPath);
+      return fontBuffer.toString('base64');
+    }
+
+    // 删除记录的函数
+    async function deleteImageRecord(messageId, imageURL) {
+      try {
+        const data = JSON.parse(fs.readFileSync(jsonFilePath, 'utf-8'));
+        const index = data.findIndex(record => record.messageId.includes(messageId) && record.backgroundURL === imageURL);
+        if (index !== -1) {
+          data.splice(index, 1);
+          fs.writeFileSync(jsonFilePath, JSON.stringify(data, null, 2), 'utf-8');
+          logInfo(`已删除消息ID ${messageId} 的记录`);
+        }
+      } catch (error) {
+        ctx.logger.error("删除记录时出错: ", error);
       }
     }
-  }
 
-  // 读取 TTF 字体文件并转换为 Base64 编码
-  function getFontBase64(fontPath) {
-    const fontBuffer = fs.readFileSync(fontPath);
-    return fontBuffer.toString('base64');
-  }
-
-  // 删除记录的函数
-  async function deleteImageRecord(messageId, imageURL) {
-    try {
-      const data = JSON.parse(fs.readFileSync(jsonFilePath, 'utf-8'));
-      const index = data.findIndex(record => record.messageId.includes(messageId) && record.backgroundURL === imageURL);
-      if (index !== -1) {
-        data.splice(index, 1);
-        fs.writeFileSync(jsonFilePath, JSON.stringify(data, null, 2), 'utf-8');
-        logInfo(`已删除消息ID ${messageId} 的记录`);
-      }
-    } catch (error) {
-      ctx.logger.error("删除记录时出错: ", error);
-    }
-  }
-
-  if (config.GetOriginalImageCommand) {
-    ctx.command(`${config.command2} <InputmessageId:text>`, { authority: 1 })
-      .alias('获取原图')
-      .action(async ({ session }, InputmessageId) => {
-        try {
-          const isQQPlatform = session.platform === 'qq';
-          const hasReplyContent = !!session.quote?.content;
-          if (!hasReplyContent && !isQQPlatform && !InputmessageId) {
-            return session.text(".Inputerror");
-          }
-          if (isQQPlatform && !InputmessageId) {
-            return session.text(".QQInputerror");
-          }
-          const messageId = hasReplyContent ? session.quote.messageId : InputmessageId;
-          logInfo(`尝试获取背景图：\n${messageId}`);
-          if (!messageId) {
-            return session.text(".FetchIDfailed");
-          }
-          const originalImageURL = await getOriginalImageURL(messageId);
-          logInfo(`运势背景原图链接:\n ${originalImageURL}`);
-          if (originalImageURL) {
-            const sendsuccess = await session.send(h.image(originalImageURL));
-            if (config.autocleanjson && sendsuccess) {
-              // 删除对应的JSON记录
-              await deleteImageRecord(messageId, originalImageURL);
+    if (config.GetOriginalImageCommand) {
+      ctx.command(`${config.command2} <InputmessageId:text>`, { authority: 1 })
+        .alias('获取原图')
+        .action(async ({ session }, InputmessageId) => {
+          try {
+            const isQQPlatform = session.platform === 'qq';
+            const hasReplyContent = !!session.quote?.content;
+            if (!hasReplyContent && !isQQPlatform && !InputmessageId) {
+              return session.text(".Inputerror");
             }
-            return;
-          } else if (config.autocleanjson) {
-            return session.text(".aleadyFetchID");
-          } else {
-            return session.text(".FetchIDfailed");
+            if (isQQPlatform && !InputmessageId) {
+              return session.text(".QQInputerror");
+            }
+            const messageId = hasReplyContent ? session.quote.messageId : InputmessageId;
+            logInfo(`尝试获取背景图：\n${messageId}`);
+            if (!messageId) {
+              return session.text(".FetchIDfailed");
+            }
+            const originalImageURL = await getOriginalImageURL(messageId);
+            logInfo(`运势背景原图链接:\n ${originalImageURL}`);
+            if (originalImageURL) {
+              const sendsuccess = await session.send(h.image(originalImageURL));
+              if (config.autocleanjson && sendsuccess) {
+                // 删除对应的JSON记录
+                await deleteImageRecord(messageId, originalImageURL);
+              }
+              return;
+            } else if (config.autocleanjson) {
+              return session.text(".aleadyFetchID");
+            } else {
+              return session.text(".FetchIDfailed");
+            }
+          } catch (error) {
+            ctx.logger.error("获取运势图原图时出错: ", error);
+            return session.text(".Failedtogetpictures");
           }
-        } catch (error) {
-          ctx.logger.error("获取运势图原图时出错: ", error);
-          return session.text(".Failedtogetpictures");
-        }
-      });
-  }
+        });
+    }
 
-  // 在全局作用域中定义字体 Base64 缓存
-  let cachedFontBase64 = null;
-  const retryCounts = {}; // 使用一个对象来存储每个用户的重试次数
-  ctx.command(config.command, { authority: 1 })
-    .alias('prpr运势')
-    .userFields(["id"])
-    .option('split', '-s 以图文输出今日运势')
-    .action(async ({ session, options }) => {
-      let hasSignedInToday = await alreadySignedInToday(ctx, session.userId, session.channelId)
-      retryCounts[session.userId] = retryCounts[session.userId] || 0; // 初始化重试次数
-      let Checkin_HintText_messageid
-      let backgroundImage = getRandomBackground(config);
-      let BackgroundURL = backgroundImage.replace(/\\/g, '/');
-      let imageBuffer
-      const dJson = await getJrys(session);
-      if (options.split) {
-        // 如果开启了分离模式，那就只返回图文消息内容。即文字运势内容与背景图片
-        if (config.Checkin_HintText) {
-          Checkin_HintText_messageid = await session.send(config.Checkin_HintText)
-        }
+    // 在全局作用域中定义字体 Base64 缓存
+    let cachedFontBase64 = null;
+    const retryCounts = {}; // 使用一个对象来存储每个用户的重试次数
+    ctx.command(`${config.command}`, { authority: 1 })
+      .userFields(["id"])
+      .option('split', '-s 以图文输出今日运势')
+      .action(async ({ session, options }) => {
+        let hasSignedInToday = await alreadySignedInToday(ctx, session.userId, session.channelId)
+        retryCounts[session.userId] = retryCounts[session.userId] || 0; // 初始化重试次数
+        let Checkin_HintText_messageid
+        let backgroundImage = getRandomBackground(config);
+        let BackgroundURL = backgroundImage.replace(/\\/g, '/');
+        let imageBuffer
+        const dJson = await getJrys(session);
+        if (options.split) {
+          // 如果开启了分离模式，那就只返回图文消息内容。即文字运势内容与背景图片
+          if (config.Checkin_HintText) {
+            Checkin_HintText_messageid = await session.send(config.Checkin_HintText)
+          }
 
-        let textjrys = `
+          let textjrys = `
 ${dJson.fortuneSummary}
 ${dJson.luckyStar}\n
 ${dJson.signText}\n
 ${dJson.unsignText}\n
 `;
-        let enablecurrencymessage = "";
+          let enablecurrencymessage = "";
 
-        if (config.enablecurrency) {
-          if (hasSignedInToday) {
-            enablecurrencymessage = h.text(session.text(".hasSignedInTodaysplit"))
-          } else {
-            enablecurrencymessage = h.text(session.text(".CurrencyGetbackgroundimagesplit", [config.maintenanceCostPerUnit]))
+          if (config.enablecurrency) {
+            if (hasSignedInToday) {
+              enablecurrencymessage = h.text(session.text(".hasSignedInTodaysplit"))
+            } else {
+              enablecurrencymessage = h.text(session.text(".CurrencyGetbackgroundimagesplit", [config.maintenanceCostPerUnit]))
+            }
           }
-        }
-        let backgroundImage = getRandomBackground(config);
-        let BackgroundURL = backgroundImage.replace(/\\/g, '/');
-        let BackgroundURL_base64 = convertToBase64IfLocal(BackgroundURL);
-        let message = [
-          h.image(BackgroundURL_base64),
-          h.text(textjrys),
-          enablecurrencymessage
-        ];
-        if (config.enablecurrency && !hasSignedInToday) {
-          await updateUserCurrency(session.user.id, config.maintenanceCostPerUnit);
-        }
-        await recordSignIn(ctx, session.userId, session.channelId)
-        await session.send(message);
-        if (Checkin_HintText_messageid) {
-          await session.bot.deleteMessage(session.channelId, Checkin_HintText_messageid)
-        }
-        return;
-      }
-
-      if (config.Checkin_HintText) {
-        Checkin_HintText_messageid = await session.send(config.Checkin_HintText)
-      }
-
-
-      let page;
-      try {
-        if (config.markdown_button_mode !== "raw_jrys") {
-          page = await ctx.puppeteer.page();
-          await page.setViewport({ width: 1080, height: 1920 });
-
+          let backgroundImage = getRandomBackground(config);
+          let BackgroundURL = backgroundImage.replace(/\\/g, '/');
           let BackgroundURL_base64 = convertToBase64IfLocal(BackgroundURL);
-          // 读取 Base64 字体字符串
-          logInfo(config.HTML_setting.fontPath)
-          // 如果字体 Base64 未缓存，则读取并缓存
-          if (!cachedFontBase64) {
-            cachedFontBase64 = getFontBase64(config.HTML_setting.fontPath);
+          let message = [
+            h.image(BackgroundURL_base64),
+            h.text(textjrys),
+            enablecurrencymessage
+          ];
+          if (config.enablecurrency && !hasSignedInToday) {
+            await updateUserCurrency(session.user.id, config.maintenanceCostPerUnit);
           }
-          // 使用缓存的字体 Base64
-          const fontBase64 = cachedFontBase64;
+          await recordSignIn(ctx, session.userId, session.channelId)
+          await session.send(message);
+          if (Checkin_HintText_messageid) {
+            await session.bot.deleteMessage(session.channelId, Checkin_HintText_messageid)
+          }
+          return;
+        }
 
-          let insertHTMLuseravatar = session.event.user.avatar;
-          let luckyStarHTML = `
+        if (config.Checkin_HintText) {
+          Checkin_HintText_messageid = await session.send(config.Checkin_HintText)
+        }
+
+
+        let page;
+        try {
+          if (config.markdown_button_mode !== "raw_jrys") {
+            page = await ctx.puppeteer.page();
+            await page.setViewport({ width: 1080, height: 1920 });
+
+            let BackgroundURL_base64 = convertToBase64IfLocal(BackgroundURL);
+            // 读取 Base64 字体字符串
+            logInfo(config.HTML_setting.fontPath)
+            // 如果字体 Base64 未缓存，则读取并缓存
+            if (!cachedFontBase64) {
+              cachedFontBase64 = getFontBase64(config.HTML_setting.fontPath);
+            }
+            // 使用缓存的字体 Base64
+            const fontBase64 = cachedFontBase64;
+
+            let insertHTMLuseravatar = session.event.user.avatar;
+            let luckyStarHTML = `
 .lucky-star {
 font-size: 60px; 
 margin-bottom: 10px;
 }
 `;
-          if (config.HTML_setting.luckyStarGradientColor) {
-            luckyStarHTML = `
+            if (config.HTML_setting.luckyStarGradientColor) {
+              luckyStarHTML = `
 .lucky-star {
 font-size: 60px;
 margin-bottom: 10px;
@@ -463,9 +463,9 @@ background-clip: text;
 color: transparent;
 }
 `;
-          }
-          const formattedDate = await getFormattedDate();
-          let HTMLsource = `
+            }
+            const formattedDate = await getFormattedDate();
+            let HTMLsource = `
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -603,746 +603,746 @@ ${dJson.unsignText}
 </body>
 </html>
 `;
-          logInfo(`触发用户: ${session.event.user?.id}`);
-          logInfo(`使用的格式化时间: ${formattedDate}`);
-          if (session.platform === 'qq') {
-            logInfo(`QQ官方：bot: ${session.bot.config.id}`);
-            logInfo(`QQ官方：用户头像: http://q.qlogo.cn/qqapp/${session.bot.config.id}/${session.event.user?.id}/640`);
-          }
-          logInfo(`使用背景URL: ${BackgroundURL}`);
-          logInfo(`蒙版颜色: ${config.HTML_setting.MaskColor}`);
-          logInfo(`虚线框粗细: ${config.HTML_setting.DashedboxThickn}`);
-          logInfo(`虚线框颜色: ${config.HTML_setting.Dashedboxcolor}`);
-          await page.setContent(HTMLsource);
-          // 等待网络空闲
-          await page.waitForNetworkIdle();
-          const element = await page.$('body');
+            logInfo(`触发用户: ${session.event.user?.id}`);
+            logInfo(`使用的格式化时间: ${formattedDate}`);
+            if (session.platform === 'qq') {
+              logInfo(`QQ官方：bot: ${session.bot.config.id}`);
+              logInfo(`QQ官方：用户头像: http://q.qlogo.cn/qqapp/${session.bot.config.id}/${session.event.user?.id}/640`);
+            }
+            logInfo(`使用背景URL: ${BackgroundURL}`);
+            logInfo(`蒙版颜色: ${config.HTML_setting.MaskColor}`);
+            logInfo(`虚线框粗细: ${config.HTML_setting.DashedboxThickn}`);
+            logInfo(`虚线框颜色: ${config.HTML_setting.Dashedboxcolor}`);
+            await page.setContent(HTMLsource);
+            // 等待网络空闲
+            await page.waitForNetworkIdle();
+            const element = await page.$('body');
 
-          imageBuffer = await element.screenshot({
-            type: "jpeg",  // 使用 JPEG 格式
-            encoding: "binary",
-            quality: config.screenshotquality  // 设置图片质量
-          });
+            imageBuffer = await element.screenshot({
+              type: "jpeg",  // 使用 JPEG 格式
+              encoding: "binary",
+              quality: config.screenshotquality  // 设置图片质量
+            });
+          } else {
+            if (BackgroundURL.startsWith('data:image/')) {
+              // Base64 图片数据
+              const base64Data = BackgroundURL.split(',')[1];
+              imageBuffer = Buffer.from(base64Data, 'base64');
+            } else if (BackgroundURL.startsWith('http://') || BackgroundURL.startsWith('https://')) {
+              // 网络 URL
+              imageBuffer = await ctx.http.get(BackgroundURL, { responseType: 'arraybuffer' });
+              imageBuffer = Buffer.from(imageBuffer);
+            } else if (BackgroundURL.startsWith('file:///')) {
+              // 本地文件路径（file:/// 格式）
+              const localPath = fileURLToPath(BackgroundURL);
+              imageBuffer = fs.readFileSync(localPath);
+            } else if (fs.existsSync(BackgroundURL)) {
+              // 本地文件路径
+              imageBuffer = fs.readFileSync(BackgroundURL);
+            } else {
+              throw new Error('不支持的背景图格式');
+            }
+          }
+          const encodeTimestamp = (timestamp) => {
+            // 将日期和时间部分分开
+            let [date, time] = timestamp.split('T');
+            // 替换一些字符
+            date = date.replace(/-/g, '');
+            time = time.replace(/:/g, '').replace(/\..*/, ''); // 去掉毫秒部分
+            // 加入随机数
+            const randomNum = Math.floor(Math.random() * 10000); // 生成一个0到9999的随机数
+            // 重排字符顺序
+            return `${time}${date}${randomNum}`;
+          };
+
+          if (config.enablecurrency && !hasSignedInToday) {
+            await updateUserCurrency(session.user.id, config.maintenanceCostPerUnit);
+          }
+          // 发送图片消息并处理响应
+          const sendImageMessage = async (imageBuffer) => {
+            let sentMessage;
+            //let markdownmessageId;
+            const messageTime = new Date().toISOString(); // 获取当前时间的ISO格式 // 这里就不考虑时区了 只是标记ID而已 确保唯一即可
+            const encodedMessageTime = encodeTimestamp(messageTime); // 对时间戳进行简单编码
+
+            if ((config.markdown_button_mode === "markdown" || config.markdown_button_mode === "raw" || config.markdown_button_mode === "markdown_raw_json" || config.markdown_button_mode === "raw_jrys") && session.platform === 'qq') {
+              const uploadedImageURL = await uploadImageToChannel(imageBuffer, session.bot.config.id, session.bot.config.secret, config.QQchannelId);
+              const qqmarkdownmessage = await markdown(session, encodedMessageTime, uploadedImageURL.url);
+              await sendmarkdownMessage(session, qqmarkdownmessage)
+
+            } else {
+              // 根据不同的配置发送不同类型的消息
+              const imageMessage = h.image(imageBuffer, "image/png");
+              switch (config.GetOriginalImage_Command_HintText) {
+                case '2': // 返回文字提示，且为图文消息
+                  const hintText2_encodedMessageTime = `${config.command2} ${encodedMessageTime}`;
+                  let hintText2;
+                  if (config.enablecurrency) {
+                    if (!hasSignedInToday) {
+                      hintText2 = session.text(".CurrencyGetbackgroundimage", [config.maintenanceCostPerUnit, hintText2_encodedMessageTime]);
+                    } else {
+                      hintText2 = session.text(".hasSignedInToday", [hintText2_encodedMessageTime]);
+                    }
+                  } else {
+                    hintText2 = session.text(".Getbackgroundimage", [hintText2_encodedMessageTime]);
+                  }
+                  const combinedMessage2 = `${imageMessage}\n${hintText2}`;
+                  logInfo(`获取原图：\n${encodedMessageTime}`);
+                  sentMessage = await session.send(combinedMessage2);
+                  break;
+                case '3': // 返回文字提示，且为单独发送的文字消息
+                  const hintText3_encodedMessageTime = `${config.command2} ${encodedMessageTime}`;
+                  let hintText3;
+                  if (config.enablecurrency) {
+                    if (!hasSignedInToday) {
+                      hintText2 = session.text(".CurrencyGetbackgroundimage", [config.maintenanceCostPerUnit, hintText3_encodedMessageTime]);
+                    } else {
+                      hintText2 = session.text(".hasSignedInToday", [hintText3_encodedMessageTime]);
+                    }
+                  } else {
+                    hintText2 = session.text(".Getbackgroundimage", [hintText3_encodedMessageTime]);
+                  }
+                  logInfo(`获取原图：\n${encodedMessageTime}`);
+                  sentMessage = await session.send(imageMessage); // 先发送图片消息
+                  await session.send(hintText3); // 再单独发送提示
+                  break;
+                default: '1'//不返回文字提示，只发送图片
+                  sentMessage = await session.send(imageMessage);
+                  break;
+              }
+            }
+            if (config.markdown_button_mode === "json" && session.platform === 'qq') {
+              let markdownMessage = {
+                msg_id: session.event.message.id,
+                msg_type: 2,
+                keyboard: {
+                  id: config.nested.json_button_template_id
+                },
+              }
+              await sendmarkdownMessage(session, markdownMessage)
+            }
+            if (config.markdown_button_mode !== "raw_jrys") {
+              // 记录日志
+              if (config.consoleinfo && !session.platform === 'qq') {
+                if (Array.isArray(sentMessage)) {
+                  sentMessage.forEach((messageId, index) => {
+                    ctx.logger.info(`发送图片消息ID [${index}]: ${messageId}`);
+                  });
+                } else {
+                  ctx.logger.info(`发送的消息对象: ${JSON.stringify(sentMessage, null, 2)}`);
+                }
+              }
+              // 记录消息ID和背景图URL到JSON文件
+              if (config.GetOriginalImageCommand) {
+                const imageData = {
+                  // 使用 encodedMessageTime 作为唯一标识符的一部分
+                  messageId: session.platform === 'qq' ? [encodedMessageTime] : (Array.isArray(sentMessage) ? sentMessage : [sentMessage]),
+                  messageTime: encodedMessageTime, // 使用预先获取的时间戳
+                  backgroundURL: BackgroundURL
+                };
+                try {
+                  let data = [];
+                  if (fs.existsSync(jsonFilePath)) {
+                    // 读取JSON文件内容
+                    const fileContent = fs.readFileSync(jsonFilePath, 'utf8');
+                    if (fileContent.trim()) {
+                      data = JSON.parse(fileContent);
+                    }
+                  }
+                  // 检查数据是否已存在
+                  const exists = data.some(item => item.messageId.includes(imageData.messageId));
+                  if (!exists) {
+                    // 添加新数据
+                    data.push(imageData);
+                    fs.writeFileSync(jsonFilePath, JSON.stringify(data, null, 2));
+                  }
+                } catch (error) {
+                  ctx.logger.error(`处理JSON文件时出错 [${encodedMessageTime}]: `, error); // 记录错误信息并包含时间戳
+                }
+              }
+              return sentMessage;
+            };
+            await recordSignIn(ctx, session.userId, session.channelId)
+          }
+          // 调用函数发送消息
+          await sendImageMessage(imageBuffer);
+          if (Checkin_HintText_messageid) {
+            await session.bot.deleteMessage(session.channelId, Checkin_HintText_messageid)
+          }
+        } catch (e) {
+          const errorTime = new Date().toISOString(); // 获取错误发生时间的ISO格式
+          ctx.logger.error(`状态渲染失败 [${errorTime}]: `, e); // 记录错误信息并包含时间戳
+
+          if (config.retryexecute && retryCounts[session.userId] < config.maxretrytimes) {
+            retryCounts[session.userId]++;
+            ctx.logger.warn(`用户 ${session.userId} 尝试第 ${retryCounts[session.userId]} 次重试...`);
+            try {
+              await session.execute(config.command); // 使用 session.execute 重试
+              delete retryCounts[session.userId]; // 执行成功，删除重试次数
+              return; // 阻止发送错误消息，因为我们正在重试
+            } catch (retryError) {
+              ctx.logger.error(`重试失败 [${errorTime}]: `, retryError);
+              // 重试失败，继续执行错误处理
+            }
+          }
+          // 如果达到最大重试次数或未启用重试，则发送错误消息
+          delete retryCounts[session.userId]; // 清理重试次数
+          return "渲染失败 " + e.message + '\n' + e.stack;
+
+        } finally {
+          if (page && !page.isClosed()) {
+            page.close();
+          }
+          // 仅在成功或达到最大重试后清理
+          if (!config.retryexecute || retryCounts[session.userId] >= config.maxretrytimes) {
+            delete retryCounts[session.userId];
+          }
+        }
+
+      });
+
+    // 提取消息发送逻辑为函数
+    async function sendmarkdownMessage(session, message) {
+      try {
+        const { guild, user } = session.event;
+        const { qq, qqguild, channelId } = session;
+        if (guild?.id) {
+          if (qq) {
+            await qq.sendMessage(channelId, message);
+          } else if (qqguild) {
+            await qqguild.sendMessage(channelId, message);
+          }
+        } else if (user?.id && qq) {
+          await qq.sendPrivateMessage(user.id, message);
+        }
+      } catch (error) {
+        ctx.logger.error(`发送markdown消息时出错:`, error);
+      }
+    }
+
+    async function uploadImageToChannel(imageBuffer, appId, secret, channelId) {
+      async function refreshToken(bot) {
+        const { access_token: accessToken, expires_in: expiresIn } = await ctx.http.post('https://bots.qq.com/app/getAppAccessToken', {
+          appId: bot.appId,
+          clientSecret: bot.secret
+        });
+        bot.token = accessToken;
+        ctx.setTimeout(() => refreshToken(bot), (expiresIn - 30) * 1000);
+      }
+      // 临时的bot对象
+      const bot = { appId, secret, channelId };
+      // 刷新令牌
+      await refreshToken(bot);
+      const payload = new FormData();
+      payload.append('msg_id', '0');
+      payload.append('file_image', new Blob([imageBuffer], { type: 'image/png' }), 'image.jpg');
+      await ctx.http.post(`https://api.sgroup.qq.com/channels/${bot.channelId}/messages`, payload, {
+        headers: {
+          Authorization: `QQBot ${bot.token}`,
+          'X-Union-Appid': bot.appId
+        }
+      });
+      // 计算MD5并返回图片URL
+      const md5 = crypto.createHash('md5').update(imageBuffer).digest('hex').toUpperCase();
+      if (channelId !== undefined && config.consoleinfo) {
+        ctx.logger.info(`使用本地图片*QQ频道  发送URL为： https://gchat.qpic.cn/qmeetpic/0/0-0-${md5}/0`)
+      };
+      return { url: `https://gchat.qpic.cn/qmeetpic/0/0-0-${md5}/0` };
+    }
+
+    async function markdown(session, encodedMessageTime, imageUrl) {
+      const markdownMessage = {
+        msg_type: 2,
+        markdown: {},
+        keyboard: {},
+      };
+
+      if (!config.markdown_button_mode_initiative) {
+        markdownMessage.msg_id = session.messageId;
+      }
+
+      let canvasimage;
+      let originalWidth;
+      let originalHeight;
+
+      try {
+        canvasimage = await ctx.canvas.loadImage(imageUrl);
+        originalWidth = canvasimage.naturalWidth || canvasimage.width;
+        originalHeight = canvasimage.naturalHeight || canvasimage.height;
+      } catch (loadImageError) {
+        ctx.logger.error(`ctx.canvas.loadImage 加载图片失败:`, loadImageError);
+        ctx.logger.error(`失败的图片 URL: ${imageUrl}`); // 记录失败的图片 URL
+      }
+
+
+      // 获取 dJson
+      const dJson = await getJrys(session);
+
+      if (config.markdown_button_mode === "markdown") {
+        const templateId = config.nested.markdown_button_template_id;
+        const keyboardId = config.nested.markdown_button_keyboard_id;
+        const contentTable = config.nested.markdown_button_content_table;
+
+        const params = contentTable.map(item => ({
+          key: item.raw_parameters,
+          values: replacePlaceholders(item.replace_parameters, { session, config, img_pxpx: `img#${originalWidth}px #${originalHeight}px`, img_url: imageUrl, encodedMessageTime, dJson }),
+        }));
+
+        markdownMessage.markdown = {
+          custom_template_id: templateId,
+          params: params,
+        };
+        if (config.markdown_button_mode_keyboard) {
+          markdownMessage.keyboard = {
+            id: keyboardId,
+          };
+        }
+      } else if (config.markdown_button_mode === "markdown_raw_json") {
+        const templateId = config.nested.markdown_raw_json_button_template_id;
+        const contentTable = config.nested.markdown_raw_json_button_content_table;
+        let keyboard = JSON.parse(config.nested.markdown_raw_json_button_keyboard);
+
+        keyboard = replacePlaceholders(keyboard, { session, config, img_pxpx: `img#${originalWidth}px #${originalHeight}px`, img_url: imageUrl, encodedMessageTime, dJson }, true);
+
+        const params = contentTable.map(item => ({
+          key: item.raw_parameters,
+          values: replacePlaceholders(item.replace_parameters, { session, config, img_pxpx: `img#${originalWidth}px #${originalHeight}px`, img_url: imageUrl, encodedMessageTime, dJson }),
+        }));
+
+        markdownMessage.markdown = {
+          custom_template_id: templateId,
+          params: params,
+        };
+        if (config.markdown_button_mode_keyboard) {
+          markdownMessage.keyboard = {
+            content: keyboard,
+          };
+        }
+      } else if (config.markdown_button_mode === "raw") {
+        try {
+          const rawMarkdownContent = config.nested.raw_markdown_button_content;
+          const rawMarkdownKeyboard = config.nested.raw_markdown_button_keyboard;
+          // 将 atUserString 插入到原始字符串中
+          const qqbotatuser = session.isDirect ? "\n" : `<qqbot-at-user id="${session.userId}" />`;
+          const replacedMarkdownContent = replacePlaceholders(rawMarkdownContent, { session, qqbotatuser, config, img_pxpx: `img#${originalWidth}px #${originalHeight}px`, img_url: imageUrl, encodedMessageTime, dJson }, true);
+          const replacedMarkdownKeyboard = replacePlaceholders(rawMarkdownKeyboard, { session, qqbotatuser, config, encodedMessageTime, dJson }, true)
+            .replace(/^[\s\S]*?"keyboard":\s*/, '')
+            .replace(/\\n/g, '')
+            .replace(/\\"/g, '"')
+            .trim();
+
+          const keyboard = JSON.parse(replacedMarkdownKeyboard);
+
+          markdownMessage.markdown = {
+            content: replacedMarkdownContent,
+          };
+          if (config.markdown_button_mode_keyboard) {
+            markdownMessage.keyboard = {
+              content: keyboard,
+            };
+          }
+        } catch (error) {
+          ctx.logger.error(`解析原生 Markdown 出错: ${error}`);
+          return null;
+        }
+      } else if (config.markdown_button_mode === "raw_jrys") {
+        try {
+          const raw_jrysMarkdownContent = config.nested.raw_jrys_markdown_button_content;
+          const raw_jrysMarkdownKeyboard = config.nested.raw_jrys_markdown_button_keyboard;
+
+          // 将 atUserString 插入到原始字符串中
+          const qqbotatuser = session.isDirect ? "\n" : `<qqbot-at-user id="${session.userId}" />`;
+
+          const replacedMarkdownContent = replacePlaceholders(raw_jrysMarkdownContent, { session, qqbotatuser, dJson, config, img_pxpx: `img#${originalWidth}px #${originalHeight}px`, img_url: imageUrl, encodedMessageTime }, true);
+          const replacedMarkdownKeyboard = replacePlaceholders(raw_jrysMarkdownKeyboard, { session, qqbotatuser, config, encodedMessageTime, dJson }, true)
+            .replace(/^[\s\S]*?"keyboard":\s*/, '')
+            .replace(/\\n/g, '')
+            .replace(/\\"/g, '"')
+            .trim();
+
+          const keyboard = JSON.parse(replacedMarkdownKeyboard);
+
+          markdownMessage.markdown = {
+            content: replacedMarkdownContent,
+          };
+          if (config.markdown_button_mode_keyboard) {
+            markdownMessage.keyboard = {
+              content: keyboard,
+            };
+          }
+        } catch (error) {
+          ctx.logger.error(`解析原生 Markdown 出错: ${error}`);
+          return null;
+        }
+      }
+
+      logInfo(`Markdown 模板参数: ${JSON.stringify(markdownMessage, null, 2)}`);
+      return markdownMessage;
+    }
+
+    function replacePlaceholders(content, context, isRawMode = false) {
+      // 如果 content 是字符串，直接替换占位符
+      if (typeof content === 'string') {
+        if (!/\{\{\.([^}]+)\}\}|\$\{([^}]+)\}/.test(content)) {
+          return isRawMode ? content : [content];
+        }
+
+        const value = content.replace(/\{\{\.([^}]+)\}\}|\$\{([^}]+)\}/g, (match, p1, p2) => {
+          const key = p1 || p2;
+          // 从 context 中查找占位符对应的值
+          const replacement = key.split('.').reduce((obj, k) => obj?.[k], context) || match;
+          return replacement;
+        });
+
+        return isRawMode ? value : [value];
+      }
+
+      // 如果 content 是对象或数组，递归处理
+      if (typeof content === 'object' && content !== null) {
+        if (Array.isArray(content)) {
+          return content.map(item => replacePlaceholders(item, context, isRawMode));
         } else {
-          if (BackgroundURL.startsWith('data:image/')) {
-            // Base64 图片数据
-            const base64Data = BackgroundURL.split(',')[1];
-            imageBuffer = Buffer.from(base64Data, 'base64');
-          } else if (BackgroundURL.startsWith('http://') || BackgroundURL.startsWith('https://')) {
-            // 网络 URL
-            imageBuffer = await ctx.http.get(BackgroundURL, { responseType: 'arraybuffer' });
-            imageBuffer = Buffer.from(imageBuffer);
-          } else if (BackgroundURL.startsWith('file:///')) {
-            // 本地文件路径（file:/// 格式）
-            const localPath = fileURLToPath(BackgroundURL);
-            imageBuffer = fs.readFileSync(localPath);
-          } else if (fs.existsSync(BackgroundURL)) {
-            // 本地文件路径
-            imageBuffer = fs.readFileSync(BackgroundURL);
-          } else {
-            throw new Error('不支持的背景图格式');
+          const result = {};
+          for (const key in content) {
+            result[key] = replacePlaceholders(content[key], context, isRawMode);
           }
+          return result;
         }
-        const encodeTimestamp = (timestamp) => {
-          // 将日期和时间部分分开
-          let [date, time] = timestamp.split('T');
-          // 替换一些字符
-          date = date.replace(/-/g, '');
-          time = time.replace(/:/g, '').replace(/\..*/, ''); // 去掉毫秒部分
-          // 加入随机数
-          const randomNum = Math.floor(Math.random() * 10000); // 生成一个0到9999的随机数
-          // 重排字符顺序
-          return `${time}${date}${randomNum}`;
-        };
+      }
 
-        if (config.enablecurrency && !hasSignedInToday) {
-          await updateUserCurrency(session.user.id, config.maintenanceCostPerUnit);
+      // 其他情况直接返回
+      return content;
+    }
+
+    function convertToBase64IfLocal(url) {
+      if (url.startsWith('file:///')) {
+        try {
+          const localPath = fileURLToPath(url);
+          const imageBuffer = fs.readFileSync(localPath);
+          const base64Image = imageBuffer.toString('base64');
+          const mimeType = getMimeType(localPath); // 获取图片的 MIME 类型
+          return `data:${mimeType};base64,${base64Image}`; // 返回 Base64 Data URL
+        } catch (error) {
+          throw new Error(`转换本地图片为 Base64 失败: ${url}, 错误: ${error.message}`);
         }
-        // 发送图片消息并处理响应
-        const sendImageMessage = async (imageBuffer) => {
-          let sentMessage;
-          //let markdownmessageId;
-          const messageTime = new Date().toISOString(); // 获取当前时间的ISO格式 // 这里就不考虑时区了 只是标记ID而已 确保唯一即可
-          const encodedMessageTime = encodeTimestamp(messageTime); // 对时间戳进行简单编码
+      }
+      return url; // 如果是网络 URL，直接返回
+    }
 
-          if ((config.markdown_button_mode === "markdown" || config.markdown_button_mode === "raw" || config.markdown_button_mode === "markdown_raw_json" || config.markdown_button_mode === "raw_jrys") && session.platform === 'qq') {
-            const uploadedImageURL = await uploadImageToChannel(imageBuffer, session.bot.config.id, session.bot.config.secret, config.QQchannelId);
-            const qqmarkdownmessage = await markdown(session, encodedMessageTime, uploadedImageURL.url);
-            await sendmarkdownMessage(session, qqmarkdownmessage)
+    // 辅助函数：根据文件扩展名获取 MIME 类型
+    function getMimeType(filePath) {
+      const ext = path.extname(filePath).toLowerCase();
+      switch (ext) {
+        case '.jpg':
+        case '.jpeg':
+          return 'image/jpeg';
+        case '.png':
+          return 'image/png';
+        case '.gif':
+          return 'image/gif';
+        case '.bmp':
+          return 'image/bmp';
+        case '.webp':
+          return 'image/webp';
+        default:
+          throw new Error(`不支持的文件类型: ${ext}`);
+      }
+    }
 
-          } else {
-            // 根据不同的配置发送不同类型的消息
-            const imageMessage = h.image(imageBuffer, "image/png");
-            switch (config.GetOriginalImage_Command_HintText) {
-              case '2': // 返回文字提示，且为图文消息
-                const hintText2_encodedMessageTime = `${config.command2} ${encodedMessageTime}`;
-                let hintText2;
-                if (config.enablecurrency) {
-                  if (!hasSignedInToday) {
-                    hintText2 = session.text(".CurrencyGetbackgroundimage", [config.maintenanceCostPerUnit, hintText2_encodedMessageTime]);
-                  } else {
-                    hintText2 = session.text(".hasSignedInToday", [hintText2_encodedMessageTime]);
-                  }
-                } else {
-                  hintText2 = session.text(".Getbackgroundimage", [hintText2_encodedMessageTime]);
-                }
-                const combinedMessage2 = `${imageMessage}\n${hintText2}`;
-                logInfo(`获取原图：\n${encodedMessageTime}`);
-                sentMessage = await session.send(combinedMessage2);
-                break;
-              case '3': // 返回文字提示，且为单独发送的文字消息
-                const hintText3_encodedMessageTime = `${config.command2} ${encodedMessageTime}`;
-                let hintText3;
-                if (config.enablecurrency) {
-                  if (!hasSignedInToday) {
-                    hintText2 = session.text(".CurrencyGetbackgroundimage", [config.maintenanceCostPerUnit, hintText3_encodedMessageTime]);
-                  } else {
-                    hintText2 = session.text(".hasSignedInToday", [hintText3_encodedMessageTime]);
-                  }
-                } else {
-                  hintText2 = session.text(".Getbackgroundimage", [hintText3_encodedMessageTime]);
-                }
-                logInfo(`获取原图：\n${encodedMessageTime}`);
-                sentMessage = await session.send(imageMessage); // 先发送图片消息
-                await session.send(hintText3); // 再单独发送提示
-                break;
-              default: '1'//不返回文字提示，只发送图片
-                sentMessage = await session.send(imageMessage);
-                break;
-            }
+    function getRandomBackground(config) {
+      // 随机选择一个背景路径
+      let backgroundPath = config.BackgroundURL[Math.floor(Math.random() * config.BackgroundURL.length)];
+
+      // 如果是 file:/// 开头的 URL
+      if (backgroundPath.startsWith('file:///')) {
+        try {
+          // 将 file:/// URL 转换为本地文件路径
+          const localPath = fileURLToPath(backgroundPath);
+
+          // 如果是 txt 文件
+          if (localPath.endsWith('.txt')) {
+            let lines = fs.readFileSync(localPath, 'utf-8').split('\n').filter(Boolean);
+            let randomLine = lines[Math.floor(Math.random() * lines.length)].trim().replace(/\\/g, '/');
+            return randomLine;
           }
-          if (config.markdown_button_mode === "json" && session.platform === 'qq') {
-            let markdownMessage = {
-              msg_id: session.event.message.id,
-              msg_type: 2,
-              keyboard: {
-                id: config.nested.json_button_template_id
-              },
-            }
-            await sendmarkdownMessage(session, markdownMessage)
+
+          // 如果是图片文件
+          if (/\.(jpg|png|gif|bmp|webp)$/i.test(localPath)) {
+            return backgroundPath; // 直接返回 file:/// URL
           }
-          if (config.markdown_button_mode !== "raw_jrys") {
-            // 记录日志
-            if (config.consoleinfo && !session.platform === 'qq') {
-              if (Array.isArray(sentMessage)) {
-                sentMessage.forEach((messageId, index) => {
-                  ctx.logger.info(`发送图片消息ID [${index}]: ${messageId}`);
-                });
-              } else {
-                ctx.logger.info(`发送的消息对象: ${JSON.stringify(sentMessage, null, 2)}`);
-              }
-            }
-            // 记录消息ID和背景图URL到JSON文件
-            if (config.GetOriginalImageCommand) {
-              const imageData = {
-                // 使用 encodedMessageTime 作为唯一标识符的一部分
-                messageId: session.platform === 'qq' ? [encodedMessageTime] : (Array.isArray(sentMessage) ? sentMessage : [sentMessage]),
-                messageTime: encodedMessageTime, // 使用预先获取的时间戳
-                backgroundURL: BackgroundURL
-              };
-              try {
-                let data = [];
-                if (fs.existsSync(jsonFilePath)) {
-                  // 读取JSON文件内容
-                  const fileContent = fs.readFileSync(jsonFilePath, 'utf8');
-                  if (fileContent.trim()) {
-                    data = JSON.parse(fileContent);
-                  }
-                }
-                // 检查数据是否已存在
-                const exists = data.some(item => item.messageId.includes(imageData.messageId));
-                if (!exists) {
-                  // 添加新数据
-                  data.push(imageData);
-                  fs.writeFileSync(jsonFilePath, JSON.stringify(data, null, 2));
-                }
-              } catch (error) {
-                ctx.logger.error(`处理JSON文件时出错 [${encodedMessageTime}]: `, error); // 记录错误信息并包含时间戳
-              }
-            }
-            return sentMessage;
-          };
-          await recordSignIn(ctx, session.userId, session.channelId)
-        }
-        // 调用函数发送消息
-        await sendImageMessage(imageBuffer);
-        if (Checkin_HintText_messageid) {
-          await session.bot.deleteMessage(session.channelId, Checkin_HintText_messageid)
-        }
-      } catch (e) {
-        const errorTime = new Date().toISOString(); // 获取错误发生时间的ISO格式
-        ctx.logger.error(`状态渲染失败 [${errorTime}]: `, e); // 记录错误信息并包含时间戳
 
-        if (config.retryexecute && retryCounts[session.userId] < config.maxretrytimes) {
-          retryCounts[session.userId]++;
-          ctx.logger.warn(`用户 ${session.userId} 尝试第 ${retryCounts[session.userId]} 次重试...`);
-          try {
-            await session.execute(config.command); // 使用 session.execute 重试
-            delete retryCounts[session.userId]; // 执行成功，删除重试次数
-            return; // 阻止发送错误消息，因为我们正在重试
-          } catch (retryError) {
-            ctx.logger.error(`重试失败 [${errorTime}]: `, retryError);
-            // 重试失败，继续执行错误处理
+          // 如果是文件夹路径
+          if (fs.existsSync(localPath) && fs.lstatSync(localPath).isDirectory()) {
+            const files = fs.readdirSync(localPath)
+              .filter(file => /\.(jpg|png|gif|bmp|webp)$/i.test(file));
+            if (files.length === 0) {
+              throw new Error("文件夹中未找到有效图片文件");
+            }
+            let randomFile = files[Math.floor(Math.random() * files.length)];
+            let fullPath = path.join(localPath, randomFile).replace(/\\/g, '/');
+            return pathToFileURL(fullPath).href; // 转换为 file:/// URL
           }
-        }
-        // 如果达到最大重试次数或未启用重试，则发送错误消息
-        delete retryCounts[session.userId]; // 清理重试次数
-        return "渲染失败 " + e.message + '\n' + e.stack;
 
-      } finally {
-        if (page && !page.isClosed()) {
-          page.close();
-        }
-        // 仅在成功或达到最大重试后清理
-        if (!config.retryexecute || retryCounts[session.userId] >= config.maxretrytimes) {
-          delete retryCounts[session.userId];
+          // 如果既不是 txt 文件，也不是图片文件或文件夹
+          throw new Error(`file:/// URL 指向的文件类型无效: ${backgroundPath}`);
+        } catch (error) {
+          throw new Error(`处理 file:/// URL 失败: ${backgroundPath}, 错误: ${error.message}`);
         }
       }
 
-    });
-
-  // 提取消息发送逻辑为函数
-  async function sendmarkdownMessage(session, message) {
-    try {
-      const { guild, user } = session.event;
-      const { qq, qqguild, channelId } = session;
-      if (guild?.id) {
-        if (qq) {
-          await qq.sendMessage(channelId, message);
-        } else if (qqguild) {
-          await qqguild.sendMessage(channelId, message);
-        }
-      } else if (user?.id && qq) {
-        await qq.sendPrivateMessage(user.id, message);
-      }
-    } catch (error) {
-      ctx.logger.error(`发送markdown消息时出错:`, error);
-    }
-  }
-
-  async function uploadImageToChannel(imageBuffer, appId, secret, channelId) {
-    async function refreshToken(bot) {
-      const { access_token: accessToken, expires_in: expiresIn } = await ctx.http.post('https://bots.qq.com/app/getAppAccessToken', {
-        appId: bot.appId,
-        clientSecret: bot.secret
-      });
-      bot.token = accessToken;
-      ctx.setTimeout(() => refreshToken(bot), (expiresIn - 30) * 1000);
-    }
-    // 临时的bot对象
-    const bot = { appId, secret, channelId };
-    // 刷新令牌
-    await refreshToken(bot);
-    const payload = new FormData();
-    payload.append('msg_id', '0');
-    payload.append('file_image', new Blob([imageBuffer], { type: 'image/png' }), 'image.jpg');
-    await ctx.http.post(`https://api.sgroup.qq.com/channels/${bot.channelId}/messages`, payload, {
-      headers: {
-        Authorization: `QQBot ${bot.token}`,
-        'X-Union-Appid': bot.appId
-      }
-    });
-    // 计算MD5并返回图片URL
-    const md5 = crypto.createHash('md5').update(imageBuffer).digest('hex').toUpperCase();
-    if (channelId !== undefined && config.consoleinfo) {
-      ctx.logger.info(`使用本地图片*QQ频道  发送URL为： https://gchat.qpic.cn/qmeetpic/0/0-0-${md5}/0`)
-    };
-    return { url: `https://gchat.qpic.cn/qmeetpic/0/0-0-${md5}/0` };
-  }
-
-  async function markdown(session, encodedMessageTime, imageUrl) {
-    const markdownMessage = {
-      msg_type: 2,
-      markdown: {},
-      keyboard: {},
-    };
-
-    if (!config.markdown_button_mode_initiative) {
-      markdownMessage.msg_id = session.messageId;
-    }
-
-    let canvasimage;
-    let originalWidth;
-    let originalHeight;
-
-    try {
-      canvasimage = await ctx.canvas.loadImage(imageUrl);
-      originalWidth = canvasimage.naturalWidth || canvasimage.width;
-      originalHeight = canvasimage.naturalHeight || canvasimage.height;
-    } catch (loadImageError) {
-      ctx.logger.error(`ctx.canvas.loadImage 加载图片失败:`, loadImageError);
-      ctx.logger.error(`失败的图片 URL: ${imageUrl}`); // 记录失败的图片 URL
-    }
-
-
-    // 获取 dJson
-    const dJson = await getJrys(session);
-
-    if (config.markdown_button_mode === "markdown") {
-      const templateId = config.nested.markdown_button_template_id;
-      const keyboardId = config.nested.markdown_button_keyboard_id;
-      const contentTable = config.nested.markdown_button_content_table;
-
-      const params = contentTable.map(item => ({
-        key: item.raw_parameters,
-        values: replacePlaceholders(item.replace_parameters, { session, config, img_pxpx: `img#${originalWidth}px #${originalHeight}px`, img_url: imageUrl, encodedMessageTime, dJson }),
-      }));
-
-      markdownMessage.markdown = {
-        custom_template_id: templateId,
-        params: params,
-      };
-      if (config.markdown_button_mode_keyboard) {
-        markdownMessage.keyboard = {
-          id: keyboardId,
-        };
-      }
-    } else if (config.markdown_button_mode === "markdown_raw_json") {
-      const templateId = config.nested.markdown_raw_json_button_template_id;
-      const contentTable = config.nested.markdown_raw_json_button_content_table;
-      let keyboard = JSON.parse(config.nested.markdown_raw_json_button_keyboard);
-
-      keyboard = replacePlaceholders(keyboard, { session, config, img_pxpx: `img#${originalWidth}px #${originalHeight}px`, img_url: imageUrl, encodedMessageTime, dJson }, true);
-
-      const params = contentTable.map(item => ({
-        key: item.raw_parameters,
-        values: replacePlaceholders(item.replace_parameters, { session, config, img_pxpx: `img#${originalWidth}px #${originalHeight}px`, img_url: imageUrl, encodedMessageTime, dJson }),
-      }));
-
-      markdownMessage.markdown = {
-        custom_template_id: templateId,
-        params: params,
-      };
-      if (config.markdown_button_mode_keyboard) {
-        markdownMessage.keyboard = {
-          content: keyboard,
-        };
-      }
-    } else if (config.markdown_button_mode === "raw") {
-      try {
-        const rawMarkdownContent = config.nested.raw_markdown_button_content;
-        const rawMarkdownKeyboard = config.nested.raw_markdown_button_keyboard;
-        // 将 atUserString 插入到原始字符串中
-        const qqbotatuser = session.isDirect ? "\n" : `<qqbot-at-user id="${session.userId}" />`;
-        const replacedMarkdownContent = replacePlaceholders(rawMarkdownContent, { session, qqbotatuser, config, img_pxpx: `img#${originalWidth}px #${originalHeight}px`, img_url: imageUrl, encodedMessageTime, dJson }, true);
-        const replacedMarkdownKeyboard = replacePlaceholders(rawMarkdownKeyboard, { session, qqbotatuser, config, encodedMessageTime, dJson }, true)
-          .replace(/^[\s\S]*?"keyboard":\s*/, '')
-          .replace(/\\n/g, '')
-          .replace(/\\"/g, '"')
-          .trim();
-
-        const keyboard = JSON.parse(replacedMarkdownKeyboard);
-
-        markdownMessage.markdown = {
-          content: replacedMarkdownContent,
-        };
-        if (config.markdown_button_mode_keyboard) {
-          markdownMessage.keyboard = {
-            content: keyboard,
-          };
-        }
-      } catch (error) {
-        ctx.logger.error(`解析原生 Markdown 出错: ${error}`);
-        return null;
-      }
-    } else if (config.markdown_button_mode === "raw_jrys") {
-      try {
-        const raw_jrysMarkdownContent = config.nested.raw_jrys_markdown_button_content;
-        const raw_jrysMarkdownKeyboard = config.nested.raw_jrys_markdown_button_keyboard;
-
-        // 将 atUserString 插入到原始字符串中
-        const qqbotatuser = session.isDirect ? "\n" : `<qqbot-at-user id="${session.userId}" />`;
-
-        const replacedMarkdownContent = replacePlaceholders(raw_jrysMarkdownContent, { session, qqbotatuser, dJson, config, img_pxpx: `img#${originalWidth}px #${originalHeight}px`, img_url: imageUrl, encodedMessageTime }, true);
-        const replacedMarkdownKeyboard = replacePlaceholders(raw_jrysMarkdownKeyboard, { session, qqbotatuser, config, encodedMessageTime, dJson }, true)
-          .replace(/^[\s\S]*?"keyboard":\s*/, '')
-          .replace(/\\n/g, '')
-          .replace(/\\"/g, '"')
-          .trim();
-
-        const keyboard = JSON.parse(replacedMarkdownKeyboard);
-
-        markdownMessage.markdown = {
-          content: replacedMarkdownContent,
-        };
-        if (config.markdown_button_mode_keyboard) {
-          markdownMessage.keyboard = {
-            content: keyboard,
-          };
-        }
-      } catch (error) {
-        ctx.logger.error(`解析原生 Markdown 出错: ${error}`);
-        return null;
-      }
-    }
-
-    logInfo(`Markdown 模板参数: ${JSON.stringify(markdownMessage, null, 2)}`);
-    return markdownMessage;
-  }
-
-  function replacePlaceholders(content, context, isRawMode = false) {
-    // 如果 content 是字符串，直接替换占位符
-    if (typeof content === 'string') {
-      if (!/\{\{\.([^}]+)\}\}|\$\{([^}]+)\}/.test(content)) {
-        return isRawMode ? content : [content];
+      // 如果是网络 URL（http:// 或 https://），直接返回
+      if (backgroundPath.startsWith('http://') || backgroundPath.startsWith('https://')) {
+        return backgroundPath;
       }
 
-      const value = content.replace(/\{\{\.([^}]+)\}\}|\$\{([^}]+)\}/g, (match, p1, p2) => {
-        const key = p1 || p2;
-        // 从 context 中查找占位符对应的值
-        const replacement = key.split('.').reduce((obj, k) => obj?.[k], context) || match;
-        return replacement;
-      });
-
-      return isRawMode ? value : [value];
-    }
-
-    // 如果 content 是对象或数组，递归处理
-    if (typeof content === 'object' && content !== null) {
-      if (Array.isArray(content)) {
-        return content.map(item => replacePlaceholders(item, context, isRawMode));
-      } else {
-        const result = {};
-        for (const key in content) {
-          result[key] = replacePlaceholders(content[key], context, isRawMode);
-        }
-        return result;
-      }
-    }
-
-    // 其他情况直接返回
-    return content;
-  }
-
-  function convertToBase64IfLocal(url) {
-    if (url.startsWith('file:///')) {
-      try {
-        const localPath = fileURLToPath(url);
-        const imageBuffer = fs.readFileSync(localPath);
-        const base64Image = imageBuffer.toString('base64');
-        const mimeType = getMimeType(localPath); // 获取图片的 MIME 类型
-        return `data:${mimeType};base64,${base64Image}`; // 返回 Base64 Data URL
-      } catch (error) {
-        throw new Error(`转换本地图片为 Base64 失败: ${url}, 错误: ${error.message}`);
-      }
-    }
-    return url; // 如果是网络 URL，直接返回
-  }
-
-  // 辅助函数：根据文件扩展名获取 MIME 类型
-  function getMimeType(filePath) {
-    const ext = path.extname(filePath).toLowerCase();
-    switch (ext) {
-      case '.jpg':
-      case '.jpeg':
-        return 'image/jpeg';
-      case '.png':
-        return 'image/png';
-      case '.gif':
-        return 'image/gif';
-      case '.bmp':
-        return 'image/bmp';
-      case '.webp':
-        return 'image/webp';
-      default:
-        throw new Error(`不支持的文件类型: ${ext}`);
-    }
-  }
-
-  function getRandomBackground(config) {
-    // 随机选择一个背景路径
-    let backgroundPath = config.BackgroundURL[Math.floor(Math.random() * config.BackgroundURL.length)];
-
-    // 如果是 file:/// 开头的 URL
-    if (backgroundPath.startsWith('file:///')) {
-      try {
-        // 将 file:/// URL 转换为本地文件路径
-        const localPath = fileURLToPath(backgroundPath);
-
-        // 如果是 txt 文件
-        if (localPath.endsWith('.txt')) {
-          let lines = fs.readFileSync(localPath, 'utf-8').split('\n').filter(Boolean);
+      // 如果是 txt 文件路径
+      if (backgroundPath.endsWith('.txt')) {
+        try {
+          let lines = fs.readFileSync(backgroundPath, 'utf-8').split('\n').filter(Boolean);
           let randomLine = lines[Math.floor(Math.random() * lines.length)].trim().replace(/\\/g, '/');
           return randomLine;
+        } catch (error) {
+          throw new Error(`读取 txt 文件失败: ${backgroundPath}, 错误: ${error.message}`);
         }
+      }
 
-        // 如果是图片文件
-        if (/\.(jpg|png|gif|bmp|webp)$/i.test(localPath)) {
-          return backgroundPath; // 直接返回 file:/// URL
-        }
-
-        // 如果是文件夹路径
-        if (fs.existsSync(localPath) && fs.lstatSync(localPath).isDirectory()) {
-          const files = fs.readdirSync(localPath)
+      // 如果是文件夹路径
+      if (fs.existsSync(backgroundPath) && fs.lstatSync(backgroundPath).isDirectory()) {
+        try {
+          const files = fs.readdirSync(backgroundPath)
             .filter(file => /\.(jpg|png|gif|bmp|webp)$/i.test(file));
           if (files.length === 0) {
             throw new Error("文件夹中未找到有效图片文件");
           }
           let randomFile = files[Math.floor(Math.random() * files.length)];
-          let fullPath = path.join(localPath, randomFile).replace(/\\/g, '/');
+          let fullPath = path.join(backgroundPath, randomFile).replace(/\\/g, '/');
           return pathToFileURL(fullPath).href; // 转换为 file:/// URL
+        } catch (error) {
+          throw new Error(`读取文件夹失败: ${backgroundPath}, 错误: ${error.message}`);
         }
-
-        // 如果既不是 txt 文件，也不是图片文件或文件夹
-        throw new Error(`file:/// URL 指向的文件类型无效: ${backgroundPath}`);
-      } catch (error) {
-        throw new Error(`处理 file:/// URL 失败: ${backgroundPath}, 错误: ${error.message}`);
       }
-    }
 
-    // 如果是网络 URL（http:// 或 https://），直接返回
-    if (backgroundPath.startsWith('http://') || backgroundPath.startsWith('https://')) {
-      return backgroundPath;
-    }
-
-    // 如果是 txt 文件路径
-    if (backgroundPath.endsWith('.txt')) {
-      try {
-        let lines = fs.readFileSync(backgroundPath, 'utf-8').split('\n').filter(Boolean);
-        let randomLine = lines[Math.floor(Math.random() * lines.length)].trim().replace(/\\/g, '/');
-        return randomLine;
-      } catch (error) {
-        throw new Error(`读取 txt 文件失败: ${backgroundPath}, 错误: ${error.message}`);
-      }
-    }
-
-    // 如果是文件夹路径
-    if (fs.existsSync(backgroundPath) && fs.lstatSync(backgroundPath).isDirectory()) {
-      try {
-        const files = fs.readdirSync(backgroundPath)
-          .filter(file => /\.(jpg|png|gif|bmp|webp)$/i.test(file));
-        if (files.length === 0) {
-          throw new Error("文件夹中未找到有效图片文件");
+      // 如果是图片文件绝对路径
+      if (fs.existsSync(backgroundPath) && fs.lstatSync(backgroundPath).isFile()) {
+        try {
+          if (/\.(jpg|png|gif|bmp|webp)$/i.test(backgroundPath)) {
+            return pathToFileURL(backgroundPath).href; // 转换为 file:/// URL
+          } else {
+            throw new Error("文件不是有效的图片格式");
+          }
+        } catch (error) {
+          throw new Error(`读取图片文件失败: ${backgroundPath}, 错误: ${error.message}`);
         }
-        let randomFile = files[Math.floor(Math.random() * files.length)];
-        let fullPath = path.join(backgroundPath, randomFile).replace(/\\/g, '/');
-        return pathToFileURL(fullPath).href; // 转换为 file:/// URL
-      } catch (error) {
-        throw new Error(`读取文件夹失败: ${backgroundPath}, 错误: ${error.message}`);
       }
-    }
 
-    // 如果是图片文件绝对路径
-    if (fs.existsSync(backgroundPath) && fs.lstatSync(backgroundPath).isFile()) {
+      // 如果以上条件都不满足，抛出错误
+      throw new Error(`无效的背景路径: ${backgroundPath}`);
+    }
+    // 定义获取原图URL的函数
+    async function getOriginalImageURL(messageIdOrTime) {
       try {
-        if (/\.(jpg|png|gif|bmp|webp)$/i.test(backgroundPath)) {
-          return pathToFileURL(backgroundPath).href; // 转换为 file:/// URL
+        // 使用 fs.promises 读取JSON文件内容      
+        //const jsonFilePath = path.join(root, 'OriginalImageURL_data.json');
+        const data = await fs.promises.readFile(jsonFilePath, { encoding: 'utf-8' });
+        const images = JSON.parse(data);
+        // 确保输入参数为字符串
+        const input = messageIdOrTime.toString();
+        // 检查输入参数是消息ID还是时间戳
+        const isTimestamp = /^\d{15,}$/.test(input);
+        // 定义变量来存储匹配结果
+        let matchedImage = null;
+        // 查找对应的背景图URL
+        for (const image of images) {
+          if (isTimestamp) {
+            // 匹配时间戳
+            if (image.messageTime === input) {
+              matchedImage = image;
+              break;
+            }
+          } else {
+            // 匹配消息ID
+            if (Array.isArray(image.messageId) && image.messageId.includes(input)) {
+              matchedImage = image;
+              break;
+            }
+            // 处理 messageId 是空字符串的情况
+            if (image.messageId.length === 0 && image.messageTime === input) {
+              matchedImage = image;
+              break;
+            }
+          }
+        }
+        // 返回匹配的背景图URL
+        if (matchedImage) {
+          return matchedImage.backgroundURL;
         } else {
-          throw new Error("文件不是有效的图片格式");
+          // 如果未找到对应的URL，返回null
+          return null;
         }
       } catch (error) {
-        throw new Error(`读取图片文件失败: ${backgroundPath}, 错误: ${error.message}`);
+        ctx.logger.error('读取或解析JSON文件时出错: ', error);
+        throw error;
       }
     }
 
-    // 如果以上条件都不满足，抛出错误
-    throw new Error(`无效的背景路径: ${backgroundPath}`);
-  }
-  // 定义获取原图URL的函数
-  async function getOriginalImageURL(messageIdOrTime) {
-    try {
-      // 使用 fs.promises 读取JSON文件内容      
-      //const jsonFilePath = path.join(root, 'OriginalImageURL_data.json');
-      const data = await fs.promises.readFile(jsonFilePath, { encoding: 'utf-8' });
-      const images = JSON.parse(data);
-      // 确保输入参数为字符串
-      const input = messageIdOrTime.toString();
-      // 检查输入参数是消息ID还是时间戳
-      const isTimestamp = /^\d{15,}$/.test(input);
-      // 定义变量来存储匹配结果
-      let matchedImage = null;
-      // 查找对应的背景图URL
-      for (const image of images) {
-        if (isTimestamp) {
-          // 匹配时间戳
-          if (image.messageTime === input) {
-            matchedImage = image;
-            break;
-          }
-        } else {
-          // 匹配消息ID
-          if (Array.isArray(image.messageId) && image.messageId.includes(input)) {
-            matchedImage = image;
-            break;
-          }
-          // 处理 messageId 是空字符串的情况
-          if (image.messageId.length === 0 && image.messageTime === input) {
-            matchedImage = image;
-            break;
-          }
-        }
-      }
-      // 返回匹配的背景图URL
-      if (matchedImage) {
-        return matchedImage.backgroundURL;
+    async function getJrys(session) {
+      const md5 = crypto.createHash('md5');
+      const hash = crypto.createHash('sha256');
+      // 获取当前时间
+      let now = new Date(); // 使用时区转换函数
+      let etime = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime(); // 使用当天的0点时间戳
+      let userId;
+      // 获取用户ID
+      if (!isNaN(Number(session.event.user.id))) {
+        userId = session.event.user.id;
+      } else if (session.event.user.id) {
+        hash.update(session.event.user.id + String(etime));
+        const hashHexDigest = hash.digest('hex');
+        userId = Number(parseInt(hashHexDigest, 16)) % 1000000001;
       } else {
-        // 如果未找到对应的URL，返回null
-        return null;
+        md5.update(session.username + String(etime));
+        const hexDigest = md5.digest('hex');
+        userId = parseInt(hexDigest, 16) % 1000000001;
       }
-    } catch (error) {
-      ctx.logger.error('读取或解析JSON文件时出错: ', error);
-      throw error;
-    }
-  }
-
-  async function getJrys(session) {
-    const md5 = crypto.createHash('md5');
-    const hash = crypto.createHash('sha256');
-    // 获取当前时间
-    let now = new Date(); // 使用时区转换函数
-    let etime = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime(); // 使用当天的0点时间戳
-    let userId;
-    // 获取用户ID
-    if (!isNaN(Number(session.event.user.id))) {
-      userId = session.event.user.id;
-    } else if (session.event.user.id) {
-      hash.update(session.event.user.id + String(etime));
-      const hashHexDigest = hash.digest('hex');
-      userId = Number(parseInt(hashHexDigest, 16)) % 1000000001;
-    } else {
-      md5.update(session.username + String(etime));
-      const hexDigest = md5.digest('hex');
-      userId = parseInt(hexDigest, 16) % 1000000001;
-    }
-    // 获取运势概率表
-    let fortuneProbabilityTable = config.FortuneProbabilityAdjustmentTable || defaultFortuneProbability;
-    // 检查所有概率是否都为0，如果是则使用默认配置
-    const allProbabilitiesZero = fortuneProbabilityTable.every(entry => entry.Probability === 0);
-    if (allProbabilitiesZero) {
-      fortuneProbabilityTable = defaultFortuneProbability;
-    }
-    // 使用种子来确保随机结果的一致性
-    const seedInput = String(userId) + String(etime) + now.toDateString(); // 加入当前日期字符串
-    const seed = parseInt(md5.update(seedInput).digest('hex').slice(0, 8), 16);
-    const random = new Random(() => (seed / 0xffffffff));
-    // 使用 Random.weightedPick 选择运势
-    const weights = {};
-    fortuneProbabilityTable.forEach(entry => {
-      if (entry.Probability > 0) {
-        weights[entry.luckValue] = entry.Probability;
+      // 获取运势概率表
+      let fortuneProbabilityTable = config.FortuneProbabilityAdjustmentTable || defaultFortuneProbability;
+      // 检查所有概率是否都为0，如果是则使用默认配置
+      const allProbabilitiesZero = fortuneProbabilityTable.every(entry => entry.Probability === 0);
+      if (allProbabilitiesZero) {
+        fortuneProbabilityTable = defaultFortuneProbability;
       }
-    });
-    const fortuneCategory = random.weightedPick(weights);
-    const todayJrys = jrys_json[fortuneCategory];
-    // 随机选择当前幸运值类别下的一个文案
-    const randomIndex = (((etime / 100000) * userId % 1000001) * 2333) % todayJrys.length;
-    logInfo(`今日运势文案:\n ${JSON.stringify(todayJrys[randomIndex], null, 2)}`);
-    return new Promise(resolve => {
-      resolve(todayJrys[randomIndex]);
-    });
-  }
+      // 使用种子来确保随机结果的一致性
+      const seedInput = String(userId) + String(etime) + now.toDateString(); // 加入当前日期字符串
+      const seed = parseInt(md5.update(seedInput).digest('hex').slice(0, 8), 16);
+      const random = new Random(() => (seed / 0xffffffff));
+      // 使用 Random.weightedPick 选择运势
+      const weights = {};
+      fortuneProbabilityTable.forEach(entry => {
+        if (entry.Probability > 0) {
+          weights[entry.luckValue] = entry.Probability;
+        }
+      });
+      const fortuneCategory = random.weightedPick(weights);
+      const todayJrys = jrys_json[fortuneCategory];
+      // 随机选择当前幸运值类别下的一个文案
+      const randomIndex = (((etime / 100000) * userId % 1000001) * 2333) % todayJrys.length;
+      logInfo(`今日运势文案:\n ${JSON.stringify(todayJrys[randomIndex], null, 2)}`);
+      return new Promise(resolve => {
+        resolve(todayJrys[randomIndex]);
+      });
+    }
 
-  async function getFormattedDate() {
-    // 获取当前时间
-    const today = new Date(); // 使用时区转换函数
+    async function getFormattedDate() {
+      // 获取当前时间
+      const today = new Date(); // 使用时区转换函数
 
-    logInfo(`使用时区日期: ${today}`);
-    let year = today.getFullYear();  // 获取年份
-    let month = today.getMonth() + 1;  // 获取月份，月份是从0开始的，所以需要加1
-    let day = today.getDate();  // 获取日
-    logInfo(year);
-    logInfo(month);
-    logInfo(day);
-    // 格式化日期
-    month = month < 10 ? '0' + month : month;
-    day = day < 10 ? '0' + day : day;
-    let formattedDate = `${year}/${month}/${day}`;
-    logInfo(formattedDate);
-    return formattedDate;
-  }
+      logInfo(`使用时区日期: ${today}`);
+      let year = today.getFullYear();  // 获取年份
+      let month = today.getMonth() + 1;  // 获取月份，月份是从0开始的，所以需要加1
+      let day = today.getDate();  // 获取日
+      logInfo(year);
+      logInfo(month);
+      logInfo(day);
+      // 格式化日期
+      month = month < 10 ? '0' + month : month;
+      day = day < 10 ? '0' + day : day;
+      let formattedDate = `${year}/${month}/${day}`;
+      logInfo(formattedDate);
+      return formattedDate;
+    }
 
-  async function updateUserCurrency(uid, amount, currency = config.currency) {
-    try {
-      const numericUserId = Number(uid); // 将 userId 转换为数字类型
+    async function updateUserCurrency(uid, amount, currency = config.currency) {
+      try {
+        const numericUserId = Number(uid); // 将 userId 转换为数字类型
 
-      //  通过 ctx.monetary.gain 为用户增加货币，
-      //  或者使用相应的 ctx.monetary.cost 来减少货币
-      if (amount > 0) {
-        await ctx.monetary.gain(numericUserId, amount, currency);
-        logInfo(`为用户 ${uid} 增加了 ${amount} ${currency}`);
-      } else if (amount < 0) {
-        await ctx.monetary.cost(numericUserId, -amount, currency);
-        logInfo(`为用户 ${uid} 减少了 ${-amount} ${currency}`);
+        //  通过 ctx.monetary.gain 为用户增加货币，
+        //  或者使用相应的 ctx.monetary.cost 来减少货币
+        if (amount > 0) {
+          await ctx.monetary.gain(numericUserId, amount, currency);
+          logInfo(`为用户 ${uid} 增加了 ${amount} ${currency}`);
+        } else if (amount < 0) {
+          await ctx.monetary.cost(numericUserId, -amount, currency);
+          logInfo(`为用户 ${uid} 减少了 ${-amount} ${currency}`);
+        }
+
+        return `用户 ${uid} 成功更新了 ${Math.abs(amount)} ${currency}`;
+      } catch (error) {
+        ctx.logger.error(`更新用户 ${uid} 的货币时出错: ${error}`);
+        return `更新用户 ${uid} 的货币时出现问题。`;
+      }
+    }
+
+    async function getUserCurrency(uid, currency = config.currency) {
+      try {
+        const numericUserId = Number(uid);
+        const [data] = await ctx.database.get('monetary', {
+          uid: numericUserId,
+          currency,
+        }, ['value']);
+
+        return data ? data.value : 0;
+      } catch (error) {
+        ctx.logger.error(`获取用户 ${uid} 的货币时出错: ${error}`);
+        return 0; // Return 0 
+      }
+    }
+
+    async function updateIDbyuserId(userId, platform) {
+      // 查询数据库的 binding 表
+      const [bindingRecord] = await ctx.database.get('binding', {
+        pid: userId,
+        platform: platform,
+      });
+
+      // 检查是否找到了匹配的记录
+      if (!bindingRecord) {
+        throw new Error('未找到对应的用户记录。');
       }
 
-      return `用户 ${uid} 成功更新了 ${Math.abs(amount)} ${currency}`;
-    } catch (error) {
-      ctx.logger.error(`更新用户 ${uid} 的货币时出错: ${error}`);
-      return `更新用户 ${uid} 的货币时出现问题。`;
-    }
-  }
-
-  async function getUserCurrency(uid, currency = config.currency) {
-    try {
-      const numericUserId = Number(uid);
-      const [data] = await ctx.database.get('monetary', {
-        uid: numericUserId,
-        currency,
-      }, ['value']);
-
-      return data ? data.value : 0;
-    } catch (error) {
-      ctx.logger.error(`获取用户 ${uid} 的货币时出错: ${error}`);
-      return 0; // Return 0 
-    }
-  }
-
-  async function updateIDbyuserId(userId, platform) {
-    // 查询数据库的 binding 表
-    const [bindingRecord] = await ctx.database.get('binding', {
-      pid: userId,
-      platform: platform,
-    });
-
-    // 检查是否找到了匹配的记录
-    if (!bindingRecord) {
-      throw new Error('未找到对应的用户记录。');
+      // 返回 aid 字段作为对应的 id
+      return bindingRecord.aid;
     }
 
-    // 返回 aid 字段作为对应的 id
-    return bindingRecord.aid;
-  }
+    // 记录用户签到时间
+    async function recordSignIn(ctx, userId, channelId) {
+      const currentTime = new Date(); // 使用时区转换函数
+      const dateString = currentTime.toISOString().split('T')[0]; // 获取当前日期字符串
 
-  // 记录用户签到时间
-  async function recordSignIn(ctx, userId, channelId) {
-    const currentTime = new Date(); // 使用时区转换函数
-    const dateString = currentTime.toISOString().split('T')[0]; // 获取当前日期字符串
-
-    const [record] = await ctx.database.get('jrysprprdata', { userid: userId, channelId });
-
-    if (record) {
-      // 更新用户签到时间
-      await ctx.database.set('jrysprprdata', { userid: userId, channelId }, { lastSignIn: dateString });
-    } else {
-      // 创建新的签到记录
-      await ctx.database.create('jrysprprdata', { userid: userId, channelId, lastSignIn: dateString });
-    }
-  }
-
-  // 检查用户是否已签到
-  async function alreadySignedInToday(ctx, userId, channelId) {
-    const currentTime = new Date(); // 使用时区转换函数
-    const dateString = currentTime.toISOString().split('T')[0]; // 获取当前日期字符串
-
-    if (!config.Repeated_signin_for_different_groups) {
-      // 如果不允许从不同群组签到，检查所有群组
-      const records = await ctx.database.get('jrysprprdata', { userid: userId });
-
-      // 检查是否有任何记录的签到日期是今天
-      return records.some(record => record.lastSignIn === dateString);
-    } else {
-      // 仅检查当前群组
       const [record] = await ctx.database.get('jrysprprdata', { userid: userId, channelId });
 
       if (record) {
-        // 检查最后签到日期是否是今天
-        return record.lastSignIn === dateString;
+        // 更新用户签到时间
+        await ctx.database.set('jrysprprdata', { userid: userId, channelId }, { lastSignIn: dateString });
+      } else {
+        // 创建新的签到记录
+        await ctx.database.create('jrysprprdata', { userid: userId, channelId, lastSignIn: dateString });
       }
     }
 
-    // 如果没有记录，表示未签到
-    return false;
-  }
+    // 检查用户是否已签到
+    async function alreadySignedInToday(ctx, userId, channelId) {
+      const currentTime = new Date(); // 使用时区转换函数
+      const dateString = currentTime.toISOString().split('T')[0]; // 获取当前日期字符串
 
+      if (!config.Repeated_signin_for_different_groups) {
+        // 如果不允许从不同群组签到，检查所有群组
+        const records = await ctx.database.get('jrysprprdata', { userid: userId });
+
+        // 检查是否有任何记录的签到日期是今天
+        return records.some(record => record.lastSignIn === dateString);
+      } else {
+        // 仅检查当前群组
+        const [record] = await ctx.database.get('jrysprprdata', { userid: userId, channelId });
+
+        if (record) {
+          // 检查最后签到日期是否是今天
+          return record.lastSignIn === dateString;
+        }
+      }
+
+      // 如果没有记录，表示未签到
+      return false;
+    }
+  })
 }
 exports.apply = apply;
