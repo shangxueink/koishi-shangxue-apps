@@ -1,0 +1,9 @@
+{
+  "name": "repo",
+  "version": "1.0.0",
+  "license": "MIT",
+  "private": true,
+  "devDependencies": {
+    "nereid-cli": "^0.0.8"
+  }
+}
