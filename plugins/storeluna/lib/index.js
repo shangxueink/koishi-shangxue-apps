@@ -72,6 +72,7 @@ exports.Config = Schema.intersect([
   Schema.object({
     cacheJSONpath: Schema.string().default("./data/storeluna/index.json").description("从npm平台搜索整合的数据 缓存文件 保存地址。<br>相对路径，相对于koishi根目录"),
     packagelinks: Schema.boolean().default(false).description("包地址是否根据`searchaddress`自动修改。<br>开启后，如果你使用`registry.npmmirror.com`则会生成的是`https://npmmirror.com/package/***`"),
+    repositoryWithoutHomepage: Schema.boolean().default(true).description("为仅有`homepage`地址的包，添加`repository`地址"),
   }).description("JSON输出设置"),
 
   Schema.object({
@@ -375,16 +376,28 @@ async function apply(ctx, config) {
       if (versionInfo.bugs?.url) {
         packageLinks.bugs = versionInfo.bugs.url;
       }
-      if (versionInfo.homepage) {
-        packageLinks.homepage = versionInfo.homepage;
-      }
+
+      let repoUrl = null;
       if (versionInfo.repository) {
         if (typeof versionInfo.repository === 'object' && versionInfo.repository.url) {
-          packageLinks.repository = versionInfo.repository.url;
+          repoUrl = versionInfo.repository.url;
         } else if (typeof versionInfo.repository === 'string') {
-          packageLinks.repository = versionInfo.repository;
+          repoUrl = versionInfo.repository;
         }
       }
+
+      // 处理 homepage 和 repository
+      if (versionInfo.homepage) {
+        packageLinks.homepage = versionInfo.homepage;
+      } else if (config.repositoryWithoutHomepage && repoUrl) {
+        const homepageUrl = repoUrl.replace(/^git\+/, ''); // 移除 "git+" 前缀
+        packageLinks.homepage = homepageUrl;
+      }
+
+      if (repoUrl) {
+        packageLinks.repository = repoUrl;
+      }
+
 
 
       const isVerified = isVerifiedPackage(name);
