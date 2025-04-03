@@ -164,7 +164,7 @@ export async function apply(ctx: Context, config) {
       const inputMessageId = inputSession.messageId;
       const outputContent = outputSession.content;
       const sessionSn = inputSession.sn;
-      const platform = _session.platform;
+      const platform = inputSession.platform;
 
       if (!config.unableplatform.includes(platform)) {
         logInfo(`当前平台 ${platform} 不在配置的可用平台列表中，插件跳过。可用平台：${config.unableplatform.join(', ')}`);
