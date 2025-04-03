@@ -34,8 +34,8 @@ export const usage = `
 export const Config =
   Schema.intersect([
     Schema.object({
+      unableplatform: Schema.array(String).role('table').default(["onebot",]).description("允许应用的平台。在下列平台之外，本插件不会生效<br>注意 本插件仅在`onebot`平台实测可用，并且`qq`平台无法使用。其他平台可用性未知。"),
       quoteEnable: Schema.boolean().default(false).description("是否 以引用的方式发送 回复指令<br>可能会有兼容问题，谨慎开启"),
-
     }).description('基础设置'),
     Schema.union([
       Schema.object({
@@ -164,6 +164,12 @@ export async function apply(ctx: Context, config) {
       const inputMessageId = inputSession.messageId;
       const outputContent = outputSession.content;
       const sessionSn = inputSession.sn;
+      const platform = _session.platform;
+
+      if (!config.unableplatform.includes(platform)) {
+        logInfo(`当前平台 ${platform} 不在配置的可用平台列表中，插件跳过。可用平台：${config.unableplatform.join(', ')}`);
+        return; // 插件不生效
+      }
 
       if (!inputMessageId) {
         return;
