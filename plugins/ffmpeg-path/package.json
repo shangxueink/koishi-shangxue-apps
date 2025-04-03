@@ -13,7 +13,9 @@
   "typings": "lib/index.d.ts",
   "license": "MIT",
   "files": [
-    "lib"
+    "lib",
+    "nereid",
+    "src"
   ],
   "homepage": "https://github.com/shangxueink/koishi-shangxue-apps/tree/main/",
   "bugs": {
