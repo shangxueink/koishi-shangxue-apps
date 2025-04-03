@@ -153,7 +153,7 @@ function apply(ctx, config) {
             const links = await isProcessLinks(sessioncontent); // 判断是否需要解析
             if (links) {
                 const ret = await extractLinks(session, config, ctx, links); // 提取链接
-                if (ret && !isLinkProcessedRecently(ret, lastProcessedUrls, config, logger)) {
+                if (ret && !isLinkProcessedRecently(ret, lastProcessedUrls, config, session.channelId)) {
                     await processVideoFromLink(session, config, ctx, lastProcessedUrls, logger, ret); // 解析视频并返回
                 }
             }
@@ -386,7 +386,7 @@ display: none !important;
                 if (config.enable) { // 开启自动解析了
 
                     const ret = await extractLinks(session, config, ctx, [{ type: 'Video', id: chosenVideo.id }], logger); // 提取链接
-                    if (ret && !isLinkProcessedRecently(ret, lastProcessedUrls, config, logger)) {
+                    if (ret && !isLinkProcessedRecently(ret, lastProcessedUrls, config, session.channelId)) {
                         await processVideoFromLink(session, config, ctx, lastProcessedUrls, logger, ret, options); // 解析视频并返回
                     }
                 }
@@ -434,18 +434,21 @@ display: none !important;
     }
 
     //判断链接是否已经处理过
-    function isLinkProcessedRecently(ret, lastProcessedUrls, config, logger) {
+    function isLinkProcessedRecently(ret, lastProcessedUrls, config, channelId) {
         const lastretUrl = extractLastUrl(ret); // 提取 ret 最后一个 http 链接作为解析目标
         const currentTime = Date.now();
 
-        if (lastProcessedUrls[lastretUrl] && (currentTime - lastProcessedUrls[lastretUrl] < config.MinimumTimeInterval * 1000)) {
-            ctx.logger.info(`重复出现，略过处理：\n ${lastretUrl}`);
+        //  channelId 作为 key 的一部分，分频道鉴别
+        const channelKey = `${channelId}:${lastretUrl}`;
+
+        if (lastProcessedUrls[channelKey] && (currentTime - lastProcessedUrls[channelKey] < config.MinimumTimeInterval * 1000)) {
+            ctx.logger.info(`重复出现，略过处理：\n ${lastretUrl} (频道 ${channelId})`);
 
             return true; // 已经处理过
         }
 
-        // 更新该链接的最后处理时间
-        lastProcessedUrls[lastretUrl] = currentTime;
+        // 更新该链接的最后处理时间，使用 channelKey
+        lastProcessedUrls[channelKey] = currentTime;
         return false; // 没有处理过
     }
 
