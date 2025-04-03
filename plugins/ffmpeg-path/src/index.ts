@@ -73,7 +73,7 @@ export interface Config {
 
 export const Config: Schema<Config> = Schema.intersect([
   Schema.object({
-    path: Schema.string().description('指定ffmpeg可执行文件的绝对路径'),
+    path: Schema.string().description('指定`ffmpeg可执行文件`的绝对路径'),
     downloadsFFmpeg: Schema.boolean().default(true).description("找不到可执行文件时，自动调用`downloads`下载`ffmpeg.exe`"),
   }).description('基础设置'),
   Schema.object({
@@ -156,6 +156,10 @@ export async function apply(ctx: Context, config: Config) {
       return false;
     }
     try {
+      const stats = await stat(path);
+      if (!stats.isFile()) { // 检查是否是文件
+        return false;
+      }
       await access(path, constants.F_OK | constants.X_OK);
       return true;
     } catch (error) {
@@ -215,8 +219,6 @@ export async function apply(ctx: Context, config: Config) {
   }
 
 }
-
-
 
 function bucket() {
   let bucket = 'ffmpeg-';
