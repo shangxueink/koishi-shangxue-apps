@@ -54,53 +54,73 @@ exports.usage = `
 exports.Config = Schema.intersect([
     Schema.object({
         demand: Schema.boolean().default(true).description("开启点播指令功能<br>`其实点播登录不登录 都搜不准，登录只是写着玩的`"),
-        timeout: Schema.number().role('slider').min(1).max(300).step(1).default(60).description('指定播放视频的输入时限。`单位 秒`'),
-        point: Schema.tuple([Number, Number]).description('序号标注位置。分别表示`距离顶部 距离左侧`的百分比').default([50, 50]),
-        enable: Schema.boolean().description('是否开启自动解析`选择对应视频 会自动解析视频内容`').default(true),
     }).description('点播设置（需要puppeteer服务）'),
+    Schema.union([
+        Schema.object({
+            demand: Schema.const(false).required(),
+        }),
+        Schema.object({
+            demand: Schema.const(true),
+            timeout: Schema.number().role('slider').min(1).max(300).step(1).default(60).description('指定播放视频的输入时限。`单位 秒`'),
+            point: Schema.tuple([Number, Number]).description('序号标注位置。分别表示`距离顶部 距离左侧`的百分比').default([50, 50]),
+            enable: Schema.boolean().description('是否开启自动解析`选择对应视频 会自动解析视频内容`').default(true),
+        }),
+    ]),
 
     Schema.object({
-        waitTip_Switch: Schema.union([
-            Schema.const().description('不返回文字提示'),
-            Schema.string().description('返回文字提示（请在右侧填写文字内容）'),
-        ]).description("是否返回等待提示。开启后，会发送`等待提示语`"),
-        linktextParsing: Schema.boolean().default(true).description("是否返回 视频图文数据 `开启后，才发送视频数据的图文解析。`"),
-        VideoParsing_ToLink: Schema.union([
-            Schema.const('1').description('不返回视频/视频直链'),
-            Schema.const('2').description('仅返回视频'),
-            Schema.const('3').description('仅返回视频直链'),
-            Schema.const('4').description('返回视频和视频直链'),
-            Schema.const('5').description('返回视频，仅在日志记录视频直链'),
-        ]).role('radio').default('2').description("是否返回` 视频/视频直链 `"),
-        BVnumberParsing: Schema.boolean().default(true).description("是否允许根据`独立的BV、AV号`解析视频 `开启后，可以通过视频的BV、AV号解析视频。` <br>  [触发说明见README](https://www.npmjs.com/package/koishi-plugin-bilibili-videolink-analysis)"),
-        Maximumduration: Schema.number().default(25).description("允许解析的视频最大时长（分钟）`超过这个时长 就不会发视频`").min(1),
-        Maximumduration_tip: Schema.union([
-            Schema.const('不返回文字提示').description('不返回文字提示'),
-            Schema.string().description('返回文字提示（请在右侧填写文字内容）').default('视频太长啦！还是去B站看吧~'),
-        ]).description("对过长视频的文字提示内容").default('视频太长啦！还是去B站看吧~'),
-        MinimumTimeInterval: Schema.number().default(180).description("若干`秒`内 不再处理相同链接 `防止多bot互相触发 导致的刷屏/性能浪费`").min(1),
-    }).description("基础设置"),
+        enablebilianalysis: Schema.boolean().default(true).description("开启解析功能<br>`关闭后，解析功能将关闭`"),
+    }).description('解析功能开关'),
+    Schema.union([
+        Schema.object({
+            enablebilianalysis: Schema.const(false).required(),
+        }),
+        Schema.intersect([
+            Schema.object({
+                enablebilianalysis: Schema.const(true),
+                waitTip_Switch: Schema.union([
+                    Schema.const().description('不返回文字提示'),
+                    Schema.string().description('返回文字提示（请在右侧填写文字内容）'),
+                ]).description("是否返回等待提示。开启后，会发送`等待提示语`"),
+                linktextParsing: Schema.boolean().default(true).description("是否返回 视频图文数据 `开启后，才发送视频数据的图文解析。`"),
+                VideoParsing_ToLink: Schema.union([
+                    Schema.const('1').description('不返回视频/视频直链'),
+                    Schema.const('2').description('仅返回视频'),
+                    Schema.const('3').description('仅返回视频直链'),
+                    Schema.const('4').description('返回视频和视频直链'),
+                    Schema.const('5').description('返回视频，仅在日志记录视频直链'),
+                ]).role('radio').default('2').description("是否返回` 视频/视频直链 `"),
+                BVnumberParsing: Schema.boolean().default(true).description("是否允许根据`独立的BV、AV号`解析视频 `开启后，可以通过视频的BV、AV号解析视频。` <br>  [触发说明见README](https://www.npmjs.com/package/koishi-plugin-bilibili-videolink-analysis)"),
+                Maximumduration: Schema.number().default(25).description("允许解析的视频最大时长（分钟）`超过这个时长 就不会发视频`").min(1),
+                Maximumduration_tip: Schema.union([
+                    Schema.const('不返回文字提示').description('不返回文字提示'),
+                    Schema.string().description('返回文字提示（请在右侧填写文字内容）').default('视频太长啦！还是去B站看吧~'),
+                ]).description("对过长视频的文字提示内容").default('视频太长啦！还是去B站看吧~'),
+                MinimumTimeInterval: Schema.number().default(180).description("若干`秒`内 不再处理相同链接 `防止多bot互相触发 导致的刷屏/性能浪费`").min(1),
+            }),
 
-    Schema.object({
-        parseLimit: Schema.number().default(3).description("单对话多链接解析上限").hidden(),
-        useNumeral: Schema.boolean().default(true).description("使用格式化数字").hidden(),
-        showError: Schema.boolean().default(false).description("当链接不正确时提醒发送者").hidden(),
-        bVideoIDPreference: Schema.union([
-            Schema.const("bv").description("BV 号"),
-            Schema.const("av").description("AV 号"),
-        ]).default("bv").description("ID 偏好").hidden(),
+            Schema.object({
+                parseLimit: Schema.number().default(3).description("单对话多链接解析上限").hidden(),
+                useNumeral: Schema.boolean().default(true).description("使用格式化数字").hidden(),
+                showError: Schema.boolean().default(false).description("当链接不正确时提醒发送者").hidden(),
+                bVideoIDPreference: Schema.union([
+                    Schema.const("bv").description("BV 号"),
+                    Schema.const("av").description("AV 号"),
+                ]).default("bv").description("ID 偏好").hidden(),
 
-        bVideo_area: Schema.string().role('textarea', { rows: [8, 16] }).description("图文解析的返回格式<br>注意变量格式，以及变量名称。<br>比如 `${标题}` 不可以变成`${标题123}`，你可以直接删掉但是不能修改变量名称哦<br>当然变量也不能无中生有，下面的默认值内容 就是所有变量了，你仅可以删去变量 或者修改变量之外的格式。<br>· 特殊变量`${~~~}`表示分割线，会把上下内容分为两个信息单独发送。")
-            .default("${标题} --- ${UP主}\n${简介}\n点赞：${点赞} --- 投币：${投币}\n收藏：${收藏} --- 转发：${转发}\n观看：${观看} --- 弹幕：${弹幕}\n${~~~}\n${封面}"),
-        bVideoShowLink: Schema.boolean().default(false).description("在末尾显示视频的链接地址 `开启可能会导致其他bot循环解析`"),
-        bVideoShowIntroductionTofixed: Schema.number().default(50).description("视频的`简介`最大的字符长度<br>超出部分会使用 `...` 代替"),
-    }).description("链接的图文解析设置"),
+                bVideo_area: Schema.string().role('textarea', { rows: [8, 16] }).description("图文解析的返回格式<br>注意变量格式，以及变量名称。<br>比如 `${标题}` 不可以变成`${标题123}`，你可以直接删掉但是不能修改变量名称哦<br>当然变量也不能无中生有，下面的默认值内容 就是所有变量了，你仅可以删去变量 或者修改变量之外的格式。<br>· 特殊变量`${~~~}`表示分割线，会把上下内容分为两个信息单独发送。")
+                    .default("${标题} --- ${UP主}\n${简介}\n点赞：${点赞} --- 投币：${投币}\n收藏：${收藏} --- 转发：${转发}\n观看：${观看} --- 弹幕：${弹幕}\n${~~~}\n${封面}"),
+                bVideoShowLink: Schema.boolean().default(false).description("在末尾显示视频的链接地址 `开启可能会导致其他bot循环解析`"),
+                bVideoShowIntroductionTofixed: Schema.number().default(50).description("视频的`简介`最大的字符长度<br>超出部分会使用 `...` 代替"),
+            }).description("链接的图文解析设置"),
 
-    Schema.object({
-        isfigure: Schema.boolean().default(false).description("是否开启合并转发 `仅支持 onebot 适配器` 其他平台开启 无效").experimental(),
-        middleware: Schema.boolean().default(false).description("前置中间件模式"),
-        userAgent: Schema.string().description("所有 API 请求所用的 User-Agent").default("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"),
-    }).description("调试设置"),
+            Schema.object({
+                isfigure: Schema.boolean().default(false).description("是否开启合并转发 `仅支持 onebot 适配器` 其他平台开启 无效").experimental(),
+                middleware: Schema.boolean().default(false).description("前置中间件模式"),
+                userAgent: Schema.string().description("所有 API 请求所用的 User-Agent").default("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"),
+            }).description("调试设置"),
+        ]),
+    ]),
+
 
     Schema.object({
         pageclose: Schema.boolean().default(true).description("自动`page.close()`<br>非开发者请勿改动").experimental(),
@@ -120,24 +140,26 @@ function apply(ctx, config) {
         }
     }
 
-    ctx.middleware(async (session, next) => {
-        let sessioncontent = session.content;
-        // 如果允许解析 BV 号，则进行解析
-        if (config.BVnumberParsing) {
-            const bvUrls = convertBVToUrl(sessioncontent);
-            if (bvUrls.length > 0) {
-                sessioncontent += '\n' + bvUrls.join('\n');
+    if (config.enablebilianalysis) {
+        ctx.middleware(async (session, next) => {
+            let sessioncontent = session.content;
+            // 如果允许解析 BV 号，则进行解析
+            if (config.BVnumberParsing) {
+                const bvUrls = convertBVToUrl(sessioncontent);
+                if (bvUrls.length > 0) {
+                    sessioncontent += '\n' + bvUrls.join('\n');
+                }
             }
-        }
-        const links = await isProcessLinks(sessioncontent); // 判断是否需要解析
-        if (links) {
-            const ret = await extractLinks(session, config, ctx, links); // 提取链接
-            if (ret && !isLinkProcessedRecently(ret, lastProcessedUrls, config, logger)) {
-                await processVideoFromLink(session, config, ctx, lastProcessedUrls, logger, ret); // 解析视频并返回
+            const links = await isProcessLinks(sessioncontent); // 判断是否需要解析
+            if (links) {
+                const ret = await extractLinks(session, config, ctx, links); // 提取链接
+                if (ret && !isLinkProcessedRecently(ret, lastProcessedUrls, config, logger)) {
+                    await processVideoFromLink(session, config, ctx, lastProcessedUrls, logger, ret); // 解析视频并返回
+                }
             }
-        }
-        return next();
-    }, config.middleware);
+            return next();
+        }, config.middleware);
+    }
 
     if (config.demand) {
         ctx.command('B站点播/退出登录', '退出B站账号')
