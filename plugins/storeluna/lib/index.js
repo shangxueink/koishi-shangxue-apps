@@ -349,7 +349,7 @@ async function apply(ctx, config) {
         username: maintainer.name || ''
       }));
 
-      const contributors = (versionInfo.contributors || []).map(
+      const contributors = Array.isArray(versionInfo.contributors) ? versionInfo.contributors.map(
         (contributor) => {
           if (typeof contributor === 'string') {
             return { name: contributor }
@@ -361,7 +361,7 @@ async function apply(ctx, config) {
             username: contributor.name || ''
           }
         }
-      );
+      ) : [];
 
 
       const npmLink = config.packagelinks
