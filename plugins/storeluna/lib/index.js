@@ -527,15 +527,15 @@ async function apply(ctx, config) {
 
       fromOffset += results.length;
       if (config.progressinfo) {
-        ctx.logger.info(`进度: ${fromOffset}/${totalPackages} | 已收录: ${plugins.length}`);
+        ctx.logger("storeluna-updating").info(`进度: ${fromOffset}/${totalPackages} | 已收录: ${plugins.length}`);
       }
 
       if (fromOffset >= totalPackages) break;
     }
 
-    ctx.logger.info(`\n扫描完成：`);
-    ctx.logger.info(`- 总扫描数量: ${totalPackages}`);
-    ctx.logger.info(`- 最终收录: ${plugins.length}`);
+    ctx.logger("storeluna-updating").info(`\n扫描完成：`);
+    ctx.logger("storeluna-updating").info(`- 总扫描数量: ${totalPackages}`);
+    ctx.logger("storeluna-updating").info(`- 最终收录: ${plugins.length}`);
 
     return plugins;
   }
@@ -552,7 +552,7 @@ async function apply(ctx, config) {
     const filePath = path.resolve(ctx.baseDir, config.cacheJSONpath);
     await fs.mkdir(path.dirname(filePath), { recursive: true });
     await fs.writeFile(filePath, JSON.stringify(output, null, 2), 'utf8');
-    ctx.logger.info(`数据已保存到文件, 绝对路径：${filePath}`);
+    ctx.logger("storeluna-updating").info(`数据已保存到文件, 绝对路径：${filePath}`);
   }
 
   // 数据过滤逻辑 
@@ -691,8 +691,8 @@ async function apply(ctx, config) {
     isUpdating = true;
 
     try {
-      ctx.logger.info("storeluna 当前为 NPM 更新模式，将从 NPM 获取数据并更新本地文件。");
-      ctx.logger.info("即将从npm地址拉取内容，请不要重载插件！");
+      ctx.logger("storeluna-updating").info("storeluna 当前为 NPM 更新模式，将从 NPM 获取数据并更新本地文件。");
+      ctx.logger("storeluna-updating").info("即将从npm地址拉取内容，请不要重载插件！");
       let plugins = await fetchKoishiPlugins();
       [marketData.objects, filteredPlugins] = applyFilters(plugins, config);
       marketData.total = marketData.objects.length;
@@ -700,7 +700,7 @@ async function apply(ctx, config) {
       await saveMarketData(marketData.objects);
       stats.syncs++;
       stats.success++;
-      ctx.logger.info(`从 NPM 同步成功，插件总数：${marketData.total}`);
+      ctx.logger("storeluna-updating").info(`从 NPM 同步成功，插件总数：${marketData.total}`);
       if (config.type === 'NPM') {
         ctx.logger.info(`请将配置项 "工作模式" 改为 "从上游镜像获取"，并且填入上述文件绝对路径，然后重启 Koishi 以切换到挂载模式。`);
       }
@@ -749,53 +749,60 @@ async function apply(ctx, config) {
     }
   }
 
-  // 在 apply 函数中，根据模式决定是否立即更新
-  if (config.type === 'NPM') {
-    updateDataFromNPM();
-  } else {
-    // 如果是 URL 模式，则加载现有数据
-    await loadData();
+  ctx.on('ready', async () => {
+    // 根据模式决定是否立即更新
+    if (config.type === 'NPM') {
+      updateDataFromNPM();
+    } else {
+      // 如果是 URL 模式，则加载现有数据
+      await loadData();
 
-    // 注册路由 (仅在 URL 模式下)
-    ctx.server.get(config.path, (ctx) => {
-      if (marketData) {
-        ctx.status = 200;
-        ctx.body = marketData; // 直接返回 marketData
-      } else {
-        ctx.status = 503; // Service Unavailable
-        ctx.body = { message: "Market data is still loading." };
-      }
-      stats.visits++;
-    });
-    ctx.logger.info(`路由已注册：${config.path}`);
-
-    // 定时同步 (仅在 URL 模式下)
-    if (config.syncInterval > 0) {
-      ctx.setInterval(() => {
-        if (config.upstream && (config.upstream.startsWith('file://') || path.isAbsolute(config.upstream))) {
-          // 如果 upstream 是本地文件，从 NPM 更新
-          updateDataFromNPM();
+      // 注册路由 (仅在 URL 模式下)
+      ctx.server.get(config.path, (ctx) => {
+        if (marketData) {
+          ctx.status = 200;
+          ctx.body = marketData; // 直接返回 marketData
         } else {
-          // 否则，从 upstream 同步
-          syncDataFromUpstream();
+          ctx.status = 503; // Service Unavailable
+          ctx.body = { message: "Market data is still loading." };
         }
-      }, config.syncInterval * 1000);
+        stats.visits++;
+      });
+      ctx.logger.info(`路由已注册：${config.path}`);
+
+      // 定时同步 (仅在 URL 模式下)
+      if (config.syncInterval > 0) {
+        ctx.setInterval(() => {
+          if (config.upstream && (config.upstream.startsWith('file://') || path.isAbsolute(config.upstream))) {
+            // 如果 upstream 是本地文件，从 NPM 更新
+            updateDataFromNPM();
+          } else {
+            // 否则，从 upstream 同步
+            syncDataFromUpstream();
+          }
+        }, config.syncInterval * 1000);
+      }
+
     }
 
-  }
+    // 统计报告 (与之前相同, 但只在 URL 模式下)
+    if (config.reportInterval > 0) {
+      ctx.setInterval(() => {
+        const report = config.reportTemplate
+          .replace('{visits}', stats.visits)
+          .replace('{syncs}', stats.syncs)
+          .replace('{success}', stats.success)
+          .replace('{filtered}', filteredPlugins.length);
+        ctx.logger.info(report);
+      }, config.reportInterval * 1000);
+    }
+  });
 
-  // 统计报告 (与之前相同, 但只在 URL 模式下)
-  if (config.reportInterval > 0) {
-    ctx.setInterval(() => {
-      const report = config.reportTemplate
-        .replace('{visits}', stats.visits)
-        .replace('{syncs}', stats.syncs)
-        .replace('{success}', stats.success)
-        .replace('{filtered}', filteredPlugins.length);
-      ctx.logger.info(report);
-    }, config.reportInterval * 1000);
-  }
-
+  ctx.on('dispose', () => {
+    // 在插件停用时取消更新
+    isUpdating = false;
+    ctx.logger.warn('插件已停用，已取消当前更新任务。');
+  });
 
 }
 
