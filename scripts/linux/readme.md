@@ -6,10 +6,16 @@
 
 ## 快速开始
 
-> 使用以下命令下载并运行 Koinix：
+> 普通用户 使用以下命令下载并运行 Koinix：
 
 ```bash
 bash -c "$(curl -L https://raw.githubusercontent.com/shangxueink/koishi-shangxue-apps/main/scripts/linux/koinixTUI.sh)"
+```
+
+> root用户 使用以下命令下载并运行 Koinix：
+
+```bash
+bash -c "$(curl -L https://raw.githubusercontent.com/shangxueink/koishi-shangxue-apps/main/scripts/linux/koinixTUI-root.sh)"
 ```
 
 
