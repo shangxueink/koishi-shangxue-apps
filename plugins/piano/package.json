@@ -6,7 +6,9 @@
   "typings": "lib/index.d.ts",
   "files": [
     "lib",
-    "dist"
+    "src",
+    "temp",
+    "tanqin"
   ],
   "license": "MIT",
   "homepage": "https://github.com/shangxueink/koishi-shangxue-apps/tree/main/%40shangxueink/koishi-plugin-content-guard",
