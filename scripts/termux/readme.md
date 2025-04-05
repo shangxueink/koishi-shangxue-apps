@@ -40,7 +40,7 @@
 3. **安装 Koishi Manager**：
    - 运行以下命令下载并运行脚本：
      ```bash
-     bash -c "$(curl -L https://raw.githubusercontent.com/shangxueink/koishi-shangxue-apps/main/scripts/termux/koishi_manager.sh)"
+     bash -c "$(curl -L https://raw.githubusercontent.com/shangxueink/koishi-shangxue-apps/main/scripts/termux/koimuxTUI.sh)"
      ```
 
 ---
@@ -81,7 +81,7 @@
 1. **运行脚本**：
    - 运行以下命令：
      ```bash
-     bash -c "$(curl -L https://raw.githubusercontent.com/shangxueink/koishi-shangxue-apps/main/scripts/termux/koishi_manager.sh)"
+     bash -c "$(curl -L https://raw.githubusercontent.com/shangxueink/koishi-shangxue-apps/main/scripts/termux/koimuxTUI.sh)"
      ```
 
 2. **管理实例**：
