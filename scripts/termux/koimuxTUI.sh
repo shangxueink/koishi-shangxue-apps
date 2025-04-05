@@ -99,7 +99,7 @@ function install_dependencies {
                         3 "安装 libexpat" \
                         4 "安装 chromium" \
                         5 "安装 ffmpeg" \
-                        6 "安装 nodejs-lts" \
+                        6 "安装 nodejs" \
                         7 "返回主菜单" \
                         3>&1 1>&2 2>&3)
 
@@ -136,8 +136,8 @@ function install_dependencies {
                 ;;
             6)
                 clear
-                echo "正在安装 nodejs-lts，请稍候..."
-                pkg i nodejs-lts -y
+                echo "正在安装 nodejs，请稍候..."
+                pkg i nodejs -y
 
                 # 设置 npm 镜像
                 echo "设置 npm 镜像源..."
@@ -158,8 +158,8 @@ function install_dependencies {
 
                 # 查看 yarn 镜像
                 echo "当前 yarn 镜像源："
-                yarn config get registry  # 检查 Yarn 1.x 的 registry
-                yarn config get npmRegistryServer # 检查 Yarn 2+ 的 npmRegistryServer
+                yarn config get registry 
+                yarn config get npmRegistryServer 
 
                 confirm_return
                 ;;
