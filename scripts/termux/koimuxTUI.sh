@@ -138,29 +138,18 @@ function install_dependencies {
                 clear
                 echo "正在安装 nodejs，请稍候..."
                 pkg i nodejs -y
-
-                # 设置 npm 镜像
                 echo "设置 npm 镜像源..."
                 npm config set registry https://registry.npmmirror.com
-
-                # 查看 npm 镜像
                 echo "当前 npm 镜像源："
                 npm config get registry
-
-                # 安装 yarn
                 echo "正在安装 yarn..."
                 npm i -g yarn
-
-                # 设置 yarn 镜像 (兼容 Yarn 1.x 和 2+)
                 echo "设置 yarn 镜像源..."
                 yarn config set registry https://registry.npmmirror.com
                 yarn config set npmRegistryServer https://registry.npmmirror.com
-
-                # 查看 yarn 镜像
                 echo "当前 yarn 镜像源："
                 yarn config get registry 
-                yarn config get npmRegistryServer 
-
+                yarn config get npmRegistryServer
                 confirm_return
                 ;;
             7)
