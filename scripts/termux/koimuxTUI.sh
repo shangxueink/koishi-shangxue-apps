@@ -99,7 +99,7 @@ function install_dependencies {
                         3 "安装 libexpat" \
                         4 "安装 chromium" \
                         5 "安装 ffmpeg" \
-                        6 "安装 nodejs-lts" \
+                        6 "安装 nodejs" \
                         7 "返回主菜单" \
                         3>&1 1>&2 2>&3)
 
@@ -136,13 +136,34 @@ function install_dependencies {
                 ;;
             6)
                 clear
-                echo "正在安装 nodejs-lts，请稍候..."
-                pkg i nodejs-lts -y
+                echo "正在安装 nodejs，请稍候..."
+                pkg i nodejs -y 
+
+                # 设置 npm 镜像
+                echo "设置 npm 镜像源..."
                 npm config set registry https://registry.npmmirror.com
+
+                # 查看 npm 镜像
+                echo "当前 npm 镜像源："
+                npm config get registry
+
+                # 安装 yarn
+                echo "正在安装 yarn..."
                 npm i -g yarn
+
+                # 设置 yarn 镜像 (兼容 Yarn 1.x 和 2+)
+                echo "设置 yarn 镜像源..."
                 yarn config set registry https://registry.npmmirror.com
+                yarn config set npmRegistryServer https://registry.npmmirror.com
+
+                # 查看 yarn 镜像
+                echo "当前 yarn 镜像源："
+                yarn config get registry  # 检查 Yarn 1.x 的 registry
+                yarn config get npmRegistryServer # 检查 Yarn 2+ 的 npmRegistryServer
+
                 confirm_return
                 ;;
+
             7)
                 break
                 ;;
@@ -204,7 +225,7 @@ function koishi_control {
                         1 "启动 Koishi (yarn start)" \
                         2 "整理依赖 (yarn)" \
                         3 "重装依赖 (rm -rf node_modules && yarn install)" \
-                        4 "升级全部依赖 (yarn up)" \
+                        4 "升级全部依赖 (yarn upgrade)" \
                         5 "以开发模式启动 (yarn dev)" \
                         6 "编译全部源码 (yarn build)" \
                         7 "依赖去重 (yarn dedupe)" \
@@ -223,7 +244,7 @@ function koishi_control {
                 run_command "rm -rf node_modules && yarn install" "$KOISHI_APP_DIR" "重装依赖"
                 ;;
             4)
-                run_command "yarn up" "$KOISHI_APP_DIR" "升级全部依赖"
+                run_command "yarn upgrade" "$KOISHI_APP_DIR" "升级全部依赖"
                 ;;
             5)
                 run_command "yarn dev" "$KOISHI_APP_DIR" "开发模式启动"
