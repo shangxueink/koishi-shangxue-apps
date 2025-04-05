@@ -5,7 +5,7 @@ const fs = require('node:fs');
 const url = require("node:url");
 const path = require("node:path");
 const crypto = require("node:crypto");
-const { Schema, Logger, h } = require("koishi");
+const { Schema, Logger, h, Universal } = require("koishi");
 exports.inject = {
   optional: ['canvas', "cron"]
 };
@@ -85,6 +85,9 @@ exports.Config = Schema.intersect([
 
   Schema.object({
     emojihub_bili_command: Schema.string().default('emojihub-bili').description('`父级指令`的指令名称').pattern(/^\S+$/),
+    emojihub_onemore: Schema.string().default('再来一张').description('`再来一张`的指令名称').pattern(/^\S+$/),
+    emojihub_randompic: Schema.string().default('随机表情包').description('`随机表情包`的指令名称').pattern(/^\S+$/),
+
     MoreEmojiHubList: Schema.array(Schema.object({
       command: Schema.string().description('注册的指令名称'),
       source_url: Schema.string().description('表情包文件地址'),
@@ -148,7 +151,7 @@ exports.Config = Schema.intersect([
     }),
     Schema.object({
       autoEmoji: Schema.const("定时发送").required(),
-      bot: Schema.number().description('定时消息由第几个bot发出？`第一个是0，第二个是1，...`<br>▶ 如果你只接了一个机器人，那么`0`即可').default(0).min(0),
+      botId: Schema.string().description('定时消息由哪个bot发出？▶ 填入bot对应的Id'),
       triggerprobability: Schema.percent().default(0.8).description('达到预定时间时，发送表情包的概率 `范围为 0 到 1 `'),
       groupListmapping: Schema.array(Schema.object({
         groupList: Schema.string().description('开启自动表情包的群组ID'),
@@ -748,13 +751,13 @@ function apply(ctx, config) {
             "notallowednum": "{0}次超出单次返回最大值\n请使用指令：{1} -n {2}",
           }
         },
-        '再来一张': {
+        [config.emojihub_onemore]: {
           description: `触发上次的表情包`,
           messages: {
-            "nocommand": "没有找到上一个命令，请先执行一个命令！\n➣例如： 随机表情包",
+            "nocommand": `没有找到上一个命令，请先执行一个命令！\n➣例如： ${config.emojihub_randompic}`,
           }
         },
-        '随机表情包': {
+        [config.emojihub_randompic]: {
           description: `从全部表情包里随机抽`,
           messages: {
             "noemoji": "没有任何表情包配置，请检查插件配置项！",
@@ -1042,7 +1045,7 @@ function apply(ctx, config) {
     const numToSend = Math.min(num || 1, maxAllowed); // 确定要发送的数量，不超过最大值
     for (let i = 0; i < numToSend; i++) {
       // 如果是“再来一张”指令，则需要特殊处理
-      if (command === "再来一张") {
+      if (command === config.emojihub_onemore) {
         const identifier = config.repeatCommandDifferentiation === 'userId' ? session.userId : session.channelId;
         const lastCommand = lastCommandByChannel[identifier];
         if (lastCommand) {
@@ -1209,7 +1212,7 @@ function apply(ctx, config) {
     })
   });
 
-  ctx.command(`${config.emojihub_bili_command}/再来一张`)
+  ctx.command(`${config.emojihub_bili_command}/${config.emojihub_onemore}`)
     .action(async ({ session, options }) => {
       // 根据 config.repeatCommandDifferentiation 的值选择合适的 ID
       const identifier = config.repeatCommandDifferentiation === 'userId' ? session.userId : session.channelId;
@@ -1223,13 +1226,13 @@ function apply(ctx, config) {
       }
     });
 
-  ctx.command(`${config.emojihub_bili_command}/随机表情包`)
+  ctx.command(`${config.emojihub_bili_command}/${config.emojihub_randompic}`)
     .action(async ({ session, options }) => {
 
       const randomEmojiHubCommand = getRandomEmojiHubCommand(config);
       if (randomEmojiHubCommand) {
         await session.execute(randomEmojiHubCommand);
-        logInfoformat(config, session.channelId, randomEmojiHubCommand, `随机表情包`);
+        logInfoformat(config, session.channelId, randomEmojiHubCommand, config.emojihub_randompic);
         return;
       } else {
         await session.send(session.text(".noemoji"));
@@ -1339,6 +1342,16 @@ function apply(ctx, config) {
 
   ctx.on('ready', () => {
     if (config.autoEmoji === "定时发送" && config.groupListmapping.length && ctx.cron) {
+      // const bot = ctx.bots[config.bot];
+      const bot = Object.values(ctx.bots).find(b => b.selfId === config.botId || b.user?.id === config.botId);
+      if (!bot || bot.status !== Universal.Status.ONLINE) {
+        ctx.logger.error(`[定时发送] 机器人离线或未找到: ${config.botId}`);
+        return;
+      } else {
+        ctx.logger.info(`定时成功：将由 ${config.botId} 执行`);
+      }
+      if (bot == null) return;
+
       const groups = {};
       // 初始化特定群组的配置
       config.groupListmapping.forEach(({ groupList, defaultemojicommand, cronTime, enable }) => {
@@ -1368,8 +1381,6 @@ function apply(ctx, config) {
         // 如果存在配置，设置定时任务
         if (groupConfig) {
           ctx.cron(groupConfig.cronTime, async () => {
-            const bot = ctx.bots[config.bot];
-            if (bot == null) return;
             const randomNumber = Math.random();
             // 触发概率判断
             if (randomNumber <= config.triggerprobability) {
