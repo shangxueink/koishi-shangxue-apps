@@ -468,26 +468,36 @@ function apply(ctx, config) {
                 };
                 markdownContent = replacePlaceholders(markdownContent).replace(/\n/g, '');
                 allVariables.markdown = markdownContent;
-                const rawJsonObject = JSON.parse(rawJsonData);
-                const replacedJsonObject = replacePlaceholders(rawJsonObject);
-                // 根据 session.messageId 是否存在，动态删除 JSON 对象中不需要的 ID 字段
-                if (session.messageId) {
-                    if (replacedJsonObject.msg_id) { // 检查 msg_id 字段是否存在
-                        // session.messageId 存在，删除 event_id
-                        delete replacedJsonObject.event_id;
-                    }
+                let rawJsonObject = JSON.parse(rawJsonData);
+                let replacedJsonObject = replacePlaceholders(rawJsonObject);
+
+                // 在广播模式下，移除 msg_id 和 event_id 字段
+                if (config.broadcast || config.RangeBroadcasting) {
+                    delete replacedJsonObject.msg_id;
+                    delete replacedJsonObject.event_id;
                 } else {
-                    if (replacedJsonObject.event_id) { // 检查 event_id 字段是否存在
-                        // session.messageId 不存在，删除 msg_id
-                        delete replacedJsonObject.msg_id;
+                    // 根据 session.messageId 是否存在，动态删除 JSON 对象中不需要的 ID 字段
+                    if (session.messageId) {
+                        if (replacedJsonObject.msg_id) { // 检查 msg_id 字段是否存在
+                            // session.messageId 存在，删除 event_id
+                            delete replacedJsonObject.event_id;
+                        }
+                    } else {
+                        if (replacedJsonObject.event_id) { // 检查 event_id 字段是否存在
+                            // session.messageId 不存在，删除 msg_id
+                            delete replacedJsonObject.msg_id;
+                        }
                     }
                 }
+
+
                 return replacedJsonObject;
             } catch (error) {
                 ctx.logger.error(`读取或解析文件时出错:`, error);
                 return '处理文件时出错。';
             }
         }
+
     });
 }
 exports.apply = apply;
