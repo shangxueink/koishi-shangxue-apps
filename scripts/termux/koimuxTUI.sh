@@ -99,7 +99,7 @@ function install_dependencies {
                         3 "安装 libexpat" \
                         4 "安装 chromium" \
                         5 "安装 ffmpeg" \
-                        6 "安装 nodejs" \
+                        6 "安装 nodejs-lts" \
                         7 "返回主菜单" \
                         3>&1 1>&2 2>&3)
 
@@ -136,8 +136,8 @@ function install_dependencies {
                 ;;
             6)
                 clear
-                echo "正在安装 nodejs，请稍候..."
-                pkg i nodejs -y 
+                echo "正在安装 nodejs-lts，请稍候..."
+                pkg i nodejs-lts -y
 
                 # 设置 npm 镜像
                 echo "设置 npm 镜像源..."
@@ -163,7 +163,6 @@ function install_dependencies {
 
                 confirm_return
                 ;;
-
             7)
                 break
                 ;;
