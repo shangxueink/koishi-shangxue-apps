@@ -244,16 +244,30 @@ function install_dependencies {
                 elif [[ "$pkg_manager" == "zypper" ]]; then
                     zypper install yarn
                 fi
-                echo "nodejs 版本："
-                node  --version
-
+                # 检查 Node.js 和 npm 版本
+                echo "Node.js 版本："
+                node --version
                 echo "npm 版本："
-                npm  --version
-                npm config set registry https://registry.npmmirror.com # 切换 npm 镜像
+                npm --version
 
-                echo "yarn 版本："
-                yarn --version
-                yarn config set npmRegistryServer https://registry.npmmirror.com # 切换 yarn 镜像
+                # 设置 npm 镜像
+                echo "设置 npm 镜像源..."
+                npm config set registry https://registry.npmmirror.com
+
+                # 查看 npm 镜像
+                echo "当前 npm 镜像源："
+                npm config get registry
+
+                # 设置 Yarn 镜像 (兼容 Yarn 1.x 和 2+)
+                echo "设置 Yarn 镜像源..."
+                yarn config set registry https://registry.npmmirror.com
+                yarn config set npmRegistryServer https://registry.npmmirror.com
+
+                # 查看 Yarn 镜像
+                echo "当前 Yarn 镜像源："
+                yarn config get registry  # 检查 Yarn 1.x 的 registry
+                yarn config get npmRegistryServer # 检查 Yarn 2+ 的 npmRegistryServer
+
                 confirm_return
                 ;;
             3)
@@ -340,7 +354,7 @@ function koishi_control {
                         1 "启动 Koishi" \
                         2 "整理依赖 (yarn)" \
                         3 "重装依赖 (rm -rf node_modules && yarn install)" \
-                        4 "升级全部依赖 (yarn up)" \
+                        4 "升级全部依赖 (yarn upgrade)" \
                         5 "以开发模式启动 (yarn dev)" \
                         6 "编译全部源码 (yarn build)" \
                         7 "依赖去重 (yarn dedupe)" \
@@ -360,7 +374,7 @@ function koishi_control {
                 run_command "rm -rf node_modules && yarn install" "$KOISHI_APP_DIR" "重装依赖"
                 ;;
             4)
-                run_command "yarn up" "$KOISHI_APP_DIR" "升级全部依赖"
+                run_command "yarn upgrade" "$KOISHI_APP_DIR" "升级全部依赖"
                 ;;
             5)
                 run_command "yarn dev" "$KOISHI_APP_DIR" "开发模式启动"
