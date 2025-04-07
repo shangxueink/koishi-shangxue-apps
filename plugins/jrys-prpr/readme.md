@@ -68,6 +68,7 @@
 
 
 
+
 ## QQ官方机器人设置指南
 
 ### 1. JSON按钮
@@ -377,6 +378,12 @@ ${dJson.luckyStar}
 
 </details>
 
+
+## 更多说明
+
+本插件的字体经过轻量化处理
+
+完整字体下载 请前往 -> https://www.fonts.net.cn/font-39603115276.html 
 
 ## 更新日志
 
