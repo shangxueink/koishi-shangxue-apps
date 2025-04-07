@@ -1,0 +1,1 @@
+import{defineComponent as n,ref as r,h as e,resolveComponent as a}from"vue";const m=t=>{t.page({name:"菜单编辑",path:"/preview-help",desc:"",component:n({setup(){const o=r();return()=>e(a("k-layout"),{},{default:()=>e("iframe",{ref:o,src:"/help/index.html",class:"layout-iframe"})})}})})};export{m as default};
