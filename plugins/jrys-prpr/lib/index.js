@@ -57,6 +57,7 @@ exports.Config =
         Schema.const().description('unset').description("不返回提示语"),
         Schema.string().description('string').description("请在右侧修改提示语").default("正在分析你的运势哦~请稍等~~"),
       ]).description("`签到渲染中`提示语"),
+      recallCheckin_HintText: Schema.boolean().description("jrys结果发送后，自动撤回`Checkin_HintText`提示语").default(true),
       GetOriginalImage_Command_HintText: Schema.union([
         Schema.const('1').description('不返回文字提示'),
         Schema.const('2').description('返回文字提示，且为图文消息'),
@@ -77,7 +78,7 @@ exports.Config =
           path.join(__dirname, '../backgroundFolder/白圣女.txt'),
           //path.join(__dirname, '../backgroundFolder/.txt'),   
         ]),
-    }),
+    }).description('基础设置'),
 
     Schema.object({
       screenshotquality: Schema.number().role('slider').min(0).max(100).step(1).default(50).description('设置图片压缩质量（%）'),
@@ -90,7 +91,7 @@ exports.Config =
         HoroscopeDescriptionTextColor: Schema.string().default("rgba(255,255,255,1)").role('color').description('`运势说明文字`颜色'),
         DashedboxThickn: Schema.number().role('slider').min(0).max(20).step(1).default(5).description('`虚线框`的粗细'),
         Dashedboxcolor: Schema.string().default("rgba(255, 255, 255, 0.5)").role('color').description('`虚线框`的颜色'),
-        fontPath: Schema.string().description("`请填写.ttf 字体文件的绝对路径`").default(path.join(__dirname, '../font/千图马克手写体.ttf')),
+        fontPath: Schema.string().description("`请填写.ttf 字体文件的绝对路径`").default(path.join(__dirname, '../font/千图马克手写体lite.ttf')),
       }).collapse().description('可自定义各种颜色搭配和字体'),
     }).description('面板调节'),
 
@@ -411,7 +412,7 @@ ${dJson.unsignText}\n
           }
           await recordSignIn(ctx, session.userId, session.channelId)
           await session.send(message);
-          if (Checkin_HintText_messageid) {
+          if (Checkin_HintText_messageid && config.recallCheckin_HintText) {
             await session.bot.deleteMessage(session.channelId, Checkin_HintText_messageid)
           }
           return;
@@ -474,14 +475,14 @@ color: transparent;
 <title>运势卡片</title>
 <style>
 @font-face {
-font-family: "千图马克手写体";
+font-family: "千图马克手写体lite";
 src: url('data:font/ttf;base64,${fontBase64}') format('truetype');
 }
 body, html {
 height: 100%;
 margin: 0;
 overflow: hidden; 
-font-family: "千图马克手写体"; 
+font-family: "千图马克手写体lite"; 
 }
 .background {
 background-image: url('${BackgroundURL_base64}');
@@ -766,7 +767,7 @@ ${dJson.unsignText}
           }
           // 调用函数发送消息
           await sendImageMessage(imageBuffer);
-          if (Checkin_HintText_messageid) {
+          if (Checkin_HintText_messageid && config.recallCheckin_HintText) {
             await session.bot.deleteMessage(session.channelId, Checkin_HintText_messageid)
           }
         } catch (e) {
