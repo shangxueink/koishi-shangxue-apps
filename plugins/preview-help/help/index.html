@@ -49,16 +49,13 @@
         }
 
         .preview-panel {
-            /* Preview takes remaining space */
             min-width: 320px;
-            /* Minimum width for preview - adjusted for vertical */
             position: relative;
         }
 
         .menu-structure {
             margin-top: 10px;
             padding-left: 5px;
-            /* Indentation for root level items */
         }
 
         .menu-item-list {
@@ -78,7 +75,6 @@
             align-items: center;
             justify-content: space-between;
             border: 1px solid transparent;
-            /* Default border to handle active state */
         }
 
         .menu-item-row-level-0 {
@@ -101,12 +97,10 @@
         .sub-item-row.active {
             background-color: #e6f7ff;
             border-color: var(--primary-color);
-            /* Highlight border when active */
         }
 
         .sub-item-row.active {
             border-left-color: var(--primary-color);
-            /* Highlight left border for sub-items */
         }
 
 
@@ -115,7 +109,6 @@
             display: flex;
             gap: 8px;
             justify-content: flex-start;
-            /* Align buttons to the start */
         }
 
         .btn-group button {
@@ -146,7 +139,6 @@
         input,
         select,
         textarea,
-        /* 添加 textarea 样式 */
         input[type="color"] {
             width: 100%;
             padding: 8px;
@@ -158,13 +150,11 @@
 
         textarea {
             resize: none;
-            /* 禁止手动调整textarea大小 */
         }
 
         input:focus,
         select:focus,
         textarea:focus,
-        /* 添加 textarea focus 样式 */
         input[type="color"]:focus {
             border-color: var(--primary-color);
             outline: none;
@@ -179,19 +169,14 @@
             min-height: 600px;
             position: relative;
             overflow: auto;
-            /* 修改为 auto，允许滚动 */
             border: 1px solid var(--border-color);
-            /* Preview container border */
             border-radius: 8px;
             margin: 0 auto;
-            /* Center preview in panel if needed */
-            /* width and height are now dynamic via vue style binding */
             display: flex;
-            /* ADDED: flex display for blurred background */
             justify-content: center;
-            /* ADDED: center content horizontally */
+
             align-items: center;
-            /* ADDED: center content vertically */
+
         }
 
         .background-image {
@@ -208,19 +193,19 @@
             background-size: cover;
             background-position: center;
             position: relative;
-            /* overflow: hidden;  不再需要隐藏溢出 */
+
             display: flex;
             flex-direction: column;
             padding: 20px;
             width: 100%;
-            /* 确保容器占据全部宽度 */
+
             box-sizing: border-box;
-            /* 包含 padding 在宽度计算中 */
+
             font-family: var(--preview-font, inherit);
             z-index: 1;
             background-color: rgba(255, 255, 255, 0.0);
             min-height: 100%;
-            /* 确保容器至少有 wrapper 的高度 */
+
         }
 
         .menu-item-preview {
@@ -228,17 +213,17 @@
             flex-direction: column;
             padding: 12px;
             margin-bottom: 8px;
-            /* Space between menu items */
+
             background: rgba(255, 255, 255, 0.9);
             border-radius: 4px;
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
             cursor: pointer;
-            /* Indicate clickability */
+
         }
 
         .menu-item-preview:last-child {
             margin-bottom: 0;
-            /* Remove margin from last menu item */
+
         }
 
 
@@ -247,49 +232,49 @@
             align-items: center;
             gap: 8px;
             margin-bottom: 8px;
-            /* Space between title and sub-items */
+
         }
 
         .menu-item-preview>div:last-child {
             margin-bottom: 0;
-            /* Remove margin after title if no sub-items */
+
         }
 
         .sub-item-preview {
             padding: 8px 12px;
             margin-left: 20px;
             display: flex;
-            /* Use flexbox for icon and text alignment */
+
             flex-direction: row;
-            /* Arrange icon and text in a row */
+
             align-items: flex-start;
-            /* Align items at the top */
+
             gap: 8px;
-            /* Space between icon and text content */
+
             cursor: pointer;
-            /* Indicate clickability */
+
             font-size: 0.9em;
-            /* Smaller font for sub-items */
+
             line-height: 1.4;
-            /* Adjusted line height */
+
             margin-bottom: 4px;
-            /* 子项之间增加间距 */
+
             word-wrap: break-word;
-            /* Allow text to break */
+
             overflow-wrap: break-word;
             border-radius: 4px;
-            /* Slightly rounded corners for sub-items */
+
         }
 
         .sub-item-preview.glassmorphism-custom {
             border-radius: 4px;
-            /* 确保 glassmorphism-custom 也应用圆角 */
+
         }
 
 
         .sub-item-preview:last-child {
             margin-bottom: 0;
-            /* 移除最后一个子项的底部间距 */
+
         }
 
         .sub-item-description-preview {
@@ -299,53 +284,53 @@
         }
 
         .sub-item-text-content {
-            /* Container for text and description */
+
             display: flex;
             flex-direction: column;
-            /* Stack text and description vertically */
+
         }
 
         .sub-item-text-preview {
             display: flex;
             align-items: center;
             gap: 0px;
-            /* 恢复图标和文字之间的间距 */
+
             overflow: hidden;
-            /* 隐藏溢出内容 */
+
             max-width: 200px;
-            /* 设置最大宽度，根据需要调整 */
+
         }
 
         .sub-item-text-preview span {
-            /* 应用到 sub-item-text-preview 内的 span 元素 */
+
             white-space: nowrap;
-            /* 强制文本不换行 */
+
             overflow: hidden;
-            /* 再次隐藏溢出内容，确保省略号效果 */
+
             text-overflow: ellipsis;
-            /* 当文本溢出时显示省略号 */
+
             display: block;
-            /* 确保 text-overflow 生效，如果 span 是 inline 元素可能需要设置为 block 或 inline-block */
+
         }
 
-        /* 如果你仍然觉得图标和文字太近，可以调整 img 的 margin-right */
+
         .sub-item-preview img {
             margin-right: 0px;
-            /* 移除 sub-item-text-preview img 的 margin-right */
+
             font-size: 1em;
             color: var(--text-color-light);
             vertical-align: top;
-            /* Align icon to the top */
+
             object-fit: contain;
             flex-shrink: 0;
-            /* Prevent icon from shrinking */
+
         }
 
 
         .icon-picker {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
-            /* 每行2个图标 in structure panel */
+
             gap: 8px;
             max-height: 200px;
             overflow-y: auto;
@@ -353,7 +338,7 @@
 
         .popup-content .icon-picker {
             grid-template-columns: repeat(3, 1fr);
-            /* 每行3个图标 in popup */
+
         }
 
 
@@ -374,16 +359,16 @@
 
         .icon-option img {
             width: 2em;
-            /* Fixed width for icons in picker */
+
             height: 2em;
-            /* Fixed height for icons in picker */
-            /* max-width: 1.5em;  调整图标大小 */
-            /* max-height: 1.5em; */
+
+
+
         }
 
         .icon-option.selected {
             border: 2px solid purple;
-            /* 添加紫色边框 */
+
         }
 
 
@@ -462,32 +447,32 @@
             color: #444;
             cursor: pointer;
             padding: 10px 18px;
-            /* Reduced padding */
+
             width: 100%;
             text-align: left;
             border: none;
-            /* Remove border */
+
             outline: none;
             font-size: 14px;
-            /* Smaller font size */
+
             margin: 0;
-            /* Remove default margins */
+
             border-bottom: 1px solid #ddd;
-            /* Add bottom border for separation */
+
             border-radius: 0;
-            /* Ensure no rounded corners */
+
             position: relative;
-            /* For indicator positioning */
+
         }
 
         .collapsible:first-of-type {
             border-top: 1px solid #ddd;
-            /* Add top border to the first collapsible */
+
         }
 
         .collapsible::after {
             content: '⇒';
-            /* Default collapsed indicator */
+
             position: absolute;
             right: 15px;
             top: 50%;
@@ -497,14 +482,14 @@
 
         .collapsible.active::after {
             content: '⇓';
-            /* Expanded indicator */
+
         }
 
 
         .collapsible.active,
         .collapsible:hover {
             background-color: #e0e0e0;
-            /* Lighter hover/active color */
+
         }
 
         .content {
@@ -512,40 +497,40 @@
             display: none;
             overflow: hidden;
             background-color: #f9f9f9;
-            /* Slightly lighter content background */
+
             border-left: 1px solid #ddd;
             border-right: 1px solid #ddd;
             border-bottom: 1px solid #ddd;
             border-radius: 0 0 8px 8px;
-            /* Rounded corners for content bottom */
+
             margin-bottom: 5px;
-            /* Space between collapsible sections */
+
         }
 
         .content:last-of-type {
             margin-bottom: 0;
-            /* Remove margin from last content section */
+
         }
 
-        /* VS Code Style Menu Structure */
+
         .menu-structure {
             padding-left: 5px;
-            /* Indentation for root level items */
+
         }
 
 
         .menu-item-text {
             flex-grow: 1;
-            /* Allow text to take up space */
+
             padding: 5px 0;
             overflow: hidden;
-            /* Required for text-overflow */
+
             text-overflow: ellipsis;
-            /* Ellipsis for long text */
+
             white-space: nowrap;
-            /* Prevent text wrapping */
+
             max-width: 150px;
-            /* Adjust max width as needed */
+
         }
 
         .sub-item-text {
@@ -555,11 +540,11 @@
             text-overflow: ellipsis;
             white-space: nowrap;
             max-width: 130px;
-            /* Slightly less width for sub-items */
+
         }
 
 
-        /* Icon Styling */
+
         .menu-item i,
         .sub-item i,
         .menu-item-preview i,
@@ -571,25 +556,25 @@
         .sub-item-preview img,
         .icon-option img {
             margin-right: 8px;
-            /* Space between icon and text */
+
             font-size: 1em;
-            /* Adjust icon size as needed */
+
             color: var(--text-color-light);
-            /* Icon color */
+
             max-width: none;
-            /* important to override and use width/height */
+
             max-height: none;
             width: 2em;
-            /* Unified icon size */
+
             height: 2em;
             vertical-align: middle;
-            /* Align icon with text */
+
             object-fit: contain;
-            /* Make sure icon scales within its bounds */
+
         }
 
 
-        /* Pop-up Styles (Basic) */
+
         .popup-overlay {
             position: fixed;
             top: 0;
@@ -609,14 +594,14 @@
             border-radius: 8px;
             box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
             width: 400px;
-            /* Adjust width as needed */
+
         }
 
         .popup-content h3 {
             margin-top: 0;
             margin-bottom: 15px;
             text-align: center;
-            /* Center popup title */
+
         }
 
         .popup-content .form-item {
@@ -626,18 +611,18 @@
         .popup-buttons {
             display: flex;
             justify-content: center;
-            /* Center buttons horizontally */
+
             gap: 10px;
             margin-top: 20px;
         }
 
         .popup-button {
-            /* Style for popup buttons */
+
             padding: 8px 15px;
             border: none;
             border-radius: 4px;
             margin: 0 5px;
-            /* Added margin for button spacing */
+
             cursor: pointer;
             color: white;
             background-color: var(--primary-color);
@@ -647,12 +632,12 @@
         .popup-button:hover {
             background-color: #3a8ee6;
             opacity: 0.8;
-            /* Darker shade on hover */
+
         }
 
         .popup-button.sibling-button {
             background-color: #3a8ee6;
-            /* Darker shade on hover */
+
         }
 
         .popup-tabs {
@@ -669,9 +654,9 @@
             border-radius: 4px 4px 0 0;
             background-color: #f0f0f0;
             text-align: center;
-            /* Center tab text */
+
             flex-grow: 1;
-            /* Evenly distribute tabs */
+
         }
 
         .popup-tab.active {
@@ -681,79 +666,79 @@
         }
 
 
-        /* Footer Position Styles - Removed individual positioning, using default center */
 
 
-        /* Column Layout for Sub-items */
+
+
         .menu-item-preview.column-layout {
             flex-direction: row;
-            /* Arrange title and sub-items horizontally */
+
             flex-wrap: wrap;
-            /* Allow wrapping of sub-items */
+
             align-items: flex-start;
-            /* Align items to the start of the container */
+
         }
 
         .menu-item-preview.column-layout>div:first-child {
-            /* Style for title row */
+
             width: 100%;
-            /* Title takes full width */
+
             margin-bottom: 10px;
-            /* Space between title and columns */
+
         }
 
         .menu-item-preview.column-layout .sub-item-preview {
             margin-left: 0;
-            /* Remove default left margin */
+
             margin-right: 10px;
-            /* Space between columns */
+
             margin-bottom: 10px;
-            /* Space between rows in columns */
+
         }
 
         .menu-item-preview.columns-2 .sub-item-preview {
             width: calc(50% - 10px);
-            /* Two columns */
+
         }
 
         .menu-item-preview.columns-3 .sub-item-preview {
             width: calc(33.333% - 10px);
-            /* Three columns */
+
         }
 
         .menu-item-preview.columns-4 .sub-item-preview {
             width: calc(25% - 10px);
-            /* Four columns */
+
         }
 
         .menu-item-preview.columns-5 .sub-item-preview {
             width: calc(20% - 10px);
-            /* Five columns */
+
         }
 
         .menu-item-preview.columns-6 .sub-item-preview {
             width: calc(16.666% - 10px);
-            /* Six columns */
+
         }
 
-        /* Glassmorphism Effect */
+
         .glassmorphism {
             background: rgba(255, 255, 255, 0.5);
             backdrop-filter: blur(10px);
             -webkit-backdrop-filter: blur(10px);
-            /* For Safari */
+
             border: 1px solid rgba(255, 255, 255, 0.3);
         }
 
         .glassmorphism-custom {
             background-color: rgba(255, 255, 255, 0.3);
-            /* 半透明白色，你可以调整颜色和透明度 */
-            /* backdrop-filter: blur(10px);  移除 backdrop-filter */
-            /* -webkit-backdrop-filter: blur(10px); 移除 -webkit-backdrop-filter */
+
+
+
             border: 1px solid rgba(255, 255, 255, 0.3);
-            /* 保留或调整边框 */
+
             border-radius: 4px;
-            /* 保留圆角 */
+
         }
 
         .no-glassmorphism {
@@ -761,7 +746,7 @@
             -webkit-backdrop-filter: none;
             border: none;
             background-color: transparent;
-            /* 确保在禁用毛玻璃时背景透明 */
+
         }
 
         .glassmorphism-custom.use-backdrop-filter {
@@ -776,7 +761,7 @@
         }
 
 
-        /* Image Upload Tabs */
+
         .image-upload-tabs {
             display: flex;
             margin-bottom: 10px;
@@ -809,7 +794,7 @@
             display: none;
         }
 
-        /* Structure Panel Buttons */
+
         .menu-item-actions,
         .sub-item-actions {
             display: flex;
@@ -819,42 +804,42 @@
         .menu-item-actions button,
         .sub-item-actions button {
             padding: 0;
-            /* No padding */
+
             border: none;
-            /* No border */
+
             background-color: transparent;
-            /* Transparent background */
+
             color: var(--text-color-light);
-            /* Icon color */
+
             cursor: pointer;
             font-size: 1em;
-            /* Adjust as needed */
+
             width: 20px;
-            /* Set a fixed width */
+
             height: 20px;
-            /* Set a fixed height */
+
             display: inline-flex;
             align-items: center;
             justify-content: center;
             border-radius: 3px;
-            /* Optional: for rounded corners on hover */
+
             transition: background-color 0.3s;
-            /* Smooth transition for hover effect */
+
         }
 
         .menu-item-actions button:hover,
         .sub-item-actions button:hover {
             background-color: rgba(0, 0, 0, 0.08);
-            /* Light background on hover */
+
             color: var(--text-color-dark);
-            /* Darker color on hover if needed */
+
         }
 
 
         .menu-item-actions button i,
         .sub-item-actions button i {
             margin: 0;
-            /* No extra margin in buttons */
+
         }
 
         .menu-item-actions button.add-sub-item-btn {
@@ -863,100 +848,100 @@
 
         .menu-item-actions button.add-sub-item-btn:hover {
             background-color: rgba(64, 158, 255, 0.1);
-            /* Light background on hover */
+
         }
 
-        /* Preview Panel Title Style */
+
         .preview-panel h3 {
             text-align: center;
             margin-bottom: -10px;
-            /* Move upwards */
+
             color: var(--text-color-light);
         }
 
-        /* Modified Button Group Layout */
+
         .preview-panel .btn-group {
             display: flex;
             justify-content: space-between;
-            /* Distribute space between groups */
+
             align-items: center;
-            /* Vertically align items */
+
         }
 
         .preview-panel .btn-group>div {
             display: flex;
-            /* Make child divs flex containers */
+
             gap: 8px;
-            /* Gap between buttons in each group */
+
         }
 
         .preview-panel .btn-group:nth-child(n+2) {
-            /* Apply margin to the second and subsequent btn-group */
+
             margin-top: 15px;
         }
 
         .preview-container-wrapper.bg-repeat-y .blurred-background,
         .preview-container-wrapper.bg-repeat-x .blurred-background {
             opacity: 1;
-            /* Ensure blurred background is visible when repeating */
+
         }
 
         .preview-container-wrapper.bg-repeat-y .blurred-background {
             background-repeat: repeat-y;
             background-size: 100% auto;
-            /* Width 100%, auto height to repeat vertically */
+
         }
 
         .preview-container-wrapper.bg-repeat-x .blurred-background {
             background-repeat: repeat-x;
             background-size: auto 100%;
-            /* Height 100%, auto width to repeat horizontally */
+
         }
 
         .preview-container-wrapper.bg-contain .blurred-background {
             opacity: 0;
-            /* Hide blurred background when contain is used */
+
         }
 
-        /* Dynamic Background Styles - Removed individual positioning, using default center */
+
         .preview-container-wrapper.bg-repeat-y {
             background-repeat: no-repeat;
-            /* Important: Disable background image repeat on wrapper */
+
             background-size: cover;
-            /* Ensure background image covers the wrapper */
+
             background-position: center top;
-            /* Align background image to top center */
+
             overflow-y: auto;
-            /* Enable vertical scroll if content is taller than wrapper */
+
         }
 
         .preview-container-wrapper.bg-repeat-x {
             background-repeat: no-repeat;
-            /* Important: Disable background image repeat on wrapper */
+
             background-size: cover;
-            /* Ensure background image covers the wrapper */
+
             background-position: left center;
-            /* Align background image to left center */
+
             overflow-x: auto;
-            /* Enable horizontal scroll if content is wider than wrapper */
+
         }
 
         .preview-container-wrapper.bg-contain {
             background-repeat: no-repeat;
             background-size: contain;
-            /* Contain background image within wrapper */
+
             background-position: center;
-            /* Center the contained image */
+
         }
 
         .blurred-background::before {
             content: '';
             position: absolute;
-            /* ... rest of blurred-background styles ... */
+
         }
 
         .blurred-background {
-            /* ADDED: Blurred background styles */
+
             position: absolute;
             top: 0;
             left: 0;
@@ -965,11 +950,11 @@
             background-size: cover;
             background-position: center;
             z-index: 0;
-            /* Behind the content */
+
             opacity: 0.8;
-            /* Adjust opacity as needed */
+
             pointer-events: none;
-            /* Make it non-interactive */
+
         }
     </style>
 </head>
@@ -977,7 +962,7 @@
 <body>
     <div id="app">
         <div class="container">
-            <!-- 左侧工具栏 -->
+
             <div class="structure-panel panel">
 
                 <button class="collapsible" :class="{active: showBackgroundSettings}"
@@ -991,20 +976,12 @@
                         <label>副标题</label>
                         <input v-model="config.subtitleContent" placeholder="例如：指令列表">
                     </div>
-                    <!--div class="form-item">
-                        <label>预览宽度 (px)</label>
-                        <input type="number" v-model.number="config.previewWidth">
-                    </div>
-                    <div class="form-item">
-                        <label>预览高度 (px)</label>
-                        <input type="number" v-model.number="config.previewHeight">
-                    </div-->
+
                     <div class="form-item">
                         <label>背景图片</label>
-                        <!-- 背景图片上传 Tabs -->
+
                         <div class="image-upload-tabs">
-                            <!--div class="image-upload-tab" :class="{ 'active': backgroundUploadTab === 'file' }"
-                                @click="backgroundUploadTab = 'file'">本地上传</div-->
+
                             <div class="image-upload-tab" :class="{ 'active': backgroundUploadTab === 'url' }"
                                 @click="backgroundUploadTab = 'url'">URL</div>
                             <div class="image-upload-tab" :class="{ 'active': backgroundUploadTab === 'default' }"
@@ -1063,11 +1040,10 @@
                 <div class="content" :style="{display: showFontSettings ? 'block' : 'none'}">
                     <div class="form-item">
                         <label>字体</label>
-                        <!-- 字体上传 Tabs -->
+
                         <div class="image-upload-tabs">
-                            <!-- MODIFIED: 移除本地上传 Tab -->
-                            <!-- <div class="image-upload-tab" :class="{ 'active': fontUploadTab === 'file' }"
-@click="fontUploadTab = 'file'">本地上传</div> -->
+
+
                             <div class="image-upload-tab" :class="{ 'active': fontUploadTab === 'url' }"
                                 @click="fontUploadTab = 'url'">URL路径</div>
                         </div>
@@ -1075,13 +1051,8 @@
                             <input v-model="customFontURL" placeholder="绝对路径的 URL编码 (.ttf)">
                             <button @click="addFontFromURL">添加字体</button>
                         </div>
-                        <!-- MODIFIED: 移除文件上传内容 -->
-                        <!-- <div class="image-upload-content" :class="{ 'hidden': fontUploadTab !== 'file' }">
-<div class="upload-box" @click="uploadFontFile">
-上传字体文件 (.ttf)
-<input type="file" hidden @change="handleFontFileUpload" accept=".ttf" ref="fontInput">
-</div>
-</div> -->
+
+
                     </div>
                     <div class="form-item">
                         <label>选择字体</label>
@@ -1092,14 +1063,13 @@
                     </div>
                 </div>
 
-                <!-- Icon Library moved to be above Menu Structure -->
+
                 <button class="collapsible" :class="{active: showIconLibrary}" @click="toggleIconLibrary">图标库</button>
                 <div class="content" :style="{display: showIconLibrary ? 'block' : 'none'}">
                     <div class="form-item">
-                        <!-- 图标上传 Tabs -->
+
                         <div class="image-upload-tabs">
-                            <!--div class="image-upload-tab" :class="{ 'active': iconUploadTab === 'file' }"
-                                @click="iconUploadTab = 'file'">本地上传</div-->
+
                             <div class="image-upload-tab" :class="{ 'active': iconUploadTab === 'url' }"
                                 @click="iconUploadTab = 'url'">URL</div>
                         </div>
@@ -1162,12 +1132,12 @@
                                         </div>
                                     </div>
                                     <div v-if="subItem.subItems && subItem.subItems.length > 0">
-                                        <!-- Example of deeper nesting - for future if needed -->
+
                                         <ul class="menu-item-list">
                                             <li v-for="(nestedSubItem, nestedSubIndex) in subItem.subItems"
                                                 :key="`${index}-${subIndex}-${nestedSubIndex}`">
                                                 <div class="sub-item-row" style="margin-left: 30px;" @click.stop="">
-                                                    <!-- Even more indentation -->
+
                                                     <div class="sub-item-text">
                                                         <span
                                                             v-html="renderMarkdown(nestedSubItem.text) || '未命名嵌套子项'"></span>
@@ -1183,13 +1153,13 @@
                             </ul>
                         </li>
                     </ul>
-                    <!-- Removed "+ 添加主菜单" button -->
+
                 </div>
 
 
             </div>
 
-            <!-- 中间预览面板 -->
+
             <div class="preview-panel panel" style="width: fit-content; min-width: 320px;">
                 <h5>点击预览元素即可编辑。编辑完成请点击【导出配置】</h5>
                 <h5>菜单添加按钮 在左侧最下方</h5>
@@ -1202,8 +1172,8 @@
                         <button @click="showImportPopup">导入配置</button>
                     </div>
                     <div>
-                        <!--button @click="exportHTML">导出HTML</button--> <!--导出HTML的效果十分不理想-->
-                        <!--button @click="exportImage">导出图片 (PNG)</button--> <!--导出PNG的话，毛玻璃效果不行-->
+
+
                     </div>
                 </div>
 
@@ -1212,10 +1182,7 @@
                     :class="backgroundWrapperClasses">
                     <img class="background-image" :src="config.backgroundImage"
                         :referrerpolicy="config.backgroundImage && config.backgroundImage.includes('hdslb.com') ? 'no-referrer' : undefined">
-                    <!--div v-if="isBackgroundRepeat" class="blurred-background" :style="{
-                                                      backgroundImage: `url(${config.backgroundImage})`,
-                                                    filter: `blur(20px) brightness(${config.backgroundBrightness})` }">
-                    </div-->
+
                     <div class="preview-container" :style="previewStyles">
                         <h1 v-if="config.helpTitleContent" class="editable-title" @click="editTitle('helpTitle')"
                             :style="{fontSize: config.helpTitleFontSize + 'px', color: config.helpTitleColor, fontWeight: config.helpTitleBold ? 'bold' : 'normal'}">
@@ -1269,7 +1236,7 @@
             </div>
         </div>
 
-        <!-- Pop-up Editor for Menu Items -->
+
         <template v-if="popupVisible">
             <div class="popup-overlay" @click.self="closePopup">
                 <div class="popup-content">
@@ -1331,7 +1298,7 @@
                     </div>
 
                     <div v-if="popupTab === 'icon'">
-                        <!-- 修改图标大小输入部分 -->
+
                         <div class="form-item" v-if="popupType === 'subItem' ">
                             <label>图标大小 ( {{ popupData.iconSize }} px) </label>
                             <input type="range" v-model.number="popupData.iconSize" min="0" max="200" step="1">
@@ -1343,7 +1310,7 @@
                         </div>
                         <div class="form-item">
                             <label>图标选择</label>
-                            <div class="icon-picker popup-icon-picker"> <!-- Added class for popup icon picker style -->
+                            <div class="icon-picker popup-icon-picker">
                                 <div v-for="icon in icons" :key="icon.id" class="icon-option"
                                     :class="{active: popupData.iconId === icon.id, selected: popupData.iconId === icon.id}"
                                     @click="selectPopupIcon(icon)">
@@ -1374,14 +1341,14 @@
                             @click="addSiblingMenuItemFromPopup">添加同级菜单</button>
                         <button v-if="popupType === 'subItem'" class="popup-button sibling-button"
                             @click="addSiblingSubItemFromPopup">添加同级子项</button>
-                        <button class="popup-button" @click="confirmPopup">确认</button> <!-- Added popup-button class -->
-                        <button class="popup-button" @click="closePopup">取消</button> <!-- Added popup-button class -->
+                        <button class="popup-button" @click="confirmPopup">确认</button>
+                        <button class="popup-button" @click="closePopup">取消</button>
                     </div>
                 </div>
             </div>
         </template>
 
-        <!-- Import Config Popup -->
+
         <template v-if="importPopupVisible">
             <div class="popup-overlay" @click.self="closeImportPopup">
                 <div class="popup-content">
@@ -1558,19 +1525,19 @@ https://i0.hdslb.com/bfs/article/7a5138b47dcd88c25513ef783be4715c175033875.jpg
                 fontUploadTab: 'url', // MODIFIED:  'url' or 'file' for font upload, now only URL, default to 'url'
                 customIconURL: '', // For inputting custom icon URL
                 customFontURL: '', // For inputting custom font URL
-                // fontFile: null  // MODIFIED: 移除 fontFile
+
             },
             computed: {
                 calculatedPreviewWidth() {
-                    // 根据需要计算宽度，例如：
+
                     return this.config.previewWidth + 'px'; // 或者其他逻辑
                 },
                 calculatedPreviewHeight() {
-                    // 根据需要计算高度，例如：
+
                     return this.config.previewHeight + 'px'; // 或者其他逻辑
                 },
                 backgroundWrapperClasses() {
-                    // Placeholder logic - refine based on actual menu and background dimensions
+
                     const menuIsWide = this.config.previewWidth > this.config.previewHeight; // Example condition
                     const backgroundIsLandscape = true; // Assume landscape for now, make dynamic if needed
 
@@ -1579,9 +1546,9 @@ https://i0.hdslb.com/bfs/article/7a5138b47dcd88c25513ef783be4715c175033875.jpg
                     } else {
                         return 'bg-contain'; // Default to contain for other cases
                     }
-                    // In real scenario, you'd compare menu dimensions to background aspect ratio
-                    // and decide on bg-repeat-y, bg-repeat-x, or bg-contain.
-                    // You might also need to dynamically set background-size for more control.
+
+
+
                 },
                 previewStyles() {
                     let fontStyle = {};
@@ -1631,11 +1598,11 @@ https://i0.hdslb.com/bfs/article/7a5138b47dcd88c25513ef783be4715c175033875.jpg
                 }
             },
             created: function () {
-                // 如果没有设置背景图片，并且 backgroundUploadTab 是 'default'，则设置随机默认背景
+
                 if (!this.config.backgroundImage && this.backgroundUploadTab === 'default') {
                     this.config.backgroundImage = this.getRandomDefaultBackground();
                 }
-                // 强制刷新样式，以应用可能的本地文件 URL
+
                 this.$nextTick(() => {
                     this.$forceUpdate();
                 });
@@ -1673,15 +1640,15 @@ https://i0.hdslb.com/bfs/article/7a5138b47dcd88c25513ef783be4715c175033875.jpg
                 selectIcon(icon) {
                     if (this.popupVisible) {
                         this.popupData.iconId = icon.id;
-                        // 移除下面这行
-                        // this.popupData.icon = icon.url;
+
+
                     }
                 },
 
                 selectPopupIcon(icon) {
                     this.popupData.iconId = icon.id;
-                    // 移除下面这行
-                    // this.popupData.icon = icon.url;
+
+
                 },
 
                 addSiblingMenuItem(index) {  // 新增 addSiblingMenuItem 方法，添加同级菜单
@@ -1777,7 +1744,7 @@ https://i0.hdslb.com/bfs/article/7a5138b47dcd88c25513ef783be4715c175033875.jpg
                 handleCustomIconFileUpload(event) {
                     const file = event.target.files[0];
                     if (file) {
-                        // 使用 createObjectURL 创建本地 URL
+
                         const localURL = URL.createObjectURL(file);
                         this.icons.push({ id: iconIdCounter++, type: 'file', url: localURL, name: 'custom-icon' });
                     }
@@ -1795,32 +1762,32 @@ https://i0.hdslb.com/bfs/article/7a5138b47dcd88c25513ef783be4715c175033875.jpg
                     const file = event.target.files[0];
                     if (file) {
                         this.backgroundFile = file;
-                        // 使用 createObjectURL 生成本地 URL
+
                         const localURL = URL.createObjectURL(file);
                         this.config.backgroundImage = localURL;
                         this.backgroundUploadTab = 'file'; // 切换到 file Tab
                     }
                 },
 
-                // MODIFIED: 移除 uploadFontFile 和 handleFontFileUpload 方法
-                // uploadFontFile() {
-                //     this.$refs.fontInput.click();
-                // },
-                // handleFontFileUpload(event) {
-                //     const file = event.target.files[0];
-                //     if (file) {
-                //         this.fontFile = file;
-                //         const reader = new FileReader();
-                //         reader.onload = (e) => {
-                //             const fontName = file.name.split('.')[0];
-                //             const newFont = { id: fontIdCounter++, type: 'file', name: fontName, url: null, base64: e.target.result };
-                //             this.fonts.push(newFont);
-                //             this.config.customFont = fontName; // Set custom font to the uploaded font name
-                //             this.fontUploadTab = 'url'; // Switch back to URL tab
-                //         };
-                //         reader.readAsDataURL(file);
-                //     }
-                // },
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
                 addFontFromURL() {
                     if (this.customFontURL) {
                         const fontName = this.customFontURL.split('/').pop().split('.')[0]; // Extract name from URL
@@ -1833,7 +1800,7 @@ https://i0.hdslb.com/bfs/article/7a5138b47dcd88c25513ef783be4715c175033875.jpg
 
 
                 hexToRgb(hex) {
-                    // Expand shorthand form (e.g. "03F") to full form (e.g. "0033FF")
+
                     var shorthandRegex = /^#?([a-f\d])([a-f\d])([a-f\d])$/i;
                     hex = hex.replace(shorthandRegex, function (m, r, g, b) {
                         return r + r + g + g + b + b;
@@ -1852,7 +1819,7 @@ https://i0.hdslb.com/bfs/article/7a5138b47dcd88c25513ef783be4715c175033875.jpg
                         logging: true,     // 开启日志用于调试
                         backgroundColor: null,  // 保留透明背景
                         ignoreElements: (element) => {
-                            // 保留所有元素
+
                             return false;
                         }
                     }).then(canvas => {
@@ -1920,14 +1887,14 @@ https://i0.hdslb.com/bfs/article/7a5138b47dcd88c25513ef783be4715c175033875.jpg
                     this.popupTab = 'basic'; // Reset tab
                 },
                 confirmPopup() {
-                    // 添加同级菜单项的逻辑
+
                     if (this.popupType === 'menuItem' && this.siblingOperation === 'addSiblingMenuItem') {
                         this.addSiblingMenuItem(this.selectedIndex); // 调用添加同级菜单项的方法
                         this.siblingOperation = null; // 重置操作类型
                         return; // 提前返回，不执行后续的确认逻辑
                     }
 
-                    // 添加同级子菜单项的逻辑
+
                     if (this.popupType === 'subItem' && this.siblingOperation === 'addSiblingSubItem') {
                         this.addSiblingSubItem(this.selectedIndex, this.selectedSubIndex); // 调用添加同级子菜单项的方法
                         this.siblingOperation = null; // 重置操作类型
@@ -1985,12 +1952,12 @@ https://i0.hdslb.com/bfs/article/7a5138b47dcd88c25513ef783be4715c175033875.jpg
                     this.popupTab = 'basic'; // Reset to basic tab when closing
                 },
                 exportConfig() {
-                    // 创建一个配置的深拷贝，用于修改
+
                     const configToExport = JSON.parse(JSON.stringify(this.config));
 
-                    // 不需要对 backgroundImage 进行特殊处理，因为它已经是 URL 或路径
 
-                    // 处理 icons，确保导出的是 URL 或路径
+
+
                     const iconsToExport = this.icons.map(icon => ({
                         id: icon.id,
                         url: icon.url, // 直接使用 url，它可能是网络 URL 或本地文件路径
@@ -2040,18 +2007,18 @@ https://i0.hdslb.com/bfs/article/7a5138b47dcd88c25513ef783be4715c175033875.jpg
                                 const importedData = JSON.parse(e.target.result);
                                 this.config = importedData.config;
                                 this.useBackdropFilter = importedData.useBackdropFilter;
-                                // 导入 icons，处理 URL 或本地路径
+
                                 this.icons = importedData.icons || this.icons;
                                 this.fonts = importedData.fonts || this.fonts;
 
-                                // 更新 iconIdCounter
+
                                 if (importedData.icons && importedData.icons.length > 0) {
                                     const maxId = importedData.icons.reduce((max, icon) => Math.max(max, icon.id), 0);
                                     iconIdCounter = maxId + 1;
                                 } else {
                                     iconIdCounter = 38;
                                 }
-                                // 导入后强制刷新预览, 特别是背景图
+
                                 this.$forceUpdate();
 
                                 alert('配置文件导入成功！');
@@ -2078,7 +2045,7 @@ https://i0.hdslb.com/bfs/article/7a5138b47dcd88c25513ef783be4715c175033875.jpg
                                     this.icons = importedData.icons || this.icons;
                                     this.fonts = importedData.fonts || this.fonts;
 
-                                    //  添加以下代码来更新 iconIdCounter
+
                                     if (importedData.icons && importedData.icons.length > 0) {
                                         const maxId = importedData.icons.reduce((max, icon) => Math.max(max, icon.id), 0);
                                         iconIdCounter = maxId + 1;
@@ -2092,7 +2059,7 @@ https://i0.hdslb.com/bfs/article/7a5138b47dcd88c25513ef783be4715c175033875.jpg
                                     this.icons = importedData.icons || this.icons;
                                     this.fonts = importedData.fonts || this.fonts;
 
-                                    //  添加以下代码来更新 iconIdCounter
+
                                     if (importedData.icons && importedData.icons.length > 0) {
                                         const maxId = importedData.icons.reduce((max, icon) => Math.max(max, icon.id), 0);
                                         iconIdCounter = maxId + 1;
@@ -2100,7 +2067,7 @@ https://i0.hdslb.com/bfs/article/7a5138b47dcd88c25513ef783be4715c175033875.jpg
                                         iconIdCounter = 38; // 如果没有导入icons或者icons为空，则重置为默认值，或者你认为合适的起始值
                                     }
                                 }
-                                // 导入后强制刷新预览, 特别是背景图
+
                                 this.$forceUpdate();
                                 this.importPopupVisible = false;
                             } catch (error) {

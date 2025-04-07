@@ -4,7 +4,7 @@ import path from "node:path";
 import { stat, readdir } from 'fs/promises';
 import { Context, Schema, Logger, h, noop } from "koishi";
 import { } from '@koishijs/plugin-console'
-
+import crypto from 'node:crypto';
 
 export const reusable = true; // 声明此插件可重用
 export const name = 'preview-help';
@@ -68,6 +68,7 @@ webUI 交互 （开启插件后）请见 ➤ <a href="/preview-help">/preview-he
 - 网络图片URL：\`https://i1.hdslb.com/bfs/article/f32980cbce6808fd54613dea589eee013f0c5fe3.png\`
 `;
 
+
 export const Config = Schema.intersect([
     Schema.object({
         command: Schema.string().description('注册指令名称').default("帮助菜单"),
@@ -117,7 +118,7 @@ export const Config = Schema.intersect([
     ]),
     Schema.object({
         fontEnabled: Schema.boolean().description('启用自定义字体').default(false),
-        fontURL: Schema.string().description("字体 URL (.ttf)<br>注意：需填入本地绝对路径的URL编码地址<br>默认内容 即为使用`jrys-prpr字体`的URL示例写法").default(url.pathToFileURL(path.join(__dirname, '../../jrys-prpr/font/千图马克手写体.ttf')).href),
+        fontURL: Schema.string().description("字体 URL (.ttf)<br>注意：需填入本地绝对路径的URL编码地址<br>默认内容 即为使用`jrys-prpr字体`的URL示例写法").default(url.pathToFileURL(path.join(__dirname, '../../jrys-prpr/font/千图马克手写体lite.ttf')).href),
     }).description('高级设置'),
 
     Schema.object({
@@ -175,12 +176,16 @@ export function apply(ctx, config) {
 
     ctx.on('ready', async () => {
         const root = path.join(ctx.baseDir, 'data', 'preview-help');
+        const tempDirPath = path.join(root, 'temp');
         let jsonFilePath = path.join(root, 'menu-config.json'); // 默认json文件路径
         const temp_helpFilePath = path.join(root, 'temp_help.png');
 
 
         if (!fs.existsSync(root)) {
             fs.mkdirSync(root, { recursive: true });
+        }
+        if (!fs.existsSync(tempDirPath)) {
+            fs.mkdirSync(tempDirPath, { recursive: true }); // 创建临时图片文件夹
         }
         // 检查并创建 JSON 文件
         if (!fs.existsSync(jsonFilePath)) {
@@ -212,10 +217,49 @@ export function apply(ctx, config) {
                         "font.load.fail": "字体加载失败: {0}",
                         "path.invalid": "无效的路径: {0}",
                         "jsonfile.notfound": "未找到 menu-config.json 文件",
+                        "background.download.fail": "背景图下载失败: {0}",
                     }
                 },
             }
         });
+
+        // 下载并保存图片到本地临时目录
+        async function downloadAndSaveImage(imageUrl, shouldCache) {
+            try {
+                const imageBuffer = Buffer.from(await ctx.http.get(imageUrl, { responseType: 'arraybuffer' }));
+                const imageHash = crypto.createHash('md5').update(imageBuffer).digest('hex');
+                const localImagePath = path.join(tempDirPath, `background-${imageHash}.png`);
+
+                if (shouldCache) {
+                    fs.writeFileSync(localImagePath, Buffer.from(imageBuffer));
+                    logInfo(`背景图已下载并保存到本地: ${localImagePath}`);
+                } else {
+                    logInfo(`未开启缓存，不保存背景图到本地`);
+                }
+
+                return { localImagePath, imageHash };
+            } catch (error) {
+                logger.warn(`下载背景图失败: ${imageUrl}`, error);
+                return { localImagePath: null, imageHash: null };
+            }
+        }
+
+        // 清理临时目录，保留当前使用的背景图
+        async function cleanupTempDir(currentImageHash) {
+            try {
+                const files = await readdir(tempDirPath);
+                for (const file of files) {
+                    if (file.startsWith('background-') && !file.includes(currentImageHash)) {
+                        await fs.promises.unlink(path.join(tempDirPath, file));
+                        logInfo(`清理临时文件: ${file}`);
+                    }
+                }
+            } catch (error) {
+                logger.warn(`清理临时文件夹失败: ${tempDirPath}`, error);
+                logInfo("清理临时文件夹失败"); // 提示清理失败
+            }
+        }
+
 
         ctx.command(`${config.command} <help_text:text>`)
             .option('background', '-b <background:string> 指定背景URL')
@@ -245,6 +289,41 @@ export function apply(ctx, config) {
                         currentBackgroundURL = bgList[Math.floor(Math.random() * bgList.length)];
                         logInfo(`选择随机背景图：${currentBackgroundURL}`);
                     }
+                }
+                const cacheKey = generateCacheKey(config.helpmode, currentHelpContent.replace(currentBackgroundURL, ""), config.screenshotquality);
+
+                if (config.tempPNG && ['2.1', '2.2', '3', '3.2'].includes(config.helpmode)) {
+                    if (lastCacheKey === cacheKey && fs.existsSync(temp_helpFilePath)) {
+                        useCache = true;
+                    }
+                }
+
+                // 背景图预处理
+                let localBackgroundURL = currentBackgroundURL;
+                let currentImageHash = null;
+
+                if (currentBackgroundURL && currentBackgroundURL.startsWith('http')) {
+                    const shouldCache = config.tempPNG; // 是否开启缓存
+
+                    if (!useCache) {
+                        const downloadResult = await downloadAndSaveImage(currentBackgroundURL, shouldCache);
+                        if (downloadResult.localImagePath) {
+                            localBackgroundURL = url.pathToFileURL(downloadResult.localImagePath).href; // 转换为 file:// URL
+                            currentImageHash = downloadResult.imageHash;
+                            if (config.tempPNG) {
+                                await cleanupTempDir(currentImageHash); // 清理旧的临时文件
+                            }
+                            logInfo(`背景图已下载并保存到本地: ${localBackgroundURL}`);
+                        } else {
+                            await session.send(h.text(session.text('.background.download.fail', [currentBackgroundURL])));
+                            localBackgroundURL = ''; // 下载失败则不使用背景图，或者可以设置为默认背景图
+                            currentBackgroundURL = ''; // 确保后续代码逻辑一致
+                        }
+                    }
+                }
+
+                if (currentBackgroundURL && !currentBackgroundURL.startsWith('http')) {
+                    localBackgroundURL = currentBackgroundURL; // 本地或绝对路径URL，直接使用
                 }
 
                 switch (config.helpmode) {
@@ -353,13 +432,6 @@ export function apply(ctx, config) {
                     }
                 }
 
-                const cacheKey = generateCacheKey(config.helpmode, currentHelpContent.replace(currentBackgroundURL, ""), config.screenshotquality);
-
-                if (config.tempPNG && ['2.1', '2.2', '3', '3.2'].includes(config.helpmode)) { // 模式 3.2 也应该支持缓存
-                    if (lastCacheKey === cacheKey && fs.existsSync(temp_helpFilePath)) {
-                        useCache = true;
-                    }
-                }
 
 
                 if (useCache) {
@@ -419,7 +491,7 @@ export function apply(ctx, config) {
                         timeout: 30000
                     });
 
-                    // 元素操作增强日志 
+                    // 元素操作增强日志
                     const logElementAction = async (selector, action) => {
                         const element = await page.$(selector);
                         if (!element) {
@@ -432,8 +504,8 @@ export function apply(ctx, config) {
                     }
 
                     // 设置背景图片 URL
-                    if (currentBackgroundURL) {
-                        logInfo(`设置背景图片 URL: ${currentBackgroundURL}`);
+                    if (localBackgroundURL) { // 使用本地背景图路径
+                        logInfo(`设置背景图片 URL: ${localBackgroundURL}`);
                         try {
                             // 1. 点击 "URL" 标签
                             const urlTab = await logElementAction('.form-item .image-upload-tab:nth-child(1)', '点击 URL 标签');
@@ -444,14 +516,14 @@ export function apply(ctx, config) {
                             await page.evaluate((inputElement, url) => {
                                 inputElement.value = url;
                                 inputElement.dispatchEvent(new Event('input', { bubbles: true })); // 触发输入事件
-                            }, urlInput, currentBackgroundURL);
+                            }, urlInput, localBackgroundURL); // 使用本地路径
 
                             //  添加一个小延迟，确保 Vue 组件有时间响应输入事件
                             await new Promise(resolve => ctx.setTimeout(resolve, 200));
 
                         } catch (bgError) {
-                            logger.warn(`设置背景图片失败: ${currentBackgroundURL}`, bgError);
-                            logInfo(session.text('.background.set.fail', [currentBackgroundURL]));
+                            logger.warn(`设置背景图片失败: ${localBackgroundURL}`, bgError);
+                            logInfo(session.text('.background.set.fail', [localBackgroundURL]));
                         }
                     }
 
@@ -517,11 +589,11 @@ export function apply(ctx, config) {
                         timeout: 30000
                     });
 
-
                     // 截图处理
                     logInfo(`正在执行截图...`);
                     // 等待 1000ms 确保页面完全加载 // 不然背景图加载好了 也会截图到空白背景
-                    await new Promise(resolve => ctx.setTimeout(resolve, 1000));
+                    // await new Promise(resolve => ctx.setTimeout(resolve, 1000));
+                    await page.waitForNetworkIdle();
                     const previewContainer = await logElementAction('.preview-container-wrapper', '执行截图');
                     const imageBuffer = await previewContainer.screenshot({
                         type: "jpeg",
