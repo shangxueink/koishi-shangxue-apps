@@ -79,6 +79,11 @@ export default defineConfig(
               "text": "Koishi Log Formatter",
               "link": "/LogFormatter.html",
               "target": "_blank"
+            },
+            {
+              "text": "Full screen black",
+              "link": "/ALLblack.html",
+              "target": "_blank"
             }
           ]
         },
