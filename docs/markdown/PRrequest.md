@@ -83,7 +83,7 @@
 
 在 `npmpublish` 目录下，确保包含 `package.json` 和其他相关文件，以便顺利发布 npm 包。
 
-具体实现逻辑 请参见本仓库的 [./.github/workflows/publish.yml](https://github.com/shangxueink/koishi-shangxue-apps/blob/main/.github/workflows/publish.yml)
+具体实现逻辑 请参见本仓库的 [`./.github/workflows/publish.yml`](https://github.com/shangxueink/koishi-shangxue-apps/blob/main/.github/workflows/publish.yml)
 
 ---
 
