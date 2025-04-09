@@ -5,7 +5,7 @@ export default defineConfig(
     "lang": 'zh-CN',
     "title": 'koishi-shangxue-apps',
     "description": '是小学基于 Koishi 开发的各种插件！',
-    "ignoreDeadLinks": true, // 死链接 来自插件描述内容
+    "ignoreDeadLinks": true, // 死链接 来自插件的package.json描述内容 // 此处强制忽略
     "base": '/koishi-shangxue-apps/',
     "head": [
       ['link', { "rel": 'icon', "href": 'https://avatars.githubusercontent.com/u/138397030?v=4' }],
@@ -69,12 +69,22 @@ export default defineConfig(
           ]
         },
         {
-          "text": "其他",
+          "text": "相关地址",
           "items": [
             {
               "text": "MeMe Downloader",
               "link": "https://shangxueink.github.io/MemeDownloader/"
             },
+            {
+              "text": "Koishi Log Formatter",
+              "link": "/LogFormatter.html",
+              "target": "_blank"
+            }
+          ]
+        },
+        {
+          "text": "其他",
+          "items": [
             {
               "text": "许可证",
               "link": "https://github.com/shangxueink/koishi-shangxue-apps/blob/main/LICENSE"
