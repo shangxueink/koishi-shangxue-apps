@@ -1,0 +1,1108 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Koishi Log Formatter</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            transition: background-color 0.3s ease, color 0.3s ease;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+
+        .resizer {
+            width: 5px;
+            background: var(--k-color-primary);
+            cursor: ew-resize;
+            height: 100%;
+            position: relative;
+            z-index: 2;
+        }
+
+        .resizer::after {
+            content: "";
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 15px;
+            height: 15px;
+            background-color: var(--k-color-primary);
+            border-radius: 50%;
+        }
+
+        h1 {
+            text-align: left;
+            margin-top: 20px;
+            margin-bottom: 10px;
+            padding-left: 10px;
+        }
+
+        .theme-buttons {
+            text-align: left;
+            margin-bottom: 10px;
+            padding-left: 10px;
+        }
+
+        .file-upload-container {
+            margin-bottom: 10px;
+            text-align: left;
+            width: 100%;
+            padding-left: 10px;
+            padding-right: 10px;
+            box-sizing: border-box;
+        }
+
+        .file-upload-button {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 10px 15px;
+            border: 2px dashed #ccc;
+            border-radius: 5px;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            cursor: pointer;
+            transition: border-color 0.3s ease, background-color 0.3s ease;
+            font-size: 16px;
+            position: relative;
+            overflow: hidden;
+            width: 100%;
+            box-sizing: border-box;
+            text-align: center;
+        }
+
+        .file-upload-button:hover {
+            border-color: var(--k-color-primary);
+            background-color: rgba(var(--k-color-primary-rgb, 128, 128, 128), 0.1);
+        }
+
+        .file-upload-button input[type="file"] {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            opacity: 0;
+            cursor: pointer;
+        }
+
+        .file-upload-icon {
+            margin-right: 8px;
+            font-size: 1.2em;
+        }
+
+        .container {
+            display: flex;
+            height: 70vh;
+            margin-top: 10px;
+            margin-left: 10px;
+            margin-right: 10px;
+            flex-grow: 1;
+            position: relative;
+        }
+
+        .editor-container,
+        .output-container {
+            width: 50%;
+            height: 100%;
+            box-sizing: border-box;
+            position: relative;
+            border: 1px solid #000000;
+            display: flex;
+            flex-direction: row;
+        }
+
+        .line-numbers {
+            width: 40px;
+            height: 100%;
+            background-color: var(--line-number-bg-color);
+            color: var(--line-number-text-color);
+            font-size: 12px;
+            text-align: right;
+            padding: 10px 5px;
+            box-sizing: border-box;
+            user-select: none;
+            overflow: hidden;
+            transition: background-color 0.3s ease;
+            color: 0.3s ease;
+            flex-shrink: 0;
+            position: sticky;
+            top: 0;
+            left: 0;
+            z-index: 1;
+        }
+
+        textarea,
+        #output {
+            flex-grow: 1;
+            height: 100%;
+            padding: 10px;
+            box-sizing: border-box;
+            border: none;
+            resize: none;
+            font-family: monospace;
+            font-size: 14px;
+            transition: background-color 0.3s ease;
+            color: 0.3s ease;
+            overflow-y: auto;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            white-space: pre;
+            word-wrap: normal;
+            overflow-x: auto;
+        }
+
+        #output {
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+
+        .options {
+            position: absolute;
+            top: 75px;
+            right: 10px;
+            display: flex;
+            align-items: center;
+            z-index: 10;
+        }
+
+        .options label {
+            margin-left: 5px;
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--bg-color);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+
+        :root {
+            --bg-color: #32383f;
+            --text-color: #eee;
+            --level-i-color: #268bd2;
+            --level-e-color: #dc322f;
+            --level-w-color: #b58900;
+            --level-d-color: #859900;
+            --level-v-color: #6c71c4;
+            --keyword-color: #2aa198;
+            --line-number-bg-color: #444;
+            --line-number-text-color: #ccc;
+            --tooltip-bg-color: #111;
+            --tooltip-text-color: #eee;
+            --k-color-primary: #F09176;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+        }
+
+        .log-line {
+            margin-bottom: 2px;
+            transition: background-color 0.2s ease;
+            cursor: pointer;
+            position: relative;
+            padding-left: 5px;
+            display: block;
+            color: var(--text-color-log-content, var(--text-color));
+        }
+
+        .log-line:hover {
+            background-color: rgba(255, 255, 255, 0.05);
+        }
+
+        .log-timestamp {
+            color: #93a1a1;
+        }
+
+        .log-level-i {
+            color: var(--level-i-color);
+        }
+
+        .log-level-e {
+            color: var(--level-e-color);
+        }
+
+        .log-level-w {
+            color: var(--level-w-color);
+        }
+
+        .log-level-d {
+            color: var(--level-d-color);
+        }
+
+        .log-level-v {
+            color: var(--level-v-color);
+        }
+
+        .log-keyword {
+            color: var(--keyword-color);
+            font-weight: bold;
+        }
+
+        .theme-buttons {
+            margin-bottom: 10px;
+        }
+
+        .theme-button {
+            padding: 5px 10px;
+            margin-right: 5px;
+            border: none;
+            cursor: pointer;
+            border-radius: 5px;
+            color: white;
+            transition: background-color 0.3s ease;
+        }
+
+        .theme-button:hover {
+            opacity: 0.8;
+        }
+
+        .theme-coffee-dark {
+            background-color: #231F1E;
+            color: #F09176;
+            --bg-color: #231F1E;
+            --line-number-bg-color: #292423;
+            --text-color-log-content: #eee;
+            --k-color-primary: #F09176;
+        }
+
+        .theme-coffee-light {
+            background-color: #EEE9E7;
+            color: #D26A4C;
+            --bg-color: #EEE9E7;
+            --line-number-bg-color: #E6DFDC;
+            --text-color-log-content: #111;
+            --k-color-primary: #D26A4C;
+            --line-number-text-color: #555;
+            --tooltip-bg-color: #333;
+            --tooltip-text-color: #fff;
+        }
+
+        .theme-ocean-dark {
+            background-color: #16252D;
+            color: #97C892;
+            --bg-color: #16252D;
+            --line-number-bg-color: #1A2B34;
+            --text-color-log-content: #eee;
+            --k-color-primary: #97C892;
+        }
+
+        .theme-ocean-light {
+            background-color: #E8F7F7;
+            color: #00B2A6;
+            --bg-color: #E8F7F7;
+            --line-number-bg-color: #DBF2F1;
+            --text-color-log-content: #111;
+            --k-color-primary: #00B2A6;
+            --line-number-text-color: #555;
+            --tooltip-bg-color: #333;
+            --tooltip-text-color: #fff;
+        }
+
+        .theme-pale-night-dark {
+            background-color: #252839;
+            color: #7D57C2;
+            --bg-color: #252839;
+            --line-number-bg-color: #31364A;
+            --text-color-log-content: #eee;
+            --k-color-primary: #7D57C2;
+        }
+
+        .theme-solarized-dark {
+            background-color: #10252c;
+            color: #47cfc4;
+            --bg-color: #10252c;
+            --line-number-bg-color: #132c34;
+            --text-color-log-content: #eee;
+            --k-color-primary: #47cfc4;
+        }
+
+        .theme-solarized-light {
+            background-color: #FEF9ED;
+            color: #2aa198;
+            --bg-color: #FEF9ED;
+            --line-number-bg-color: #f4edda;
+            --text-color-log-content: #111;
+            --k-color-primary: #2aa198;
+            --line-number-text-color: #555;
+            --tooltip-bg-color: #333;
+            --tooltip-text-color: #fff;
+        }
+
+        .theme-winter-dark {
+            background-color: #021627;
+            color: #1FA0D5;
+            --bg-color: #021627;
+            --line-number-bg-color: #021627;
+            --text-color-log-content: #eee;
+            --k-color-primary: #1FA0D5;
+        }
+
+
+        .log-line .tooltiptext {
+            visibility: hidden;
+            width: auto;
+            min-width: 100px;
+            background-color: var(--tooltip-bg-color);
+            color: var(--tooltip-text-color);
+            text-align: center;
+            border-radius: 6px;
+            padding: 5px 8px;
+            position: absolute;
+            z-index: 1;
+            bottom: 115%;
+            left: 50%;
+            transform: translateX(-50%);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            white-space: nowrap;
+            font-size: 12px;
+        }
+
+        .log-line .tooltiptext::after {
+            content: "";
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            margin-left: -5px;
+            border-width: 5px;
+            border-style: solid;
+            border-color: var(--tooltip-bg-color) transparent transparent transparent;
+        }
+
+        .log-line.show-tooltip .tooltiptext {
+            visibility: visible;
+            opacity: 1;
+        }
+
+        .stack-trace-line {
+            margin-left: 15px;
+            color: #aaa;
+            display: block;
+        }
+
+        .save-file-container {
+            width: 100%;
+            padding-left: 10px;
+            padding-right: 10px;
+            box-sizing: border-box;
+            margin-bottom: 10px;
+            text-align: left;
+        }
+
+
+        .save-file-button {
+            padding: 10px 15px;
+            border: 2px solid #ccc;
+            border-radius: 5px;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            cursor: pointer;
+            transition: border-color 0.3s ease, background-color 0.3s ease;
+            font-size: 16px;
+            width: 100%;
+            /* 按钮宽度 */
+            display: block;
+            text-align: center;
+            box-sizing: border-box;
+        }
+
+        .save-file-button:hover {
+            border-color: var(--k-color-primary);
+            background-color: rgba(var(--k-color-primary-rgb, 128, 128, 128), 0.1);
+        }
+
+        .page-footer {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            font-size: 0.8em;
+            color: #999;
+            text-align: right;
+            line-height: 1.4;
+        }
+
+        .page-footer a {
+            color: var(--k-color-primary);
+            text-decoration: none;
+        }
+
+        .page-footer a:hover {
+            text-decoration: underline;
+        }
+
+        :root {
+            --k-color-primary-rgb: 240, 145, 118;
+        }
+    </style>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"
+        integrity="sha512-9usAa10IRO0HhonpyAIVpjrylPvoDwiPUiKdWk5t3PyolY1cOd4DSE0Ga+ri4AuTroPR5aQvXU9xC6qOPnzFeg=="
+        crossorigin="anonymous" referrerpolicy="no-referrer" />
+</head>
+
+<body>
+
+    <h1>Koishi Log Formatter</h1>
+
+    <div class="theme-buttons">
+        <button class="theme-button theme-pale-night-dark" data-theme="pale-night-dark">Pale Night Dark</button>
+        <button class="theme-button theme-ocean-dark" data-theme="ocean-dark">Ocean Dark</button>
+        <button class="theme-button theme-solarized-dark" data-theme="solarized-dark">Solarized Dark</button>
+        <button class="theme-button theme-coffee-dark" data-theme="coffee-dark">Coffee Dark</button>
+        <button class="theme-button theme-winter-dark" data-theme="winter-dark">Winter Dark</button>
+        <button class="theme-button theme-coffee-light" data-theme="coffee-light">Coffee Light</button>
+        <button class="theme-button theme-solarized-light" data-theme="solarized-light">Solarized Light</button>
+        <button class="theme-button theme-ocean-light" data-theme="ocean-light">Ocean Light</button>
+    </div>
+
+    <div class="file-upload-container">
+        <div class="file-upload-button" id="fileUploadButton">
+            <i class="fas fa-upload file-upload-icon"></i> 从本地文件选择 或 拖动文件到此处
+            <input type="file" id="logFileInput" accept=".log">
+        </div>
+    </div>
+
+
+    <div class="container">
+        <div class="editor-container" style="width: 44%;">
+            <div class="line-numbers" id="editorLineNumbers">1<br></div>
+            <textarea id="input"
+                placeholder="在此粘贴 koishi desktop 的实例日志内容，例如：&#x0A;{&quot;id&quot;:1,&quot;type&quot;:&quot;info&quot;,&quot;level&quot;:2,&quot;name&quot;:&quot;app&quot;,&quot;meta&quot;:{},&quot;content&quot;:&quot;\u001b[38;5;15;1mKoishi/4.18.7\u001b[0m&quot;,&quot;timestamp&quot;:1744175440541}&#x0A;{&quot;id&quot;:2,&quot;type&quot;:&quot;info&quot;,&quot;level&quot;:2,&quot;name&quot;:&quot;loader&quot;,&quot;meta&quot;:{&quot;paths&quot;:[]},&quot;content&quot;:&quot;apply plugin \u001b[38;5;45mgroup:entry\u001b[0m&quot;,&quot;timestamp&quot;:1744175440571}&#x0A;{&quot;id&quot;:3,&quot;type&quot;:&quot;info&quot;,&quot;level&quot;:2,&quot;name&quot;:&quot;loader&quot;,&quot;meta&quot;:{&quot;paths&quot;:[]},&quot;content&quot;:&quot;apply plugin \u001b[38;5;45mgroup:server\u001b[0m&quot;,&quot;timestamp&quot;:1744175440572}&#x0A;{&quot;id&quot;:4,&quot;type&quot;:&quot;info&quot;,&quot;level&quot;:2,&quot;name&quot;:&quot;loader&quot;,&quot;meta&quot;:{&quot;paths&quot;:[]},&quot;content&quot;:&quot;apply plugin \u001b[38;5;45mserver:pus2nz\u001b[0m&quot;,&quot;timestamp&quot;:1744175440572}&#x0A; ... ...&#x0A; ... ...&#x0A; ... ... "></textarea>
+
+        </div>
+        <div class=" resizer"></div>
+        <div class="output-container" style="width: 56%;">
+            <div class="line-numbers" id="outputLineNumbers">1<br></div>
+            <div id="output"></div>
+        </div>
+    </div>
+
+
+    <div class="options">
+        <input type="checkbox" id="syncScroll" checked>
+        <label for="syncScroll">同步滚动</label>
+    </div>
+
+    <div class="save-file-container">
+        <button class="save-file-button" id="saveFileButton">
+            <i class="fas fa-save file-save-icon"></i> 保存到文件
+        </button>
+    </div>
+
+
+    <div class="page-footer">
+        © 2025<br>
+        <a href="https://github.com/shangxueink/koishi-shangxue-apps/tree/main" target="_blank">Github</a><br>
+        MIT License <br>
+    </div>
+
+    <script>
+        const input = document.getElementById('input');
+        const output = document.getElementById('output');
+        const themeButtons = document.querySelectorAll('.theme-button');
+        const editorLineNumbers = document.getElementById('editorLineNumbers');
+        const outputLineNumbers = document.getElementById('outputLineNumbers');
+        const syncScrollCheckbox = document.getElementById('syncScroll');
+        const fileUploadButton = document.getElementById('fileUploadButton');
+        const logFileInput = document.getElementById('logFileInput');
+        const saveFileButton = document.getElementById('saveFileButton');
+        const resizer = document.querySelector('.resizer');
+        const container = document.querySelector('.container');
+        let isDragging = false;
+
+        let isSyncing = false;
+        let tooltipTimer = null;
+        const TOOLTIP_DELAY = 300;
+        const DEFAULT_TOOLTIP_TEXT = "双击复制原始日志";
+        const COPIED_TOOLTIP_TEXT = "已复制此日志";
+
+        resizer.addEventListener('mousedown', function (e) {
+            isDragging = true;
+            document.body.style.cursor = 'ew-resize';
+            resizer.style.background = 'red';
+        });
+
+        resizer.addEventListener('mousedown', function (e) {
+            isDragging = true;
+            document.body.style.cursor = 'ew-resize';
+            resizer.style.background = 'red';
+            // 阻止默认的文本选中行为
+            e.preventDefault();
+        });
+
+        document.addEventListener('mouseup', function (e) {
+            isDragging = false;
+            document.body.style.cursor = 'default';
+            resizer.style.background = getComputedStyle(document.documentElement).getPropertyValue('--k-color-primary');
+        });
+
+        document.addEventListener('mousemove', function (e) {
+            if (!isDragging) return;
+
+            const containerRect = container.getBoundingClientRect();
+            let newWidth = e.clientX - containerRect.left;
+
+            const minWidth = 100;
+            const maxWidth = containerRect.width - 100;
+
+            newWidth = Math.max(minWidth, Math.min(maxWidth, newWidth));
+
+            const editorWidth = (newWidth / containerRect.width) * 100;
+            const outputWidth = 100 - editorWidth;
+
+            document.querySelector('.editor-container').style.width = `${editorWidth}%`;
+            document.querySelector('.output-container').style.width = `${outputWidth}%`;
+        });
+
+
+        const logEntryStartRegex = /^(?:\{.*\}|(\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}:\d{2})\s+\[([EDWIV])\])/;
+        const stackTraceRegex = /^\s+at\s|^\s*$/;
+
+        input.addEventListener('input', processLogs);
+        input.addEventListener('scroll', syncScrollInput);
+        output.addEventListener('scroll', syncScrollOutput);
+        syncScrollCheckbox.addEventListener('change', () => {
+            if (syncScrollCheckbox.checked) {
+                output.scrollTop = input.scrollTop;
+            }
+        });
+
+        themeButtons.forEach(button => {
+            button.addEventListener('click', function () {
+                setTheme(this.dataset.theme);
+            });
+        });
+
+        output.addEventListener('mouseover', handleMouseOver);
+        output.addEventListener('mouseout', handleMouseOut);
+        output.addEventListener('dblclick', handleDoubleClick);
+
+
+        logFileInput.addEventListener('change', handleFileSelect);
+
+        fileUploadButton.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            fileUploadButton.classList.add('dragover');
+        });
+
+        fileUploadButton.addEventListener('dragleave', () => {
+            fileUploadButton.classList.remove('dragover');
+        });
+
+        fileUploadButton.addEventListener('drop', handleFileDrop);
+        saveFileButton.addEventListener('click', saveFormattedLogToFile);
+
+
+        function handleFileSelect(event) {
+            const file = event.target.files[0];
+            if (file) {
+                readFileContent(file);
+            }
+            logFileInput.value = '';
+        }
+
+        function handleFileDrop(event) {
+            event.preventDefault();
+            fileUploadButton.classList.remove('dragover');
+            const file = event.dataTransfer.files[0];
+            if (file) {
+                readFileContent(file);
+            }
+        }
+
+
+        function readFileContent(file) {
+            if (!file.name.endsWith('.log')) {
+                alert("请选择 .log 文件");
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                input.value = e.target.result;
+                processLogs();
+            };
+            reader.onerror = function (e) {
+                alert("文件读取错误");
+                console.error("File reading error:", e);
+            }
+            reader.readAsText(file);
+        }
+
+
+        function processLogs() {
+            const logData = input.value;
+            const rawLines = logData.split('\n');
+            let outputHtml = '';
+            let logicalLineCount = 0;
+            let currentLogicalEntry = null;
+            let lastTimestamp = null;
+
+            for (let i = 0; i < rawLines.length; i++) {
+                const line = rawLines[i];
+                let isNewEntry = false;
+                let parsedJson = null;
+                let timestampMatch = null;
+                let currentTimestamp = null;
+
+                try {
+                    parsedJson = JSON.parse(line);
+                    if (parsedJson && parsedJson.timestamp && parsedJson.content) {
+                        isNewEntry = true;
+                        currentTimestamp = parsedJson.timestamp;
+                    } else {
+                        parsedJson = null;
+                    }
+                } catch (e) { }
+
+                if (!parsedJson) {
+                    timestampMatch = line.match(/^(\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}:\d{2})\s+\[([EDWIV])\]\s+(.*)/);
+                    if (timestampMatch) {
+                        isNewEntry = true;
+                        currentTimestamp = timestampMatch[1];
+                        currentTimestamp = new Date(currentTimestamp).getTime();
+                    }
+                }
+
+                const isContinuation = !isNewEntry && currentLogicalEntry && stackTraceRegex.test(line);
+
+                if (isNewEntry && currentLogicalEntry && currentTimestamp !== lastTimestamp) {
+                    outputHtml += formatLogicalEntry(currentLogicalEntry);
+                    logicalLineCount++;
+                    currentLogicalEntry = null;
+                }
+
+                if (isNewEntry) {
+                    if (currentTimestamp !== lastTimestamp) {
+                        logicalLineCount++;
+                    }
+                    currentLogicalEntry = {
+                        lines: [line],
+                        formattedContent: '',
+                        isJson: !!parsedJson,
+                        jsonData: parsedJson,
+                        timestampData: timestampMatch
+                    };
+                    lastTimestamp = currentTimestamp;
+                } else if (isContinuation) {
+                    if (currentLogicalEntry) {
+                        currentLogicalEntry.lines.push(line);
+                    } else {
+                        outputHtml += formatLogicalEntry({ lines: [line], isPlain: true });
+                        logicalLineCount++;
+                    }
+                } else {
+                    if (currentLogicalEntry) {
+                        outputHtml += formatLogicalEntry(currentLogicalEntry);
+                        currentLogicalCount++;
+                        currentLogicalEntry = null;
+                    }
+                    outputHtml += formatLogicalEntry({ lines: [line], isPlain: true });
+                    logicalLineCount++;
+                }
+            }
+
+            if (currentLogicalEntry) {
+                outputHtml += formatLogicalEntry(currentLogicalEntry);
+                if (!lastTimestamp) {
+                    logicalLineCount++;
+                }
+            }
+
+
+            output.innerHTML = outputHtml;
+
+            updateLineNumbers(editorLineNumbers, rawLines.length);
+            updateLineNumbers(outputLineNumbers, logicalLineCount);
+        }
+
+        function formatLogicalEntry(entry) {
+            const fullLogText = entry.lines.join('\n');
+            let formattedHtml = '';
+            const firstLine = entry.lines[0] || '';
+
+            if (entry.isJson && entry.jsonData) {
+                const json = entry.jsonData;
+                const timestamp = new Date(json.timestamp);
+                const formattedTime = formatDate(timestamp);
+                const levelType = json.type ? json.type.toLowerCase() : 'info';
+                const levelAbbr = levelType === 'warn' ? 'W' :
+                    levelType === 'error' ? 'E' :
+                        levelType === 'debug' ? 'D' :
+                            levelType === 'verbose' ? 'V' : 'I';
+                const levelClass = `log-level-${levelAbbr.toLowerCase()}`;
+                let content = removeAnsiCodes(json.content);
+
+                // 移除 "at" 前面的换行符和空格
+                content = content.replace(/\n\s+at /g, ' at ');
+
+                // 如果是错误日志且内容包含" at "但还没有换行 
+                if ((levelAbbr === 'E' || levelAbbr === 'W') && content.includes(' at ') && !content.includes('\n at ')) {
+                    // 替换 " at " 为换行后的 "at "
+                    content = content.replace(/ at /g, '\n                           at ');
+                }
+
+                const highlightedContent = highlightKeywords(escapeHtml(content));
+                const name = json.name ? `<strong>${escapeHtml(json.name)}</strong>` : '';
+                const levelValue = json.level !== undefined ? `[${json.level}]` : '';
+
+                formattedHtml = `<span class="log-timestamp">${formattedTime}</span> ${levelValue} <span class="${levelClass}">[${levelAbbr}]</span> ${name} ${highlightedContent}`;
+
+            } else if (entry.timestampData) {
+                const [, formattedTime, level, restOfLine] = entry.timestampData;
+                let highlightedContent = restOfLine;
+
+                formattedHtml = `<span class="log-timestamp">${formattedTime}</span>  <span class="log-level-${level.toLowerCase()}">[${level}]</span> ${highlightedContent}`;
+
+                // 移除 "at" 前面的换行符和空格
+                highlightedContent = highlightedContent.replace(/\n\s+at /g, ' at ');
+
+                // 如果是错误日志且内容包含" at "但还没有换行
+                if ((level === 'E' || level === 'W') && highlightedContent.includes(' at ') && !highlightedContent.includes('\n at ')) {
+                    // 替换 " at " 为换行后的 "at "
+                    highlightedContent = highlightedContent.replace(/ at /g, '\n                           at ');
+                }
+                highlightedContent = highlightKeywords(escapeHtml(highlightedContent));
+
+                formattedHtml = `<span class="log-timestamp">${formattedTime}</span> <span class="log-level-${level.toLowerCase()}">[${level}]</span> ${highlightedContent}`;
+
+            } else {
+                formattedHtml = escapeHtml(firstLine);
+            }
+
+            if (entry.lines.length > 1) {
+                for (let i = 1; i < entry.lines.length; i++) {
+                    formattedHtml += `<span class="stack-trace-line">${escapeHtml(entry.lines[i])}</span>`;
+                }
+            }
+
+            return `<div class="log-line" data-log="${escapeHtml(fullLogText)}">` +
+                `<span class="tooltiptext">${DEFAULT_TOOLTIP_TEXT}</span>` +
+                `<span class="log-content">${formattedHtml}</span>` +
+                `</div>`;
+        }
+
+
+
+        function removeAnsiCodes(str) {
+            if (typeof str !== 'string') return '';
+            return str.replace(/\u001b\[[0-9;]*m/g, '');
+        }
+
+        function formatDate(date) {
+            if (!(date instanceof Date) || isNaN(date)) {
+                return 'Invalid Date';
+            }
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            const hours = String(date.getHours()).padStart(2, '0');
+            const minutes = String(date.getMinutes()).padStart(2, '0');
+            const seconds = String(date.getSeconds()).padStart(2, '0');
+            return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+        }
+
+
+        function highlightKeywords(str) {
+            const keywords = ["reload plugin", "unload plugin", ' plugin', 'error', 'warning', 'success', 'failed', 'connect', 'disconnect', 'TypeError', "HTTPError", 'ReferenceError', 'SyntaxError', "undefined", "retcode:", "Error at ", "cannot", "ECONNRESET", "externa", "node_modules"];
+            let highlightedStr = str;
+            keywords.forEach(keyword => {
+                const regex = (keyword.endsWith('Error'))
+                    ? new RegExp(`(${keyword})`, 'gi')
+                    : new RegExp(`\\b(${keyword})\\b`, 'gi');
+                highlightedStr = highlightedStr.replace(regex, `<span class="log-keyword">$1</span>`);
+            });
+            return highlightedStr;
+        }
+
+
+        function setTheme(theme) {
+            let bgColor, textColor, lineNumberBgColor, lineNumberTextColor, tooltipBg, tooltipText;
+            const themes = {
+                'coffee-dark': {
+                    '--bg-color': '#231F1E',
+                    '--line-number-bg-color': '#292423',
+                    '--text-color': '#eee',
+                    '--k-color-primary': '#F09176',
+                    '--line-number-text-color': '#ccc',
+                    '--tooltip-bg-color': '#111',
+                    '--tooltip-text-color': '#eee'
+                },
+                'coffee-light': {
+                    '--bg-color': '#EEE9E7',
+                    '--line-number-bg-color': '#E6DFDC',
+                    '--text-color': '#111',
+                    '--k-color-primary': '#D26A4C',
+                    '--line-number-text-color': '#555',
+                    '--tooltip-bg-color': '#333',
+                    '--tooltip-text-color': '#fff'
+                },
+                'ocean-dark': {
+                    '--bg-color': '#16252D',
+                    '--line-number-bg-color': '#1A2B34',
+                    '--text-color': '#eee',
+                    '--k-color-primary': '#97C892',
+                    '--line-number-text-color': '#ccc',
+                    '--tooltip-bg-color': '#111',
+                    '--tooltip-text-color': '#eee'
+                },
+                'ocean-light': {
+                    '--bg-color': '#E8F7F7',
+                    '--line-number-bg-color': '#DBF2F1',
+                    '--text-color': '#111',
+                    '--k-color-primary': '#00B2A6',
+                    '--line-number-text-color': '#555',
+                    '--tooltip-bg-color': '#333',
+                    '--tooltip-text-color': '#fff'
+                },
+                'pale-night-dark': {
+                    '--bg-color': '#252839',
+                    '--line-number-bg-color': '#31364A',
+                    '--text-color': '#eee',
+                    '--k-color-primary': '#7D57C2',
+                    '--line-number-text-color': '#ccc',
+                    '--tooltip-bg-color': '#111',
+                    '--tooltip-text-color': '#eee'
+                },
+                'solarized-dark': {
+                    '--bg-color': '#10252c',
+                    '--line-number-bg-color': '#132c34',
+                    '--text-color': '#eee',
+                    '--k-color-primary': '#47cfc4',
+                    '--line-number-text-color': '#ccc',
+                    '--tooltip-bg-color': '#111',
+                    '--tooltip-text-color': '#eee'
+                },
+                'solarized-light': {
+                    '--bg-color': '#FEF9ED',
+                    '--line-number-bg-color': '#f4edda',
+                    '--text-color': '#111',
+                    '--k-color-primary': '#2aa198',
+                    '--line-number-text-color': '#555',
+                    '--tooltip-bg-color': '#333',
+                    '--tooltip-text-color': '#fff',
+                },
+                'winter-dark': {
+                    '--bg-color': '#021627',
+                    '--line-number-bg-color': '#021627',
+                    '--text-color': '#eee',
+                    '--k-color-primary': '#1FA0D5',
+                    '--line-number-text-color': '#ccc',
+                    '--tooltip-bg-color': '#111',
+                    '--tooltip-text-color': '#eee'
+                },
+            };
+
+            const selectedTheme = themes[theme] || themes['pale-night-dark']; // 默认主题
+
+            for (const key in selectedTheme) {
+                document.documentElement.style.setProperty(key, selectedTheme[key]);
+            }
+            const primaryColor = selectedTheme['--k-color-primary'];
+            if (primaryColor) {
+                const rgb = hexToRgb(primaryColor);
+                if (rgb) {
+                    document.documentElement.style.setProperty('--k-color-primary-rgb', `${rgb.r}, ${rgb.g}, ${rgb.b}`);
+                }
+            }
+
+            // 立即更新 resizer 的背景色
+            resizer.style.background = getComputedStyle(document.documentElement).getPropertyValue('--k-color-primary');
+        }
+
+        function hexToRgb(hex) {
+            var shorthandRegex = /^#?([a-f\d])([a-f\d])([a-f\d])$/i;
+            hex = hex.replace(shorthandRegex, function (m, r, g, b) {
+                return r + r + g + g + b + b;
+            });
+
+            var result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+            return result ? {
+                r: parseInt(result[1], 16),
+                g: parseInt(result[2], 16),
+                b: parseInt(result[3], 16)
+            } : null;
+        }
+
+
+        function updateLineNumbers(element, count) {
+            let numbers = '';
+            const displayCount = Math.max(1, count);
+            for (let i = 1; i <= displayCount; i++) {
+                numbers += i + '<br>';
+            }
+            element.innerHTML = numbers;
+            if (element.id === 'editorLineNumbers') {
+                element.scrollTop = input.scrollTop;
+            } else if (element.id === 'outputLineNumbers') {
+                element.scrollTop = output.scrollTop;
+            }
+        }
+
+        function syncScrollInput() {
+            updateLineNumbers(editorLineNumbers, input.value.split('\n').length);
+            if (isSyncing || !syncScrollCheckbox.checked) return;
+            isSyncing = true;
+            output.scrollTop = input.scrollTop;
+            updateLineNumbers(outputLineNumbers, (output.innerHTML.match(/<div class="log-line"/g) || []).length);
+            requestAnimationFrame(() => { isSyncing = false; });
+        }
+
+        function syncScrollOutput() {
+            updateLineNumbers(outputLineNumbers, (output.innerHTML.match(/<div class="log-line"/g) || []).length);
+            if (isSyncing || !syncScrollCheckbox.checked) return;
+            isSyncing = true;
+            input.scrollTop = output.scrollTop;
+            updateLineNumbers(editorLineNumbers, input.value.split('\n').length);
+            requestAnimationFrame(() => { isSyncing = false; });
+        }
+
+
+        function handleMouseOver(event) {
+            const logLine = event.target.closest('.log-line');
+            if (!logLine) return;
+
+            clearTimeout(tooltipTimer);
+            hideAllTooltips(logLine);
+
+            tooltipTimer = setTimeout(() => {
+                const tooltip = logLine.querySelector('.tooltiptext');
+                if (tooltip) {
+                    if (tooltip.textContent !== COPIED_TOOLTIP_TEXT) {
+                        tooltip.textContent = DEFAULT_TOOLTIP_TEXT;
+                    }
+                    logLine.classList.add('show-tooltip');
+                }
+            }, TOOLTIP_DELAY);
+
+            logLine.dataset.tooltipTimerId = tooltipTimer;
+        }
+
+        function handleMouseOut(event) {
+            const logLine = event.target.closest('.log-line');
+            if (!logLine) return;
+
+            const timerId = logLine.dataset.tooltipTimerId;
+            if (timerId) {
+                clearTimeout(parseInt(timerId));
+                delete logLine.dataset.tooltipTimerId;
+            }
+
+            const tooltip = logLine.querySelector('.tooltiptext');
+            if (tooltip) {
+                logLine.classList.remove('show-tooltip');
+                if (!logLine.contains(event.relatedTarget)) {
+                    tooltip.textContent = DEFAULT_TOOLTIP_TEXT;
+                }
+            }
+        }
+
+        function handleDoubleClick(event) {
+            const logLine = event.target.closest('.log-line');
+            if (!logLine) return;
+
+            const logText = logLine.dataset.log;
+            const tooltip = logLine.querySelector('.tooltiptext');
+
+            navigator.clipboard.writeText(logText)
+                .then(() => {
+                    console.log('Log copied to clipboard!');
+                    if (tooltip) {
+                        tooltip.textContent = COPIED_TOOLTIP_TEXT;
+                        logLine.classList.add('show-tooltip');
+                        setTimeout(() => {
+                            const currentTooltip = logLine.querySelector('.tooltiptext');
+                            if (currentTooltip && currentTooltip.textContent === COPIED_TOOLTIP_TEXT && !logLine.matches(':hover')) {
+                                logLine.classList.remove('show-tooltip');
+                                currentTooltip.textContent = DEFAULT_TOOLTIP_TEXT;
+                            }
+                        }, 1500);
+                    }
+                })
+                .catch(err => {
+                    console.error('Failed to copy log: ', err);
+                    if (tooltip) {
+                        tooltip.textContent = "复制失败!";
+                        logLine.classList.add('show-tooltip');
+                    }
+                });
+        }
+
+        function hideAllTooltips(exceptElement = null) {
+            document.querySelectorAll('.log-line.show-tooltip').forEach(line => {
+                if (line !== exceptElement) {
+                    line.classList.remove('show-tooltip');
+                    const tooltip = line.querySelector('.tooltiptext');
+                    if (tooltip) tooltip.textContent = DEFAULT_TOOLTIP_TEXT;
+                }
+            });
+        }
+
+
+        function escapeHtml(str) {
+            if (typeof str !== 'string') return '';
+            return str
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+
+        function saveFormattedLogToFile() {
+            const formattedLogContent = Array.from(output.querySelectorAll('.log-line'))
+                .map(line => {
+                    const contentElement = line.querySelector('.log-content');
+                    return contentElement ? contentElement.textContent : '';
+                })
+                .join('\n');
+
+            let filename = 'formatted-log.log';
+            const firstLogLine = output.querySelector('.log-line');
+            if (firstLogLine) {
+                const timestampSpan = firstLogLine.querySelector('.log-timestamp');
+                if (timestampSpan) {
+                    const timestampText = timestampSpan.textContent;
+                    const timestampForFilename = timestampText.replace(/[-:\s]/g, '-');
+                    filename = `${timestampForFilename}.log`;
+                }
+            }
+
+            const blob = new Blob([formattedLogContent], { type: 'text/plain;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const downloadLink = document.createElement('a');
+            downloadLink.href = url;
+            downloadLink.download = filename;
+
+            document.body.appendChild(downloadLink);
+            downloadLink.click();
+            document.body.removeChild(downloadLink);
+            URL.revokeObjectURL(url);
+        }
+
+
+        setTheme('pale-night-dark'); // 设置默认主题
+        processLogs();
+
+    </script>
+
+</body>
+
+</html>
