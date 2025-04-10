@@ -497,7 +497,7 @@ display: none !important;
 
         // 视频/链接解析
         if (config.VideoParsing_ToLink) {
-            const fullAPIurl = `https://api.xingzhige.com/API/b_parse/?url=${encodeURIComponent(lastretUrl)}`;
+            const fullAPIurl = `http://api.xingzhige.cn/API/b_parse/?url=${encodeURIComponent(lastretUrl)}`;
 
             try {
                 const responseData = await ctx.http.get(fullAPIurl);
