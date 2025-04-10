@@ -73,7 +73,8 @@ export default defineConfig(
           "items": [
             {
               "text": "MeMe Downloader",
-              "link": "https://shangxueink.github.io/MemeDownloader/"
+              "link": "/MemeDownloader.html",
+              "target": "_blank"
             },
             {
               "text": "Koishi Log Formatter",
@@ -92,11 +93,13 @@ export default defineConfig(
           "items": [
             {
               "text": "许可证",
-              "link": "https://github.com/shangxueink/koishi-shangxue-apps/blob/main/LICENSE"
+              "link": "https://github.com/shangxueink/koishi-shangxue-apps/blob/main/LICENSE",
+              "target": "_blank"
             },
             {
               "text": "支持作者",
-              "link": "https://afdian.com/a/shangxue"
+              "link": "https://afdian.com/a/shangxue",
+              "target": "_blank"
             }
           ]
         }
