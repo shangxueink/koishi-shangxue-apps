@@ -73,20 +73,26 @@ async function createMockBooks() {
         './js/MemeDownloader/txt/seseren.txt',
     ];
 
+    try {
+        // 并行发起所有请求
+        const contents = await Promise.all(txtFiles.map(filePath => loadTextFile(filePath)));
 
-    const mockBooks = [];
+        const mockBooks = contents.map((content, index) => {
+            if (content) {
+                const filePath = txtFiles[index];
+                const fileName = filePath.split('/').pop();
+                return {
+                    name: fileName,
+                    content: content.trim(),
+                    cover: loadCoverFromContent(content),
+                };
+            }
+            return null; // 如果加载失败，返回 null
+        }).filter(book => book !== null); // 过滤掉加载失败的书籍
 
-    for (const filePath of txtFiles) {
-        const content = await loadTextFile(filePath);
-        if (content) {
-            const fileName = filePath.split('/').pop(); // 获取文件名 (例如: 0721.txt)
-            mockBooks.push({
-                name: fileName,
-                content: content.trim(),
-                cover: loadCoverFromContent(content),
-            });
-        }
+        return mockBooks;
+    } catch (error) {
+        console.error("Failed to load one or more text files:", error);
+        return []; // 如果有任何请求失败，返回空数组
     }
-
-    return mockBooks;
 }
