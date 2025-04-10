@@ -82,10 +82,15 @@ export default defineConfig(
               "target": "_blank"
             },
             {
+              "text": "Koishi Market Analysis",
+              "link": "/KoishiMarketAnalysis.html",
+              "target": "_blank"
+            },
+            {
               "text": "Full screen black",
               "link": "/ALLblack.html",
               "target": "_blank"
-            }
+            },
           ]
         },
         {
