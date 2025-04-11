@@ -1,5 +1,7 @@
 # 小工具合集
 
+与 `koishi-shangxue-apps` 产生的周边脚本、工具
+
 ## Koimux ！
 [**戳我看项目地址**](https://github.com/shangxueink/koishi-shangxue-apps/tree/main/scripts/termux) 
 
@@ -13,7 +15,7 @@
 ## Bilibili专栏原图链接提取2024改版
 [**戳我看项目地址**](https://github.com/shangxueink/koishi-shangxue-apps/tree/main/scripts/Bilibili专栏原图链接提取2024改版) 
 
-为`koishi-plugin-emojihub`制作的、基于[`Bilibili专栏原图链接提取`](https://greasyfork.org/zh-CN/scripts/456497-bilibili%E4%B8%93%E6%A0%8F%E5%8E%9F%E5%9B%BE%E9%93%BE%E6%8E%A5%E6%8F%90%E5%8F%96)二次开发的浏览器js脚本工具。用于提取、保存 哔哩哔哩专栏文章 内的图片。
+为`koishi-plugin-emojihub-bili`制作的、基于[`Bilibili专栏原图链接提取`](https://greasyfork.org/zh-CN/scripts/456497-bilibili%E4%B8%93%E6%A0%8F%E5%8E%9F%E5%9B%BE%E9%93%BE%E6%8E%A5%E6%8F%90%E5%8F%96)二次开发的浏览器js脚本工具。用于提取、保存 哔哩哔哩专栏文章 内的图片。
 
 ## QQNT-version-scraper
 [**戳我看项目地址**](https://github.com/shangxueink/koishi-shangxue-apps/tree/main/scripts/QQNT-version-scraper) 

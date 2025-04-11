@@ -41,6 +41,10 @@
    ```
    打开浏览器访问 `http://localhost:5173/koishi-shangxue-apps/` 即可查看文档。
 
+   在本项目的 `docs` 目录下，编辑文档内容。
+
+---
+
 ### 提交 Pull Request
 
 1. **直接修改 `main` 分支**  
