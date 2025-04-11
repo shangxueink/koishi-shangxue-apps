@@ -59,37 +59,21 @@ export default defineConfig(
               "link": "/markdown/community"
             },
             {
-              "text": "编辑文档",
-              "link": "/markdown/gh-pages"
-            },
-            {
               "text": "贡献鸣谢",
               "link": "/markdown/contributors"
             }
           ]
         },
         {
-          "text": "相关地址",
+          "text": "文档相关",
           "items": [
             {
-              "text": "MeMe Downloader",
-              "link": "/MemeDownloader.html",
-              "target": "_blank"
+              "text": "webUI工具",
+              "link": "/markdown/webuiscripts"
             },
             {
-              "text": "Koishi Log Formatter",
-              "link": "/LogFormatter.html",
-              "target": "_blank"
-            },
-            {
-              "text": "Koishi Market Analysis",
-              "link": "/KoishiMarketAnalysis.html",
-              "target": "_blank"
-            },
-            {
-              "text": "Full screen black",
-              "link": "/ALLblack.html",
-              "target": "_blank"
+              "text": "编辑文档",
+              "link": "/markdown/gh-pages"
             },
           ]
         },
@@ -97,7 +81,7 @@ export default defineConfig(
           "text": "其他",
           "items": [
             {
-              "text": "许可证",
+              "text": "LICENSE",
               "link": "https://github.com/shangxueink/koishi-shangxue-apps/blob/main/LICENSE",
               "target": "_blank"
             },
