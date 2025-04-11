@@ -6,6 +6,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Koishi插件市场源 对比工具</title>
     <style>
+        /* 覆盖 Markdown 链接样式 */
+        .plugin-description a {
+            color: inherit;
+            text-decoration: underline;
+        }
+
         :root {
             --bg-color: #1e2130;
             --text-color: #ffffff;
@@ -179,9 +185,9 @@
             font-size: 0.95rem;
             line-height: 1.4;
             max-height: 4.2em;
-            /* 3 lines */
             overflow: hidden;
             display: -webkit-box;
+            line-clamp: 3;
             -webkit-line-clamp: 3;
             -webkit-box-orient: vertical;
         }
@@ -351,15 +357,15 @@
             <p>比较不同镜像源的插件差异、插件状态</p>
         </div>
 
-        <div class="input-group">
+        <div class="input-group" ondrop="dropHandler(event)" ondragover="dragOverHandler(event)">
             <div class="file-upload">
                 <input type="file" id="file1" accept=".json" style="display: none;">
-                <button onclick="document.getElementById('file1').click()">选择JSON镜像文件1</button>
+                <button onclick="document.getElementById('file1').click()">选择或拖入 镜像文件1</button>
                 <span id="file1-name">未选择文件</span>
             </div>
             <div class="file-upload">
                 <input type="file" id="file2" accept=".json" style="display: none;">
-                <button onclick="document.getElementById('file2').click()">选择JSON镜像文件2</button>
+                <button onclick="document.getElementById('file2').click()">选择或拖入 镜像文件2</button>
                 <span id="file2-name">未选择文件</span>
             </div>
         </div>
@@ -564,31 +570,16 @@
         // 确保插件名称有正确的前缀
         function getCorrectPackageName(name) {
             // 如果名称为空或不是字符串，返回原值
-            if (!name || typeof name !== 'string') return name;
-
-            // 处理带作用域的包名 (以@开头)
-            if (name.startsWith('@')) {
-                // 分离作用域和包名部分
-                const [scope, packagePart] = name.split('/');
-
-                // 如果包名部分已经有前缀，直接返回原始名称
-                if (packagePart && packagePart.startsWith('koishi-plugin-')) {
-                    return name;
-                }
-
-                // 否则，为包名部分添加前缀
-                return `${scope}/koishi-plugin-${packagePart}`;
-            }
-
-            // 处理不带作用域的包名
-            // 如果已经有前缀，直接返回
-            if (name.startsWith('koishi-plugin-')) {
+            if (!name || typeof name !== 'string') {
                 return name;
             }
-
-            // 添加前缀
-            return `koishi-plugin-${name}`;
+            if (name.includes("koishi")) {
+                return name;
+            } else {
+                return `${name} (无效插件)`;
+            }
         }
+
 
         // 检查包是否存在于npm (并行版本)
         async function checkPackagesExist(packageNames) {
@@ -744,8 +735,12 @@
                 let buttonClass = 'add-button';
                 let buttonText = '查看';
 
+                if (correctName.includes("无效插件")) {
+                    buttonClass = 'not-found-button';
+                    buttonText = '无效插件';
+                }
                 // 检查是否404
-                if (plugin.is404) {
+                else if (plugin.is404) {
                     buttonClass = 'not-found-button';
                     buttonText = '404';
                 }
@@ -785,7 +780,7 @@
                 </div>
             </div>
             ${buttonHtml}</div>
-        <div class="plugin-description">${description}</div>
+        <div class="plugin-description">${marked.parse(description)}</div>
         <div class="plugin-meta">
             <div class="meta-item">
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -899,8 +894,13 @@
                     let buttonClass = 'add-button';
                     let buttonText = '查看';
 
+
+                    if (diff.correctPackageName.includes("无效插件")) {
+                        buttonClass = 'not-found-button';
+                        buttonText = '无效插件';
+                    }
                     // 检查是否404
-                    if (diff.is404) {
+                    else if (diff.is404) {
                         buttonClass = 'not-found-button';
                         buttonText = '404';
                     }
@@ -986,6 +986,56 @@
             }
         }
 
+        // 阻止浏览器默认拖拽行为
+        function dragOverHandler(event) {
+            event.preventDefault();
+        }
+
+        // 阻止浏览器默认拖拽行为
+        function dragOverHandler(event) {
+            event.preventDefault();
+        }
+
+        // 处理拖拽到区域的文件
+        function dropHandler(event) {
+            event.preventDefault();
+
+            let files = [];
+            if (event.dataTransfer.items) {
+                // Use DataTransferItemList interface to access the file(s)
+                for (let i = 0; i < event.dataTransfer.items.length; i++) {
+                    if (event.dataTransfer.items[i].kind === 'file') {
+                        const file = event.dataTransfer.items[i].getAsFile();
+                        files.push(file);
+                    }
+                }
+            } else {
+                // Use DataTransfer interface to access the file(s)
+                for (let i = 0; i < event.dataTransfer.files.length; i++) {
+                    files.push(event.dataTransfer.files[i]);
+                }
+            }
+
+            if (files.length > 0) {
+                if (files.length === 1) {
+                    // 如果只拖入一个文件，则根据当前已选择的文件来判断
+                    if (!selectedFile1) {
+                        selectedFile1 = files[0];
+                        document.getElementById('file1-name').textContent = selectedFile1.name;
+                    } else if (!selectedFile2) {
+                        selectedFile2 = files[0];
+                        document.getElementById('file2-name').textContent = selectedFile2.name;
+                    }
+                } else if (files.length >= 2) {
+                    // 如果拖入两个或多个文件，则取前两个
+                    selectedFile1 = files[0];
+                    document.getElementById('file1-name').textContent = selectedFile1.name;
+                    selectedFile2 = files[1];
+                    document.getElementById('file2-name').textContent = selectedFile2.name;
+                }
+                checkAndCompare();
+            }
+        }
     </script>
 </body>
 
