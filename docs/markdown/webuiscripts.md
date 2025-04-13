@@ -1,8 +1,13 @@
 # WebUI 工具
 
-这里列出了一些有用的 WebUI 工具
+这里列出了一些有用的 WebUI 工具， 也有一些是作者喜欢吃的工具
+
+部分工具并不源自本仓库，在此处列出只是为了方便快速访问。
 
 > 这些 WebUI 工具可以在仓库文档里使用， `仓库工具` 则不能在文档里被打开使用
+
+
+
 
 ## MeMe Downloader
 
@@ -10,11 +15,17 @@
 
 <a href="/koishi-shangxue-apps/MemeDownloader.html" target="_blank" rel="noopener noreferrer">访问 MeMe Downloader</a>
 
+
+
+
 ## Koishi Log Formatter
 
 格式化渲染 Koishi 日志文件， 让历史日志文件更易分析、定位问题
 
 <a href="/koishi-shangxue-apps/LogFormatter.html" target="_blank" rel="noopener noreferrer">访问 Koishi Log Formatter</a>
+
+
+
 
 ## Koishi Market Analysis
 
@@ -22,8 +33,42 @@
 
 <a href="/koishi-shangxue-apps/KoishiMarketAnalysis.html" target="_blank" rel="noopener noreferrer">访问 Koishi Market Analysis</a>
 
+
+
+
 ## Full screen black
 
 全屏黑屏工具，可能是    夜间好助手？
 
 <a href="/koishi-shangxue-apps/ALLblack.html" target="_blank" rel="noopener noreferrer">访问 Full screen black</a>
+
+
+
+
+## Markdown Editor
+
+Markdown 编辑-预览 工具
+
+> 来自 `https://markdown-editor.org/` 的工具，非本仓库原创
+> 
+> 在文档列出 以便于快速访问、使用
+
+<a href="/koishi-shangxue-apps/MarkdownEditor.html" target="_blank" rel="noopener noreferrer">访问 Markdown Editor</a>
+
+
+
+
+## Next Chat
+
+`Next Chat` 的网页端 
+
+> 是作者喜欢吃的AI对话工具。
+> 源自项目地址-> `https://github.com/ChatGPTNextWeb/NextChat/`
+
+> 此工具来自 `https://chat.bailili.top/`  ，非本仓库原创
+>
+> 感谢望月提供的服务 -> https://www.bailili.top/
+>
+> 其他 还有好用的deepseek： https://chat.deepseek.com/
+ 
+<a href="/koishi-shangxue-apps/NextChat.html" target="_blank" rel="noopener noreferrer">访问 Next Chat webUI</a>
