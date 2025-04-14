@@ -370,7 +370,7 @@ async function apply(ctx, config) {
 
     if (config.enablescheduletable) {
       logger.info('定时系统初始化...');
-      setupSchedules();
+      ctx.setTimeout(setupSchedules, 5000); // 延时5秒启动定时任务
       logger.info(`已加载 ${config.scheduletable.length} 个定时任务`);
     }
   });
