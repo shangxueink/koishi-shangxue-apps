@@ -53,6 +53,7 @@ export const Config = Schema.intersect([
   ]),
 
   Schema.object({
+    databasemaxlength: Schema.number().default(100).description("数据表 允许绑定的数据条数上限<br>绑定达到上限时会提示：`该Bot已达到绑定玩家数量上限`"),
     steamIdOffset: Schema.number().default(76561197960265728).description("steamIdOffset").experimental(),
     steamWebApiUrl: Schema.string().description('steam 的 Web Api 请求地址').default("http://api.steampowered.com/ISteamUser/GetPlayerSummaries/v0002/").role('link').experimental(),
     steamstatus: Schema.dict(String).role('table').default(
@@ -300,7 +301,7 @@ export function apply(ctx: Context, config) {
       return '未检测到用户ID或群ID';
     }
     const database = await ctx.database.get('SteamUser', {});
-    if (database.length >= 100) {
+    if (database.length >= config.databasemaxlength) {
       return '该Bot已达到绑定玩家数量上限';
     }
     let steamId = getSteamId(friendcodeOrId);
@@ -695,6 +696,7 @@ export function apply(ctx: Context, config) {
     return result
   }
 
+  /*
   async function getAllUserFriendCodesInGroup(ctx: Context, groupid: string): Promise<string> {
     let result = []
     const allUserData = await ctx.database.get('SteamUser', {})
@@ -709,6 +711,7 @@ export function apply(ctx: Context, config) {
       return result.join('\n')
     }
   }
+  */
 
   async function getGroupHeadshot(ctx: Context, groupid: string): Promise<void> {
     const groupheadshot = await ctx.http.get(`http://p.qlogo.cn/gh/${groupid}/${groupid}/0`, { responseType: 'arraybuffer' })
