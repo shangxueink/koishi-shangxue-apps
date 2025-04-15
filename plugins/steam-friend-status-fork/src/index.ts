@@ -5,8 +5,8 @@ import * as path from 'node:path'
 import * as URL from 'node:url'
 export const name = 'steam-friend-status'
 
-
 export const inject = ['puppeteer', "database"]
+
 declare module 'koishi' {
   interface Tables {
     SteamUser: SteamUser
@@ -16,48 +16,66 @@ declare module 'koishi' {
     channelName: string,
   }
 }
+
 interface SteamUser {
   userId: string,
-  userName: string,//用户名
+  userName: string, //用户名
   steamId: string,
-  steamName: string,//Steam用户名
+  steamName: string,  //Steam用户名
   effectGroups: string[],
   lastPlayedGame: string,
   lastUpdateTime: string,
 }
-interface Config {
-  showcardmode: string
-  botname: any
-  showuserIdorsteamId: any
-  SteamApiKey: string,
-  interval: number,
-  useSteamName: boolean,
-  broadcastWithImage: boolean,
-  useGroupHead: boolean,
-}
 
-export const Config: Schema<Config> = Schema.intersect([
+
+export const Config = Schema.intersect([
   Schema.object({
     SteamApiKey: Schema.string().description('Steam API Key，获取方式：https://partner.steamgames.com/doc/webapi_overview/auth').role('secret').required(),
     interval: Schema.number().default(300).description('查询间隔,单位：秒'),
     useSteamName: Schema.boolean().default(true).description('使用Steam昵称,关闭时使用的QQ昵称'),
     broadcastWithImage: Schema.boolean().default(true).description('播报时附带图片'),
-    useGroupHead: Schema.boolean().default(false).description('此功能以被下方 showcardmode 代替<br>替换Bot头像与ID为群头像').deprecated(),
   }).description("基础设置"),
+
   Schema.object({
-    botname: Schema.string().default("Bot of Koishi").description('展示的bot昵称'),
     showcardmode: Schema.union([
-      Schema.const('1').description('展示 上方的botname 与 头像'),
+      Schema.const('1').description('展示 下方的 botname 与 头像'),
       Schema.const('2').description('展示 当前群组的名称与头像'),
     ]).role('radio').description("替换Bot头像与ID为群头像").default("2"),
     showuserIdorsteamId: Schema.boolean().default(false).description('开启后展示用户的steamID，关闭后展示用户的userId'),
   }).description('fork扩展设置'),
+  Schema.union([
+    Schema.object({
+      showcardmode: Schema.const("1").required(),
+      botname: Schema.string().default("Bot of Koishi").description('展示的bot昵称'),
+    }),
+    Schema.object({}),
+  ]),
+
+  Schema.object({
+    steamIdOffset: Schema.number().default(76561197960265728).description("steamIdOffset").experimental(),
+    steamWebApiUrl: Schema.string().description('steam 的 Web Api 请求地址').default("http://api.steampowered.com/ISteamUser/GetPlayerSummaries/v0002/").role('link').experimental(),
+    steamstatus: Schema.dict(String).role('table').default({
+      "0": "离线",
+      "1": "在线",
+      "2": "忙碌",
+      "3": "离开",
+      "4": "打盹",
+      "5": "想交易",
+      "6": "想玩"
+    }).description("steamstatus").experimental(),
+  }).description("开发者设置"),
 ])
-export function apply(ctx: Context, config: Config) {
+export function apply(ctx: Context, config) {
   // write your plugin here
   const rootpath = ctx.baseDir
   const sourcepath = path.join(rootpath, `data/${name}`)
   const imgpath = path.join(sourcepath, 'img')
+
+  const steamIdOffset: number = config.steamIdOffset
+  const steamWebApiUrl = config.steamWebApiUrl
+  const steamstatus: { [key: number]: string } = config.steamstatus
+
+
   ctx.model.extend('channel', {
     usingSteam: { type: 'boolean', initial: false, nullable: false },
     channelName: { type: 'string', initial: null, nullable: true },
@@ -76,14 +94,23 @@ export function apply(ctx: Context, config: Config) {
   initBotsHeadshots(ctx);
   ctx.setInterval(function () { steamInterval(ctx, config) }, config.interval * 1000)
   ctx.command('steam-friend-status', "查询群友steam状态")
-  ctx.command('steam-friend-status/绑定steam <steamid:text>')
+  ctx.command('steam-friend-status/绑定steam <steamid:string>')
+    .option('id', '-i <id:string> 指定userid')
+    .option('name', '-n <name:string> 指定usename')
     .usage('绑定steam账号，参数可以是好友码也可以是ID')
-    .action(async ({ session }, steamid) => {
+    .example("绑定steam 123456789")
+    .example("绑定steam 123456789 -i 114514 -n 上学大人")
+    .action(async ({ session, options }, steamid) => {
       if (steamid == undefined) {
         await session.execute("绑定steam -h")
         return '缺少参数'
       }
-      const result = await bindPlayer(ctx, steamid, session, config.SteamApiKey)
+      let result
+      if (!options.id || !options.name) {
+        result = await bindPlayer(ctx, steamid, session, config.SteamApiKey)
+      } else {
+        result = await bindPlayer(ctx, steamid, session, config.SteamApiKey, options.id || options.name, options.name || options.id)
+      }
       await session.send(result)
       await session.execute("更新steam")
       return
@@ -104,9 +131,9 @@ export function apply(ctx: Context, config: Config) {
     })
 
   ctx.command('steam-friend-status/steam群报 <word:text>')
-    .usage('开启或关闭群通报，输入[steam on/off]或者[开启/关闭steam]来开关')
-    .shortcut('开启steam', { args: ['on'] })
-    .shortcut('关闭steam', { args: ['off'] })
+    .usage('开启或关闭群通报')
+    .example("steam群报 on")
+    .example("steam群报 off")
     .channelFields(['usingSteam'])
     .userFields(['authority'])
     .action(async ({ session }, text) => {
@@ -146,7 +173,6 @@ export function apply(ctx: Context, config: Config) {
   ctx.command('steam-friend-status/看看steam')
     .usage('查看当前绑定过的玩家状态')
     .action(async ({ session }) => {
-      //ctx.logger.info(session)
       // 获取群组昵称
       const { channelId, bot, event } = session;
       const groupList = await bot.getGuildList();
@@ -219,11 +245,6 @@ export function apply(ctx: Context, config: Config) {
     }
   }
 
-
-  const steamIdOffset: number = 76561197960265728
-  const steamWebApiUrl = 'http://api.steampowered.com/ISteamUser/GetPlayerSummaries/v0002/'
-  const steamstatus: { [key: number]: string } = { 0: '离线', 1: '在线', 2: '忙碌', 3: '离开', 4: '打盹', 5: '想交易', 6: '想玩' }
-
   interface SteamUserInfo {
     response: {
       players: {
@@ -250,6 +271,7 @@ export function apply(ctx: Context, config: Config) {
       }[]
     }
   }
+
   //将steam好友码转换成steamid
   function getSteamId(steamIdOrSteamFriendCode: string): string {
     if (!Number(steamIdOrSteamFriendCode)) {
@@ -264,27 +286,32 @@ export function apply(ctx: Context, config: Config) {
       return steamIdOrSteamFriendCode
     }
   }
-  //绑定玩家
-  async function bindPlayer(ctx: Context, friendcodeOrId: string, session: Session, steamApiKey: string): Promise<string> {
-    const userid = session.event.user.id
-    const channelid = session.event.channel.id
+  // 绑定玩家
+  async function bindPlayer(ctx: Context, friendcodeOrId: string, session: Session, steamApiKey: string, inputid?: string, inputname?: string): Promise<string> {
+    const userid = inputid || session.event.user.id; // 使用传入的 userId 或当前用户的 userId
+    const channelid = session.event.channel.id;
     if (!userid || !channelid) {
-      return '未检测到用户ID或群ID'
+      return '未检测到用户ID或群ID';
     }
-    const database = await ctx.database.get('SteamUser', {})
+    const database = await ctx.database.get('SteamUser', {});
     if (database.length >= 100) {
-      return '该Bot已达到绑定玩家数量上限'
+      return '该Bot已达到绑定玩家数量上限';
     }
-    let steamId = getSteamId(friendcodeOrId)
-    const playerData = (await getSteamUserInfo(ctx, steamApiKey, steamId)).response.players[0]
-    if (playerData == undefined) {
-      return '无法获取到steam用户信息，请检查输入的steamId是否正确或者检查网络环境'
+    let steamId = getSteamId(friendcodeOrId);
+    const steamUserInfo = await getSteamUserInfo(ctx, steamApiKey, steamId);
+
+    // 检查 getSteamUserInfo 的返回值是否有效
+    if (!steamUserInfo || !steamUserInfo.response || !steamUserInfo.response.players || steamUserInfo.response.players.length === 0) {
+      return '无法获取到steam用户信息，请检查输入的steamId是否正确或者检查网络环境';
     }
-    const userDataInDatabase = await ctx.database.get('SteamUser', { userId: userid })
+
+    const playerData = steamUserInfo.response.players[0];
+    const userDataInDatabase = await ctx.database.get('SteamUser', { userId: userid });
+
     if (userDataInDatabase.length === 0) {
-      let userName = session.event.user.name
+      let userName = inputname || session.event.user.name; // 使用传入的 username 或当前用户的 username
       if (!userName) {
-        userName = userid
+        userName = userid;
       }
       const userData: SteamUser = {
         userId: userid,
@@ -294,23 +321,24 @@ export function apply(ctx: Context, config: Config) {
         effectGroups: [session.event.channel.id],
         lastPlayedGame: playerData.gameextrainfo != undefined ? playerData.gameextrainfo : undefined,
         lastUpdateTime: Date.now().toString()
-      }
-      await ctx.database.create('SteamUser', userData)
-      const headshot = await ctx.http.get(playerData.avatarmedium, { responseType: 'arraybuffer' })
-      const filepath = path.join(sourcepath, `img/steamuser${playerData.steamid}.jpg`)
-      fs.writeFileSync(filepath, Buffer.from(headshot))
-      return '绑定成功'
+      };
+      await ctx.database.create('SteamUser', userData);
+      const headshot = await ctx.http.get(playerData.avatarmedium, { responseType: 'arraybuffer' });
+      const filepath = path.join(sourcepath, `img/steamuser${playerData.steamid}.jpg`);
+      fs.writeFileSync(filepath, Buffer.from(headshot));
+      return '绑定成功';
     }
+
     if (userDataInDatabase[0].effectGroups.includes(channelid)) {
-      return `已在该群绑定过，无需再次绑定`
-    }
-    else {
-      const effectGroups = userDataInDatabase[0].effectGroups
-      effectGroups.push(channelid)
-      await ctx.database.set('SteamUser', { userId: userid }, { effectGroups: effectGroups })
-      return '绑定成功'
+      return `已在该群绑定过，无需再次绑定`;
+    } else {
+      const effectGroups = userDataInDatabase[0].effectGroups;
+      effectGroups.push(channelid);
+      await ctx.database.set('SteamUser', { userId: userid }, { effectGroups: effectGroups });
+      return '绑定成功';
     }
   }
+
   //解绑玩家
   async function unbindPlayer(ctx: Context, session: Session): Promise<string> {
     const userid = session.event.user?.id
@@ -334,6 +362,7 @@ export function apply(ctx: Context, config: Config) {
       return '用户未曾绑定，无法解绑'
     }
   }
+
   //解绑全部
   async function unbindAll(ctx: Context, session: Session): Promise<string> {
     const userid = session.event.user?.id
@@ -358,15 +387,12 @@ export function apply(ctx: Context, config: Config) {
       }
 
       const requestUrl = `${steamWebApiUrl}?key=${steamApiKey}&steamids=${steamIds.join(',')}`;
-      //ctx.logger.info(`Fetching Steam user info from API: ${requestUrl}`);
 
       const response = await ctx.http.get(requestUrl);
       if (!response || response.response.players.length === 0) {
-        //ctx.logger.warn('No players found in the response or response is undefined.');
+        ctx.logger.warn('No players found in the response or response is undefined.');
         return undefined;
       }
-
-      //ctx.logger.info('Steam user info fetched successfully.');
       return response as SteamUserInfo;
     } catch (error) {
       ctx.logger.error('Error fetching Steam user info:', error);
@@ -569,10 +595,8 @@ export function apply(ctx: Context, config: Config) {
     return h.image(image, 'image/png');
   }
 
-
-
   //循环检测玩家状态
-  async function steamInterval(ctx: Context, config: Config) {
+  async function steamInterval(ctx: Context, config) {
     const allUserData = await ctx.database.get('SteamUser', {})
     const userdata = await getSteamUserInfoByDatabase(ctx, allUserData, config.SteamApiKey)
     const changeMessage: { [key: string]: string } = await getUserStatusChanged(ctx, userdata, config.useSteamName)
@@ -612,6 +636,7 @@ export function apply(ctx: Context, config: Config) {
       return
     }
   }
+
   //更新头像信息
   async function updataPlayerHeadshots(ctx: Context, apiKey: string) {
     const allUserData = await ctx.database.get('SteamUser', {})
@@ -622,6 +647,7 @@ export function apply(ctx: Context, config: Config) {
       fs.writeFileSync(filepath, Buffer.from(headshot))
     }
   }
+
   //获取自己的好友码
   async function getSelfFriendcode(ctx: Context, session: Session): Promise<string> {
     const userdata = await ctx.database.get('SteamUser', { userId: session.event.user.id })
@@ -639,11 +665,13 @@ export function apply(ctx: Context, config: Config) {
     const steamFriendCode = BigInt(steamID) - BigInt(steamIdOffset)
     return steamFriendCode.toString()
   }
+
   //筛选在特定群中的用户
   function selectUsersByGroup(steamusers: SteamUser[], groupid: string): SteamUser[] {
     const users = steamusers.filter(user => user.effectGroups.includes(groupid))
     return users
   }
+
   //根据群号筛选从API中获取的用户数据
   function selectApiUsersByGroup(steamusers_api: SteamUserInfo, steamusers_database: SteamUser[], groupid: string): SteamUserInfo {
     let result: SteamUserInfo = {
@@ -676,7 +704,6 @@ export function apply(ctx: Context, config: Config) {
     }
   }
 
-
   async function getGroupHeadshot(ctx: Context, groupid: string): Promise<void> {
     const groupheadshot = await ctx.http.get(`http://p.qlogo.cn/gh/${groupid}/${groupid}/0`, { responseType: 'arraybuffer' })
     const filepath = path.join(imgpath, `group${groupid}.jpg`)
@@ -688,6 +715,5 @@ export function apply(ctx: Context, config: Config) {
     const filepath = path.join(imgpath, `bot${userid}.jpg`)
     fs.writeFileSync(filepath, Buffer.from(userheadshot))
   }
-
 
 }

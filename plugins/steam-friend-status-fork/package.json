@@ -1,11 +1,12 @@
 {
   "name": "koishi-plugin-steam-friend-status-fork",
-  "description": "查询群友steam状态，修改自koishi-plugin-steam-friend-status",
-  "version": "0.0.30",
+  "description": "查询群友steam状态。修改自 `koishi-plugin-steam-friend-status`",
+  "version": "0.0.31",
   "main": "lib/index.js",
   "typings": "lib/index.d.ts",
   "files": [
     "lib",
+    "src",
     "data"
   ],
   "license": "MIT",
@@ -16,7 +17,9 @@
   "keywords": [
     "chatbot",
     "koishi",
-    "plugin"
+    "plugin",
+    "steam-friend-status-fork",
+    "steam游戏好友"
   ],
   "peerDependencies": {
     "koishi": "^4.17.1"
