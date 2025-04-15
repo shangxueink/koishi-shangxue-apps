@@ -1,0 +1,81 @@
+[
+    {
+        "text": "指南",
+        "items": [
+            {
+                "text": "项目介绍",
+                "link": "/"
+            },
+            {
+                "text": "开发者指南",
+                "link": "/markdown/PRrequest"
+            }
+        ]
+    },
+    {
+        "text": "插件与工具",
+        "items": [
+            {
+                "text": "插件效果展示",
+                "link": "/markdown/pluginsbeshowed"
+            },
+            {
+                "text": "脚本效果展示",
+                "link": "/markdown/scriptsbeshowed"
+            },
+            {
+                "text": "插件列表",
+                "link": "/markdown/plugins"
+            },
+            {
+                "text": "仓库工具",
+                "link": "/markdown/scripts"
+            }
+        ]
+    },
+    {
+        "text": "社区与贡献",
+        "items": [
+            {
+                "text": "遇到问题",
+                "link": "/markdown/FAQ"
+            },
+            {
+                "text": "社区帮助",
+                "link": "/markdown/community"
+            },
+            {
+                "text": "贡献鸣谢",
+                "link": "/markdown/contributors"
+            }
+        ]
+    },
+    {
+        "text": "文档相关",
+        "items": [
+            {
+                "text": "webUI工具",
+                "link": "/markdown/webuiscripts"
+            },
+            {
+                "text": "编辑文档",
+                "link": "/markdown/gh-pages"
+            }
+        ]
+    },
+    {
+        "text": "其他",
+        "items": [
+            {
+                "text": "LICENSE",
+                "link": "https://github.com/shangxueink/koishi-shangxue-apps/blob/main/LICENSE",
+                "target": "_blank"
+            },
+            {
+                "text": "支持作者",
+                "link": "https://afdian.com/a/shangxue",
+                "target": "_blank"
+            }
+        ]
+    }
+]
