@@ -329,7 +329,7 @@ async function apply(ctx, config) {
 
           logInfo(`初始化定时任务 #${index}`, {
             bot: task.botId,
-            executeAt: nextTime.toISOString(),
+            executeAt: `${nextTime}`,
             command: task.executecommand,
             every: task.every
           });
@@ -344,7 +344,7 @@ async function apply(ctx, config) {
               const nextDelay = nextTime.getTime() - now.getTime();
 
               logInfo(`下次执行时间 #${index}`, {
-                executeAt: nextTime.toISOString(),
+                executeAt: `${nextTime}`,
                 every: task.every
               });
 
