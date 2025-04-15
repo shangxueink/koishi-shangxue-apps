@@ -1,8 +1,9 @@
-import { Context, Schema, h, Session, sleep } from 'koishi'
-import puppeteer from 'koishi-plugin-puppeteer'
+import { Context, Schema, h, Session } from 'koishi'
+import { } from 'koishi-plugin-puppeteer'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import * as URL from 'node:url'
+
 export const name = 'steam-friend-status'
 
 export const inject = ['puppeteer', "database"]
@@ -54,17 +55,20 @@ export const Config = Schema.intersect([
   Schema.object({
     steamIdOffset: Schema.number().default(76561197960265728).description("steamIdOffset").experimental(),
     steamWebApiUrl: Schema.string().description('steam 的 Web Api 请求地址').default("http://api.steampowered.com/ISteamUser/GetPlayerSummaries/v0002/").role('link').experimental(),
-    steamstatus: Schema.dict(String).role('table').default({
-      "0": "离线",
-      "1": "在线",
-      "2": "忙碌",
-      "3": "离开",
-      "4": "打盹",
-      "5": "想交易",
-      "6": "想玩"
-    }).description("steamstatus").experimental(),
+    steamstatus: Schema.dict(String).role('table').default(
+      {
+        "0": "🔘 离线",
+        "1": "🟢 在线",
+        "2": "⛔ 忙碌",
+        "3": "🌙 离开",
+        "4": "💤 打盹",
+        "5": "🔄 想交易",
+        "6": "🎮 想玩"
+      }
+    ).description("steamstatus").experimental(),
   }).description("开发者设置"),
 ])
+
 export function apply(ctx: Context, config) {
   // write your plugin here
   const rootpath = ctx.baseDir
