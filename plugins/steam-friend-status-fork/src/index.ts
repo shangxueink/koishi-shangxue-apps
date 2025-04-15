@@ -101,9 +101,11 @@ export function apply(ctx: Context, config) {
   ctx.command('steam-friend-status/绑定steam <steamid:string>')
     .option('id', '-i <id:string> 指定userid')
     .option('name', '-n <name:string> 指定usename')
-    .usage('绑定steam账号，参数可以是好友码也可以是ID')
+    .usage('绑定steam账号 steamid参数 可以是好友码 也可以是steamID')
     .example("绑定steam 123456789")
+    .example("绑定steam 76561197960265728")
     .example("绑定steam 123456789 -i 114514 -n 上学大人")
+    .example("绑定steam 76561197960265728 -i 114514 -n 上学大人")
     .action(async ({ session, options }, steamid) => {
       if (steamid == undefined) {
         await session.execute("绑定steam -h")
