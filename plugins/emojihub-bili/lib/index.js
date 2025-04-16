@@ -95,6 +95,8 @@ exports.Config = Schema.intersect([
       .description('表情包指令映射表<br>▶ 若丢失了旧版本`MoreEmojiHub`配置 请先回退到 1.3.0 版本<br>▶ 若出现配置问题 请点击右方按钮 可以恢复到默认值<br>右列`文件地址`可以填入`txt绝对路径`、`文件夹绝对路径`、`图片直链`、`图片文件绝对路径`。支持格式 详见[➩项目README](https://github.com/shangxueink/koishi-shangxue-apps/tree/main/plugins/emojihub-bili)'),
 
     deleteMsg: Schema.boolean().description("`开启后`自动撤回表情").default(false),
+
+    optionsname: Schema.string().description('多图返回的 选项名称').default("n"),
     maxexecutetime: Schema.number().description('`-n 选项`指定 允许单次返回的 表情包最大数<br>例如默认10 ：`ba表情包 -n 30`，可以返回10张').default(10),
   }).description('表情包设置'),
 
@@ -748,7 +750,7 @@ function apply(ctx, config) {
           messages: {
             "notfound_txt": "ERROR！找不到文件或文件为空！指令：{0}",
             "List_of_emojis": "可用的表情包指令：{0}",
-            "notallowednum": "{0}次超出单次返回最大值\n请使用指令：{1} -n {2}",
+            "notallowednum": `{0}次超出单次返回最大值\n请使用指令：{1} -${config.optionsname} {2}`,
           }
         },
         [config.emojihub_onemore]: {
@@ -1078,10 +1080,10 @@ function apply(ctx, config) {
   ctx.on('ready', () => {
     config.MoreEmojiHubList.forEach(({ command, source_url }) => {
       ctx.command(`${config.emojihub_bili_command}/${command} <local_picture_name:text>`)
-        .option('numpics', '-n <numpics:number> 指定返回数量')
+        .option('numpics', `-${config.optionsname} <numpics:number> 指定返回数量`)
         .action(async ({ session, options }, local_picture_name) => {
           if (options?.numpics) {
-            await sendMultipleEmojis(session, `${command} ${local_picture_name || ''}`.trim(), options.num);
+            await sendMultipleEmojis(session, `${command} ${local_picture_name || ''}`.trim(), options.numpics);
             return;
           }
           const imageResult = await determineImagePath(source_url, config, session.channelId, command, ctx, local_picture_name);
