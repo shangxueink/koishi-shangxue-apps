@@ -1079,7 +1079,7 @@ function apply(ctx, config) {
 
   ctx.on('ready', () => {
     config.MoreEmojiHubList.forEach(({ command, source_url }) => {
-      ctx.command(`${config.emojihub_bili_command}/${command} <local_picture_name:text>`)
+      ctx.command(`${config.emojihub_bili_command}/${command} <local_picture_name:string>`)
         .option('numpics', `-${config.optionsname} <numpics:number> 指定返回数量`)
         .action(async ({ session, options }, local_picture_name) => {
           if (options?.numpics) {
