@@ -1,5 +1,5 @@
 {
-  "name": "@shangxueink/koishi-plugin-commands-refresh",
+  "name": "koishi-plugin-commands-refresh",
   "description": "Override Command Config for Koishi",
   "version": "3.5.4",
   "main": "lib/index.js",

@@ -27,72 +27,43 @@ module.exports = __toCommonJS(src_exports);
 var import_koishi = require("koishi");
 
 // src/locales/zh-CN.yml
-var zh_CN_default = {
-  "commands.command":
-  {
-    description: "指令管理",
-    options: {
-      create: "创建指令",
-      alias: "添加指令别名",
-      unalias: "移除指令别名",
-      name: "修改显示名称",
-      parent: "设置父指令",
-      "parent.": "移除父指令",
-      option: "修改选项"
-    },
-    messages: {
-      "not-found": "指令不存在。",
-      created: "已创建指令。",
-      updated: "已更新指令配置。"
-    }
-  }
-};
+var zh_CN_default = { "commands.command": { description: "指令管理", options: { create: "创建指令", alias: "添加指令别名", unalias: "移除指令别名", name: "修改显示名称", parent: "设置父指令", "parent.": "移除父指令", option: "修改选项" }, messages: { "not-found": "指令不存在。", created: "已创建指令。", updated: "已更新指令配置。" } } };
 
 // src/command.ts
 function command_default(ctx, manager) {
   ctx.i18n.define("zh-CN", zh_CN_default);
-  try {
-    ctx.command("command <name>", { authority: 4, checkArgCount: true })
-      .option("create", "-c")
-      .option("alias", "-a [name]")
-      .option("unalias", "-A [name]")
-      .option("rename", "-n [name]")
-      .option("parent", "-p [name]")
-      .option("parent", "-P, --no-parent", { value: "" }).action(async ({ options, session }, name) => {
-        if (options.create)
-          manager.create(name);
-        if (!ctx.$commander.resolve(name)) {
-          return session.text(".not-found");
-        }
-        const snapshot = manager.ensure(name);
-        const command = snapshot.command;
-        if (typeof options.alias === "string") {
-          const item = command._aliases[options.rename] || {};
-          const aliases = { ...command._aliases, [options.alias]: item };
-          manager.alias(command, aliases, true);
-          delete options.alias;
-        }
-        if (typeof options.unalias === "string") {
-          const aliases = { ...command._aliases };
-          delete aliases[options.unalias];
-          manager.alias(command, aliases, true);
-          delete options.unalias;
-        }
-        if (typeof options.rename === "string") {
-          const item = command._aliases[options.rename] || {};
-          const aliases = { [options.rename]: item, ...command._aliases };
-          manager.alias(command, aliases, true);
-          delete options.rename;
-        }
-        if (typeof options.parent === "string") {
-          manager.teleport(command, options.parent, true);
-          delete options.parent;
-        }
-        return options.create ? session.text(".created") : session.text(".updated");
-      });
-  } catch (error) {
-    ctx.logger.info(`存在重复指令，无法注册：指令名称：command`);
-  }
+  ctx.command("command <name>", { authority: 4, checkArgCount: true }).option("create", "-c").option("alias", "-a [name]").option("unalias", "-A [name]").option("rename", "-n [name]").option("parent", "-p [name]").option("parent", "-P, --no-parent", { value: "" }).action(async ({ options, session }, name) => {
+    if (options.create)
+      manager.create(name);
+    if (!ctx.$commander.resolve(name)) {
+      return session.text(".not-found");
+    }
+    const snapshot = manager.ensure(name);
+    const command = snapshot.command;
+    if (typeof options.alias === "string") {
+      const item = command._aliases[options.rename] || {};
+      const aliases = { ...command._aliases, [options.alias]: item };
+      manager.alias(command, aliases, true);
+      delete options.alias;
+    }
+    if (typeof options.unalias === "string") {
+      const aliases = { ...command._aliases };
+      delete aliases[options.unalias];
+      manager.alias(command, aliases, true);
+      delete options.unalias;
+    }
+    if (typeof options.rename === "string") {
+      const item = command._aliases[options.rename] || {};
+      const aliases = { [options.rename]: item, ...command._aliases };
+      manager.alias(command, aliases, true);
+      delete options.rename;
+    }
+    if (typeof options.parent === "string") {
+      manager.teleport(command, options.parent, true);
+      delete options.parent;
+    }
+    return options.create ? session.text(".created") : session.text(".updated");
+  });
 }
 __name(command_default, "default");
 
@@ -189,15 +160,11 @@ var CommandManager = class {
   refresh;
   snapshots = /* @__PURE__ */ Object.create(null);
   init(command) {
-    if (!this.config[command.name]) return;
-
+    if (!this.config[command.name])
+      return;
     this._tasks[command.name] ||= this.ctx.setTimeout(() => {
       delete this._tasks[command.name];
-      try {
-        this.accept(command, this.config[command.name], true);
-      } catch (error) {
-        this.ctx.logger.info(`存在重复指令，无法注册：指令名称：${command.name}`);
-      }
+      this.accept(command, this.config[command.name], true);
     }, 0);
   }
   ensure(name, create, patch) {
@@ -286,12 +253,6 @@ var CommandManager = class {
     }
   }
   create(name) {
-    // 检查指令是否已存在
-    if (this.ctx.$commander.get(name)) {
-      this.ctx.logger.info(`存在重复指令，无法注册：指令名称：${name}`);
-      return;
-    }
-
     this.ctx.command(name);
     this.ensure(name, true);
     this.config[name] = { create: true };
