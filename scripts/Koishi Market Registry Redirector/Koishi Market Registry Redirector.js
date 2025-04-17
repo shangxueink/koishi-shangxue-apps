@@ -1,15 +1,19 @@
 // ==UserScript==
 // @name         Koishi Market Registry Redirector
-// @namespace    https://koishi.chat/
+// @namespace    https://github.com/shangxueink
 // @version      1.1
-// @description  将 Koishi 注册表请求重定向到更新的镜像，使用 yumetsuki.moe 提供的镜像源。
+// @description  将 Koishi 市场注册表请求重定向到 yumetsuki.moe 提供的镜像源，以获取更新的插件列表。
 // @author       shangxueink
-// @license      MIT 
+// @license      MIT
 // @match        https://koishi.chat/zh-CN/market/*
 // @match        https://koishi.chat/market/*
 // @grant        none
 // @run-at       document-start
+// @homepageURL  https://github.com/shangxueink/koishi-shangxue-apps/tree/main/scripts/Koishi%20Market%20Registry%20Redirector
+// @updateURL    https://update.greasyfork.org/scripts/533105/Koishi%20Market%20Registry%20Redirector.meta.js
+// @downloadURL  https://update.greasyfork.org/scripts/533105/Koishi%20Market%20Registry%20Redirector.user.js
 // @icon         https://koishi.chat/logo.png
+// @supportURL   https://github.com/shangxueink/koishi-shangxue-apps/issues
 // ==/UserScript==
 
 
