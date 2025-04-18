@@ -410,7 +410,13 @@ async function uploadImageToChannel(ctx, consoleinfo, data, appId, secret, chann
 
 async function getImageAsBase64(imagePath) {
   try {
-    const imageBuffer = fs.readFileSync(imagePath);
+    let filePath = imagePath;
+    // 检查 imagePath 是否是 file:// URL
+    if (imagePath.startsWith('file://')) {
+      // 如果是，则转换为本地文件路径
+      filePath = url.fileURLToPath(imagePath);
+    }
+    const imageBuffer = fs.readFileSync(filePath);
     // 将图片 buffer 转换为 Base64 字符串
     const base64String = imageBuffer.toString('base64');
     return base64String;
