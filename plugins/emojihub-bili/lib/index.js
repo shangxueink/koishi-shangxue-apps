@@ -114,8 +114,8 @@ exports.Config = Schema.intersect([
       Schema.const('userId').description('按用户ID区分'),
     ]).role('radio').default("channelId").description('`再来一张`指令的区分逻辑。<br>按频道ID区分：触发指令后发送当前频道最后触发的表情包<br>按用户ID区分：触发指令后发送当前用户最后触发的表情包'),
 
-    searchSubfolders: Schema.boolean().description("本地发图，输入提供文件名称参数时，是否递归搜索文件夹。<br>`开启后 对于本地文件夹地址 会搜索其子文件夹内全部的图片`").default(true),
-    searchSubfoldersWithfilename: Schema.boolean().description("递归搜索时，是否把`子文件夹`的名称纳入名称匹配范围<br>例如：`C:/中文/456.png`被视作`中文.456.png`").default(false),
+    searchSubfolders: Schema.boolean().description("本地发图，输入文件名称参数时，是否递归搜索文件夹。<br>`开启后 对于本地文件夹地址 会搜索其子文件夹内全部的图片`").default(true),
+    searchSubfoldersWithfilename: Schema.boolean().description("递归搜索时，是否把`子文件夹`的名称纳入名称匹配范围<br>例如：`C:/中文/456.png`被视作`中文456.png`文件名处理匹配").default(false),
     localPictureToName: Schema.string().role('textarea', { rows: [4, 4] })
       .description("对于本地图片/文件，是否输出文件名<br>仅图片：`${IMAGE}`<br>图+文件名：`${IMAGE}\\n${NAME}`<br>文件名+图：`${NAME}\\n${IMAGE}`<br>文本+变量：`今天你的幸运神：${NAME}\\n${IMAGE}`<br>全部变量示例：`${IMAGE}\\n文件名称：${NAME}\\n文件大小：${SIZE}\\n修改日期：${TIME}\\n文件路径：${PATH}`<br>其中`\\n`就是换行，可以写字也可以直接回车。<br>可用替换变量有：IMAGE、 NAME、 SIZE、 TIME、 PATH<br>仅对指令发送本地图片有效。<br>更多说明，详见[➩项目README](https://github.com/shangxueink/koishi-shangxue-apps/tree/main/plugins/emojihub-bili)")
       .default("${IMAGE}"),
@@ -589,7 +589,7 @@ function getAllFiles(dir, fileList = []) {
 function getVirtualFilename(filePath, rootFolderPath) {
   const relativePath = path.relative(rootFolderPath, filePath);
   const parts = relativePath.split(path.sep);
-  const filename = parts.join('.'); // 使用点号连接路径部分
+  const filename = parts.join(''); // 使用点号连接路径部分
   return filename;
 }
 
@@ -610,9 +610,8 @@ async function getRandomImageFromFolder(folderPath, config, channelId, command, 
     return { imageUrl: null, isLocal: false };
   }
 
-  // 如果提供了 local_picture_name ，则根据关键词进行匹配
-  if (local_picture_name) {
-    const keyword = local_picture_name.toLowerCase();
+  // 如果提供了 local_picture_name 数组，则根据关键词进行匹配
+  if (local_picture_name?.length > 0) {
     files = files.filter(file => {
       let filenameToMatch;
       if (config.searchSubfoldersWithfilename && config.searchSubfolders) {
@@ -622,10 +621,12 @@ async function getRandomImageFromFolder(folderPath, config, channelId, command, 
         // 默认情况下只匹配文件名
         filenameToMatch = path.basename(file);
       }
-      return filenameToMatch.toLowerCase().includes(keyword);
+      const filenameLower = filenameToMatch.toLowerCase();
+      // 检查文件名是否包含所有关键词
+      return local_picture_name.every(keyword => filenameLower.includes(keyword.toLowerCase()));
     });
     if (files.length === 0) {
-      logError(`未找到匹配关键词 "${local_picture_name}" 的图片文件`);
+      logError(`未找到匹配关键词 "${local_picture_name.join(' ')}" 的图片文件`);
       return { imageUrl: null, isLocal: false };
     }
   }
@@ -1104,11 +1105,12 @@ function apply(ctx, config) {
 
   ctx.on('ready', () => {
     config.MoreEmojiHubList.forEach(({ command, source_url }) => {
-      ctx.command(`${config.emojihub_bili_command}/${command} <local_picture_name:string>`)
+      ctx.command(`${config.emojihub_bili_command}/${command} [local_picture_name...]`)
+        .example(`${command} 关键词1 关键词2 关键词3`)
         .option('numpics', `-${config.optionsname} <numpics:number> 指定返回数量`)
-        .action(async ({ session, options }, local_picture_name) => {
+        .action(async ({ session, options }, ...local_picture_name) => {
           if (options?.numpics) {
-            await sendMultipleEmojis(session, `${command} ${local_picture_name || ''}`.trim(), options.numpics);
+            await sendMultipleEmojis(session, `${command} ${local_picture_name.join(' ')}`.trim(), options.numpics);
             return;
           }
           const imageResult = await determineImagePath(source_url, config, session.channelId, command, ctx, local_picture_name);
