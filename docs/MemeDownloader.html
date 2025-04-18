@@ -6,6 +6,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Meme Downloader</title>
   <link rel="stylesheet" href="./css/MemeDownloader.css">
+  <script src="./js/MemeDownloader/StreamSaver.min.js"></script>
+  <script src="./js/MemeDownloader/ponyfill.min.js"></script>
+
   <script src="./js/MemeDownloader/vue.global.js"></script>
   <script src="./js/MemeDownloader/jszip.min.js"></script>
   <script src="./js/MemeDownloader/FileSaver.min.js"></script>
@@ -338,23 +341,34 @@
         };
 
         const processDownload = async (task) => {
-          const maxConcurrent = 20; // 最大并行下载数
-          const zip = new JSZip();
+          const maxConcurrent = 15; // 并行下载数
+          const bookName = task.book.replace('.txt', '');
+          let currentLine = 0;
+          let completed = 0;
+          let isDownloading = true;
+          let isPaused = false;
 
-          while (task.currentLine < task.lines.length && task.isDownloading && !task.isPaused) {
-            // 计算当前批次需要下载的数量
-            const remainingLines = task.lines.length - task.currentLine;
-            const batchSize = Math.min(maxConcurrent, remainingLines);
-            // 创建当前批次的下载任务数组
-            const downloadPromises = [];
+          // 初始化 StreamSaver
+          if (typeof streamSaver === 'undefined') {
+            alert('StreamSaver is not defined. Make sure it is loaded correctly.');
+            return;
+          }
 
-            for (let i = 0; i < batchSize; i++) {
-              if (task.currentLine + i < task.lines.length) {
-                const line = task.lines[task.currentLine + i].trim();
+          const fileStream = streamSaver.createWriteStream(`${bookName}.zip`);
+          const writer = fileStream.getWriter();
+          const encoder = new TextEncoder(); // 用于将字符串转换为 Uint8Array
+
+          try {
+            while (currentLine < task.lines.length && isDownloading && !isPaused) {
+              const batchSize = Math.min(maxConcurrent, task.lines.length - currentLine);
+              const downloadPromises = [];
+
+              for (let i = 0; i < batchSize; i++) {
+                const line = task.lines[currentLine + i].trim();
                 if (line) {
                   const url = processUrl(line);
-                  const imageName = `${task.book.replace('.txt', '')}_${extractFilenameFromUrl(url)}`;
-                  // 添加下载任务到数组 
+                  const imageName = `${bookName}_${extractFilenameFromUrl(url)}`;
+
                   const downloadPromise = (async () => {
                     try {
                       const response = await fetch(url, {
@@ -364,43 +378,123 @@
                         },
                         referrerPolicy: 'no-referrer'
                       });
-                      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+
+                      if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                      }
+
                       const blob = await response.blob();
-                      zip.file(imageName, blob);
-                      task.completed++;
-                      // 定期生成部分 ZIP 内容释放内存
-                      if (task.completed % 20 === 0) {
-                        const content = await zip.generateAsync({ type: "blob" });
-                        // 这里可以保存临时文件或直接开始下载
+                      const arrayBuffer = await blob.arrayBuffer();
+                      const uint8Array = new Uint8Array(arrayBuffer);
+
+                      // 构建 ZIP 文件条目的头部和内容
+                      const zipEntryHeader = createZipEntryHeader(imageName, uint8Array.length);
+                      const zipEntryData = new Uint8Array([...zipEntryHeader, ...uint8Array]);
+
+                      // 写入流
+                      await writer.write(zipEntryData);
+
+                      completed++;
+                      task.completed = completed; // 更新任务进度
+
+                      // 更新前端进度 
+                      // 这里可以调整更新频率
+                      if (completed % 5 === 0) {
+                        console.log(`Downloaded: ${completed}/${task.lines.length}`);
                       }
                     } catch (error) {
                       console.error(`Error downloading ${url}: ${error.message}`);
                     }
                   })();
+
                   downloadPromises.push(downloadPromise);
                 }
               }
+
+              await Promise.all(downloadPromises);
+              currentLine += batchSize;
             }
-            // 等待当前批次的所有下载任务完成
-            await Promise.all(downloadPromises);
 
-            // 更新当前行索引
-            task.currentLine += batchSize;
-            // 添加短暂延迟，防止UI阻塞 
-            await new Promise(resolve => setTimeout(resolve, 100));
-          }
+            // 添加 ZIP 文件结束标识
+            const zipEnd = createZipEnd();
+            await writer.write(zipEnd);
 
-          if (task.currentLine >= task.lines.length) {
-            task.isDownloading = false;
-            // 最终生成并下载ZIP文件 
-            const content = await zip.generateAsync({ type: "blob" });
-            saveAs(content, `${task.book.replace('.txt', '')}.zip`);
+            // 关闭流
+            await writer.close();
+            isDownloading = false;
             downloadTasks.value.delete(task.book);
-          } else if (!task.isPaused) {
-            // 如果还有内容且未暂停，继续处理
-            setTimeout(() => processDownload(task), 100);
+            // alert(`${bookName}.zip 下载完成！`);
+
+          } catch (error) {
+            console.error('StreamSaver error:', error);
+            alert('下载过程中发生错误！');
+          } finally {
+            task.isDownloading = false;
+            await writer.close();
           }
         };
+
+        // 创建 ZIP 文件条目头部
+        function createZipEntryHeader(filename, fileSize) {
+          const filenameBytes = new TextEncoder().encode(filename);
+          const header = new Uint8Array(30 + filenameBytes.length);
+
+          let offset = 0;
+          // Local file header signature
+          header[offset++] = 0x50; header[offset++] = 0x4B; header[offset++] = 0x03; header[offset++] = 0x04;
+          // Version needed to extract
+          header[offset++] = 0x14; header[offset++] = 0x00;
+          // General purpose bit flag
+          header[offset++] = 0x00; header[offset++] = 0x00;
+          // Compression method (0 for stored)
+          header[offset++] = 0x00; header[offset++] = 0x00;
+          // Last mod file time
+          header[offset++] = 0x00; header[offset++] = 0x00;
+          // Last mod file date
+          header[offset++] = 0x00; header[offset++] = 0x00;
+          // CRC-32 (dummy value, will be calculated later)
+          header[offset++] = 0x00; header[offset++] = 0x00; header[offset++] = 0x00; header[offset++] = 0x00;
+          // Compressed size
+          header[offset++] = fileSize & 0xFF; header[offset++] = (fileSize >> 8) & 0xFF; header[offset++] = (fileSize >> 16) & 0xFF; header[offset++] = (fileSize >> 24) & 0xFF;
+          // Uncompressed size
+          header[offset++] = fileSize & 0xFF; header[offset++] = (fileSize >> 8) & 0xFF; header[offset++] = (fileSize >> 16) & 0xFF; header[offset++] = (fileSize >> 24) & 0xFF;
+          // Filename length
+          header[offset++] = filenameBytes.length & 0xFF; header[offset++] = (filenameBytes.length >> 8) & 0xFF;
+          // Extra field length
+          header[offset++] = 0x00; header[offset++] = 0x00;
+
+          // Filename
+          for (let i = 0; i < filenameBytes.length; i++) {
+            header[offset++] = filenameBytes[i];
+          }
+
+          return header;
+        }
+
+        // 创建 ZIP 文件结束标识
+        function createZipEnd() {
+          const end = new Uint8Array(22);
+          let offset = 0;
+
+          // End of central directory signature
+          end[offset++] = 0x50; end[offset++] = 0x4B; end[offset++] = 0x05; end[offset++] = 0x06;
+          // Number of this disk
+          end[offset++] = 0x00; end[offset++] = 0x00;
+          // Number of the disk with the start of the central directory
+          end[offset++] = 0x00; end[offset++] = 0x00;
+          // Total number of entries in the central directory on this disk
+          end[offset++] = 0x00; end[offset++] = 0x00;
+          // Total number of entries in the central directory
+          end[offset++] = 0x00; end[offset++] = 0x00;
+          // Size of the central directory
+          end[offset++] = 0x00; end[offset++] = 0x00; end[offset++] = 0x00; end[offset++] = 0x00;
+          // Offset of start of central directory with respect to the starting disk number
+          end[offset++] = 0x00; end[offset++] = 0x00; end[offset++] = 0x00; end[offset++] = 0x00;
+          // Comment length
+          end[offset++] = 0x00; end[offset++] = 0x00;
+
+          return end;
+        }
 
 
         const stopDownload = () => {
