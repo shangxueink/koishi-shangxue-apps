@@ -1,10 +1,10 @@
 // ==UserScript==
 // @name         Bilibili专栏原图链接提取2024改版
 // @namespace    https://github.com/shangxueink
-// @version      3.3
+// @version      3.4
 // @description  PC端B站专栏图片默认是经压缩过的webp。此脚本帮助用户点击按钮后获取哔哩哔哩专栏中所有原图的直链，方便使用其他工具批量下载原图。
 // @author       shangxueink
-// @license      GPLv3
+// @license      MIT
 // @match        https://www.bilibili.com/read/cv*
 // @match        https://www.bilibili.com/opus/*
 // @match        https://t.bilibili.com/*
@@ -15,6 +15,14 @@
 // @downloadURL https://update.greasyfork.org/scripts/521666/Bilibili%E4%B8%93%E6%A0%8F%E5%8E%9F%E5%9B%BE%E9%93%BE%E6%8E%A5%E6%8F%90%E5%8F%962024%E6%94%B9%E7%89%88.user.js
 // @updateURL https://update.greasyfork.org/scripts/521666/Bilibili%E4%B8%93%E6%A0%8F%E5%8E%9F%E5%9B%BE%E9%93%BE%E6%8E%A5%E6%8F%90%E5%8F%962024%E6%94%B9%E7%89%88.meta.js
 // ==/UserScript==
+
+/*
+ * （仅供示例） @match 的地址：
+ * https://www.bilibili.com/read/cv123456/
+ * https://t.bilibili.com/789012/
+ * https://space.bilibili.com/12345678/dynamic
+ * https://www.bilibili.com/opus/9101112
+ */
 
 (function () {
     'use strict';
@@ -161,11 +169,38 @@
     }
 
     function download_txt(filename, text) {
+        // 获取当前URL
+        const currentUrl = window.location.href;
+        let customFilename = filename;
+
+        // 根据URL格式生成特定的文件名
+        if (currentUrl.includes('/opus/')) {
+            const opusId = currentUrl.match(/\/opus\/(\d+)/);
+            if (opusId && opusId[1]) {
+                customFilename = `bili_img_urls.opus.${opusId[1]}.txt`;
+            }
+        } else if (currentUrl.includes('/read/cv')) {
+            const cvId = currentUrl.match(/\/read\/cv(\d+)/);
+            if (cvId && cvId[1]) {
+                customFilename = `bili_img_urls.read.cv${cvId[1]}.txt`;
+            }
+        } else if (currentUrl.includes('t.bilibili.com/')) {
+            const tId = currentUrl.match(/t\.bilibili\.com\/(\d+)/);
+            if (tId && tId[1]) {
+                customFilename = `bili_img_urls.t.${tId[1]}.txt`;
+            }
+        } else {
+            // 对于其他URL格式，使用默认文件名
+            customFilename = `${filename}.txt`;
+        }
+
         let pom = document.createElement('a');
         pom.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(text));
-        pom.setAttribute('download', filename);
+        pom.setAttribute('download', customFilename);
         pom.click();
     }
+
+
 
     function downloadEachImage(urls) {
         urls.forEach((url, index) => {
