@@ -115,6 +115,7 @@ exports.Config = Schema.intersect([
     ]).role('radio').default("channelId").description('`再来一张`指令的区分逻辑。<br>按频道ID区分：触发指令后发送当前频道最后触发的表情包<br>按用户ID区分：触发指令后发送当前用户最后触发的表情包'),
 
     searchSubfolders: Schema.boolean().description("本地发图，输入提供文件名称参数时，是否递归搜索文件夹。<br>`开启后 对于本地文件夹地址 会搜索其子文件夹内全部的图片`").default(true),
+    searchSubfoldersWithfilename: Schema.boolean().description("递归搜索时，是否把`子文件夹`的名称纳入名称匹配范围<br>例如：`C:/中文/456.png`被视作`中文.456.png`").default(false),
     localPictureToName: Schema.string().role('textarea', { rows: [4, 4] })
       .description("对于本地图片/文件，是否输出文件名<br>仅图片：`${IMAGE}`<br>图+文件名：`${IMAGE}\\n${NAME}`<br>文件名+图：`${NAME}\\n${IMAGE}`<br>文本+变量：`今天你的幸运神：${NAME}\\n${IMAGE}`<br>全部变量示例：`${IMAGE}\\n文件名称：${NAME}\\n文件大小：${SIZE}\\n修改日期：${TIME}\\n文件路径：${PATH}`<br>其中`\\n`就是换行，可以写字也可以直接回车。<br>可用替换变量有：IMAGE、 NAME、 SIZE、 TIME、 PATH<br>仅对指令发送本地图片有效。<br>更多说明，详见[➩项目README](https://github.com/shangxueink/koishi-shangxue-apps/tree/main/plugins/emojihub-bili)")
       .default("${IMAGE}"),
@@ -584,6 +585,14 @@ function getAllFiles(dir, fileList = []) {
   return fileList;
 }
 
+// 获取虚拟文件名，包含子文件夹名称
+function getVirtualFilename(filePath, rootFolderPath) {
+  const relativePath = path.relative(rootFolderPath, filePath);
+  const parts = relativePath.split(path.sep);
+  const filename = parts.join('.'); // 使用点号连接路径部分
+  return filename;
+}
+
 async function getRandomImageFromFolder(folderPath, config, channelId, command, ctx, local_picture_name) {
   if (!fs.existsSync(folderPath)) {
     logError(`错误:路径不存在： ${folderPath}`);
@@ -604,7 +613,17 @@ async function getRandomImageFromFolder(folderPath, config, channelId, command, 
   // 如果提供了 local_picture_name ，则根据关键词进行匹配
   if (local_picture_name) {
     const keyword = local_picture_name.toLowerCase();
-    files = files.filter(file => path.basename(file).toLowerCase().includes(keyword));
+    files = files.filter(file => {
+      let filenameToMatch;
+      if (config.searchSubfoldersWithfilename && config.searchSubfolders) {
+        // 获取虚拟文件名，包含子文件夹名称
+        filenameToMatch = getVirtualFilename(file, folderPath);
+      } else {
+        // 默认情况下只匹配文件名
+        filenameToMatch = path.basename(file);
+      }
+      return filenameToMatch.toLowerCase().includes(keyword);
+    });
     if (files.length === 0) {
       logError(`未找到匹配关键词 "${local_picture_name}" 的图片文件`);
       return { imageUrl: null, isLocal: false };
