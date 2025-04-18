@@ -449,7 +449,7 @@ async function determineImagePath(txtPath, config, channelId, command, ctx, loca
     logInfoformat(config, channelId, command, `本地图片的绝对路径: ${txtPath}`);
     const stats = fs.statSync(filePath);
     return {
-      imageUrl: filePath,
+      imageUrl: url.pathToFileURL(filePath).href,
       isLocal: true,
       imageName: path.basename(filePath), // 文件名称
       imageTime: stats.mtime, // 修改时间
@@ -504,7 +504,7 @@ async function determineImagePath(txtPath, config, channelId, command, ctx, loca
     logInfoformat(config, channelId, command, `随机选择的本地图片路径: ${txtPath}`);
     const stats = fs.statSync(imageUrl);
     return {
-      imageUrl: imageUrl,
+      imageUrl: url.pathToFileURL(imageUrl).href,
       isLocal: true,
       imageName: path.basename(imageUrl),
       imageTime: stats.mtime, // 修改时间
@@ -614,7 +614,7 @@ async function getRandomImageFromFolder(folderPath, config, channelId, command, 
   logInfoformat(config, channelId, command, `使用文件夹 ${folderPath} \n发送本地图片为 ${imageUrl}`);
   const stats = fs.statSync(imageUrl);
   return {
-    imageUrl: imageUrl,
+    imageUrl: url.pathToFileURL(imageUrl).href,
     isLocal: true,
     imageName: path.basename(imageUrl),
     imageTime: stats.mtime, // 修改时间
