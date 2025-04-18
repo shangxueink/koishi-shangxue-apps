@@ -148,7 +148,7 @@ export function apply(ctx: Context, config) {
           "invalidFFmpeg": "没有安装 FFmpeg 服务！",
           "invalidFrame": "帧间隔必须是正整数",
           "waitprompt": "在 {0} 秒内发送想要处理的 GIF",
-          "invalidimage": "未检测到图片输入。",
+          "invalidimage": "未检测到图片输入，请重试。",
           "invalidGIF": "无法处理非 GIF 图片。",
           "generatefailed": "图片生成失败。",
           "invalidDirection": "无效的方向参数，请选择：左、右、上、下",
@@ -170,7 +170,7 @@ export function apply(ctx: Context, config) {
     }
   });
 
-  ctx.command(`${config.gifCommand} [gif:image]`)
+  ctx.command(`${config.gifCommand} [gif]`)
     .option('rebound', '-b, --rebound', { type: 'boolean' })
     .option('reverse', '-r, --reverse', { type: 'boolean' })
     .option('frame', '-f <frame:number>', { type: 'number' })
@@ -206,24 +206,39 @@ export function apply(ctx: Context, config) {
           return
         }
       }
+
       if (frame && (!Number.isInteger(frame) || frame <= 0)) {
         await session.send(session.text(".invalidFrame"));
         return
       }
 
-      let src = gif?.src
+      let src = (
+        h.select(gif, 'img').map(item => item.attrs.src)[0] ||
+        h.select(session.quote?.content, "img").map((a) => a.attrs.src)[0] ||
+        h.select(session.quote?.content, "mface").map((a) => a.attrs.url)[0]
+      );
+
+      if (!src) {
+        logInfo("暂未输入图片，即将交互获取图片输入");
+      } else {
+        logInfo(src.slice(0, 500));
+      }
+
       if (!src) {
         const [msgId] = await session.send(session.text(".waitprompt", [config.waitTimeout]))
         const content = await session.prompt(config.waitTimeout * 1000)
         if (content !== undefined) {
-          src = h.select(content, 'img')[0]?.attrs.src ?? h.select(content, 'mface')[0]?.attrs.url
+          src = h.select(content, 'img')[0]?.attrs.src || h.select(content, 'mface')[0]?.attrs.url
         }
         try {
           session.bot.deleteMessage(session.channelId, msgId)
-        } catch { }
+        } catch {
+          ctx.logger.warn(`在频道 ${session.channelId} 尝试撤回消息ID ${msgId} 失败。`)
+        }
       }
 
       const quote = h.quote(session.messageId)
+
       if (!src) {
         await session.send(`${quote}${session.text(".invalidimage")}`);
         return
@@ -450,7 +465,7 @@ export function apply(ctx: Context, config) {
       const img = h.img(buffer, 'image/gif');
 
       if (config.outputinformation) {
-        const info = await session.execute(`${config.gifCommand} -i ${img}`, true);
+        const info = await session.execute(`${config.gifCommand} ${img} -i`, true);
         await session.send([quote, img, `${info}`]);
         return
       } else {
@@ -458,7 +473,6 @@ export function apply(ctx: Context, config) {
         return
       }
     })
-
 
   // 颜色转换函数
   function rgbaToHex(rgba: string): string {    // rgba(255, 0, 0, 1)

@@ -1,12 +1,12 @@
 {
   "name": "koishi-plugin-gif-reverse",
   "description": "Rewind GIF images",
-  "version": "1.6.0",
+  "version": "1.6.1",
   "main": "lib/index.js",
   "typings": "lib/index.d.ts",
   "files": [
     "lib",
-    "dist"
+    "src"
   ],
   "license": "MIT",
   "keywords": [
@@ -16,7 +16,7 @@
     "gif",
     "reverse",
     "rewind",
-    "image"
+    "GIF倒放"
   ],
   "repository": {
     "type": "git",
@@ -32,8 +32,8 @@
     "koishi": "^4.17.7"
   },
   "devDependencies": {
-    "koishi-plugin-ffmpeg": "^1.1.0",
-    "koishi-plugin-canvas": "^0.2.2"
+    "koishi-plugin-canvas": "^0.2.2",
+    "koishi-plugin-ffmpeg": "^1.1.0"
   },
   "dependencies": {
     "gifuct-js": "^2.1.2"
