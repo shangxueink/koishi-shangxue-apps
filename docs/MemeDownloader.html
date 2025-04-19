@@ -8,10 +8,10 @@
   <link rel="stylesheet" href="./css/MemeDownloader.css">
   <script src="./js/MemeDownloader/StreamSaver.min.js"></script>
   <script src="./js/MemeDownloader/ponyfill.min.js"></script>
+  <script src="./js/MemeDownloader/fflate.umd.index.js"></script>
 
   <script src="./js/MemeDownloader/vue.global.js"></script>
   <script src="./js/MemeDownloader/jszip.min.js"></script>
-  <script src="./js/MemeDownloader/FileSaver.min.js"></script>
   <script src="./js/MemeDownloader/MemeDownloader.js"></script>
 </head>
 <footer style="position: fixed; top: 20px; right: 20px; text-align: right; font-size: 14px; color: #666;">
@@ -57,8 +57,7 @@
       <p>如果你希望下载自己整理的TXT内容</p>
       <p>请点击最下方的【加号】按钮，并粘贴或上传对应的TXT内容 📁。</p>
       <hr>
-      <p>再次提醒：本项目下载结果是 若干个压缩包，并不是直接返回图片</p>
-
+      <p>⚠️ 不要全选下载，这可能会导致浏览器占用过多的资源（网络请求、处理文件、打包zip...）。</p>
       <button id="selectAllBtn" @click="toggleSelectAll">全部勾选</button>
     </div>
 
@@ -341,160 +340,276 @@
         };
 
         const processDownload = async (task) => {
-          const maxConcurrent = 15; // 并行下载数
+          const MAX_CONCURRENT = 50; // 最大并行下载数
+          const BATCH_SIZE = 150; // 每个ZIP文件包含的图片数量
           const bookName = task.book.replace('.txt', '');
-          let currentLine = 0;
-          let completed = 0;
-          let isDownloading = true;
-          let isPaused = false;
-
-          // 初始化 StreamSaver
-          if (typeof streamSaver === 'undefined') {
-            alert('StreamSaver is not defined. Make sure it is loaded correctly.');
-            return;
-          }
-
-          const fileStream = streamSaver.createWriteStream(`${bookName}.zip`);
-          const writer = fileStream.getWriter();
-          const encoder = new TextEncoder(); // 用于将字符串转换为 Uint8Array
 
           try {
-            while (currentLine < task.lines.length && isDownloading && !isPaused) {
-              const batchSize = Math.min(maxConcurrent, task.lines.length - currentLine);
-              const downloadPromises = [];
+            // 活跃下载计数器
+            let activeDownloads = 0;
+            let nextLineIndex = 0;
+            let completed = 0;
+            let currentBatch = 1;
+            let currentBatchFiles = {};
+            let currentBatchCount = 0;
 
-              for (let i = 0; i < batchSize; i++) {
-                const line = task.lines[currentLine + i].trim();
-                if (line) {
-                  const url = processUrl(line);
-                  const imageName = `${bookName}_${extractFilenameFromUrl(url)}`;
+            // 跟踪ZIP创建状态，防止重复创建
+            let isCreatingZip = false;
+            // 跟踪已创建的批次
+            const processedBatches = new Set();
 
-                  const downloadPromise = (async () => {
-                    try {
-                      const response = await fetch(url, {
-                        headers: {
-                          'Referer': 'https://www.bilibili.com/',
-                          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.131 Safari/537.36'
-                        },
-                        referrerPolicy: 'no-referrer'
-                      });
+            // 获取URL中的文件扩展名
+            const getFileExtension = (url) => {
+              try {
+                // 从URL中提取文件名部分
+                const fileName = url.split('/').pop();
+                // 从文件名中提取扩展名
+                const match = fileName.match(/\.([a-zA-Z0-9]+)($|\?)/);
+                // 如果找到扩展名，返回它，否则默认为jpg
+                return match ? match[1].toLowerCase() : 'jpg';
+              } catch (error) {
+                console.warn(`无法从URL获取扩展名: ${url}`, error);
+                return 'jpg'; // 默认扩展名
+              }
+            };
 
-                      if (!response.ok) {
-                        throw new Error(`HTTP error! status: ${response.status}`);
-                      }
+            // 下载速度监控
+            let lastBytes = 0;
+            let totalBytes = 0;
+            const speedMonitor = setInterval(() => {
+              const currentBytes = Object.values(currentBatchFiles).reduce((sum, arr) => sum + arr.length, 0);
+              const newBytes = currentBytes - lastBytes;
+              totalBytes += newBytes;
+              const speedMBps = (newBytes / 1024 / 1024).toFixed(2);
+              console.log(`下载速度: ${speedMBps} MB/s, 活跃下载: ${activeDownloads}, 已完成: ${completed}/${task.lines.length}, 当前批次: ${currentBatch}`);
+              lastBytes = currentBytes;
+            }, 1000);
 
-                      const blob = await response.blob();
-                      const arrayBuffer = await blob.arrayBuffer();
-                      const uint8Array = new Uint8Array(arrayBuffer);
-
-                      // 构建 ZIP 文件条目的头部和内容
-                      const zipEntryHeader = createZipEntryHeader(imageName, uint8Array.length);
-                      const zipEntryData = new Uint8Array([...zipEntryHeader, ...uint8Array]);
-
-                      // 写入流
-                      await writer.write(zipEntryData);
-
-                      completed++;
-                      task.completed = completed; // 更新任务进度
-
-                      // 更新前端进度 
-                      // 这里可以调整更新频率
-                      if (completed % 5 === 0) {
-                        console.log(`Downloaded: ${completed}/${task.lines.length}`);
-                      }
-                    } catch (error) {
-                      console.error(`Error downloading ${url}: ${error.message}`);
-                    }
-                  })();
-
-                  downloadPromises.push(downloadPromise);
-                }
+            // 创建ZIP并下载
+            const createAndDownloadZip = async (batchFiles, batchNum) => {
+              // 检查此批次是否已处理
+              if (processedBatches.has(batchNum)) {
+                console.log(`批次 #${batchNum} 已处理，跳过`);
+                return;
               }
 
-              await Promise.all(downloadPromises);
-              currentLine += batchSize;
+              // 标记此批次为已处理
+              processedBatches.add(batchNum);
+
+              console.log(`Creating ZIP batch #${batchNum} with ${Object.keys(batchFiles).length} files`);
+
+              // 创建文件流
+              const fileStream = streamSaver.createWriteStream(`${bookName}_part${batchNum}.zip`);
+              const writer = fileStream.getWriter();
+
+              try {
+                // 使用 Promise 包装 fflate.zip 回调
+                await new Promise((resolve, reject) => {
+                  fflate.zip(batchFiles, { level: 1 }, (err, data) => {
+                    if (err) {
+                      console.error('ZIP error:', err);
+                      reject(err);
+                      return;
+                    }
+
+                    // 写入数据
+                    writer.write(new Uint8Array(data.buffer));
+                    console.log(`Wrote ${(data.length / 1024 / 1024).toFixed(2)} MB to ZIP part ${batchNum}`);
+
+                    // 关闭写入流
+                    writer.close();
+                    console.log(`ZIP part ${batchNum} completed`);
+                    resolve();
+                  });
+                });
+              } catch (error) {
+                console.error(`Error creating ZIP part ${batchNum}:`, error);
+                writer.abort();
+              }
+            };
+
+            // 检查并创建ZIP批次的函数
+            const checkAndCreateZip = async () => {
+              // 如果当前正在创建ZIP，或者当前批次没有足够的文件，则返回
+              if (isCreatingZip || currentBatchCount < BATCH_SIZE) {
+                return;
+              }
+
+              // 标记正在创建ZIP
+              isCreatingZip = true;
+
+              try {
+                // 创建当前批次的ZIP
+                const batchToProcess = { ...currentBatchFiles };
+                const batchNumToProcess = currentBatch;
+
+                // 重置当前批次
+                currentBatchFiles = {};
+                currentBatchCount = 0;
+                currentBatch++;
+
+                // 创建并下载ZIP
+                await createAndDownloadZip(batchToProcess, batchNumToProcess);
+              } finally {
+                // 完成后重置标记
+                isCreatingZip = false;
+
+                // 检查是否有新的批次需要处理
+                if (currentBatchCount >= BATCH_SIZE) {
+                  // 递归调用以处理下一个批次
+                  setTimeout(checkAndCreateZip, 0);
+                }
+              }
+            };
+
+            // 下载单个文件的函数
+            const downloadFile = async (lineIndex) => {
+              if (lineIndex >= task.lines.length || task.isPaused || !task.isDownloading) {
+                activeDownloads--;
+                return;
+              }
+
+              activeDownloads++;
+              const line = task.lines[lineIndex].trim();
+
+              if (!line) {
+                activeDownloads--;
+                // 如果当前行为空，立即处理下一行
+                if (nextLineIndex < task.lines.length) {
+                  downloadFile(nextLineIndex++);
+                }
+                return;
+              }
+
+              const url = processUrl(line);
+              // 获取文件扩展名
+              const fileExtension = getFileExtension(url);
+              // 使用正确的扩展名创建文件名
+              const imageName = `${bookName}_${lineIndex}.${fileExtension}`;
+
+              try {
+                const controller = new AbortController();
+
+                // 添加取消监听器
+                const cancelListener = () => {
+                  if (task.isPaused || !task.isDownloading) {
+                    controller.abort();
+                  }
+                };
+
+                // 每100ms检查一次是否需要取消
+                const cancelInterval = setInterval(cancelListener, 100);
+
+                const response = await fetch(url, {
+                  headers: {
+                    'Referer': 'https://www.bilibili.com/',
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.131 Safari/537.36'
+                  },
+                  referrerPolicy: 'no-referrer',
+                  signal: controller.signal
+                });
+
+                clearInterval(cancelInterval);
+
+                if (!response.ok) {
+                  throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const blob = await response.blob();
+
+                // 如果Content-Type可用，可以进一步验证文件类型
+                const contentType = response.headers.get('Content-Type');
+                if (contentType && !contentType.includes(`image/${fileExtension}`) &&
+                  fileExtension !== 'jpg' && contentType.includes('image/')) {
+                  // 记录不匹配的情况，但不改变扩展名，因为URL中的扩展名通常是正确的
+                  console.log(`警告: 内容类型 ${contentType} 与URL扩展名 .${fileExtension} 不匹配，URL: ${url}`);
+                }
+
+                const arrayBuffer = await blob.arrayBuffer();
+                const uint8Array = new Uint8Array(arrayBuffer);
+
+                // 将文件添加到当前批次
+                currentBatchFiles[imageName] = uint8Array;
+                currentBatchCount++;
+
+                completed++;
+                task.completed = completed;
+
+                // 检查是否需要创建一个ZIP批次
+                if (currentBatchCount >= BATCH_SIZE) {
+                  // 触发ZIP创建检查
+                  checkAndCreateZip();
+                }
+
+              } catch (error) {
+                if (error.name === 'AbortError') {
+                  console.log(`Download of ${url} was aborted`);
+                } else {
+                  console.error(`Error downloading ${url}: ${error.message}`);
+                }
+              } finally {
+                activeDownloads--;
+
+                // 关键部分：当一个下载完成后，立即开始下一个
+                if (nextLineIndex < task.lines.length && !task.isPaused && task.isDownloading) {
+                  downloadFile(nextLineIndex++);
+                }
+
+                // 检查是否所有下载都已完成
+                if (activeDownloads === 0 && nextLineIndex >= task.lines.length) {
+                  finishDownload();
+                }
+              }
+            };
+
+            // 完成下载的函数
+            const finishDownload = async () => {
+              clearInterval(speedMonitor);
+
+              if (task.isPaused) {
+                console.log('Download paused');
+                return;
+              }
+
+              // 处理最后一个批次（如果有文件）
+              if (currentBatchCount > 0 && !processedBatches.has(currentBatch)) {
+                await createAndDownloadZip(currentBatchFiles, currentBatch);
+              }
+
+              console.log(`全部下载完成，共 ${completed} 个文件，分为 ${processedBatches.size} 个ZIP包`);
+
+              task.isDownloading = false;
+              downloadTasks.value.delete(task.book);
+            };
+
+            // 初始启动下载任务，最多启动MAX_CONCURRENT个
+            const initialBatch = Math.min(MAX_CONCURRENT, task.lines.length);
+            for (let i = 0; i < initialBatch; i++) {
+              downloadFile(nextLineIndex++);
             }
 
-            // 添加 ZIP 文件结束标识
-            const zipEnd = createZipEnd();
-            await writer.write(zipEnd);
+            // 等待所有下载完成
+            await new Promise(resolve => {
+              const checkInterval = setInterval(() => {
+                if (activeDownloads === 0 && (nextLineIndex >= task.lines.length || task.isPaused || !task.isDownloading)) {
+                  clearInterval(checkInterval);
+                  resolve();
+                }
+              }, 500);
+            });
 
-            // 关闭流
-            await writer.close();
-            isDownloading = false;
-            downloadTasks.value.delete(task.book);
-            // alert(`${bookName}.zip 下载完成！`);
+            // 如果没有在finishDownload中处理，这里再次调用
+            if (activeDownloads === 0 && !task.isPaused && task.isDownloading) {
+              await finishDownload();
+            }
 
           } catch (error) {
-            console.error('StreamSaver error:', error);
+            console.error('Download error:', error);
             alert('下载过程中发生错误！');
-          } finally {
             task.isDownloading = false;
-            await writer.close();
+            clearInterval(speedMonitor);
           }
         };
-
-        // 创建 ZIP 文件条目头部
-        function createZipEntryHeader(filename, fileSize) {
-          const filenameBytes = new TextEncoder().encode(filename);
-          const header = new Uint8Array(30 + filenameBytes.length);
-
-          let offset = 0;
-          // Local file header signature
-          header[offset++] = 0x50; header[offset++] = 0x4B; header[offset++] = 0x03; header[offset++] = 0x04;
-          // Version needed to extract
-          header[offset++] = 0x14; header[offset++] = 0x00;
-          // General purpose bit flag
-          header[offset++] = 0x00; header[offset++] = 0x00;
-          // Compression method (0 for stored)
-          header[offset++] = 0x00; header[offset++] = 0x00;
-          // Last mod file time
-          header[offset++] = 0x00; header[offset++] = 0x00;
-          // Last mod file date
-          header[offset++] = 0x00; header[offset++] = 0x00;
-          // CRC-32 (dummy value, will be calculated later)
-          header[offset++] = 0x00; header[offset++] = 0x00; header[offset++] = 0x00; header[offset++] = 0x00;
-          // Compressed size
-          header[offset++] = fileSize & 0xFF; header[offset++] = (fileSize >> 8) & 0xFF; header[offset++] = (fileSize >> 16) & 0xFF; header[offset++] = (fileSize >> 24) & 0xFF;
-          // Uncompressed size
-          header[offset++] = fileSize & 0xFF; header[offset++] = (fileSize >> 8) & 0xFF; header[offset++] = (fileSize >> 16) & 0xFF; header[offset++] = (fileSize >> 24) & 0xFF;
-          // Filename length
-          header[offset++] = filenameBytes.length & 0xFF; header[offset++] = (filenameBytes.length >> 8) & 0xFF;
-          // Extra field length
-          header[offset++] = 0x00; header[offset++] = 0x00;
-
-          // Filename
-          for (let i = 0; i < filenameBytes.length; i++) {
-            header[offset++] = filenameBytes[i];
-          }
-
-          return header;
-        }
-
-        // 创建 ZIP 文件结束标识
-        function createZipEnd() {
-          const end = new Uint8Array(22);
-          let offset = 0;
-
-          // End of central directory signature
-          end[offset++] = 0x50; end[offset++] = 0x4B; end[offset++] = 0x05; end[offset++] = 0x06;
-          // Number of this disk
-          end[offset++] = 0x00; end[offset++] = 0x00;
-          // Number of the disk with the start of the central directory
-          end[offset++] = 0x00; end[offset++] = 0x00;
-          // Total number of entries in the central directory on this disk
-          end[offset++] = 0x00; end[offset++] = 0x00;
-          // Total number of entries in the central directory
-          end[offset++] = 0x00; end[offset++] = 0x00;
-          // Size of the central directory
-          end[offset++] = 0x00; end[offset++] = 0x00; end[offset++] = 0x00; end[offset++] = 0x00;
-          // Offset of start of central directory with respect to the starting disk number
-          end[offset++] = 0x00; end[offset++] = 0x00; end[offset++] = 0x00; end[offset++] = 0x00;
-          // Comment length
-          end[offset++] = 0x00; end[offset++] = 0x00;
-
-          return end;
-        }
 
 
         const stopDownload = () => {
