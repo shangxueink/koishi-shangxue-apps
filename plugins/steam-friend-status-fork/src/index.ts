@@ -99,10 +99,10 @@ export function apply(ctx: Context, config) {
   initBotsHeadshots(ctx);
   ctx.setInterval(function () { steamInterval(ctx, config) }, config.interval * 1000)
   ctx.command('steam-friend-status', "查询群友steam状态")
-  ctx.command('steam-friend-status/绑定steam <steamid:string>')
+  ctx.command('steam-friend-status/绑定steam <steamid:string>', "绑定steam账号")
     .option('id', '-i <id:string> 指定userid')
     .option('name', '-n <name:string> 指定usename')
-    .usage('绑定steam账号 steamid参数 可以是好友码 也可以是steamID')
+    .usage('steamid参数 可以是好友码 也可以是steamID')
     .example("绑定steam 123456789")
     .example("绑定steam 76561197960265728")
     .example("绑定steam 123456789 -i 114514 -n 上学大人")
@@ -123,22 +123,19 @@ export function apply(ctx: Context, config) {
       return
     })
 
-  ctx.command('steam-friend-status/解绑steam')
-    .usage('解绑steam账号')
+  ctx.command('steam-friend-status/解绑steam', "解绑steam账号")
     .action(async ({ session }) => {
       const result = await unbindPlayer(ctx, session)
       return result
     })
 
-  ctx.command('steam-friend-status/解绑全部steam')
-    .usage('解绑在所有群的steam账号')
+  ctx.command('steam-friend-status/解绑全部steam', '解绑在所有群的steam账号')
     .action(async ({ session }) => {
       const result = await unbindAll(ctx, session)
       return result
     })
 
-  ctx.command('steam-friend-status/steam群报 <word:text>')
-    .usage('开启或关闭群通报')
+  ctx.command('steam-friend-status/steam群报 <word:text>', "开启或关闭群通报")
     .example("steam群报 on")
     .example("steam群报 off")
     .channelFields(['usingSteam'])
@@ -170,24 +167,33 @@ export function apply(ctx: Context, config) {
       }
     })
 
-  ctx.command('steam-friend-status/更新steam')
-    .usage('更新绑定的steam用户的头像')
+  ctx.command('steam-friend-status/更新steam', "更新绑定的steam用户的头像")
     .action(async ({ session }) => {
       await updataPlayerHeadshots(ctx, config.SteamApiKey)
-      return "更新成功"
+      return "更新成功，可以使用 看看steam 指令来查看啦~"
     })
 
-  ctx.command('steam-friend-status/看看steam')
-    .usage('查看当前绑定过的玩家状态')
+  ctx.command('steam-friend-status/看看steam', "查看当前绑定过的玩家状态")
     .action(async ({ session }) => {
       // 获取群组昵称
       const { channelId, bot, event } = session;
-      const groupList = await bot.getGuildList();
-      const groups = groupList.data;
-      const channelName = getNameFromChannelId(groups, channelId);
-      if (channelName) {
-        ctx.database.set('channel', { id: session.channelId }, { channelName: channelName })
+      let channelName = "当前群组";
+
+      if (typeof bot.getGuildList === 'function') {
+        try {
+          const groupList = await bot.getGuildList();
+          const groups = groupList.data;
+          channelName = getNameFromChannelId(groups, channelId);
+          if (channelName) {
+            ctx.database.set('channel', { id: session.channelId }, { channelName: channelName })
+          }
+        } catch (error) {
+          console.error("Error getting guild list:", error);
+          channelName = "当前群组"; // 或者其他默认值
+        }
       }
+
+
       const allUserData = await ctx.database.get('SteamUser', {})
       const users = await selectUsersByGroup(allUserData, session.event.channel.id)
       if (users.length === 0) {
@@ -195,22 +201,16 @@ export function apply(ctx: Context, config) {
       }
       const data = await getSteamUserInfoByDatabase(ctx, users, config.SteamApiKey)
       if (config.showcardmode === "1") {
-        return await getFriendStatusImg(ctx, data, session.event.selfId)
+        return await getFriendStatusImg(ctx, data, session.event.selfId);
       }
       else {
         await getGroupHeadshot(ctx, session.event.channel.id)
-        // 获取群组昵称
-        const { channelId, bot, event } = session;
-        const groupList = await bot.getGuildList();
-        const groups = groupList.data;
-        const channelName = getNameFromChannelId(groups, channelId);
-        return await getFriendStatusImg(ctx, data, session.event.selfId, session.event.channel.id, channelName)
+        return await getFriendStatusImg(ctx, data, session.selfId, session.event.channel.id, channelName);
       }
 
     })
 
-  ctx.command('steam-friend-status/steam信息')
-    .usage('查看自己的好友码和ID')
+  ctx.command('steam-friend-status/steam信息', "查看自己的好友码和ID")
     .action(async ({ session }) => {
       return `你的好友码为: ${await getSelfFriendcode(ctx, session)}`
     })
