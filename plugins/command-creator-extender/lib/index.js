@@ -142,8 +142,20 @@ async function apply(ctx, config) {
         const [currentCommand, ...args] = content.trim().split(/\s+/);
         const remainingArgs = args.join(" ");
 
-        const prefixes = session.app.koishi.config.prefix || ctx.root.options.prefix || [];
+        let prefixes = session.app.koishi.config.prefix || ctx.root.options.prefix || [];
         if (typeof prefixes === 'string') prefixes = [prefixes];
+        /*
+        {
+  column: 42,
+  file: 'D:\\QQbots\\QQ_bots\\koishing\\coding\\koishi-a\\koishi-app\\external\\koishi-shangxue-apps\\plugins\\command-creator-extender\\lib\\index.js',
+  length: 8,
+  line: 146,
+  lineText: "        if (typeof prefixes === 'string') prefixes = [prefixes];",
+  namespace: '',
+  suggestion: ''
+}
+This assignment will throw because "prefixes" is a constant         
+         */
         // 查找匹配的原始指令
         const mappings = config.table2.filter(item => {
           // 如果 rawCommand 已经包含了前缀，则直接匹配
@@ -375,6 +387,7 @@ async function apply(ctx, config) {
     }
   });
 }
+
 
 exports.apply = apply;
 exports.Config = Config;
