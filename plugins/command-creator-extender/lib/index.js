@@ -99,7 +99,8 @@ const Config = Schema.intersect([
         Schema.object({
           botId: Schema.string().description("机器人ID"),
           channelId: Schema.string().description("频道ID"),
-          executecommand: Schema.string().description("执行指令"),
+          iscommand: Schema.boolean().description("是否为指令").default(true),
+          executecommand: Schema.string().description("内容"),
           scheduletime: Schema.string().role('datetime').description("定时时间"),
           every: Schema.union([
             Schema.const('once').description('仅一次'),
@@ -111,7 +112,7 @@ const Config = Schema.intersect([
             Schema.const('month').description('每月'),
             Schema.const('year').description('每年'),
           ]).role('radio').description("执行周期").default("once"),
-        })).role('table').description("schedule 定时表<br>不受`table2`指令映射表影响"),
+        })).role('table').description("schedule 定时表<br>不受`table2`指令映射表影响<br>勾选`是否为指令`则定时调用此指令，不勾选`是否为指令`则直接发送`内容`（元素消息）"),
     }),
     Schema.object({}),
   ]),
@@ -130,6 +131,7 @@ async function apply(ctx, config) {
         logger.info(message, data);
       }
     }
+
     ////////////////////////////////////////映射调用设置////////////////////////////////////////////////////////////////
 
     if (config.enabletable2) {
@@ -143,19 +145,9 @@ async function apply(ctx, config) {
         const remainingArgs = args.join(" ");
 
         let prefixes = session.app.koishi.config.prefix || ctx.root.options.prefix || [];
-        if (typeof prefixes === 'string') prefixes = [prefixes];
-        /*
-        {
-  column: 42,
-  file: 'D:\\QQbots\\QQ_bots\\koishing\\coding\\koishi-a\\koishi-app\\external\\koishi-shangxue-apps\\plugins\\command-creator-extender\\lib\\index.js',
-  length: 8,
-  line: 146,
-  lineText: "        if (typeof prefixes === 'string') prefixes = [prefixes];",
-  namespace: '',
-  suggestion: ''
-}
-This assignment will throw because "prefixes" is a constant         
-         */
+        if (typeof prefixes === 'string') {
+          prefixes = [prefixes];
+        }
         // 查找匹配的原始指令
         const mappings = config.table2.filter(item => {
           // 如果 rawCommand 已经包含了前缀，则直接匹配
@@ -259,19 +251,20 @@ This assignment will throw because "prefixes" is a constant
       try {
         const session = createSession(bot, task);
         await ctx.emit(session, 'message-created');
-        const result = await session.execute(task.executecommand);
-        logInfo(task.executecommand);
-        logInfo(result);
-        if (result === undefined) {
-          logger.warn(`[任务${index}] 指令执行无返回: ${task.executecommand}`);
+        if (task.iscommand) {
+          await session.execute(task.executecommand);
+          logInfo(task.executecommand);
+        } else {
+          await session.send(task.executecommand);
+          logInfo(`[任务${index}] 发送消息: ${task.executecommand}`);
         }
-
         logInfo(`任务执行成功 #${index}`);
       } catch (error) {
         logger.error(`[任务${index}] 执行失败: ${error.message}`);
         logger.error(error.stack);
       }
     }
+
 
     // 计算下一次执行时间
     function getNextTime(task, now) {
@@ -339,10 +332,13 @@ This assignment will throw because "prefixes" is a constant
 
           const delay = nextTime.getTime() - now.getTime();
 
+          const taskType = task.iscommand ? 'command' : 'content';
+          const taskContent = task.executecommand; // 获取执行内容
+
           logInfo(`初始化定时任务 #${index}`, {
             bot: task.botId,
             executeAt: `${nextTime}`,
-            command: task.executecommand,
+            [taskType]: taskContent, // 使用动态键名
             every: task.every
           });
 
@@ -356,7 +352,9 @@ This assignment will throw because "prefixes" is a constant
               const nextDelay = nextTime.getTime() - now.getTime();
 
               logInfo(`下次执行时间 #${index}`, {
+                bot: task.botId,
                 executeAt: `${nextTime}`,
+                [taskType]: taskContent, // 使用动态键名
                 every: task.every
               });
 
@@ -378,7 +376,6 @@ This assignment will throw because "prefixes" is a constant
         }
       });
     }
-
 
     if (config.enablescheduletable) {
       logger.info('定时系统初始化...');
