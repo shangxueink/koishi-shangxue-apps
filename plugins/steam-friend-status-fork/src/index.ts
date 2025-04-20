@@ -67,6 +67,7 @@ export const Config = Schema.intersect([
         "6": "🎮 想玩"
       }
     ).description("steamstatus").experimental(),
+    loggerinfo: Schema.boolean().default(false).description("日志调试模式"),
   }).description("开发者设置"),
 ])
 
@@ -199,7 +200,26 @@ export function apply(ctx: Context, config) {
       if (users.length === 0) {
         return '本群无人绑定'
       }
-      const data = await getSteamUserInfoByDatabase(ctx, users, config.SteamApiKey)
+      let data;
+      try {
+        data = await getSteamUserInfoByDatabase(ctx, users, config.SteamApiKey);
+        if (!data) {
+          ctx.logger.warn("获取 Steam 用户信息失败，可能是因为请求过于频繁。请稍后再试。");
+          return;
+        }
+      } catch (error) {
+        ctx.logger.error(error);
+        if (error.response && error.response.status === 429) {
+          ctx.logger.warn("Steam API 请求过于频繁，请稍后再试。");
+          return;
+        } else {
+          return "获取 Steam 用户信息时发生错误：" + error.message;
+        }
+      }
+
+
+
+      logInfo(data)
       if (config.showcardmode === "1") {
         return await getFriendStatusImg(ctx, data, session.event.selfId);
       }
@@ -725,4 +745,9 @@ export function apply(ctx: Context, config) {
     fs.writeFileSync(filepath, Buffer.from(userheadshot))
   }
 
+  function logInfo(...args: any[]) {
+    if (config.loggerinfo) {
+      (ctx.logger.info as (...args: any[]) => void)(...args);
+    }
+  }
 }
