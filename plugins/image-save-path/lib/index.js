@@ -197,10 +197,9 @@ exports.Config = Schema.intersect([
         {
           prefix: Schema.string().description('前缀'),
           suffix: Schema.string().description('后缀'),
-          extension: Schema.union(['.jpg', '.png', '.gif', '.jpeg', '.webp', '.bmp']).description('扩展名'),
         }
       )
-    ).experimental().role('table').default([{ "extension": ".png" }])
+    ).experimental().role('table')
       .description('图片`保存`时的`命名格式`、默认`扩展名`<br>▶仅第一行视为有效配置<br>前缀后缀对所有保存图片的名称生效，扩展名可以通过指令选项自定义<br><hr style="border: 2px solid red;">配置方法：变量请使用`${}`代替。<br>可用变量有：`session`、 `config`<br>日期：`YYYY`、 `MM`、 `DD`<br>随机数字：`A`、 `BB`、 `CCC`<br>▶详细说明 [请参考README](https://www.npmjs.com/package/koishi-plugin-image-save-path)'),
     autoRenameRules: Schema.string().role('textarea', { rows: [2, 4] }).default("${YYYY}-${MM}-${DD}-${BB}-${BB}-${BB}-${CCC}").experimental()
       .description("图片`自动重命名`时使用的名称格式<br>与上个配置项语法一致 支持使用变量替换"),
@@ -344,27 +343,53 @@ function apply(ctx, config) {
     return filename;
   };
 
+  const getImageInfoAndBuffer = async (url, safeFilename, ctx) => {
+    try {
+      const file = await ctx.http.file(url);
+      loggerinfo('ctx.http.file result:\n', JSON.stringify(file, null, 2));
 
-  const applyImageExtension = (filename, extension, config, session, withoutimageExtension) => {
-    const imageExtension = config.ImageExtension[0]; // 仅第一行视为有效配置
+      if (!file || !file.data) {
+        throw new Error('无法获取图片数据');
+      }
 
-    // 替换前缀和后缀中的变量
-    const prefix = replacePlaceholders(imageExtension?.prefix || '', session, config);
-    const suffix = replacePlaceholders(imageExtension?.suffix || '', session, config);
-    const defaultExtension = imageExtension?.extension || '.png';
-    // 应用前缀和后缀
-    let finalFilename = `${prefix}${filename}${suffix}`;
-    // 如果 withoutimageExtension 为 true，则不添加扩展名
-    const finalExtension = withoutimageExtension ? '' : (extension || defaultExtension);
+      let detectedExtension = '';
 
-    loggerinfo(`applyImageExtension 输出文件名：${finalFilename}${finalExtension}`);
-    return `${finalFilename}${finalExtension}`;
+      // 优先根据 file.type 和 file.mime 确定后缀名
+      if (file.type === 'image/jpeg' || file.mime === 'image/jpeg') {
+        detectedExtension = '.jpg';
+      } else if (file.type === 'image/png' || file.mime === 'image/png') {
+        detectedExtension = '.png';
+      } else if (file.type === 'image/gif' || file.mime === 'image/gif') {
+        detectedExtension = '.gif';
+      } else if (file.type === 'image/webp' || file.mime === 'image/webp') {
+        detectedExtension = '.webp';
+      } else if (file.type === 'image/bmp' || file.mime === 'image/bmp') {
+        detectedExtension = '.bmp';
+      } else if (file.type || file.mime) {
+        // 如果有 type 或 mime，但不是常见的图片类型，则记录警告
+        ctx.logger.warn(`未知的图片类型，file.type=${file.type}, file.mime=${file.mime}`);
+        detectedExtension = '.png'; // 默认使用 .png
+      } else {
+        // 如果没有任何类型信息，则记录错误
+        ctx.logger.error(`无法检测到文件类型，file.type=${file.type}, file.mime=${file.mime}`);
+        detectedExtension = '.png'; // 默认使用 .png
+      }
+
+      const finalFilename = `${safeFilename}${detectedExtension}`;
+      loggerinfo(finalFilename)
+      return {
+        buffer: Buffer.from(file.data),
+        filename: finalFilename,
+        extension: detectedExtension
+      };
+    } catch (error) {
+      ctx.logger.error(`获取图片信息和Buffer失败: ${error.message}`);
+      throw error;
+    }
   };
 
 
-
   ctx.command(`${config.commandName} [参数...]`)
-    .option('ext', '-e <ext:string> 指定图片后缀名')
     .option('name', '-n <name:string> 严格指定图片重命名')
     .action(async ({ session, options }, ...args) => {
       let 文件名, 路径名称, 图片;
@@ -422,11 +447,6 @@ function apply(ctx, config) {
         loggerinfo('用户输入： ', image);
       }
 
-      let imageExtension = options.ext || config.ImageExtension[0]?.extension || '.png';
-      // 如果用户指定的扩展名没有以 . 开头，则自动添加
-      if (imageExtension && !imageExtension.startsWith('.')) {
-        imageExtension = `.${imageExtension}`;
-      }
       if (urlhselect.length > 1 && !config.checkDuplicate) {
         await session.send(session.text(".image_save_path_select_prompt"))
         return;
@@ -502,18 +522,16 @@ function apply(ctx, config) {
       } else {
         safeFilename = 文件名;
       }
-      // 应用 ImageExtension 的前缀、后缀和扩展名
-      safeFilename = applyImageExtension(safeFilename, imageExtension, config, session, true);
-
       // 保存图片
       try {
-        await saveImages(urlhselect, selectedPath, safeFilename, imageExtension, config, session, ctx);
+        await saveImages(urlhselect, selectedPath, safeFilename, config, session, ctx);
       } catch (error) {
         ctx.logger.error('保存图片时出错： ' + error.message);
         await session.send(session.text(`.image_save_error`, [error.message]));
         return;
       }
     });
+
 
 
   if (config.command_of_get_link) {
@@ -528,22 +546,56 @@ function apply(ctx, config) {
           urlhselect = extractUrl(quotemessage);
 
           loggerinfo('触发回复的目标消息内容： ', quotemessage);
-          if (!urlhselect) {
+          if (!urlhselect || urlhselect.length === 0) {
             await session.send(session.text(".image_save_notfound_image"));
             return;
           } else {
-            await session.send(urlhselect);
+            let imageInfoList = [];
+            for (const url of urlhselect) {
+              try {
+                const imageInfo = await getImageInfoAndBuffer(url, 'temp', ctx); // 使用一个临时文件名
+                imageInfoList.push({ url, type: imageInfo.extension, filename: imageInfo.filename });
+              } catch (error) {
+                ctx.logger.error(`获取图片信息失败: ${error.message}`);
+                await session.send(session.text(".image_save_failed_get_info"));
+                return; // 只要有一个失败就直接返回
+              }
+            }
+
+            // 构造返回消息
+            let message = "图片信息:\n";
+            for (const info of imageInfoList) {
+              message += `URL: ${info.url}\nType: ${info.type}\nFilename: ${info.filename}\n\n`;
+            }
+            await session.send(message);
             return;
           }
         } else if (图片) {
           urlhselect = extractUrl(图片);
 
           loggerinfo('用户直接输入的图片内容为： ', urlhselect);
-          if (!urlhselect) {
+          if (!urlhselect || urlhselect.length === 0) {
             await session.send(session.text(".image_save_notfound_image"));
             return;
           } else {
-            await session.send(urlhselect);
+            let imageInfoList = [];
+            for (const url of urlhselect) {
+              try {
+                const imageInfo = await getImageInfoAndBuffer(url, 'temp', ctx); // 使用一个临时文件名
+                imageInfoList.push({ url, type: imageInfo.extension, filename: imageInfo.filename });
+              } catch (error) {
+                ctx.logger.error(`获取图片信息失败: ${error.message}`);
+                await session.send(session.text(".image_save_failed_get_info"));
+                return; // 只要有一个失败就直接返回
+              }
+            }
+
+            // 构造返回消息
+            let message = "图片信息:\n";
+            for (const info of imageInfoList) {
+              message += `URL: ${info.url}\nType: ${info.type}\nFilename: ${info.filename}\n\n`;
+            }
+            await session.send(message);
             return;
           }
         } else {
@@ -552,11 +604,28 @@ function apply(ctx, config) {
           urlhselect = extractUrl(image);
 
           loggerinfo('用户输入： ', image);
-          if (!urlhselect) {
+          if (!urlhselect || urlhselect.length === 0) {
             await session.send(session.text(".image_save_invalidimage"));
             return;
           } else {
-            await session.send(urlhselect);
+            let imageInfoList = [];
+            for (const url of urlhselect) {
+              try {
+                const imageInfo = await getImageInfoAndBuffer(url, 'temp', ctx); // 使用一个临时文件名
+                imageInfoList.push({ url, type: imageInfo.extension, filename: imageInfo.filename });
+              } catch (error) {
+                ctx.logger.error(`获取图片信息失败: ${error.message}`);
+                await session.send(session.text(".image_save_failed_get_info"));
+                return; // 只要有一个失败就直接返回
+              }
+            }
+
+            // 构造返回消息
+            let message = "图片信息:\n";
+            for (const info of imageInfoList) {
+              message += `URL: ${info.url}\nType: ${info.type}\nFilename: ${info.filename}\n\n`;
+            }
+            await session.send(message);
             return;
           }
         }
@@ -565,56 +634,60 @@ function apply(ctx, config) {
   }
 
 
-  async function saveImages(urls, selectedPath, safeFilename, imageExtension, config, session, ctx) {
+  async function saveImages(urls, selectedPath, safeFilename, config, session, ctx) {
     let firstMessageSent = false;
     let duplicateMessages = [];
 
     for (let i = 0; i < urls.length; i++) {
       let url = urls[i];
-      let fileRoot = path.join(selectedPath, safeFilename);
-      let fileExt = `${imageExtension}`;
-      let targetPath = `${fileRoot}${fileExt}`;
-      let index = 0;
-
-      loggerinfo('提取到的图片链接：', url);
-      if (config.checkDuplicate) {
-        while (fs.existsSync(targetPath)) {
-          index++;
-          targetPath = `${fileRoot}(${index})${fileExt}`;
-        }
-      }
-
       try {
-        const buffer = await ctx.http.get(url);
-        if (buffer.byteLength === 0) throw new Error('下载的数据为空');
-        await fs.promises.writeFile(targetPath, Buffer.from(buffer));
+        const { buffer, filename, extension } = await getImageInfoAndBuffer(url, safeFilename, ctx);
 
-        if (index > 0) {
-          duplicateMessages.push(session.text(`.image_save_rename`, [safeFilename, index, fileExt]));
-        } else {
-          if (!firstMessageSent) {
-            if (config.showSavePath) {
-              await session.send(session.text(`.image_save_location`, [targetPath]));
-            } else {
-              await session.send(session.text(`.image_save_success`));
-            }
-            firstMessageSent = true;
+        let fileRoot = path.join(selectedPath, safeFilename);
+        let fileExt = `${extension}`; // 使用检测到的后缀
+        let targetPath = `${fileRoot}${fileExt}`;
+        let index = 0;
+
+        loggerinfo('提取到的图片链接：', url);
+        if (config.checkDuplicate) {
+          while (fs.existsSync(targetPath)) {
+            index++;
+            targetPath = `${fileRoot}(${index})${fileExt}`;
           }
         }
+
+        try {
+          if (buffer.byteLength === 0) throw new Error('下载的数据为空');
+          await fs.promises.writeFile(targetPath, Buffer.from(buffer));
+
+          if (index > 0) {
+            duplicateMessages.push(session.text(`.image_save_rename`, [safeFilename, index, fileExt]));
+          } else {
+            if (!firstMessageSent) {
+              if (config.showSavePath) {
+                await session.send(session.text(`.image_save_location`, [targetPath]));
+              } else {
+                await session.send(session.text(`.image_save_success`));
+              }
+              firstMessageSent = true;
+            }
+          }
+        } catch (error) {
+          ctx.logger.error('保存图片时出错： ' + error.message);
+          await session.send(session.text(`.image_save_error`, [error.message]));
+        }
+
       } catch (error) {
-        ctx.logger.error('保存图片时出错： ' + error.message);
+        ctx.logger.error('获取图片信息失败： ' + error.message);
         await session.send(session.text(`.image_save_error`, [error.message]));
       }
+
     }
 
     if (duplicateMessages.length > 0) {
       await session.send(duplicateMessages.join('\n'));
     }
   }
-
-
-
-
 
   async function calculateHash(filename) {
     return new Promise((resolve, reject) => {
@@ -655,8 +728,14 @@ function apply(ctx, config) {
 
   async function downloadAndSaveImage(url, outputPath, ctx, hashRecords, count, session, config) {
     try {
-      const buffer = await downloadImageBuffer(url, ctx);
-      const tempPath = `${outputPath}.tmp`;
+      // 使用 generateFilename 函数生成文件名
+      const safeFilename = generateFilename(session, config);
+
+      const { buffer, filename, extension } = await getImageInfoAndBuffer(url, safeFilename, ctx);
+
+      const finalPath = path.join(outputPath, filename); // 使用带后缀的文件名
+      const tempPath = `${finalPath}.tmp`;
+
       await fs.promises.writeFile(tempPath, buffer);
       const hash = await calculateHash(tempPath);
 
@@ -666,13 +745,6 @@ function apply(ctx, config) {
       hashRecords[hash].count++;
 
       if (hashRecords[hash].count >= count && !hashRecords[hash].saved) {
-        // 使用 generateFilename 函数生成文件名
-        const filename = generateFilename(session, config);
-
-        // 应用 ImageExtension 的前缀、后缀和扩展名
-        const finalFilename = applyImageExtension(filename, null, config, session); // 使用默认扩展名
-        const finalPath = path.join(outputPath, finalFilename);
-
         fs.renameSync(tempPath, finalPath);
         loggerinfo(`图片已保存到：${finalPath}`);
         hashRecords[hash].path = finalPath;
@@ -687,12 +759,6 @@ function apply(ctx, config) {
     }
   }
 
-
-
-  async function downloadImageBuffer(url, ctx) {
-    const response = await ctx.http.get(url, { responseType: 'arraybuffer' });
-    return Buffer.from(response);
-  }
 
   if (config.autosavePics) {
     ctx.middleware(async (session, next) => {
