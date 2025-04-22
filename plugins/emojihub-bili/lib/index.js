@@ -536,9 +536,11 @@ function getRandomEmojiHubCommand(config) {
 
 function isLocalImagePath(txtPath) {
   // 修改：同时判断 file:/// 开头的路径
+  const lowerCasePath = txtPath.toLowerCase(); // 转换为小写
   return (path.isAbsolute(txtPath) || txtPath.startsWith('file:///')) &&
-    (txtPath.endsWith('.jpg') || txtPath.endsWith('.png') || txtPath.endsWith('.gif') || txtPath.endsWith('.bmp') || txtPath.endsWith('.webp'));
+    (lowerCasePath.endsWith('.jpg') || lowerCasePath.endsWith('.png') || lowerCasePath.endsWith('.gif') || lowerCasePath.endsWith('.bmp') || lowerCasePath.endsWith('.webp'));
 }
+
 
 function isLocalDirectory(txtPath) {
   // 修改：同时判断 file:/// 开头的路径
@@ -603,7 +605,10 @@ async function getRandomImageFromFolder(folderPath, config, channelId, command, 
     ? getAllFiles(folderPath)
     : fs.readdirSync(folderPath).map(file => path.join(folderPath, file));
 
-  files = files.filter(file => file.endsWith('.jpg') || file.endsWith('.png') || file.endsWith('.gif') || file.endsWith('.bmp') || file.endsWith('.webp'));
+  files = files.filter(file => {
+    const lowerCaseFile = file.toLowerCase(); // 转换为小写
+    return lowerCaseFile.endsWith('.jpg') || lowerCaseFile.endsWith('.png') || lowerCaseFile.endsWith('.gif') || lowerCaseFile.endsWith('.bmp') || lowerCaseFile.endsWith('.webp');
+  });
 
   if (files.length === 0) {
     logError("文件夹中未找到有效图片文件（jpg,png,gif,webp,bmp）");
