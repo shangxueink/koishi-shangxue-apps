@@ -104,18 +104,20 @@ const Config = Schema.intersect([
           scheduletime: Schema.string().role('datetime').description("定时时间"),
           every: Schema.union([
             Schema.const('once').description('仅一次'),
-            Schema.const('sec').description('每秒'),
-            Schema.const('min').description('每分钟'),
-            Schema.const('hour').description('每小时'),
-            Schema.const('day').description('每天'),
-            Schema.const('week').description('每周'),
-            Schema.const('month').description('每月'),
-            Schema.const('year').description('每年'),
-          ]).role('radio').description("执行周期").default("once"),
-        })).role('table').description("schedule 定时表<br>不受`table2`指令映射表影响<br>勾选`是否为指令`则定时调用此指令，不勾选`是否为指令`则直接发送`内容`（元素消息）"),
+            Schema.const('sec').description('每/秒'),
+            Schema.const('min').description('每/分钟'),
+            Schema.const('hour').description('每/小时'),
+            Schema.const('day').description('每/天'),
+            Schema.const('week').description('每/周'),
+            Schema.const('month').description('每/月'),
+            Schema.const('year').description('每/年'),
+          ]).role('radio').description("周期").default("once"),
+          cycletime: Schema.number().default(1).description("间隔倍数").min(1),
+        })).role('table').description("schedule 定时表<br>不受`table2`指令映射表影响<br>勾选`是否为指令`则定时调用此指令，不勾选`是否为指令`则直接发送`内容`（元素消息）<br>间隔倍数：每隔多少个周期执行一次。例如：周期`每/小时` 间隔倍数`3` ， 代表`每3个小时`"),
     }),
     Schema.object({}),
   ]),
+
 
   Schema.object({
     loggerinfo: Schema.boolean().default(false).description('启用日志调试模式'),
@@ -279,33 +281,44 @@ async function apply(ctx, config) {
       nextTime.setMilliseconds(0); // 确保毫秒为0，避免误差
 
       if (nextTime <= now) {
+        const cycleTime = task.cycletime || 1; // 默认值为1，防止 undefined 导致错误
+
         switch (task.every) {
           case 'sec':
-            nextTime = new Date(now.getTime() + 1000);
+            nextTime = new Date(now.getTime() + cycleTime * 1000);
             break;
           case 'min':
-            nextTime = new Date(now.getTime() + 60000);
+            nextTime = new Date(now.getTime() + cycleTime * 60000);
             break;
           case 'hour':
-            nextTime = new Date(now.getTime() + 3600000);
+            nextTime = new Date(now.getTime() + cycleTime * 3600000);
             break;
           case 'day':
-            nextTime.setDate(nextTime.getDate() + 1);
+            nextTime.setDate(nextTime.getDate() + cycleTime);
             break;
           case 'week':
-            nextTime.setDate(nextTime.getDate() + 7);
+            nextTime.setDate(nextTime.getDate() + cycleTime * 7);
             break;
           case 'month':
-            nextTime.setMonth(nextTime.getMonth() + 1);
+            // 处理月份增加，避免超出月份范围
+            let nextMonth = nextTime.getMonth() + cycleTime;
+            let nextYear = nextTime.getFullYear();
+            while (nextMonth >= 12) {
+              nextMonth -= 12;
+              nextYear++;
+            }
+            nextTime.setFullYear(nextYear);
+            nextTime.setMonth(nextMonth);
             break;
           case 'year':
-            nextTime.setFullYear(nextTime.getFullYear() + 1);
+            nextTime.setFullYear(nextTime.getFullYear() + cycleTime);
             break;
         }
       }
 
       return nextTime;
     }
+
 
     // 定时任务处理器
     function setupSchedules() {
@@ -339,7 +352,8 @@ async function apply(ctx, config) {
             bot: task.botId,
             executeAt: `${nextTime}`,
             [taskType]: taskContent, // 使用动态键名
-            every: task.every
+            every: task.every,
+            cycletime: task.cycletime // 添加 cycletime 字段
           });
 
           // 定时执行
@@ -355,7 +369,8 @@ async function apply(ctx, config) {
                 bot: task.botId,
                 executeAt: `${nextTime}`,
                 [taskType]: taskContent, // 使用动态键名
-                every: task.every
+                every: task.every,
+                cycletime: task.cycletime // 添加 cycletime 字段
               });
 
               ctx.setTimeout(scheduleTask, nextDelay);
