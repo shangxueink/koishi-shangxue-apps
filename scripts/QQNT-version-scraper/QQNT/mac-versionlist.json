@@ -10,5 +10,11 @@
       "versionCode": "6.9.68 (Intel+Apple Silicon)",
       "downloadUrl": "https://dldir1.qq.com/qqfile/qq/QQNT/Mac/QQ_6.9.68_250401_01.dmg"
     }
+  },
+  {
+    "mac": {
+      "versionCode": "6.9.69 (Intel+Apple Silicon)",
+      "downloadUrl": "https://dldir1.qq.com/qqfile/qq/QQNT/Mac/QQ_6.9.69_250423_01.dmg"
+    }
   }
 ]
