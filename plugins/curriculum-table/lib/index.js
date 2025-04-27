@@ -955,6 +955,7 @@ async function apply(ctx, config) {
                 font-size: 1.0em; /* 放大状态文字 */
                 color: #777;
                 margin-right: 10px; /* 状态和课程名间距 */
+                white-space: nowrap;
             }
     
            .status.ongoing {
