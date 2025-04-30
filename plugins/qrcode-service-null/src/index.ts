@@ -1,11 +1,15 @@
 import { Context, Service, Schema, h } from 'koishi'
 import { toDataURL } from 'qrcode'
 
-export interface Config { }
+export interface Config {
+  enablecommand: any;
+}
 
 export const name = 'qrcode-service-null'
 
-export const Config: Schema<Config> = Schema.object({})
+export const Config: Schema<Config> = Schema.object({
+  enablecommand: Schema.boolean().default(false).description("是否注册qrcode指令"),
+})
 export const usage = `
 为koishi通过二维码生成服务
 
@@ -30,32 +34,22 @@ export class qrcode extends Service {
   }
 }
 
-function qrcodeplugin(ctx: Context) {
-  ctx.i18n.define('zh', require('./locales/zh'))
-
-  ctx.command('qrcode <text:string>', '生成二维码')
-    .option('margin', '-m <margin:number>', { fallback: 4 })
-    .option('scale', '-s <scale:number>', { fallback: 4 })
-    .option('width', '-w <width:number>')
-    .option('dark', '-d <color:string>')
-    .option('light', '-l <color:string>')
-    .action(async ({ options, session }, text) => {
-      if (!text) return session.text('.expect-text')
-      if (text.includes('[CQ:')) return session.text('.invalid-segment')
-
-      const image = await ctx.qrcode.generateQRCode(text, options)
-
-      return image
-    })
-}
-
-export function apply(ctx: Context) {
+export function apply(ctx: Context, config: Config) {
   ctx.plugin(qrcode)
-  ctx.plugin({
-    apply: qrcodeplugin,
-    inject: {
-      qrcode: { required: true }
-    },
-    name: "qrcode-service-null"
-  })
+
+  if (config.enablecommand) {
+    ctx.i18n.define('zh', require('./locales/zh'))
+    ctx.command('qrcode <text:string>', '生成二维码')
+      .option('margin', '-m <margin:number>', { fallback: 4 })
+      .option('scale', '-s <scale:number>', { fallback: 4 })
+      .option('width', '-w <width:number>')
+      .option('dark', '-d <color:string>')
+      .option('light', '-l <color:string>')
+      .action(async ({ options, session }, text) => {
+        if (!text) return session.text('.expect-text')
+        if (text.includes('[CQ:')) return session.text('.invalid-segment')
+        const image = await ctx.qrcode.generateQRCode(text, options)
+        return image
+      })
+  }
 }

@@ -1,7 +1,7 @@
 {
   "name": "koishi-plugin-qrcode-service-null",
   "description": "二维码服务 为一些需要发送链接的场景提供qrcode服务，更统一地使用qrcode。",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "main": "lib/index.js",
   "typings": "lib/index.d.ts",
   "files": [
