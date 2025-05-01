@@ -1,6 +1,6 @@
-# koishi-plugin-commands-fuck
+# koishi-plugin-commands-cao
 
-[![npm](https://img.shields.io/npm/v/koishi-plugin-commands-fuck?style=flat-square)](https://www.npmjs.com/package/koishi-plugin-commands-fuck)
+[![npm](https://img.shields.io/npm/v/koishi-plugin-commands-cao?style=flat-square)](https://www.npmjs.com/package/koishi-plugin-commands-cao)
 
 通过 `fuck` 命令纠正你输入的错误命令，并自动执行正确的命令。
 

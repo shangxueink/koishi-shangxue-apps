@@ -1,6 +1,6 @@
 import { Context, Schema, h } from "koishi";
 
-export const name = "commands-fuck";
+export const name = "commands-cao";
 export const inject = ["logger"];
 export const usage = `
 ---

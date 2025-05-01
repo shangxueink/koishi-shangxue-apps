@@ -28,7 +28,7 @@ __export(src_exports, {
 });
 module.exports = __toCommonJS(src_exports);
 var import_koishi = require("koishi");
-var name = "commands-fuck";
+var name = "commands-cao";
 var inject = ["logger"];
 var usage = `
 ---
