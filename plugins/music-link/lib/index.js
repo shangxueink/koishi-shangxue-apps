@@ -640,8 +640,10 @@ const Config = Schema.intersect([
             command6_searchList: Schema.number().default(20).min(1).max(50).description('歌曲搜索的列表长度。返回的候选项个数。'),
             maxDuration: Schema.natural().description('歌曲最长持续时间，单位为：秒').default(900),
             command6_usedAPI: Schema.union([
-                Schema.const('api.injahow.cn').description('稳定、黑胶只能30秒的`api.injahow.cn`后端（适合官方bot）'),
-                Schema.const('api.qijieya.cn').description('稳定性未知、全部可听的`api.qijieya.cn`后端').experimental(),
+                Schema.const('api.injahow.cn').description('（稳定）黑胶只能30秒的`api.injahow.cn`后端（适合官方bot）'),
+                Schema.const('meting.jmstrand.cn').description('（推荐）稳定性未知、全部可听的`meting.jmstrand.cn`后端').experimental(),
+                Schema.const('api.qijieya.cn').description('（推荐）稳定性未知、全部可听的`api.qijieya.cn`后端').experimental(),
+                Schema.const('metingapi.nanorocky.top').description('(不推荐 文件很大) 稳定性未知、无损音质、全部可听的`meting.jmstrand.cn`后端').experimental(),
             ]).description("选择 获取音乐直链的后端API").default("api.qijieya.cn"),
             command6_return_data_Field: Schema.array(Schema.object({
                 data: Schema.string().description('返回的字段'),
@@ -1461,10 +1463,15 @@ function apply(ctx, config) {
                             // 获取歌曲直链 (根据选择的 API 调整)
                             let songUrl = '';
                             if (useApi === 'api.injahow.cn') {
-                                songUrl = `https://api.injahow.cn/meting/?id=${keyword}&type=url`;
+                                songUrl = `https://api.injahow.cn/meting/?type=url&id=${selectedSongId}`;
+                            } else if (useApi === 'meting.jmstrand.cn') {
+                                songUrl = `https://meting.jmstrand.cn/?type=url&id=${selectedSongId}`;
                             } else if (useApi === 'api.qijieya.cn') {
-                                songUrl = `https://api.qijieya.cn/meting/?id=${keyword}&type=url`;
+                                songUrl = `https://api.qijieya.cn/meting/?type=url&id=${selectedSongId}`;
+                            } else if (useApi === 'metingapi.nanorocky.top') {
+                                songUrl = `https://metingapi.nanorocky.top/?server=netease&type=url&id=${selectedSongId}`;
                             }
+
                             logInfo("请求 API (songUrl):", songUrl);
                             // 请求 163 API 获取歌曲详情 (用于获取歌曲名称、艺术家、图片等信息，与获取直链的 API 无关)
                             const apiBase = `http://music.163.com/api/song/detail/?id=${keyword}&ids=[${keyword}]`;
@@ -1607,9 +1614,13 @@ function apply(ctx, config) {
                             // 获取歌曲直链 (根据选择的 API 调整)
                             let songUrl = '';
                             if (useApi === 'api.injahow.cn') {
-                                songUrl = `https://api.injahow.cn/meting/?id=${selectedSongId}&type=url`;
+                                songUrl = `https://api.injahow.cn/meting/?type=url&id=${selectedSongId}`;
+                            } else if (useApi === 'meting.jmstrand.cn') {
+                                songUrl = `https://meting.jmstrand.cn/?type=url&id=${selectedSongId}`;
                             } else if (useApi === 'api.qijieya.cn') {
-                                songUrl = `https://api.qijieya.cn/meting/?id=${selectedSongId}&type=url`;
+                                songUrl = `https://api.qijieya.cn/meting/?type=url&id=${selectedSongId}`;
+                            } else if (useApi === 'metingapi.nanorocky.top') {
+                                songUrl = `https://metingapi.nanorocky.top/?server=netease&type=url&id=${selectedSongId}`;
                             }
 
                             logInfo("请求 API (songUrl):", songUrl);
