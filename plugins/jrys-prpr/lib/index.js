@@ -668,7 +668,8 @@ ${dJson.unsignText}
 
             if ((config.markdown_button_mode === "markdown" || config.markdown_button_mode === "raw" || config.markdown_button_mode === "markdown_raw_json" || config.markdown_button_mode === "raw_jrys") && session.platform === 'qq') {
               const uploadedImageURL = await uploadImageToChannel(imageBuffer, session.bot.config.id, session.bot.config.secret, config.QQchannelId);
-              const qqmarkdownmessage = await markdown(session, encodedMessageTime, uploadedImageURL.url);
+
+              const qqmarkdownmessage = await markdown(session, encodedMessageTime, uploadedImageURL.url, `data:image/png;base64,${imageBuffer.toString('base64')}`);
               await sendmarkdownMessage(session, qqmarkdownmessage)
 
             } else {
@@ -851,7 +852,7 @@ ${dJson.unsignText}
       return { url: `https://gchat.qpic.cn/qmeetpic/0/0-0-${md5}/0` };
     }
 
-    async function markdown(session, encodedMessageTime, imageUrl) {
+    async function markdown(session, encodedMessageTime, imageUrl, imageToload) {
       const markdownMessage = {
         msg_type: 2,
         markdown: {},
@@ -867,7 +868,7 @@ ${dJson.unsignText}
       let originalHeight;
 
       try {
-        canvasimage = await ctx.canvas.loadImage(imageUrl);
+        canvasimage = await ctx.canvas.loadImage(imageToload);
         originalWidth = canvasimage.naturalWidth || canvasimage.width;
         originalHeight = canvasimage.naturalHeight || canvasimage.height;
       } catch (loadImageError) {
