@@ -641,8 +641,8 @@ const Config = Schema.intersect([
             maxDuration: Schema.natural().description('歌曲最长持续时间，单位为：秒').default(900),
             command6_usedAPI: Schema.union([
                 Schema.const('api.injahow.cn').description('稳定、黑胶只能30秒的`api.injahow.cn`后端（适合官方bot）'),
-                Schema.const('www.byfuns.top').description('稳定性未知、全部可听的`www.byfuns.top`后端').experimental(),
-            ]).description("选择 获取音乐直链的后端API").default("www.byfuns.top"),
+                Schema.const('api.qijieya.cn').description('稳定性未知、全部可听的`api.qijieya.cn`后端').experimental(),
+            ]).description("选择 获取音乐直链的后端API").default("api.qijieya.cn"),
             command6_return_data_Field: Schema.array(Schema.object({
                 data: Schema.string().description('返回的字段'),
                 describe: Schema.string().description('对该字段的中文描述'),
@@ -1462,8 +1462,8 @@ function apply(ctx, config) {
                             let songUrl = '';
                             if (useApi === 'api.injahow.cn') {
                                 songUrl = `https://api.injahow.cn/meting/?id=${keyword}&type=url`;
-                            } else if (useApi === 'www.byfuns.top') {
-                                songUrl = await ctx.http.get(`https://www.byfuns.top/api/1/?id=${keyword}`);
+                            } else if (useApi === 'api.qijieya.cn') {
+                                songUrl = `https://api.qijieya.cn/meting/?id=${keyword}&type=url`;
                             }
                             logInfo("请求 API (songUrl):", songUrl);
                             // 请求 163 API 获取歌曲详情 (用于获取歌曲名称、艺术家、图片等信息，与获取直链的 API 无关)
@@ -1608,8 +1608,8 @@ function apply(ctx, config) {
                             let songUrl = '';
                             if (useApi === 'api.injahow.cn') {
                                 songUrl = `https://api.injahow.cn/meting/?id=${selectedSongId}&type=url`;
-                            } else if (useApi === 'www.byfuns.top') {
-                                songUrl = await ctx.http.get(`https://www.byfuns.top/api/1/?id=${selectedSongId}`);
+                            } else if (useApi === 'api.qijieya.cn') {
+                                songUrl = `https://api.qijieya.cn/meting/?id=${selectedSongId}&type=url`;
                             }
 
                             logInfo("请求 API (songUrl):", songUrl);
