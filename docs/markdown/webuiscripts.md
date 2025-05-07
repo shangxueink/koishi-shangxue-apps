@@ -72,3 +72,14 @@ Markdown 编辑-预览 工具
 > 其他 还有好用的deepseek： https://chat.deepseek.com/
  
 <a href="/koishi-shangxue-apps/NextChat.html" target="_blank" rel="noopener noreferrer">访问 Next Chat webUI</a>
+
+
+
+
+## Taskfile
+
+通过 webUI 创建 Taskfile.yml 文件，无需记忆复杂的语法。
+
+> 支持生成基础的 `Taskfile.yml` 文件
+
+<a href="/koishi-shangxue-apps/Taskfile.html" target="_blank" rel="noopener noreferrer">访问 Taskfile 可视化生成器</a>
