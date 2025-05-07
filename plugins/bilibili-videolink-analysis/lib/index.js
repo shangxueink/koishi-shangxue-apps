@@ -92,9 +92,12 @@ exports.Config = Schema.intersect([
                 BVnumberParsing: Schema.boolean().default(true).description("是否允许根据`独立的BV、AV号`解析视频 `开启后，可以通过视频的BV、AV号解析视频。` <br>  [触发说明见README](https://www.npmjs.com/package/koishi-plugin-bilibili-videolink-analysis)"),
                 Maximumduration: Schema.number().default(25).description("允许解析的视频最大时长（分钟）`超过这个时长 就不会发视频`").min(1),
                 Maximumduration_tip: Schema.union([
-                    Schema.const('不返回文字提示').description('不返回文字提示'),
-                    Schema.string().description('返回文字提示（请在右侧填写文字内容）').default('视频太长啦！还是去B站看吧~'),
-                ]).description("对过长视频的文字提示内容").default('视频太长啦！还是去B站看吧~'),
+                    Schema.const('return').description('不返回文字提示'),
+                    Schema.object({
+                        tipcontent: Schema.string().default('视频太长啦！内容还是去B站看吧~').description("文字提示内容"),
+                        tipanalysis: Schema.boolean().default(false).description("是否进行图文解析（不会返回视频链接）"),
+                    }).description('返回文字提示'),
+                ]).description("对`过长视频`的文字提示内容").default({}),
                 MinimumTimeInterval: Schema.number().default(180).description("若干`秒`内 不再处理相同链接 `防止多bot互相触发 导致的刷屏/性能浪费`").min(1),
             }),
 
@@ -462,9 +465,95 @@ display: none !important;
         }
 
         let responseElements = []; // 用于存储所有要发送的元素
+        let shouldPerformTextParsing = config.linktextParsing; // 默认根据配置决定是否进行图文解析
+        //let videoTooLong = false; // 标记视频是否太长
 
-        // 图文解析
-        if (config.linktextParsing) {
+        // 视频/链接解析 - 先检查视频时长
+        if (config.VideoParsing_ToLink) {
+            const fullAPIurl = `http://api.xingzhige.cn/API/b_parse/?url=${encodeURIComponent(lastretUrl)}`;
+
+            try {
+                const responseData = await ctx.http.get(fullAPIurl);
+
+                if (responseData.code === 0 && responseData.msg === "video" && responseData.data) {
+                    const { bvid, cid, video } = responseData.data;
+                    const bilibiliUrl = `https://api.bilibili.com/x/player/playurl?fnval=80&cid=${cid}&bvid=${bvid}`;
+                    const playData = await ctx.http.get(bilibiliUrl);
+
+                    logInfo(bilibiliUrl);
+
+                    if (playData.code === 0 && playData.data && playData.data.dash.duration) {
+                        const videoDurationSeconds = playData.data.dash.duration;
+                        const videoDurationMinutes = videoDurationSeconds / 60;
+
+                        if (videoDurationMinutes > config.Maximumduration) {
+                            //videoTooLong = true;
+
+                            // 根据 Maximumduration_tip 的值决定行为
+                            if (config.Maximumduration_tip === 'return') {
+                                // 不返回文字提示，直接返回
+                                return;
+                            } else if (typeof config.Maximumduration_tip === 'object') {
+                                // 返回文字提示
+                                if (config.Maximumduration_tip.tipcontent) {
+                                    if (config.Maximumduration_tip.tipanalysis) {
+                                        await responseElements.push(h.text(config.Maximumduration_tip.tipcontent))
+                                    } else {
+                                        await session.send(config.Maximumduration_tip.tipcontent);
+                                    }
+                                }
+                                // 决定是否进行图文解析
+                                shouldPerformTextParsing = config.Maximumduration_tip.tipanalysis === true;
+                            }
+                        } else {
+                            // 视频时长在允许范围内，处理视频
+                            const videoUrl = video.url;
+                            logInfo(videoUrl);
+
+                            if (videoUrl) {
+                                if (options.link) {
+                                    responseElements.push(h.text(videoUrl));
+                                } else if (options.audio) {
+                                    responseElements.push(h.audio(videoUrl));
+                                } else {
+                                    switch (config.VideoParsing_ToLink) {
+                                        case '1':
+                                            break;
+                                        case '2':
+                                            responseElements.push(h.video(videoUrl));
+                                            break;
+                                        case '3':
+                                            responseElements.push(h.text(videoUrl));
+                                            break;
+                                        case '4':
+                                            responseElements.push(h.text(videoUrl));
+                                            responseElements.push(h.video(videoUrl));
+                                            break;
+                                        case '5':
+                                            logger.info(videoUrl);
+                                            responseElements.push(h.video(videoUrl));
+                                            break;
+                                        default:
+                                            break;
+                                    }
+                                }
+                            } else {
+                                throw new Error("解析视频直链失败");
+                            }
+                        }
+                    } else {
+                        throw new Error("获取播放数据失败");
+                    }
+                } else {
+                    throw new Error("解析视频信息失败或非视频类型内容");
+                }
+            } catch (error) {
+                logger.error("请求解析 API 失败或处理出错:", error);
+            }
+        }
+
+        // 图文解析 - 根据 shouldPerformTextParsing 决定是否执行
+        if (shouldPerformTextParsing) {
             let fullText;
             if (config.bVideoShowLink) {
                 fullText = ret; // 发送完整信息
@@ -495,75 +584,9 @@ display: none !important;
             }
         }
 
-        // 视频/链接解析
-        if (config.VideoParsing_ToLink) {
-            const fullAPIurl = `http://api.xingzhige.cn/API/b_parse/?url=${encodeURIComponent(lastretUrl)}`;
-
-            try {
-                const responseData = await ctx.http.get(fullAPIurl);
-
-                if (responseData.code === 0 && responseData.msg === "video" && responseData.data) {
-                    const { bvid, cid, video } = responseData.data;
-                    const bilibiliUrl = `https://api.bilibili.com/x/player/playurl?fnval=80&cid=${cid}&bvid=${bvid}`;
-                    const playData = await ctx.http.get(bilibiliUrl);
-
-                    logInfo(bilibiliUrl);
-
-                    if (playData.code === 0 && playData.data && playData.data.dash.duration) {
-                        const videoDurationSeconds = playData.data.dash.duration;
-                        const videoDurationMinutes = videoDurationSeconds / 60;
-
-                        if (videoDurationMinutes > config.Maximumduration) {
-                            if (config.Maximumduration_tip !== '不返回文字提示') {
-                                await session.send(config.Maximumduration_tip);
-                                return;
-                            } else {
-                                return;
-                            }
-                        }
-
-                        const videoUrl = video.url;
-
-                        logInfo(videoUrl);
-                        if (videoUrl) {
-                            if (options.link) {
-                                responseElements.push(h.text(videoUrl));
-                            } else if (options.audio) {
-                                responseElements.push(h.audio(videoUrl));
-                            } else {
-                                switch (config.VideoParsing_ToLink) {
-                                    case '1':
-                                        break;
-                                    case '2':
-                                        responseElements.push(h.video(videoUrl));
-                                        break;
-                                    case '3':
-                                        responseElements.push(h.text(videoUrl));
-                                        break;
-                                    case '4':
-                                        responseElements.push(h.text(videoUrl));
-                                        responseElements.push(h.video(videoUrl));
-                                        break;
-                                    case '5':
-                                        logger.info(videoUrl);
-                                        responseElements.push(h.video(videoUrl));
-                                        break;
-                                    default:
-                                        break;
-                                }
-                            }
-                        } else {
-                            throw new Error("解析视频直链失败");
-                        }
-                    } else {
-                        throw new Error("获取播放数据失败");
-                    }
-                } else {
-                    throw new Error("解析视频信息失败或非视频类型内容");
-                }
-            } catch (error) {
-                logger.error("请求解析 API 失败或处理出错:", error);
-            }
+        // 如果没有任何元素要发送，则直接返回
+        if (responseElements.length === 0) {
+            return;
         }
 
         // 合并转发处理
@@ -588,8 +611,6 @@ display: none !important;
         logInfo(`机器人已发送完整消息。`);
         return;
     }
-
-
 
 
     // 提取最后一个URL
