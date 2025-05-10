@@ -635,6 +635,26 @@ export async function apply(ctx: Context, config) {
       const cost2 = costTable2.checkin_reward.find(c => c.command === '鹿@用户').cost;// -150 为【帮助者】增加货币奖励 //  session.userId
 
       let [targetRecord] = await ctx.database.get('deerpipe', { userid: targetUserId });
+
+      // 检查是否需要重置数据
+      if (targetRecord && config.Reset_Cycle === '每月') {
+        const [recordYear, recordMonth] = targetRecord.recordtime.split('-').map(Number);
+        if (currentYear > recordYear || (currentYear === recordYear && currentMonth > recordMonth)) {
+          // 重置用户数据
+          await ctx.database.set('deerpipe', { userid: targetUserId }, {
+            username: targetUsername,
+            channelId: await updateChannelId(targetUserId, session.channelId),
+            recordtime,
+            checkindate: [],
+            helpsignintimes: "",
+            totaltimes: 0,
+            allowHelp: targetRecord.allowHelp, // 保持原有的 allowHelp 设置
+            itemInventory: targetRecord.itemInventory, // 保持原有的道具
+          });
+          targetRecord = await ctx.database.get('deerpipe', { userid: targetUserId })[0];
+        }
+      }
+
       if (!targetRecord) {
         targetRecord = {
           userid: targetUserId,
