@@ -961,7 +961,7 @@ function apply(ctx, config) {
   }
 
 
-  async function markdown(session, command, imageUrl) {
+  async function markdown(session, command, imageUrl, localimage) {
     const markdownMessage = {
       msg_id: "",
       msg_type: 2,
@@ -973,7 +973,7 @@ function apply(ctx, config) {
       markdownMessage.msg_id = session.messageId;
     }
 
-    const canvasimage = await ctx.canvas.loadImage(imageUrl);
+    const canvasimage = await ctx.canvas.loadImage(localimage); // 使用本地图片加载 无需上传后二次请求加载
     let originalWidth = canvasimage.naturalWidth || canvasimage.width;
     let originalHeight = canvasimage.naturalHeight || canvasimage.height;
 
@@ -1139,8 +1139,11 @@ function apply(ctx, config) {
                   message = await markdown(session, command, MDimagebase64);
                   await sendmarkdownMessage(session, message);
                 } else if ((session.platform === "qq" || session.platform === "qqguild") && config.QQPicToChannelUrl) {
-                  const uploadedImageURL = await uploadImageToChannel(ctx, config.consoleinfo, url.pathToFileURL(imageResult.imageUrl).href, session.bot.config.id, session.bot.config.secret, config.QQchannelId);
-                  message = await markdown(session, command, uploadedImageURL.url);
+                  const localfilepath = url.pathToFileURL(imageResult.imageUrl).href
+                  let imagebase64 = await getImageAsBase64(imageResult.imageUrl);
+                  let MDimagebase64 = 'data:image/png;base64,' + imagebase64;
+                  const uploadedImageURL = await uploadImageToChannel(ctx, config.consoleinfo, localfilepath, session.bot.config.id, session.bot.config.secret, config.QQchannelId);
+                  message = await markdown(session, command, uploadedImageURL.url, MDimagebase64);
                   await sendmarkdownMessage(session, message);
                 } else {
                   const imageUrl = url.pathToFileURL(imageResult.imageUrl).href;
