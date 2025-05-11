@@ -87,7 +87,7 @@ export const Config =
     ]),
 
     Schema.object({
-      loggerinfo: Schema.boolean().default(false).description("日志调试：一般输出<br>提issue是请使用此功能").experimental(),
+      loggerinfo: Schema.boolean().default(false).description("日志调试：一般输出<br>提issue时，请开启此功能 并且提供BUG复现日志").experimental(),
       loggerinfo_content: Schema.boolean().default(false).description("日志调试：代发内容输出(content)<br>非开发者请勿改动").experimental(),
       loggerinfo_setInterval: Schema.boolean().default(false).description("日志调试：20 秒 定时打印 变量-视检<br>非开发者请勿改动").experimental(),
     }).description('调试设置'),
@@ -108,6 +108,7 @@ const pendingCleanup = new Map<string, () => void>(); // 记录清理定时器�
 export async function apply(ctx: Context, config) {
 
   ctx.on('ready', () => {
+
 
     function logInfo(message: any, detail?: any) {
       if (config.loggerinfo) {
