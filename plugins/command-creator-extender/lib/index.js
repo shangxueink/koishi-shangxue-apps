@@ -394,9 +394,40 @@ async function apply(ctx, config) {
 
     if (config.enablescheduletable) {
       logger.info('定时系统初始化...');
-      ctx.setTimeout(setupSchedules, 5000); // 延时5秒启动定时任务
-      logger.info(`已加载 ${config.scheduletable.length} 个定时任务`);
+
+      // 首先检查现有的在线机器人
+      const checkAndSetupTasks = () => {
+        const onlineBots = Object.values(ctx.bots).filter(bot =>
+          bot.status === Universal.Status.ONLINE
+        );
+
+        const relevantTasks = config.scheduletable.filter(task =>
+          onlineBots.some(bot => task.botId === bot.selfId || task.botId === bot.user?.id)
+        );
+
+        if (relevantTasks.length > 0) {
+          //  logInfo(onlineBots)
+          logInfo(`发现 ${onlineBots.length} 个在线机器人，正在初始化相关定时任务...`);
+          setupSchedules(); // 已经在线，无需等待，直接启动定时任务
+        }
+      };
+
+      // 检查现有机器人
+      checkAndSetupTasks();
+
+      // 监听后续的登录事件
+      ctx.on('login-added', async ({ bot }) => {
+        const relevantTasks = config.scheduletable.filter(task =>
+          task.botId === bot.selfId || task.botId === bot.user?.id
+        );
+
+        if (relevantTasks.length > 0) {
+          logger.info(`检测到机器人 ${bot.selfId} 上线，正在初始化相关定时任务...`);
+          ctx.setTimeout(setupSchedules, 5000); // 正在上线，延时5秒启动定时任务
+        }
+      });
     }
+
   });
 }
 
