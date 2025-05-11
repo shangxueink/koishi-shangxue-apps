@@ -455,7 +455,6 @@ display: none !important;
         return false; // 没有处理过
     }
 
-    //解析视频并返回
     async function processVideoFromLink(session, config, ctx, lastProcessedUrls, logger, ret, options = { video: true }) {
         const lastretUrl = extractLastUrl(ret);
 
@@ -464,95 +463,12 @@ display: none !important;
             await session.send(config.waitTip_Switch);
         }
 
-        let responseElements = []; // 用于存储所有要发送的元素
+        let videoElements = []; // 用于存储视频相关元素
+        let textElements = []; // 用于存储图文解析元素
         let shouldPerformTextParsing = config.linktextParsing; // 默认根据配置决定是否进行图文解析
-        //let videoTooLong = false; // 标记视频是否太长
+        let isLongVideo = false; // 标记视频是否过长
 
-        // 视频/链接解析 - 先检查视频时长
-        if (config.VideoParsing_ToLink) {
-            const fullAPIurl = `http://api.xingzhige.cn/API/b_parse/?url=${encodeURIComponent(lastretUrl)}`;
-
-            try {
-                const responseData = await ctx.http.get(fullAPIurl);
-
-                if (responseData.code === 0 && responseData.msg === "video" && responseData.data) {
-                    const { bvid, cid, video } = responseData.data;
-                    const bilibiliUrl = `https://api.bilibili.com/x/player/playurl?fnval=80&cid=${cid}&bvid=${bvid}`;
-                    const playData = await ctx.http.get(bilibiliUrl);
-
-                    logInfo(bilibiliUrl);
-
-                    if (playData.code === 0 && playData.data && playData.data.dash.duration) {
-                        const videoDurationSeconds = playData.data.dash.duration;
-                        const videoDurationMinutes = videoDurationSeconds / 60;
-
-                        if (videoDurationMinutes > config.Maximumduration) {
-                            //videoTooLong = true;
-
-                            // 根据 Maximumduration_tip 的值决定行为
-                            if (config.Maximumduration_tip === 'return') {
-                                // 不返回文字提示，直接返回
-                                return;
-                            } else if (typeof config.Maximumduration_tip === 'object') {
-                                // 返回文字提示
-                                if (config.Maximumduration_tip.tipcontent) {
-                                    if (config.Maximumduration_tip.tipanalysis) {
-                                        await responseElements.push(h.text(config.Maximumduration_tip.tipcontent))
-                                    } else {
-                                        await session.send(config.Maximumduration_tip.tipcontent);
-                                    }
-                                }
-                                // 决定是否进行图文解析
-                                shouldPerformTextParsing = config.Maximumduration_tip.tipanalysis === true;
-                            }
-                        } else {
-                            // 视频时长在允许范围内，处理视频
-                            const videoUrl = video.url;
-                            logInfo(videoUrl);
-
-                            if (videoUrl) {
-                                if (options.link) {
-                                    responseElements.push(h.text(videoUrl));
-                                } else if (options.audio) {
-                                    responseElements.push(h.audio(videoUrl));
-                                } else {
-                                    switch (config.VideoParsing_ToLink) {
-                                        case '1':
-                                            break;
-                                        case '2':
-                                            responseElements.push(h.video(videoUrl));
-                                            break;
-                                        case '3':
-                                            responseElements.push(h.text(videoUrl));
-                                            break;
-                                        case '4':
-                                            responseElements.push(h.text(videoUrl));
-                                            responseElements.push(h.video(videoUrl));
-                                            break;
-                                        case '5':
-                                            logger.info(videoUrl);
-                                            responseElements.push(h.video(videoUrl));
-                                            break;
-                                        default:
-                                            break;
-                                    }
-                                }
-                            } else {
-                                throw new Error("解析视频直链失败");
-                            }
-                        }
-                    } else {
-                        throw new Error("获取播放数据失败");
-                    }
-                } else {
-                    throw new Error("解析视频信息失败或非视频类型内容");
-                }
-            } catch (error) {
-                logger.error("请求解析 API 失败或处理出错:", error);
-            }
-        }
-
-        // 图文解析 - 根据 shouldPerformTextParsing 决定是否执行
+        // 先进行图文解析
         if (shouldPerformTextParsing) {
             let fullText;
             if (config.bVideoShowLink) {
@@ -578,14 +494,116 @@ display: none !important;
                         nickname: session.author?.nickname || session.username,
                     }, parsedElements);
 
-                    // 添加 message 元素到 responseElements
-                    responseElements.push(messageElement);
+                    // 添加 message 元素到 textElements
+                    textElements.push(messageElement);
                 }
             }
         }
 
+        // 视频/链接解析
+        if (config.VideoParsing_ToLink) {
+            const fullAPIurl = `http://api.xingzhige.cn/API/b_parse/?url=${encodeURIComponent(lastretUrl)}`;
+
+            try {
+                const responseData = await ctx.http.get(fullAPIurl);
+
+                if (responseData.code === 0 && responseData.msg === "video" && responseData.data) {
+                    const { bvid, cid, video } = responseData.data;
+                    const bilibiliUrl = `https://api.bilibili.com/x/player/playurl?fnval=80&cid=${cid}&bvid=${bvid}`;
+                    const playData = await ctx.http.get(bilibiliUrl);
+
+                    logInfo(bilibiliUrl);
+
+                    if (playData.code === 0 && playData.data && playData.data.dash.duration) {
+                        const videoDurationSeconds = playData.data.dash.duration;
+                        const videoDurationMinutes = videoDurationSeconds / 60;
+
+                        if (videoDurationMinutes > config.Maximumduration) {
+                            isLongVideo = true;
+
+                            // 根据 Maximumduration_tip 的值决定行为
+                            if (config.Maximumduration_tip === 'return') {
+                                // 不返回文字提示，直接返回
+                                return;
+                            } else if (typeof config.Maximumduration_tip === 'object') {
+                                // 返回文字提示
+                                if (config.Maximumduration_tip.tipcontent) {
+                                    if (config.Maximumduration_tip.tipanalysis) {
+                                        videoElements.push(h.text(config.Maximumduration_tip.tipcontent));
+                                    } else {
+                                        await session.send(config.Maximumduration_tip.tipcontent);
+                                    }
+                                }
+
+                                // 决定是否进行图文解析
+                                shouldPerformTextParsing = config.Maximumduration_tip.tipanalysis === true;
+
+                                // 如果不进行图文解析，清空已准备的文本元素
+                                if (!shouldPerformTextParsing) {
+                                    textElements = [];
+                                }
+                            }
+                        } else {
+                            // 视频时长在允许范围内，处理视频
+                            const videoUrl = video.url;
+                            logInfo(videoUrl);
+
+                            if (videoUrl) {
+                                if (options.link) {
+                                    videoElements.push(h.text(videoUrl));
+                                } else if (options.audio) {
+                                    videoElements.push(h.audio(videoUrl));
+                                } else {
+                                    switch (config.VideoParsing_ToLink) {
+                                        case '1':
+                                            break;
+                                        case '2':
+                                            videoElements.push(h.video(videoUrl));
+                                            break;
+                                        case '3':
+                                            videoElements.push(h.text(videoUrl));
+                                            break;
+                                        case '4':
+                                            videoElements.push(h.text(videoUrl));
+                                            videoElements.push(h.video(videoUrl));
+                                            break;
+                                        case '5':
+                                            logger.info(videoUrl);
+                                            videoElements.push(h.video(videoUrl));
+                                            break;
+                                        default:
+                                            break;
+                                    }
+                                }
+                            } else {
+                                throw new Error("解析视频直链失败");
+                            }
+                        }
+                    } else {
+                        throw new Error("获取播放数据失败");
+                    }
+                } else {
+                    throw new Error("解析视频信息失败或非视频类型内容");
+                }
+            } catch (error) {
+                logger.error("请求解析 API 失败或处理出错:", error);
+            }
+        }
+
+        // 准备发送的所有元素
+        let allElements = [];
+
+        // 根据视频是否过长决定发送顺序
+        if (isLongVideo) {
+            // 过长视频：先发送过长提示（已在上面处理），然后是图文解析（如果启用）
+            allElements = [...textElements, ...videoElements];
+        } else {
+            // 正常视频：先发送图文解析，然后是视频元素
+            allElements = [...textElements, ...videoElements];
+        }
+
         // 如果没有任何元素要发送，则直接返回
-        if (responseElements.length === 0) {
+        if (allElements.length === 0) {
             return;
         }
 
@@ -595,7 +613,7 @@ display: none !important;
 
             // 创建 figure 元素
             const figureContent = h('figure', {
-                children: responseElements // 直接使用 responseElements
+                children: allElements
             });
             logInfo(JSON.stringify(figureContent, null, 2));
 
@@ -603,7 +621,7 @@ display: none !important;
             await session.send(figureContent);
         } else {
             // 没有启用合并转发，按顺序发送所有元素
-            for (const element of responseElements) {
+            for (const element of allElements) {
                 await session.send(element);
             }
         }
