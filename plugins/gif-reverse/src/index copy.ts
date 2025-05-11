@@ -16,22 +16,6 @@ export const inject = {
 export const usage = `
 ---
 
-## 开启插件前，请确保一下插件已经安装！
-
-### 所需依赖：
-
-- [ffmpeg服务](/market?keyword=ffmpeg)  （需要额外安装）
-
-- [puppeteer提供的canvas服务](/market?keyword=koishi-plugin-puppeteer+email:shigma10826@gmail.com) 或 [canvas服务](/market?keyword=canvas)  （需要额外安装）
-
-- [http服务](/market?keyword=http+email:shigma10826@gmail.com) （koishi自带）
-
-- [logger服务](/market?keyword=logger+email:shigma10826@gmail.com) （koishi自带）
-
-- i18n服务 （koishi自带）
-
----
-
 <table>
 <thead>
 <tr>
@@ -91,9 +75,6 @@ export const usage = `
 
 <h2>使用示例</h2>
 
-<details>
-<summary>点击此处————查看指令使用示例</summary>
-    
 <ul>
 <li><strong>回弹 GIF:</strong>
 <pre><code>gif -b</code></pre>
@@ -126,9 +107,9 @@ export const usage = `
 <pre><code>gif -i</code></pre>
 </li>
 </ul>
-</details>
 
-完整使用方法请使用 <code>gif -h</code> 查看指令用法
+
+更多使用方法请使用 <code>gif -h</code> 查看指令用法
 
 ---
 
