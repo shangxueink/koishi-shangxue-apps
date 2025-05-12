@@ -118,6 +118,7 @@ exports.Config = Schema.intersect([
 
             Schema.object({
                 isfigure: Schema.boolean().default(false).description("是否开启合并转发 `仅支持 onebot 适配器` 其他平台开启 无效").experimental(),
+                filebuffer: Schema.boolean().default(true).description("是否将视频链接下载后再发送 （以解决部分onebot协议端的问题）<br>否则使用视频直链发送").experimental(),
                 middleware: Schema.boolean().default(false).description("前置中间件模式"),
                 userAgent: Schema.string().description("所有 API 请求所用的 User-Agent").default("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"),
             }).description("调试设置"),
@@ -545,31 +546,59 @@ display: none !important;
                             }
                         } else {
                             // 视频时长在允许范围内，处理视频
-                            const videoUrl = video.url;
-                            logInfo(videoUrl);
+                            let videoData = video.url;  // 使用新变量名，避免覆盖原始URL
+                            logInfo(videoData);
 
-                            if (videoUrl) {
+                            if (config.filebuffer) {
+                                try {
+                                    const videoFileBuffer = await ctx.http.file(video.url);
+                                    logInfo(videoFileBuffer);
+
+                                    // 检查文件类型
+                                    if (videoFileBuffer && videoFileBuffer.data) {
+                                        // 将ArrayBuffer转换为Buffer
+                                        const buffer = Buffer.from(videoFileBuffer.data);
+
+                                        // 获取MIME类型
+                                        const mimeType = videoFileBuffer.type || videoFileBuffer.mime || 'video/mp4';
+
+                                        // 创建data URI
+                                        const base64Data = buffer.toString('base64');
+                                        videoData = `data:${mimeType};base64,${base64Data}`;
+
+                                        logInfo("成功使用 ctx.http.file 将视频URL 转换为data URI格式");
+                                    } else {
+                                        logInfo("文件数据无效，使用原始URL");
+                                    }
+                                } catch (error) {
+                                    logger.error("获取视频文件失败:", error);
+                                    // 出错时继续使用原始URL
+                                }
+                            }
+
+                            if (videoData) {
                                 if (options.link) {
-                                    videoElements.push(h.text(videoUrl));
+                                    // 如果是链接选项，仍然使用原始URL
+                                    videoElements.push(h.text(video.url));
                                 } else if (options.audio) {
-                                    videoElements.push(h.audio(videoUrl));
+                                    videoElements.push(h.audio(videoData));
                                 } else {
                                     switch (config.VideoParsing_ToLink) {
                                         case '1':
                                             break;
                                         case '2':
-                                            videoElements.push(h.video(videoUrl));
+                                            videoElements.push(h.video(videoData));
                                             break;
                                         case '3':
-                                            videoElements.push(h.text(videoUrl));
+                                            videoElements.push(h.text(video.url));
                                             break;
                                         case '4':
-                                            videoElements.push(h.text(videoUrl));
-                                            videoElements.push(h.video(videoUrl));
+                                            videoElements.push(h.text(video.url));
+                                            videoElements.push(h.video(videoData));
                                             break;
                                         case '5':
-                                            logger.info(videoUrl);
-                                            videoElements.push(h.video(videoUrl));
+                                            logger.info(video.url);
+                                            videoElements.push(h.video(videoData));
                                             break;
                                         default:
                                             break;
@@ -578,6 +607,7 @@ display: none !important;
                             } else {
                                 throw new Error("解析视频直链失败");
                             }
+
                         }
                     } else {
                         throw new Error("获取播放数据失败");
@@ -615,7 +645,35 @@ display: none !important;
             const figureContent = h('figure', {
                 children: allElements
             });
-            logInfo(JSON.stringify(figureContent, null, 2));
+
+            // 创建一个用于日志的深拷贝对象，避免修改原始对象
+            const logObject = JSON.parse(JSON.stringify(figureContent));
+
+            // 递归处理对象，截断长字符串
+            function truncateLongStrings(obj, maxLength = 150) {
+                if (!obj) return obj;
+
+                if (typeof obj === 'string' && obj.length > maxLength) {
+                    return obj.substring(0, maxLength) + '... [截断剩余' + (obj.length - maxLength) + '字符]';
+                }
+
+                if (Array.isArray(obj)) {
+                    return obj.map(item => truncateLongStrings(item, maxLength));
+                }
+
+                if (typeof obj === 'object') {
+                    const newObj = {};
+                    for (const key in obj) {
+                        newObj[key] = truncateLongStrings(obj[key], maxLength);
+                    }
+                    return newObj;
+                }
+
+                return obj;
+            }
+
+            // 截断长字符串后再打印
+            logInfo(JSON.stringify(truncateLongStrings(logObject), null, 2));
 
             // 发送合并转发消息
             await session.send(figureContent);
