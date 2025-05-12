@@ -129,6 +129,7 @@ exports.Config = Schema.intersect([
     Schema.object({
         pageclose: Schema.boolean().default(true).description("自动`page.close()`<br>非开发者请勿改动").experimental(),
         loggerinfo: Schema.boolean().default(false).description("日志调试输出 `日常使用无需开启`<br>非开发者请勿改动").experimental(),
+        loggerinfofulljson: Schema.boolean().default(false).description("打印完整的机器人发送的json输出").experimental(),
     }).description("开发者选项"),
 ]);
 
@@ -646,34 +647,9 @@ display: none !important;
                 children: allElements
             });
 
-            // 创建一个用于日志的深拷贝对象，避免修改原始对象
-            const logObject = JSON.parse(JSON.stringify(figureContent));
-
-            // 递归处理对象，截断长字符串
-            function truncateLongStrings(obj, maxLength = 150) {
-                if (!obj) return obj;
-
-                if (typeof obj === 'string' && obj.length > maxLength) {
-                    return obj.substring(0, maxLength) + '... [截断剩余' + (obj.length - maxLength) + '字符]';
-                }
-
-                if (Array.isArray(obj)) {
-                    return obj.map(item => truncateLongStrings(item, maxLength));
-                }
-
-                if (typeof obj === 'object') {
-                    const newObj = {};
-                    for (const key in obj) {
-                        newObj[key] = truncateLongStrings(obj[key], maxLength);
-                    }
-                    return newObj;
-                }
-
-                return obj;
+            if (config.loggerinfofulljson) {
+                logInfo(JSON.stringify(figureContent, null, 2));
             }
-
-            // 截断长字符串后再打印
-            logInfo(JSON.stringify(truncateLongStrings(logObject), null, 2));
 
             // 发送合并转发消息
             await session.send(figureContent);
