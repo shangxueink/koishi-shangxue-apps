@@ -196,7 +196,7 @@ async function apply(ctx, config) {
       }
 
       if (!checkDomainPermission(url)) {
-        return '该域名不允许截图。';
+        return;
       }
 
       // 将秒转换为毫秒
@@ -305,7 +305,6 @@ async function apply(ctx, config) {
       const commandName = config.commandname || "看看";
 
       ctx.command(commandName + ' <target> [selector:text]', '网页截图')
-        .alias('screenshot')
         .action(async ({ session }, target, selector) => {
           if (!target) return '请输入网址或别名。';
 
