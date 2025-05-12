@@ -1,7 +1,7 @@
 {
   "name": "koishi-plugin-screenshot-links",
   "description": "链接预览！可以实现 [指令解析](https://i0.hdslb.com/bfs/openplatform/d662bef1d4410f527e3834ac8dfd34266e45e5cf.png)、[中间件解析](https://i0.hdslb.com/bfs/openplatform/efa99d00af6fdd73b26b0768730a72d873a85144.png)、[自定义黑名单](https://i0.hdslb.com/bfs/openplatform/343f01d0fdbbca0983bff0888ef3ea4168a7fa09.png)",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "main": "lib/index.js",
   "typings": "lib/index.d.ts",
   "files": [

@@ -115,19 +115,19 @@ async function apply(ctx, config) {
     }
 
     // 频道鉴权
-    function checkChannelPermission(channelId) {
-      logInfo(`频道 ${channelId} 触发鉴权`)
+    function checkChannelPermission(session) {
+      logInfo(`频道 ${session.channelId} 触发鉴权`)
       if (session.isDirect && config.isDirectsession) {
         return true
       }
-      if (!channelId) {
+      if (!session.channelId) {
         return true; // 如果没有频道ID，则默认允许
       }
 
       if (config.channelWhitelist && config.channelWhitelist.length > 0) {
-        return config.channelWhitelist.includes(channelId);
+        return config.channelWhitelist.includes(session.channelId);
       }
-      if (config.channelBlacklist && config.channelBlacklist.includes(channelId)) {
+      if (config.channelBlacklist && config.channelBlacklist.includes(session.channelId)) {
         return false;
       }
       return true;
@@ -191,7 +191,7 @@ async function apply(ctx, config) {
         return;
       }
 
-      if (!checkChannelPermission(session.channelId)) {
+      if (!checkChannelPermission(session)) {
         return;
       }
 
