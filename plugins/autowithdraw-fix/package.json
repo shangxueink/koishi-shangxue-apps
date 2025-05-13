@@ -1,7 +1,7 @@
 {
   "name": "koishi-plugin-autowithdraw-fix",
   "description": "[<ruby>**代理发送消息！**<rp>（</rp><rt>点我查看效果预览图</rt><rp>）</rp></ruby>](https://i0.hdslb.com/bfs/article/585ce85165936462a105f0162b4ddde8312276085.gif) 支持强制回复指令、指令撤回时 自动撤回响应、定时撤回机器人的所有消息。",
-  "version": "1.3.4",
+  "version": "1.3.5",
   "main": "lib/index.js",
   "typings": "lib/index.d.ts",
   "files": [

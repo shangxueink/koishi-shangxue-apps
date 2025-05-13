@@ -34,6 +34,44 @@
 <li><b><code>loggerinfo</code> (boolean):</b> 是否开启详细的日志调试输出。 开启后，插件会在控制台输出更多的调试信息，方便开发者排查问题。 默认为 <code>false</code>。 <b>警告：</b> 开启此选项可能会产生大量的日志输出。</li>
 </ul>
 
+<li><b><code>morequoteEnable</code> (array):</b> 自定义消息前缀配置。可以配置多个消息元素作为前缀，支持变量替换。每个配置项包含：
+<ul>
+<li><code>hModel</code>: 使用的消息元素类型，支持 'text'、'at'、'sharp'、'quote'、'image'、'audio'、'video'、'file' 等</li>
+<li><code>value</code>: 传入参数，可以是固定文本或变量表达式</li>
+<li><code>replacecontent</code>: 是否将 value 作为变量表达式处理</li>
+</ul>
+
+示例配置1 (默认)：
+<pre><code>[
+  {
+    "hModel": "quote",
+    "value": "session.messageId",
+    "replacecontent": true
+  }
+]</code></pre>
+
+示例配置2：
+<pre><code>[
+  {
+    "hModel": "quote",
+    "value": "session.messageId",
+    "replacecontent": true
+  },
+  {
+    "hModel": "at",
+    "value": "session.userId",
+    "replacecontent": true
+  },
+  {
+    "hModel": "text",
+    "value": "你好"
+  }
+]
+</code></pre>
+此配置会在消息前添加：引用原消息 + @发送者 + 文本"你好"
+</li>
+
+
 ---
 
 <h2>使用方法</h2>

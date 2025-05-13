@@ -1,4 +1,4 @@
-import { Context, Schema, sleep, h } from "koishi";
+import { Context, Schema, sleep, h, Model } from "koishi";
 
 export const name = "autowithdraw-fix";
 export const inject = ["logger"];
@@ -34,9 +34,12 @@ export const usage = `
 export const Config =
   Schema.intersect([
     Schema.object({
-      unableplatform: Schema.array(String).role('table').default(["onebot",]).description("允许应用的平台。在下列平台之外，本插件不会生效<br>注意 本插件仅在`onebot`平台实测可用，并且`qq`平台无法使用。其他平台可用性未知。"),
-      quoteEnable: Schema.boolean().default(false).description("是否 以引用的方式发送 回复指令<br>可能会有兼容问题，谨慎开启"),
+      enableplatform: Schema.array(String).role('table').default(["onebot",]).description("允许应用的平台。在下列平台之外，本插件不会生效<br>注意 本插件仅在`onebot`平台实测可用，并且`qq`平台无法使用。其他平台可用性未知。"),
     }).description('基础设置'),
+
+    Schema.object({
+      quoteEnable: Schema.boolean().default(false).description("是否 以引用的方式发送 回复内容（还有其他功能）<br>可能会有兼容问题，谨慎开启"),
+    }).description('追加消息设置'),
     Schema.union([
       Schema.object({
         quoteEnable: Schema.const(true).required(),
@@ -63,7 +66,18 @@ export const Config =
               "include": "<message"
             }
           ]
-        )
+        ),
+        morequoteEnable: Schema.array(Schema.object({
+          hModel: Schema.union(['text', 'at', 'sharp', 'quote', 'image', 'audio', 'video', 'file']).description("h函数的使用方法"),
+          value: Schema.string().description("传入参数"),
+          replacecontent: Schema.boolean().description("是否为变量"),
+        })).role('table').default([
+          {
+            "hModel": "quote",
+            "value": "session.messageId",
+            "replacecontent": true
+          }
+        ]).description("自定义消息前缀<br>默认为`引用`功能"),
       }),
       Schema.object({}),
     ]),
@@ -167,8 +181,8 @@ export async function apply(ctx: Context, config) {
       const sessionSn = inputSession.sn;
       const platform = inputSession.platform;
 
-      if (!config.unableplatform.includes(platform)) {
-        logInfo(`当前平台 ${platform} 不在配置的可用平台列表中，插件跳过。可用平台：${config.unableplatform.join(', ')}`);
+      if (!config.enableplatform.includes(platform)) {
+        logInfo(`当前平台 ${platform} 不在配置的可用平台列表中，插件跳过。可用平台：${config.enableplatform.join(', ')}`);
         return; // 插件不生效
       }
 
@@ -212,12 +226,38 @@ export async function apply(ctx: Context, config) {
         if (config.quoteEnable) {
           const shouldReturnOriginal = config.returnquotetable.some(item => outputContent.includes(item.include));
           if (!shouldReturnOriginal) {
-            logInfo("手动回复指令:", config.quoteEnable);
-            messageToSend = h.quote(inputMessageId) + messageToSend;
+            logInfo("自定义消息前缀处理开始");
+            let prefix = '';
+
+            for (const item of config.morequoteEnable) {
+              let value = item.value;
+
+              // 处理变量替换
+              if (item.replacecontent) {
+                try {
+                  value = new Function('session', `return ${value}`)(inputSession);
+                } catch (error) {
+                  ctx.logger.error(`变量替换失败: ${value}`, error);
+                  continue;
+                }
+              }
+              try {
+                prefix += h[item.hModel](value);
+              } catch (error) {
+                ctx.logger.error(`h.${item.hModel} 调用失败`, error);
+              }
+            }
+            messageToSend = prefix + messageToSend;
+            logInfo(prefix);
+            logInfo(messageToSend);
+            if (config.loggerinfo_content) logInfo("处理后的消息内容:", messageToSend);
           }
         }
 
-        if (config.loggerinfo_content) logInfo("发送内容:", messageToSend);
+
+        if (config.loggerinfo_content) {
+          logInfo("发送内容:", messageToSend);
+        }
         const sendmessageIds = await outputSession.send(messageToSend);
         logInfo("手动发送消息成功，消息 IDs:", sendmessageIds);
 
