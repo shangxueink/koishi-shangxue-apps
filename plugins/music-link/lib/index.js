@@ -715,6 +715,7 @@ const Config = Schema.intersect([
             Schema.const('image').description('仅图片置顶的 富媒体置底：图片 > 文字 ≥ 语音 ≥ 视频 ≥ 文件 （仅官方机器人考虑使用）'),
             Schema.const('raw').description('严格按照 `command_return_data_Field` 表格的顺序 （严格按照配置项表格的上下顺序）'),
         ]).role('radio').default("text").description('对 `command*_return_data_Field`配置项 排序的控制<br>优先级越高，顺序越靠前<br>[➣点我查看此配置项 效果预览图](https://i0.hdslb.com/bfs/article/6e8b901f9b9daa57f082bf0cece36102312276085.png)'),
+        renameTempFile: Schema.boolean().default(false).description('是否对`临时音频文件`以`歌曲名称`重命名<br>否则会使用hash值为名称<br>（仅在部分协议端的`h.file`方法下见效）').experimental(),
         deleteTempTime: Schema.number().default(20).description('对于`file`类型的`Temp`临时文件的删除时间<br>若干`秒`后 删除下载的本地临时文件').experimental(),
     }).description('高级进阶设置'),
 
@@ -1390,7 +1391,7 @@ function apply(ctx, config) {
                                         fileSize: songDetails.musicSize,
                                         br: songDetails.musicBr
                                     };
-                                    // .map((song, index) => `${index + startIndex + 1}. ${song.songname || song.title} -- ${song.name || song.author}`)
+                                    // .map((song, index) => `${index + startIndex + 1}. ${song.songname || song.title || song.name} -- ${song.name || song.author}`)
                                     const response = await generateResponse(session, responseData, config.command5_return_data_Field);
                                     await session.send(response); // 发送响应数据
                                 }
@@ -1905,23 +1906,46 @@ function apply(ctx, config) {
             }
         }
 
-        async function downloadFile(url) {
+        async function downloadFile(url, songname) {
             await ensureTempDir();
 
             try {
-                // 获取文件内容
-                const response = await ctx.http.get(url, { responseType: 'arraybuffer' });
-                const buffer = Buffer.from(response);
+                const file = await ctx.http.file(url);
 
-                // 生成随机文件名并保留扩展名
-                const ext = path.extname(new URL(url).pathname).split('?')[0] || '.dat';
-                const filename = crypto.randomBytes(8).toString('hex') + ext;
+                // 获取正确的文件扩展名
+                const contentType = file.type || file.mime;
+                logInfo(file)
+
+                let ext = '.mp3';
+                if (contentType) {
+                    if (contentType.includes('audio/mpeg')) {
+                        ext = '.mp3';
+                    } else if (contentType.includes('audio/mp4')) {
+                        ext = '.m4a';
+                    } else if (contentType.includes('audio/wav')) {
+                        ext = '.wav';
+                    } else if (contentType.includes('audio/flac')) {
+                        ext = '.flac';
+                    }
+                }
+
+                let filename;
+                if (config.renameTempFile && songname) {
+                    // 移除非法字符
+                    const safeSongname = songname.replace(/[<>:"/\\|?*\x00-\x1F\s]/g, '-').trim();
+                    filename = safeSongname + ext;
+                } else {
+                    filename = crypto.randomBytes(8).toString('hex') + ext;
+                }
+
                 const filePath = path.join(tempDir, filename);
 
-                // 写入文件
+                // 将 ArrayBuffer 转换为 Buffer
+                const buffer = Buffer.from(file.data);
+
+                // 将文件数据写入文件系统
                 await fs.writeFile(filePath, buffer);
-                // url.pathToFileURL(filePath).href
-                return filePath; //  返回本地文件路径，而不是 file URL
+                return filePath;
             } catch (error) {
                 logger.error('文件下载失败:', error);
                 return null;
@@ -2004,7 +2028,8 @@ function apply(ctx, config) {
                         break;
                     case 'file':
                         try {
-                            const localFilePath = await downloadFile(value);
+                            const songname = data.songname || data.title || data.name || "TempSongFileName";
+                            const localFilePath = await downloadFile(value, songname);
                             if (localFilePath) {
                                 element = h.file(url.pathToFileURL(localFilePath).href);
                                 fileElements.push(element);
@@ -2126,7 +2151,7 @@ function apply(ctx, config) {
             // 确保 endIndex 不超过数据长度
             const actualEndIndex = Math.min(endIndex, data.length);
             const formattedList = data.slice(startIndex, actualEndIndex) // 使用 slice 截取数据
-                .map((song, index) => `${index + startIndex + 1}. ${song.songname || song.title} -- ${song.name || song.author}`)
+                .map((song, index) => `${index + startIndex + 1}. ${song.songname || song.title || song.name} -- ${song.name || song.author}`)
                 .join('<br />');
             return `<b>${platform}</b>:<br />${formattedList}`;
         }
