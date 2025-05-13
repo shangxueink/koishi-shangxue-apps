@@ -38,7 +38,7 @@ export const Config =
     }).description('基础设置'),
 
     Schema.object({
-      quoteEnable: Schema.boolean().default(false).description("是否 以引用的方式发送 回复内容（还有其他功能）<br>可能会有兼容问题，谨慎开启"),
+      quoteEnable: Schema.boolean().default(false).description("是否 以引用的方式发送 回复内容（还有其他功能）<br>可能会有兼容问题，谨慎开启").experimental(),
     }).description('追加消息设置'),
     Schema.union([
       Schema.object({
@@ -77,7 +77,7 @@ export const Config =
             "value": "session.messageId",
             "replacecontent": true
           }
-        ]).description("自定义消息前缀<br>默认为`引用`功能"),
+        ]).description("自定义消息前缀<br>默认为`引用`功能").experimental(),
       }),
       Schema.object({}),
     ]),
@@ -248,9 +248,8 @@ export async function apply(ctx: Context, config) {
               }
             }
             messageToSend = prefix + messageToSend;
-            logInfo(prefix);
-            logInfo(messageToSend);
-            if (config.loggerinfo_content) logInfo("处理后的消息内容:", messageToSend);
+            logInfo("处理后的消息前缀: ", prefix);
+            if (config.loggerinfo_content) logInfo("处理后的消息内容: ", messageToSend);
           }
         }
 
