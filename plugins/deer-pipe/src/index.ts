@@ -485,7 +485,9 @@ export async function apply(ctx: Context, config) {
         return;
       }
       // 获取用户余额
-      const balance = await getUserCurrency(ctx, await updateIDbyuserId(targetUserId, session)); // 使用 targetUserId 对应的 aid 获取余额
+      const targetUserIduid = await updateIDbyuserId(targetUserId, session)
+      if (targetUserIduid === null) return
+      const balance = await getUserCurrency(ctx, targetUserIduid); // 使用 targetUserId 对应的 aid 获取余额
       const imgBuf = await renderSignInCalendar(ctx, targetUserId, targetUsername, currentYear, currentMonth);
       const calendarImage = h.image(imgBuf, 'image/png');
       await session.send(h.at(targetUserId) + ` ` + h.text(session.text(`.balance`, [balance])));
@@ -746,7 +748,9 @@ export async function apply(ctx: Context, config) {
         totaltimes: targetRecord.totaltimes,
       });
       // 更新货币奖励
-      await updateUserCurrency(ctx, await updateIDbyuserId(targetUserId, session), cost1); //+100 为 targetUser 增加签到奖励
+      const targetUserIduid = await updateIDbyuserId(targetUserId, session)
+      if (targetUserIduid === null) return
+      await updateUserCurrency(ctx, targetUserIduid, cost1); //+100 为 targetUser 增加签到奖励
       await updateUserCurrency(ctx, session.user.id, cost2); // -150 为【帮助者】增加货币奖励 
       // 渲染图片
       const imgBuf = await renderSignInCalendar(ctx, targetUserId, targetUsername, currentYear, currentMonth);
@@ -953,7 +957,9 @@ ${deer.order === 3 ? '<span class="medal">🥉</span>' : ''}
         return;
       }
       // 检查目标用户余额
-      const balance = await getUserCurrency(ctx, await updateIDbyuserId(session.userId, session));
+      const targetUserIduid = await updateIDbyuserId(session.userId, session)
+      if (targetUserIduid === null) return
+      const balance = await getUserCurrency(ctx, targetUserIduid);
       if (balance < Math.abs(cost)) { // 使用绝对值进行检查
         await session.send(session.text('.Insufficient_balance'));
         return;
@@ -991,7 +997,7 @@ ${deer.order === 3 ? '<span class="medal">🥉</span>' : ''}
       // 更新总签到次数
       record.totaltimes += 1;
       // 扣除货币
-      await updateUserCurrency(ctx, await updateIDbyuserId(session.userId, session), -Math.abs(cost));
+      await updateUserCurrency(ctx, targetUserIduid, -Math.abs(cost));
       // 更新数据库
       await ctx.database.set('deerpipe', { userid: targetUserId }, {
         username: record.username,
@@ -1114,12 +1120,15 @@ ${deer.order === 3 ? '<span class="medal">🥉</span>' : ''}
     });
     // 检查是否找到了匹配的记录
     if (!bindingRecord) {
-      await session.send("未找到对应的用户记录，请重试。")
-      throw new Error('未找到对应的用户记录。');
+      await session.send("未找到对应的用户记录，请让目标用户交互此指令。");
+      // 返回一个特殊值表示失败
+      return null;
     }
     // 返回 aid 字段作为对应的 id
     return bindingRecord.aid;
   }
+
+
   async function renderSignInCalendar(ctx: Context, userId: string, username: string, year: number, month: number): Promise<Buffer> {
     const [record] = await ctx.database.get('deerpipe', { userid: userId });
     const checkinDates = record?.checkindate || [];
