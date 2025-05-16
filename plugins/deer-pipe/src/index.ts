@@ -627,7 +627,10 @@ export async function apply(ctx: Context, config) {
         return;
       }
       const targetUserId = parsedUser.attrs.id;
-      let targetUsername = parsedUser.attrs.name || targetUserId;
+      let targetUsername = parsedUser.attrs.name ||
+        (typeof session.bot.getUser === 'function' ?
+          ((await session.bot.getUser(targetUserId))?.name || targetUserId) :
+          targetUserId);
 
       const costTable1 = getCostTable(config, session, targetUserId); // 获取合适的价格表 // 被@的 // user
       const costTable2 = getCostTable(config, session); // 获取合适的价格表  //  session.userId
