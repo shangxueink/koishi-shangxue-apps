@@ -768,7 +768,7 @@ async function apply(ctx, config) {
         }
         stats.visits++;
       });
-      ctx.logger.info(`路由已注册：${config.path}`);
+      ctx.logger.info(`路由已注册：http://127.0.0.1:${ctx.server.port}${config.path}`);
 
       // 定时同步 (仅在 URL 模式下)
       if (config.syncInterval > 0) {
