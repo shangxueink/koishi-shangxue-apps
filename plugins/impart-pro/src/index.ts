@@ -306,7 +306,10 @@ export function apply(ctx: Context, config: Config) {
         const parsedUser = h.parse(user)[0];
         if (parsedUser?.type === 'at') {
           targetUserId = parsedUser.attrs.id;
-          targetUsername = parsedUser.attrs.name;
+          targetUsername = parsedUser.attrs.name ||
+            (typeof session.bot.getUser === 'function' ?
+              ((await session.bot.getUser(targetUserId))?.name || targetUserId) :
+              targetUserId);
           if (targetUserId = session.userId) {
             await session.send("不允许自己注入自己哦~ 换一个用户吧");
             return;
@@ -1126,7 +1129,10 @@ ${record.order === 3 ? '<span class="medal">🥉</span>' : ''}
         const parsedUser = h.parse(user)[0];
         if (parsedUser?.type === 'at') {
           userId = parsedUser.attrs.id;
-          username = parsedUser.attrs.name || userId;
+          username = parsedUser.attrs.name ||
+            (typeof session.bot.getUser === 'function' ?
+              ((await session.bot.getUser(userId))?.name || userId) :
+              userId);
         } else {
           await session.send('不可用的用户！请检查输入');
           return;
@@ -1167,7 +1173,10 @@ ${record.order === 3 ? '<span class="medal">🥉</span>' : ''}
         const parsedUser = h.parse(user)[0];
         if (parsedUser?.type === 'at') {
           userId = parsedUser.attrs.id;
-          username = parsedUser.attrs.name || userId;
+          username = parsedUser.attrs.name ||
+            (typeof session.bot.getUser === 'function' ?
+              ((await session.bot.getUser(userId))?.name || userId) :
+              userId);
         } else {
           await session.send('不可用的用户！请检查输入');
           return;
