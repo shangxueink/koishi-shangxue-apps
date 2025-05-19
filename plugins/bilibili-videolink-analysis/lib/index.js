@@ -69,7 +69,7 @@ exports.Config = Schema.intersect([
 
     Schema.object({
         enablebilianalysis: Schema.boolean().default(true).description("开启解析功能<br>`关闭后，解析功能将关闭`"),
-    }).description('解析功能开关'),
+    }).description('视频解析 - 功能开关'),
     Schema.union([
         Schema.object({
             enablebilianalysis: Schema.const(false).required(),
@@ -90,16 +90,28 @@ exports.Config = Schema.intersect([
                     Schema.const('5').description('返回视频，仅在日志记录视频直链'),
                 ]).role('radio').default('2').description("是否返回` 视频/视频直链 `"),
                 BVnumberParsing: Schema.boolean().default(true).description("是否允许根据`独立的BV、AV号`解析视频 `开启后，可以通过视频的BV、AV号解析视频。` <br>  [触发说明见README](https://www.npmjs.com/package/koishi-plugin-bilibili-videolink-analysis)"),
-                Maximumduration: Schema.number().default(25).description("允许解析的视频最大时长（分钟）`超过这个时长 就不会发视频`").min(1),
+                MinimumTimeInterval: Schema.number().default(180).description("若干`秒`内 不再处理相同链接 `防止多bot互相触发 导致的刷屏/性能浪费`").min(1),
+            }),
+
+            Schema.object({
+                enablebilianalysis: Schema.const(true),
+                Minimumduration: Schema.number().default(0).description("允许解析的视频最小时长（分钟）`低于这个时长 就不会发视频内容`").min(0),
+                Minimumduration_tip: Schema.union([
+                    Schema.const('return').description('不返回文字提示'),
+                    Schema.object({
+                        tipcontent: Schema.string().default('视频太短啦！不看不看~').description("文字提示内容"),
+                        tipanalysis: Schema.boolean().default(true).description("是否进行图文解析（不会返回视频链接）"),
+                    }).description('返回文字提示'),
+                ]).description("对`过短视频`的文字提示内容").default({}),
+                Maximumduration: Schema.number().default(25).description("允许解析的视频最大时长（分钟）`超过这个时长 就不会发视频内容`").min(1),
                 Maximumduration_tip: Schema.union([
                     Schema.const('return').description('不返回文字提示'),
                     Schema.object({
                         tipcontent: Schema.string().default('视频太长啦！内容还是去B站看吧~').description("文字提示内容"),
-                        tipanalysis: Schema.boolean().default(false).description("是否进行图文解析（不会返回视频链接）"),
+                        tipanalysis: Schema.boolean().default(true).description("是否进行图文解析（不会返回视频链接）"),
                     }).description('返回文字提示'),
                 ]).description("对`过长视频`的文字提示内容").default({}),
-                MinimumTimeInterval: Schema.number().default(180).description("若干`秒`内 不再处理相同链接 `防止多bot互相触发 导致的刷屏/性能浪费`").min(1),
-            }),
+            }).description("视频解析 - 内容限制"),
 
             Schema.object({
                 parseLimit: Schema.number().default(3).description("单对话多链接解析上限").hidden(),
@@ -520,7 +532,35 @@ display: none !important;
                         const videoDurationSeconds = playData.data.dash.duration;
                         const videoDurationMinutes = videoDurationSeconds / 60;
 
-                        if (videoDurationMinutes > config.Maximumduration) {
+                        // 检查视频是否太短
+                        if (videoDurationMinutes < config.Minimumduration) {
+                            isShortVideo = true;
+
+                            // 根据 Minimumduration_tip 的值决定行为
+                            if (config.Minimumduration_tip === 'return') {
+                                // 不返回文字提示，直接返回
+                                return;
+                            } else if (typeof config.Minimumduration_tip === 'object') {
+                                // 返回文字提示
+                                if (config.Minimumduration_tip.tipcontent) {
+                                    if (config.Minimumduration_tip.tipanalysis) {
+                                        videoElements.push(h.text(config.Minimumduration_tip.tipcontent));
+                                    } else {
+                                        await session.send(config.Minimumduration_tip.tipcontent);
+                                    }
+                                }
+
+                                // 决定是否进行图文解析
+                                shouldPerformTextParsing = config.Minimumduration_tip.tipanalysis === true;
+
+                                // 如果不进行图文解析，清空已准备的文本元素
+                                if (!shouldPerformTextParsing) {
+                                    textElements = [];
+                                }
+                            }
+                        }
+                        // 检查视频是否太长
+                        else if (videoDurationMinutes > config.Maximumduration) {
                             isLongVideo = true;
 
                             // 根据 Maximumduration_tip 的值决定行为
