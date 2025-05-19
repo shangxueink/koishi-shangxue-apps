@@ -480,7 +480,6 @@ display: none !important;
         let videoElements = []; // 用于存储视频相关元素
         let textElements = []; // 用于存储图文解析元素
         let shouldPerformTextParsing = config.linktextParsing; // 默认根据配置决定是否进行图文解析
-        let isLongVideo = false; // 标记视频是否过长
 
         // 先进行图文解析
         if (shouldPerformTextParsing) {
@@ -534,7 +533,6 @@ display: none !important;
 
                         // 检查视频是否太短
                         if (videoDurationMinutes < config.Minimumduration) {
-                            isShortVideo = true;
 
                             // 根据 Minimumduration_tip 的值决定行为
                             if (config.Minimumduration_tip === 'return') {
@@ -561,7 +559,6 @@ display: none !important;
                         }
                         // 检查视频是否太长
                         else if (videoDurationMinutes > config.Maximumduration) {
-                            isLongVideo = true;
 
                             // 根据 Maximumduration_tip 的值决定行为
                             if (config.Maximumduration_tip === 'return') {
@@ -662,16 +659,7 @@ display: none !important;
         }
 
         // 准备发送的所有元素
-        let allElements = [];
-
-        // 根据视频是否过长决定发送顺序
-        if (isLongVideo) {
-            // 过长视频：先发送过长提示（已在上面处理），然后是图文解析（如果启用）
-            allElements = [...textElements, ...videoElements];
-        } else {
-            // 正常视频：先发送图文解析，然后是视频元素
-            allElements = [...textElements, ...videoElements];
-        }
+        let allElements = [...textElements, ...videoElements];
 
         // 如果没有任何元素要发送，则直接返回
         if (allElements.length === 0) {
