@@ -103,5 +103,26 @@
         "deb": "https://dldir1.qq.com/qqfile/qq/QQNT/Linux/QQ_3.2.17_250519_mips64el_01.deb"
       }
     }
+  },
+  {
+    "linux": {
+      "versionCode": "3.2.17",
+      "x64": {
+        "deb": "https://dldir1.qq.com/qqfile/qq/QQNT/Linux/QQ_3.2.17_250521_amd64_01.deb",
+        "rpm": "https://dldir1.qq.com/qqfile/qq/QQNT/Linux/QQ_3.2.17_250521_x86_64_01.rpm",
+        "appimage": "https://dldir1.qq.com/qqfile/qq/QQNT/Linux/QQ_3.2.17_250521_x86_64_01.AppImage"
+      },
+      "arm": {
+        "deb": "https://dldir1.qq.com/qqfile/qq/QQNT/Linux/QQ_3.2.17_250521_arm64_01.deb",
+        "rpm": "https://dldir1.qq.com/qqfile/qq/QQNT/Linux/QQ_3.2.17_250521_aarch64_01.rpm",
+        "appimage": "https://dldir1.qq.com/qqfile/qq/QQNT/Linux/QQ_3.2.17_250521_arm64_01.AppImage"
+      },
+      "loongarch": {
+        "deb": "https://dldir1.qq.com/qqfile/qq/QQNT/Linux/QQ_3.2.17_250521_loongarch64_01.deb"
+      },
+      "mips": {
+        "deb": "https://dldir1.qq.com/qqfile/qq/QQNT/Linux/QQ_3.2.17_250521_mips64el_01.deb"
+      }
+    }
   }
 ]

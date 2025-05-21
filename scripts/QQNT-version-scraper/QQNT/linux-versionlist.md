@@ -27,3 +27,8 @@
 | Linux loongarch | 3.2.17 |   | [下载](https://dldir1.qq.com/qqfile/qq/QQNT/Linux/QQ_3.2.17_250519_loongarch64_01.deb) |   |   |   |
 | Linux mips | 3.2.17 |   | [下载](https://dldir1.qq.com/qqfile/qq/QQNT/Linux/QQ_3.2.17_250519_mips64el_01.deb) |   |   |   |
 |   |   |   |   |   |   |   |
+| Linux x64 | 3.2.17 |   | [下载](https://dldir1.qq.com/qqfile/qq/QQNT/Linux/QQ_3.2.17_250521_amd64_01.deb) | [下载](https://dldir1.qq.com/qqfile/qq/QQNT/Linux/QQ_3.2.17_250521_x86_64_01.rpm) | [下载](https://dldir1.qq.com/qqfile/qq/QQNT/Linux/QQ_3.2.17_250521_x86_64_01.AppImage) |   |
+| Linux arm | 3.2.17 |   | [下载](https://dldir1.qq.com/qqfile/qq/QQNT/Linux/QQ_3.2.17_250521_arm64_01.deb) | [下载](https://dldir1.qq.com/qqfile/qq/QQNT/Linux/QQ_3.2.17_250521_aarch64_01.rpm) | [下载](https://dldir1.qq.com/qqfile/qq/QQNT/Linux/QQ_3.2.17_250521_arm64_01.AppImage) |   |
+| Linux loongarch | 3.2.17 |   | [下载](https://dldir1.qq.com/qqfile/qq/QQNT/Linux/QQ_3.2.17_250521_loongarch64_01.deb) |   |   |   |
+| Linux mips | 3.2.17 |   | [下载](https://dldir1.qq.com/qqfile/qq/QQNT/Linux/QQ_3.2.17_250521_mips64el_01.deb) |   |   |   |
+|   |   |   |   |   |   |   |
