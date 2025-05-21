@@ -1,7 +1,7 @@
 {
   "name": "koishi-plugin-preview-help",
   "description": "[<ruby>交互图片菜单<rp>（</rp><rt>点我查看效果预览图</rt><rp>）</rp></ruby>](https://i0.hdslb.com/bfs/article/07fec85a1bb90656e8dbd163b7e2222f312276085.jpg)支持webUI编辑、导入导出配置、导出图片、指令渲染，可以help文本菜单转图片菜单。[点我查看使用方法](https://github.com/shangxueink/koishi-shangxue-apps/tree/main/plugins/preview-help)",
-  "version": "3.1.0",
+  "version": "3.2.0",
   "main": "lib/index.js",
   "typings": "lib/index.d.ts",
   "files": [

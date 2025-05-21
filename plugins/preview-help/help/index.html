@@ -281,7 +281,45 @@
             font-size: 0.8em;
             color: var(--text-color-light);
             line-height: 1.2;
+            max-height: 2.4em;
+            /* 允许显示2行 */
+            overflow: hidden;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            /* 限制为2行 */
+            line-clamp: 2;
+            -webkit-box-orient: vertical;
+            text-overflow: ellipsis;
+            word-break: break-all;
+            word-wrap: break-word;
+            margin-top: 2px;
+            width: 100%;
         }
+
+        .sub-item-text-content {
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+            max-width: 100%;
+            overflow: hidden;
+            padding-right: 5px;
+        }
+
+
+        .sub-item-text-preview {
+            display: flex;
+            align-items: center;
+            overflow: hidden;
+            max-width: 100%;
+        }
+
+        .sub-item-text-preview span {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            display: block;
+        }
+
 
         .sub-item-text-content {
 
@@ -610,24 +648,30 @@
 
         .popup-buttons {
             display: flex;
+            flex-wrap: wrap;
+            /* 允许按钮换行 */
             justify-content: center;
-
             gap: 10px;
             margin-top: 20px;
         }
 
         .popup-button {
-
             padding: 8px 15px;
             border: none;
             border-radius: 4px;
-            margin: 0 5px;
-
             cursor: pointer;
             color: white;
             background-color: var(--primary-color);
             transition: background-color 0.3s;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            flex: 0 1 auto;
+            min-width: 60px;
+            max-width: 120px;
         }
+
+
 
         .popup-button:hover {
             background-color: #3a8ee6;
@@ -639,6 +683,16 @@
             background-color: #3a8ee6;
 
         }
+
+        .popup-button.delete-button {
+            background-color: rgba(220, 53, 69, 0.7);
+            margin-left: 5px;
+        }
+
+        .popup-button.delete-button:hover {
+            background-color: rgb(220, 53, 69);
+        }
+
 
         .popup-tabs {
             display: flex;
@@ -1246,11 +1300,13 @@
                             基本设置</div>
                         <div class="popup-tab" :class="{ 'active': popupTab === 'style' }" @click="popupTab = 'style'">
                             样式</div>
-                        <div class="popup-tab" :class="{ 'active': popupTab === 'icon' }" @click="popupTab = 'icon'">图标
+                        <div class="popup-tab" v-if="popupType === 'menuItem' || popupType === 'subItem'"
+                            :class="{ 'active': popupTab === 'icon' }" @click="popupTab = 'icon'">图标
                         </div>
                         <div class="popup-tab" v-if="popupType === 'menuItem'"
                             :class="{ 'active': popupTab === 'layout' }" @click="popupTab = 'layout'">布局</div>
                     </div>
+
 
                     <div v-if="popupTab === 'basic'">
                         <div class="form-item">
@@ -1339,11 +1395,16 @@
                     <div class="popup-buttons">
                         <button v-if="popupType === 'menuItem'" class="popup-button sibling-button"
                             @click="addSiblingMenuItemFromPopup">添加同级菜单</button>
+                        <button v-if="popupType === 'menuItem'" class="popup-button sibling-button"
+                            @click="addSubMenuItemFromPopup">添加子菜单项</button>
                         <button v-if="popupType === 'subItem'" class="popup-button sibling-button"
                             @click="addSiblingSubItemFromPopup">添加同级子项</button>
                         <button class="popup-button" @click="confirmPopup">确认</button>
                         <button class="popup-button" @click="closePopup">取消</button>
+                        <button v-if="popupType === 'menuItem' || popupType === 'subItem'"
+                            class="popup-button delete-button" @click="deleteCurrentItem">删除</button>
                     </div>
+
                 </div>
             </div>
         </template>
@@ -1408,8 +1469,8 @@ https://i0.hdslb.com/bfs/article/7a5138b47dcd88c25513ef783be4715c175033875.jpg
     </div>
 
     <script>
-        let iconIdCounter = 38; // Corrected counter to start after default icons (1-37 are default)
-        let fontIdCounter = 1; // Counter for unique font IDs
+        let iconIdCounter = 38;
+        let fontIdCounter = 1;
         new Vue({
             el: '#app',
             data: {
@@ -1421,7 +1482,7 @@ https://i0.hdslb.com/bfs/article/7a5138b47dcd88c25513ef783be4715c175033875.jpg
                 showBackgroundSettings: true,
                 showFooterSettings: true,
                 showFontSettings: true,
-                showGlassmorphismSettings: true, // 控制毛玻璃设置的折叠面板
+                showGlassmorphismSettings: true,
                 useBackdropFilter: true,
                 "icons": [
                     { "id": 1, "url": "./pictures/icons/1.png", "name": "icon1" },
@@ -1470,7 +1531,7 @@ https://i0.hdslb.com/bfs/article/7a5138b47dcd88c25513ef783be4715c175033875.jpg
                     './pictures/backgrounds/5.png',
                     './pictures/backgrounds/6.png',
                 ],
-                fonts: [], // Array to store fonts. Structure: { id: , name: , url: , type: 'url' or 'file', base64: (if file) }
+                fonts: [],
                 config: {
                     helpTitleContent: '# 帮助菜单', // 支持Markdown
                     subtitleContent: '*指令列表*',     // 支持Markdown
@@ -1491,60 +1552,60 @@ https://i0.hdslb.com/bfs/article/7a5138b47dcd88c25513ef783be4715c175033875.jpg
                     parentMenuFontSize: 16,
                     subMenuFontSize: 14,
                     lineHeight: 1.5,
-                    customFont: '', // Store selected font-family or base64 font-face
+                    customFont: '',
                     menuItems: [
                         {
-                            title: '### 游戏功能', iconId: 1, iconSize: 60, subItems: [ // 使用 iconId, 添加 iconSize
+                            title: '### 游戏功能', iconId: 1, iconSize: 60, subItems: [
                                 { text: '## booru', description: '返回好看的图图', iconId: 2, glassmorphism: false, maskOpacity: 0.5, maskColor: '#ffffff', iconSize: 60 },
                                 { text: '## status', description: '返回机器人状态', iconId: 3, glassmorphism: false, maskOpacity: 0.6, maskColor: '#f0f0f0', iconSize: 60 },
                                 { text: '## 点歌', description: '点播音乐', iconId: 11, glassmorphism: false, maskOpacity: 0.7, maskColor: '#e0e0e0', iconSize: 60 },
                                 { text: '## jrysprpr', description: '查看你的今日运势~', iconId: 2, glassmorphism: false, maskOpacity: 0.8, maskColor: '#d0d0d0', iconSize: 60 }
-                            ], subItemColumns: 4, glassmorphism: false, maskOpacity: 0.3, maskColor: '#ffffff'
+                            ], subItemColumns: 3, glassmorphism: false, maskOpacity: 0.3, maskColor: '#ffffff'
                         },
                         {
-                            title: '### emojihub', iconId: 3, iconSize: 60, subItems: [ // 使用 iconId, 添加 iconSize
+                            title: '### emojihub', iconId: 3, iconSize: 60, subItems: [
                                 { text: '## 柴郡', description: '柴郡的表情包', iconId: 12, glassmorphism: false, maskOpacity: 0.5, maskColor: '#ffffff', iconSize: 60 },
                                 { text: '## doro', description: 'doro的表情包哦', iconId: 7, glassmorphism: false, maskOpacity: 0.6, maskColor: '#f0f0f0', iconSize: 60 },
                                 { text: '## 白圣女漫画', description: '塞西莉亚的漫画表情包哦', iconId: 8, glassmorphism: false, maskOpacity: 0.7, maskColor: '#e0e0e0', iconSize: 60 },
                                 { text: '## 白圣女', description: '塞西莉亚的表情包哦~', iconId: 2, glassmorphism: false, maskOpacity: 0.8, maskColor: '#d0d0d0', iconSize: 60 }
-                            ], subItemColumns: 4, glassmorphism: false, maskOpacity: 0.4, maskColor: '#f0f0f0'
+                            ], subItemColumns: 3, glassmorphism: false, maskOpacity: 0.4, maskColor: '#f0f0f0'
                         }
                     ]
                 },
                 popupVisible: false,
                 popupTitle: '',
                 popupData: {},
-                popupType: null, // 'menuItem' or 'subItem' or 'title' or 'footer'
-                popupTab: 'basic', // 'basic', 'style', 'icon', 'layout', 'advanced'
+                popupType: null,
+                popupTab: 'basic',
                 importPopupVisible: false,
-                importTab: 'text', // 'file', 'text', 'help' default to 'text'
+                importTab: 'text',
                 importTextConfig: '',
                 importHelpText: '',
-                backgroundUploadTab: 'default', // 'url' or 'file' or 'default' for background image upload, default to 'default'
-                iconUploadTab: 'url', // 'url' or 'file' for icon upload
-                fontUploadTab: 'url', // MODIFIED:  'url' or 'file' for font upload, now only URL, default to 'url'
-                customIconURL: '', // For inputting custom icon URL
-                customFontURL: '', // For inputting custom font URL
+                backgroundUploadTab: 'default',
+                iconUploadTab: 'url',
+                fontUploadTab: 'url',
+                customIconURL: '',
+                customFontURL: '',
 
             },
             computed: {
                 calculatedPreviewWidth() {
 
-                    return this.config.previewWidth + 'px'; // 或者其他逻辑
+                    return this.config.previewWidth + 'px';
                 },
                 calculatedPreviewHeight() {
 
-                    return this.config.previewHeight + 'px'; // 或者其他逻辑
+                    return this.config.previewHeight + 'px';
                 },
                 backgroundWrapperClasses() {
 
-                    const menuIsWide = this.config.previewWidth > this.config.previewHeight; // Example condition
-                    const backgroundIsLandscape = true; // Assume landscape for now, make dynamic if needed
+                    const menuIsWide = this.config.previewWidth > this.config.previewHeight;
+                    const backgroundIsLandscape = true;
 
                     if (menuIsWide && backgroundIsLandscape) {
-                        return 'bg-repeat-y'; // Repeat vertically for wide menu and landscape bg
+                        return 'bg-repeat-y';
                     } else {
-                        return 'bg-contain'; // Default to contain for other cases
+                        return 'bg-contain';
                     }
 
 
@@ -1569,7 +1630,7 @@ https://i0.hdslb.com/bfs/article/7a5138b47dcd88c25513ef783be4715c175033875.jpg
                             }
                             styleElement.textContent = `@font-face { font-family: '${this.config.customFont}'; src: ${fontSrc}; }`;
                             fontStyle['font-family'] = `'${this.config.customFont}', sans-serif`;
-                            fontStyle['--preview-font'] = `'${this.config.customFont}', sans-serif`; // For CSS variable
+                            fontStyle['--preview-font'] = `'${this.config.customFont}', sans-serif`;
                         } else {
                             fontStyle['font-family'] = 'inherit';
                             fontStyle['--preview-font'] = 'inherit';
@@ -1582,14 +1643,14 @@ https://i0.hdslb.com/bfs/article/7a5138b47dcd88c25513ef783be4715c175033875.jpg
                         backgroundSize: 'cover',
                         backgroundPosition: 'center',
                         filter: `brightness(${this.config.backgroundBrightness})`,
-                        backgroundColor: this.config.backgroundImage ? 'transparent' : this.config.backgroundColor, // Make background transparent if image is used
+                        backgroundColor: this.config.backgroundImage ? 'transparent' : this.config.backgroundColor,
                         ...fontStyle
                     }
                 }
             },
             watch: {
                 'config.customFont': function () {
-                    this.$forceUpdate(); // Force preview refresh on font change
+                    this.$forceUpdate();
                 },
                 'backgroundUploadTab': function (newTab) {
                     if (newTab === 'default') {
@@ -1598,7 +1659,24 @@ https://i0.hdslb.com/bfs/article/7a5138b47dcd88c25513ef783be4715c175033875.jpg
                 }
             },
             created: function () {
+                // 尝试从 localStorage 加载配置
+                const savedConfig = localStorage.getItem('menuConfig');
+                if (savedConfig) {
+                    const parsedConfig = JSON.parse(savedConfig);
+                    this.config = parsedConfig.config;
+                    this.useBackdropFilter = parsedConfig.useBackdropFilter;
+                    this.icons = parsedConfig.icons || this.icons;
+                    this.fonts = parsedConfig.fonts || this.fonts;
 
+                    if (parsedConfig.icons && parsedConfig.icons.length > 0) {
+                        const maxId = parsedConfig.icons.reduce((max, icon) => Math.max(max, icon.id), 0);
+                        iconIdCounter = maxId + 1;
+                    } else {
+                        iconIdCounter = 38;
+                    }
+                }
+
+                // 如果没有背景图且背景上传标签为默认，则设置随机背景图
                 if (!this.config.backgroundImage && this.backgroundUploadTab === 'default') {
                     this.config.backgroundImage = this.getRandomDefaultBackground();
                 }
@@ -1617,7 +1695,7 @@ https://i0.hdslb.com/bfs/article/7a5138b47dcd88c25513ef783be4715c175033875.jpg
                 },
                 getIconUrl(iconId) {
                     const icon = this.icons.find(icon => icon.id === iconId);
-                    return icon ? icon.url : ''; // Return URL or empty string if not found
+                    return icon ? icon.url : '';
                 },
                 toggleMenuStructure() {
                     this.showMenuStructure = !this.showMenuStructure;
@@ -1651,13 +1729,36 @@ https://i0.hdslb.com/bfs/article/7a5138b47dcd88c25513ef783be4715c175033875.jpg
 
                 },
 
-                addSiblingMenuItem(index) {  // 新增 addSiblingMenuItem 方法，添加同级菜单
+                deleteCurrentItem() {
+                    if (this.popupType === 'menuItem') {
+                        this.removeItem(this.selectedIndex);
+                    } else if (this.popupType === 'subItem') {
+                        this.removeSubItem(this.selectedIndex, this.selectedSubIndex);
+                    }
+                    this.closePopup();
+                },
+
+
+                addSubMenuItemFromPopup() {
+                    // 添加子菜单项
+                    this.addSubMenuItemToMenu(this.selectedIndex);
+
+                    // 保存配置到 localStorage
+                    this.saveConfigToLocalStorage();
+
+                    // 关闭当前弹窗
+                    this.closePopup();
+
+                    // 不需要设置 siblingOperation 或调用 confirmPopup
+                },
+
+                addSiblingMenuItem(index) {
                     const newItem = {
                         title: '### 新菜单',
                         iconId: 1,
                         iconSize: 40, // 菜单项默认图标大小
                         subItems: [],
-                        subItemColumns: 4, // 默认4栏
+                        subItemColumns: 3, // 默认4栏
                         glassmorphism: false,
                         maskOpacity: 0.6,
                         maskColor: '#ffffff'
@@ -1671,6 +1772,9 @@ https://i0.hdslb.com/bfs/article/7a5138b47dcd88c25513ef783be4715c175033875.jpg
                     });
                     this.selectedIndex = index + 1; // 选中新添加的同级菜单
                     this.selectedSubIndex = null;
+
+                    // 保存配置到 localStorage
+                    this.saveConfigToLocalStorage();
                 },
                 addSubMenuItemToMenu(index) {
                     const randomIconIndex = Math.floor(Math.random() * this.icons.length); // 获取随机索引
@@ -1695,6 +1799,8 @@ https://i0.hdslb.com/bfs/article/7a5138b47dcd88c25513ef783be4715c175033875.jpg
                         this.selectedIndex = null;
                         this.selectedSubIndex = null;
                     }
+                    // 保存配置到 localStorage
+                    this.saveConfigToLocalStorage();
                 },
                 addSubItem(menuIndex, subIndex = null) {
                     const randomIconIndex = Math.floor(Math.random() * this.icons.length); // 获取随机索引
@@ -1737,6 +1843,8 @@ https://i0.hdslb.com/bfs/article/7a5138b47dcd88c25513ef783be4715c175033875.jpg
                     if (this.selectedIndex === index && this.selectedSubIndex === subIndex) {
                         this.selectedSubIndex = null;
                     }
+                    // 保存配置到 localStorage
+                    this.saveConfigToLocalStorage();
                 },
                 uploadCustomIconFile() {
                     this.$refs.customIconInput.click();
@@ -1768,21 +1876,6 @@ https://i0.hdslb.com/bfs/article/7a5138b47dcd88c25513ef783be4715c175033875.jpg
                         this.backgroundUploadTab = 'file'; // 切换到 file Tab
                     }
                 },
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -1854,8 +1947,9 @@ https://i0.hdslb.com/bfs/article/7a5138b47dcd88c25513ef783be4715c175033875.jpg
                         };
                     }
                     this.popupVisible = true;
-                    this.popupTab = 'basic'; // Reset tab
+                    this.popupTab = 'basic'; // 确保默认选择基本设置标签页
                 },
+
                 editFooter() {
                     this.popupType = 'footer';
                     this.popupTitle = '编辑角标';
@@ -1866,7 +1960,7 @@ https://i0.hdslb.com/bfs/article/7a5138b47dcd88c25513ef783be4715c175033875.jpg
                         type: 'footer'
                     };
                     this.popupVisible = true;
-                    this.popupTab = 'basic'; // Reset tab
+                    this.popupTab = 'basic'; // 确保默认选择基本设置标签页
                 },
                 editMenuItem(index) {
                     this.popupType = 'menuItem';
@@ -1894,12 +1988,12 @@ https://i0.hdslb.com/bfs/article/7a5138b47dcd88c25513ef783be4715c175033875.jpg
                         return; // 提前返回，不执行后续的确认逻辑
                     }
 
-
                     if (this.popupType === 'subItem' && this.siblingOperation === 'addSiblingSubItem') {
                         this.addSiblingSubItem(this.selectedIndex, this.selectedSubIndex); // 调用添加同级子菜单项的方法
                         this.siblingOperation = null; // 重置操作类型
                         return; // 提前返回，不执行后续的确认逻辑
                     }
+
                     if (this.popupType === 'menuItem') {
                         const updatedItem = { ...this.popupData };
                         Vue.set(this.config.menuItems, this.selectedIndex, updatedItem);
@@ -1925,6 +2019,9 @@ https://i0.hdslb.com/bfs/article/7a5138b47dcd88c25513ef783be4715c175033875.jpg
                         this.config.footerTextBold = this.popupData.bold;
                     }
                     this.closePopup();
+
+                    // 保存配置到 localStorage
+                    this.saveConfigToLocalStorage();
                 },
                 siblingOperation(item, direction) {
                     const index = this.config.menuItems.indexOf(item);
@@ -1936,8 +2033,22 @@ https://i0.hdslb.com/bfs/article/7a5138b47dcd88c25513ef783be4715c175033875.jpg
                 },
 
                 addSiblingMenuItemFromPopup() {
-                    this.siblingOperation = 'addSiblingMenuItem';
-                    this.confirmPopup(); // 直接调用 confirmPopup，在 confirmPopup 中判断 siblingOperation
+                    // 直接添加新菜单项，而不是通过confirmPopup
+                    const newItem = {
+                        title: '### 新菜单',
+                        iconId: 1,
+                        iconSize: 40,
+                        subItems: [], // 空数组，不复制当前菜单的子菜单
+                        subItemColumns: 3,
+                        glassmorphism: false,
+                        maskOpacity: 0.6,
+                        maskColor: '#ffffff'
+                    };
+                    this.config.menuItems.splice(this.selectedIndex + 1, 0, newItem);
+                    this.selectedIndex = this.selectedIndex + 1;
+                    this.selectedSubIndex = null;
+                    this.saveConfigToLocalStorage();
+                    this.closePopup();
                 },
 
                 addSiblingSubItemFromPopup() {
@@ -1949,8 +2060,19 @@ https://i0.hdslb.com/bfs/article/7a5138b47dcd88c25513ef783be4715c175033875.jpg
                     this.popupVisible = false;
                     this.popupData = {};
                     this.popupType = null;
-                    this.popupTab = 'basic'; // Reset to basic tab when closing
+                    this.popupTab = 'basic';
                 },
+
+                saveConfigToLocalStorage() {
+                    const configToSave = {
+                        config: this.config,
+                        useBackdropFilter: this.useBackdropFilter,
+                        icons: this.icons,
+                        fonts: this.fonts
+                    };
+                    localStorage.setItem('menuConfig', JSON.stringify(configToSave));
+                },
+
                 exportConfig() {
 
                     const configToExport = JSON.parse(JSON.stringify(this.config));
@@ -1985,15 +2107,19 @@ https://i0.hdslb.com/bfs/article/7a5138b47dcd88c25513ef783be4715c175033875.jpg
                     a.download = 'menu-config.json';
                     a.click();
                     URL.revokeObjectURL(url);
+
+
+                    // 保存配置到 localStorage
+                    this.saveConfigToLocalStorage();
                 },
 
 
 
                 showImportPopup() {
                     this.importPopupVisible = true;
-                    this.importTab = 'text'; // Default to file upload tab
-                    this.importTextConfig = ''; // Clear text area
-                    this.importHelpText = ''; // Clear help text area
+                    this.importTab = 'text';
+                    this.importTextConfig = '';
+                    this.importHelpText = '';
                 },
                 closeImportPopup() {
                     this.importPopupVisible = false;
@@ -2040,8 +2166,8 @@ https://i0.hdslb.com/bfs/article/7a5138b47dcd88c25513ef783be4715c175033875.jpg
                                 const importedData = JSON.parse(this.importTextConfig);
                                 const importedConfig = importedData.config;
                                 if (importMode === 'replace') { // 替换模式
-                                    this.config = importedConfig; // Replace entire config
-                                    this.useBackdropFilter = importedData.useBackdropFilter; // Also load useBackdropFilter
+                                    this.config = importedConfig;
+                                    this.useBackdropFilter = importedData.useBackdropFilter;
                                     this.icons = importedData.icons || this.icons;
                                     this.fonts = importedData.fonts || this.fonts;
 
@@ -2053,9 +2179,9 @@ https://i0.hdslb.com/bfs/article/7a5138b47dcd88c25513ef783be4715c175033875.jpg
                                         iconIdCounter = 38; // 如果没有导入icons或者icons为空，则重置为默认值，或者你认为合适的起始值
                                     }
 
-                                } else { // 默认行为或 'add' 模式, for JSON import, replace is usually the expected behavior
-                                    this.config = importedConfig; // Replace entire config
-                                    this.useBackdropFilter = importedData.useBackdropFilter; // Also load useBackdropFilter
+                                } else {
+                                    this.config = importedConfig;
+                                    this.useBackdropFilter = importedData.useBackdropFilter;
                                     this.icons = importedData.icons || this.icons;
                                     this.fonts = importedData.fonts || this.fonts;
 
@@ -2074,9 +2200,9 @@ https://i0.hdslb.com/bfs/article/7a5138b47dcd88c25513ef783be4715c175033875.jpg
                                 alert('JSON文本解析失败，请检查JSON格式。');
                             }
                         } else if (this.importTab === 'file') {
-                            this.handleConfigUpload(importMode); // 文件上传的逻辑也需要传递 importMode
+                            this.handleConfigUpload(importMode);
                         }
-                    } else if (this.importTab === 'help') { // Help 导入逻辑
+                    } else if (this.importTab === 'help') {
                         if (importMode === 'replace') {
                             this.config.menuItems = []; // 清空现有菜单项
                             this.parseHelpText(this.importHelpText); // 解析 help 文本并添加到空的菜单项列表
@@ -2161,7 +2287,7 @@ https://i0.hdslb.com/bfs/article/7a5138b47dcd88c25513ef783be4715c175033875.jpg
                                 iconId: Math.floor(Math.random() * 37) + 1,
                                 iconSize: 60,
                                 subItems: categoryMap[categoryName], // 子项是该类别下的指令列表
-                                subItemColumns: 4,
+                                subItemColumns: 3,
                                 glassmorphism: false,
                                 maskOpacity: 0.3,
                                 maskColor: '#ffffff'

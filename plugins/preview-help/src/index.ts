@@ -1,12 +1,12 @@
 import fs from 'node:fs';
 import url from "node:url";
 import path from "node:path";
-import { stat, readdir } from 'fs/promises';
-import { Context, Schema, Logger, h, noop } from "koishi";
-import { } from '@koishijs/plugin-console'
 import crypto from 'node:crypto';
+import { stat, readdir } from 'fs/promises';
+import { Schema, Logger, h, noop } from "koishi";
+import { } from '@koishijs/plugin-console'
 
-export const reusable = true; // 声明此插件可重用
+export const reusable = true; // 此插件可重用
 export const name = 'preview-help';
 export const inject = {
     required: ['http', "i18n"],
@@ -68,7 +68,6 @@ webUI 交互 （开启插件后）请见 ➤ <a href="/preview-help">/preview-he
 - 网络图片URL：\`https://i1.hdslb.com/bfs/article/f32980cbce6808fd54613dea589eee013f0c5fe3.png\`
 `;
 
-
 export const Config = Schema.intersect([
     Schema.object({
         command: Schema.string().description('注册指令名称').default("帮助菜单"),
@@ -115,6 +114,8 @@ export const Config = Schema.intersect([
             background_URL: Schema.string().role('textarea', { rows: [4, 4] }).description('渲染使用的背景图地址，会随机选一个使用<br>一行一个图片的URL地址（`网络URL`或者`本地绝对路径的URL`）<br>默认会有使用随机的猫羽雫的背景图'),
             help_text_json: Schema.string().role('textarea', { rows: [8, 8] }).description('导入配置使用的JSON内容'),
         }),
+        Schema.object({
+        }),
     ]),
     Schema.object({
         fontEnabled: Schema.boolean().description('启用自定义字体').default(false),
@@ -122,17 +123,26 @@ export const Config = Schema.intersect([
     }).description('高级设置'),
 
     Schema.object({
-        staticHelp: Schema.boolean().default(true).description('是否静态部署 help 目录到 /help<br>关闭后将没有 webUI，仅能使用本地HTML文件交互'), // 新增配置项
+        staticHelp: Schema.boolean().default(true).description('是否静态部署 help 目录到 /help<br>关闭后将没有 webUI，仅能使用本地HTML文件交互'),
     }).description('交互功能设置'),
 
     Schema.object({
         screenshotquality: Schema.number().role('slider').min(0).max(100).step(1).default(60).description('设置图片压缩质量（%）'),
-        tempPNG: Schema.boolean().description('打开后，开启缓存功能。<br>在`输入配置不变`/`help菜单不变`的情况下，使用缓存的PNG菜单图片（同一张图）。<br>关闭后，每次调用均使用puppeteer渲染').default(true),
         isfigure: Schema.boolean().default(false).description("是否开启合并转发 `仅支持 onebot 适配器` 其他平台开启 无效").experimental(),
-    }).description('调试模式'),
+        tempPNG: Schema.boolean().description('打开后，开启缓存功能。<br>在`输入配置不变`/`help菜单不变`的情况下，使用缓存的PNG菜单图片（同一张图）。<br>关闭后，每次调用均使用puppeteer渲染').default(true),
+    }).description('调试设置'),
+
     Schema.object({
         loggerinfo: Schema.boolean().default(false).description('日志调试开关'),
     }).description('开发者选项'),
+    Schema.union([
+        Schema.object({
+            loggerinfo: Schema.const(true).required(),
+            pageclose: Schema.boolean().default(true).description('自动close page'),
+        }),
+        Schema.object({
+        }),
+    ]),
 ]);
 
 // 存储上一次的 generateCacheKey
@@ -265,9 +275,17 @@ export function apply(ctx, config) {
             .option('background', '-b <background:string> 指定背景URL')
             .example("帮助菜单 -b https://i0.hdslb.com/bfs/article/a6154de573f73246ea4355a614f0b7b94eff8f20.jpg   当前可用的指令有：\necho  发送消息\nstatus  查看运行状态\ntimer  定时器信息\nusage  调用次数信息\n输入“help 指令名”查看特定指令的语法和使用示例。")
             .action(async ({ session, options }, help_text) => {
+
                 if (!ctx.puppeteer) {
                     await session.send(h.text(session.text(`.nopuppeteer`)));
                     return;
+                }
+
+
+                // 添加渲染状态提示
+                let renderingTipmsgid
+                if (config.rendering) {
+                    renderingTipmsgid = await session.send(h.text(config.rendering));
                 }
 
                 // 生成缓存Key
@@ -438,7 +456,7 @@ export function apply(ctx, config) {
                     logInfo(session.text('.cache.hit'));
                     try {
                         const imageBuffer = fs.readFileSync(temp_helpFilePath);
-                        await sendwithfigure(session, h.image(imageBuffer, 'image/jpeg'));
+                        await sendwithfigure(session, h.image(imageBuffer, 'image/jpeg'), renderingTipmsgid);
                         return;
                     } catch (e) {
                         logger.warn(`读取缓存图片失败，重新渲染`, e);
@@ -457,12 +475,12 @@ export function apply(ctx, config) {
                     switch (config.helpmode) {
                         case '1.1':
                             logInfo(config.help_text);
-                            await sendwithfigure(session, h.text(config.help_text));
+                            await sendwithfigure(session, h.text(config.help_text), renderingTipmsgid);
                             return;
                         case '1.2':
                             logInfo(config.help_URL);
                             try {
-                                await sendwithfigure(session, h.image(config.help_URL));
+                                await sendwithfigure(session, h.image(config.help_URL), renderingTipmsgid);
                             } catch (e) {
                                 logger.error(`图片菜单加载失败: ${config.help_URL}`, e);
                                 await session.send(h.text(session.text('.image.load.error', [config.help_URL])));
@@ -479,10 +497,6 @@ export function apply(ctx, config) {
                             return;
                     }
 
-                    // 添加渲染状态提示 (放在设置背景之前)
-                    if (config.rendering) {
-                        await session.send(h.text(config.rendering));
-                    }
 
                     const helpHTMLUrl = url.pathToFileURL(htmlPath).href;
                     logInfo(`正在加载本地HTML文件：${helpHTMLUrl}`);
@@ -581,7 +595,6 @@ export function apply(ctx, config) {
                         await replaceButton.click();
                     }
 
-                    // 等待渲染完成,截图,保存缓存,性能统计,错误处理 (这些部分都保持不变)
                     // 等待渲染完成
                     logInfo(`等待渲染完成...`);
                     await page.waitForSelector('.preview-container-wrapper', {
@@ -618,20 +631,22 @@ export function apply(ctx, config) {
                     const costTime = ((Date.now() - startTime) / 1000).toFixed(2);
                     logInfo(`截图完成，耗时${costTime}秒，图片大小：${(imageBuffer.length / 1024).toFixed(2)}KB`);
 
-                    await sendwithfigure(session, h.image(imageBuffer, 'image/jpeg'));
+                    await sendwithfigure(session, h.image(imageBuffer, 'image/jpeg'), renderingTipmsgid);
 
                 } catch (error) {
                     logger.error(`渲染过程出错：`, error);
                     await session.send(h.text(session.text('.somerror')));
                 } finally {
-                    await page.close().catch(error => {
-                        logger.warn(`页面关闭失败：`, error);
-                    });
+                    if (config.pageclose !== false) {
+                        await page.close().catch(error => {
+                            logger.warn(`页面关闭失败：`, error);
+                        });
+                    }
                 }
 
             });
 
-        async function sendwithfigure(session, responseElements) {
+        async function sendwithfigure(session, responseElements, deleteMessageId?) {
             if (config.isfigure && (session.platform === "onebot" || session.platform === "red")) {
                 logInfo(`使用合并转发，正在合并消息。`);
                 // 创建 figure 元素
@@ -640,13 +655,18 @@ export function apply(ctx, config) {
                 });
                 logInfo(JSON.stringify(figureContent, null, 2));
                 // 发送合并转发消息
-                await session.send(figureContent);
+                const successsend = await session.send(figureContent);
+                if (successsend.length > 0 && deleteMessageId) {
+                    await session.bot.deleteMessage(session.channelId, deleteMessageId)
+                }
             } else {
                 // 没有启用合并转发
-                await session.send(responseElements);
+                const successsend = await session.send(responseElements);
+                if (successsend.length > 0 && deleteMessageId) {
+                    await session.bot.deleteMessage(session.channelId, deleteMessageId)
+                }
             }
         }
-
 
 
     });
