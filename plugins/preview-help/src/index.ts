@@ -285,9 +285,8 @@ export function apply(ctx, config) {
                 // 添加渲染状态提示
                 let renderingTipmsgid
                 if (config.rendering) {
-                    renderingTipmsgid = await session.send(h.text(config.rendering));
+                    [renderingTipmsgid] = await session.send(h.text(config.rendering));
                 }
-
                 // 生成缓存Key
                 const generateCacheKey = (helpmode, helpContent, screenshotquality) => {
                     return `${helpmode}-${helpContent}-${screenshotquality}`;
