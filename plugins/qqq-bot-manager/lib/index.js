@@ -4,7 +4,7 @@ exports.apply = exports.Config = exports.usage = exports.inject = exports.name =
 const { Schema, Logger, h } = require("koishi");
 
 exports.inject = {
-  optional: ['koishi-plugin-qrcode-service-null', "qrcode"],
+  optional: ["qrcode"],
   required: ["i18n"]
 };
 exports.name = 'qqq-bot-manager';
@@ -115,7 +115,7 @@ exports.Config = Schema.intersect([
   }).description('基础设置'),
 
   Schema.object({
-    onlysessiondirect: Schema.boolean().default(true).description("是否 仅允许私聊使用`登录指令`<br>因为涉及登录信息，私信可以确保数据不暴露给群友<br>注意：我们在调试时 发现登录数据内含有真实姓名、半遮盖身份证号、半遮盖手机号等敏感数据，但这些数据不会在本插件内请求与展示。请务必注意隐私安全！"),
+    onlysessiondirect: Schema.boolean().default(true).description("是否 仅允许私聊使用`登录指令`<br>因为涉及登录信息，私信可以确保数据不暴露给群友<br>请务必注意隐私安全！"),
     qrcodeservice: Schema.boolean().default(false).description("登录地址使用`文本链接` 还是`生成二维码`<br>默认使用文本链接。<br>如果使用二维码请确保`koishi-plugin-qrcode-service-null`插件已经安装并且开启"),
     expireTimeSec: Schema.number().default(180).description("登录链接的超时时间（秒）<br>`开放平台登录二维码默认是180秒失效，请勿随意改动。`"),
     resolvetime: Schema.number().default(3).description("登录状态轮询间隔时间（秒）"),
