@@ -1,12 +1,12 @@
 import { Schema, Context, h } from 'koishi'
+import { unlink, writeFile, readFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { unlink, writeFile } from 'node:fs/promises'
+
+import { parseGIF, decompressFrames } from 'gifuct-js'
+
 import { } from 'koishi-plugin-ffmpeg'
 import { } from 'koishi-plugin-canvas'
-import { parseGIF, decompressFrames } from 'gifuct-js'
-import { promises as fsPromises } from 'node:fs';
-const { readFile } = fsPromises;
 
 export const name = 'gif-reverse'
 export const inject = {
@@ -16,7 +16,7 @@ export const inject = {
 export const usage = `
 ---
 
-## 开启插件前，请确保一下插件已经安装！
+## 开启插件前，请确保以下插件已经安装！
 
 ### 所需依赖：
 
@@ -290,7 +290,7 @@ export function apply(ctx: Context, config) {
         frameCount = frames.length;
         frameDelays = frames.map(frame => frame.delay);
         const totalDelay = frameDelays.reduce((a, b) => a + b, 0);
-        const averageFrameDelay = frameCount > 0 ? totalDelay / frameCount : 0;
+        //  const averageFrameDelay = frameCount > 0 ? totalDelay / frameCount : 0;
         gifDuration = totalDelay / 1000; // 转换为秒
         // 计算帧率
         if (frames.length > 0 && gifDuration > 0) {
