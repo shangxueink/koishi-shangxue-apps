@@ -1,7 +1,7 @@
 {
   "name": "koishi-plugin-storeluna",
   "description": "/*storeluna*/通过koishi，⭐快速搭建你的koishi镜像！支持统计访问量📈、同步次数🔄、成功次数✅、白名单规则数🟢、黑名单规则数🔴🛠️.....",
-  "version": "1.1.8",
+  "version": "1.1.9",
   "main": "lib/index.js",
   "typings": "lib/index.d.ts",
   "files": [

@@ -14,7 +14,19 @@ exports.inject = {
 exports.name = 'storeluna';
 exports.reusable = true;
 exports.usage = `
-<h2>StoreLuna 插件市场镜像</h2>
+
+---
+
+## 使用前
+
+请你明确本插件的功能性：为长期挂载的koishi实例提供稳定的market镜像源
+
+但是作为日常：我们更推荐您使用网络镜像源！
+
+推荐使用：Q78KG（全球）：https://koishi-registry.yumetsuki.moe/index.json
+
+---
+
 <p>提供基于规则过滤的插件市场镜像服务，支持本地/远程数据源</p>
 <p>提供生成插件市场镜像文件的工作模式，用于本地文件挂载，让你的market再也不 *无法连接到插件市场*</p>
 
@@ -28,6 +40,14 @@ exports.usage = `
 
 <li><a href="https://forum.koishi.xyz/t/topic/10511/2" target="_blank">点我查看 论坛插件使用教程（本地镜像源）</a></li>
 
+
+---
+
+为了更稳定与避免部分网络问题，部分方法暂未与原项目算法跟进：（更多的是npmjs访问问题）
+- 部分npmjs已经declare的包在npmminnor上却正常使用。本插件仍全部使用npmminnor数据。
+
+
+---
 `;
 
 exports.Config = Schema.intersect([
@@ -768,7 +788,7 @@ async function apply(ctx, config) {
         }
         stats.visits++;
       });
-      ctx.logger.info(`路由已注册：http://127.0.0.1:${ctx.server.port}${config.path}`);
+      ctx.logger.info(`路由已注册：${config.path}`);
 
       // 定时同步 (仅在 URL 模式下)
       if (config.syncInterval > 0) {
