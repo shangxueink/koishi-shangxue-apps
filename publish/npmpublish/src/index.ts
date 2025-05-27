@@ -5,7 +5,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import nodejieba from 'nodejieba';
 
-export const name = 'word-cloud';
+export const name = 'word-cloud-image';
 
 export const inject = ['database', 'puppeteer', "cron"];
 
@@ -81,7 +81,7 @@ export const Config: Schema = Schema.intersect([
 
   Schema.object({
     trueMiddware: Schema.boolean().description('使用前置中间件 `保持开启 才能完整统计数据`').default(true),
-    dataFile: Schema.string().default("data/word-cloud").description("数据存储路径 `对于koishi实例的相对路径`"),
+    dataFile: Schema.string().default("data/word-cloud-image").description("数据存储路径 `对于koishi实例的相对路径`"),
     saveInterval: Schema.number().max(60).min(1).default(5).description('数据保存间隔（分钟）'),
     minWordLength: Schema.number().default(1).description('最小词长度'),
     maxWordCount: Schema.number().default(1000).description('最大词数量'),
@@ -615,14 +615,14 @@ export async function apply(ctx: Context, config) {
             min-height: 100vh;
         }
 
-        #word-cloud-container {
+        #word-cloud-image-container {
             width: 800px;
             height: 600px;
             position: relative;
             background-color: white;
         }
 
-        #word-cloud-canvas {
+        #word-cloud-image-canvas {
             display: block; /* 避免canvas底部的小间隙 */
         }
 
@@ -640,8 +640,8 @@ export async function apply(ctx: Context, config) {
 </head>
 
 <body>
-    <div id="word-cloud-container">
-        <canvas id="word-cloud-canvas"></canvas>
+    <div id="word-cloud-image-container">
+        <canvas id="word-cloud-image-canvas"></canvas>
         <div id="screenshot-frame"></div>
     </div>
     <script>
@@ -656,8 +656,8 @@ export async function apply(ctx: Context, config) {
             const words = parseCSV(csvData);
 
             // 获取容器和canvas元素
-            const canvas = document.getElementById('word-cloud-canvas');
-            const container = document.getElementById('word-cloud-container');
+            const canvas = document.getElementById('word-cloud-image-canvas');
+            const container = document.getElementById('word-cloud-image-container');
             
             // 获取容器的实际显示尺寸
             const containerWidth = container.offsetWidth;
@@ -757,7 +757,7 @@ export async function apply(ctx: Context, config) {
       // 等待PromiseTime秒，确保词云渲染完成
       await new Promise(resolve => setTimeout(resolve, config.PromiseTime));
 
-      const wordCloudContainer = await page.$('#word-cloud-container');
+      const wordCloudContainer = await page.$('#word-cloud-image-container');
       if (!wordCloudContainer) {
         await page.close();
         throw new Error('Word cloud container not found.');

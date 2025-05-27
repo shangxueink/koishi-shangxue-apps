@@ -1,6 +1,6 @@
-# koishi-plugin-word-cloud
+# koishi-plugin-word-cloud-image
 
-[![npm](https://img.shields.io/npm/v/koishi-plugin-word-cloud?style=flat-square)](https://www.npmjs.com/package/koishi-plugin-word-cloud)
+[![npm](https://img.shields.io/npm/v/koishi-plugin-word-cloud-image?style=flat-square)](https://www.npmjs.com/package/koishi-plugin-word-cloud-image)
 
 
 ## 词云生成 ☁️

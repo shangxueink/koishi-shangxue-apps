@@ -41,7 +41,7 @@ var import_koishi = require("koishi");
 var import_node_fs = __toESM(require("node:fs"));
 var import_node_path = __toESM(require("node:path"));
 var import_nodejieba = __toESM(require("nodejieba"));
-var name = "word-cloud";
+var name = "word-cloud-image";
 var inject = ["database", "puppeteer", "cron"];
 var wordcloud2jsPath = import_node_path.default.resolve(__dirname, "../data/wordcloud2.min.js");
 var wordcloud2js = "";
@@ -107,7 +107,7 @@ var Config = import_koishi.Schema.intersect([
   ]),
   import_koishi.Schema.object({
     trueMiddware: import_koishi.Schema.boolean().description("使用前置中间件 `保持开启 才能完整统计数据`").default(true),
-    dataFile: import_koishi.Schema.string().default("data/word-cloud").description("数据存储路径 `对于koishi实例的相对路径`"),
+    dataFile: import_koishi.Schema.string().default("data/word-cloud-image").description("数据存储路径 `对于koishi实例的相对路径`"),
     saveInterval: import_koishi.Schema.number().max(60).min(1).default(5).description("数据保存间隔（分钟）"),
     minWordLength: import_koishi.Schema.number().default(1).description("最小词长度"),
     maxWordCount: import_koishi.Schema.number().default(1e3).description("最大词数量"),
@@ -695,14 +695,14 @@ async function apply(ctx, config) {
             min-height: 100vh;
         }
 
-        #word-cloud-container {
+        #word-cloud-image-container {
             width: 800px;
             height: 600px;
             position: relative;
             background-color: white;
         }
 
-        #word-cloud-canvas {
+        #word-cloud-image-canvas {
             display: block; /* 避免canvas底部的小间隙 */
         }
 
@@ -720,8 +720,8 @@ async function apply(ctx, config) {
 </head>
 
 <body>
-    <div id="word-cloud-container">
-        <canvas id="word-cloud-canvas"></canvas>
+    <div id="word-cloud-image-container">
+        <canvas id="word-cloud-image-canvas"></canvas>
         <div id="screenshot-frame"></div>
     </div>
     <script>
@@ -736,8 +736,8 @@ async function apply(ctx, config) {
             const words = parseCSV(csvData);
 
             // 获取容器和canvas元素
-            const canvas = document.getElementById('word-cloud-canvas');
-            const container = document.getElementById('word-cloud-container');
+            const canvas = document.getElementById('word-cloud-image-canvas');
+            const container = document.getElementById('word-cloud-image-container');
             
             // 获取容器的实际显示尺寸
             const containerWidth = container.offsetWidth;
@@ -833,7 +833,7 @@ async function apply(ctx, config) {
 `;
       await page.setContent(generateWordCloudHTML, { waitUntil: "networkidle2" });
       await new Promise((resolve) => setTimeout(resolve, config.PromiseTime));
-      const wordCloudContainer = await page.$("#word-cloud-container");
+      const wordCloudContainer = await page.$("#word-cloud-image-container");
       if (!wordCloudContainer) {
         await page.close();
         throw new Error("Word cloud container not found.");
