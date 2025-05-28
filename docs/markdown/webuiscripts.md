@@ -49,8 +49,6 @@
 
 Markdown 编辑-预览 工具
 
-> 来自 `https://markdown-editor.org/` 的工具，非本仓库原创
-> 
 > 在文档列出 以便于快速访问、使用
 
 <a href="/koishi-shangxue-apps/MarkdownEditor.html" target="_blank" rel="noopener noreferrer">访问 Markdown Editor</a>
