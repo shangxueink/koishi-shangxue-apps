@@ -757,7 +757,7 @@ export async function apply(ctx: Context, config) {
       const calendarImage = h.image(imgBuf, 'image/png');
       // 发送带图片的消息
       const message = `${calendarImage}\n` + `${session.text('.Sign_in_success', [targetRecord.totaltimes, cost1])} `;
-      await session.send(`${h.at(session.userId)} ${session.text('.Help_sign_in', [targetUserId, cost2])}`);
+      await session.send(`${h.at(session.userId)} ${session.text('.Help_sign_in', [targetUsername, cost2])}`);
       if (config.enable_blue_tip) {
         await session.send(message + session.text('.enable_blue_tip'));
       } else {
