@@ -473,7 +473,7 @@ export async function apply(ctx: Context, config) {
             return;
           }
           targetUserId = id;
-          targetUsername = name || targetUserId;
+          targetUsername = name || (typeof session.bot.getUser === 'function' ? ((await session.bot.getUser(targetUserId))?.name || targetUserId) : targetUserId);
         } else {
           await session.send(session.text('.invalid_input_user'));
           return;
@@ -938,7 +938,8 @@ ${deer.order === 3 ? '<span class="medal">🥉</span>' : ''}
           }
           // 如果是为他人补签，调整目标用户和消耗
           targetUserId = id;
-          targetUsername = name || id; // 使用名字或ID
+          // targetUsername = name || id; // 使用名字或ID
+          targetUsername = name || (typeof session.bot.getUser === 'function' ? ((await session.bot.getUser(targetUserId))?.name || targetUserId) : targetUserId);
           cost = costTable.checkin_reward.find(c => c.command === '补鹿@用户').cost;
         } else {
           await session.send(session.text('.invalid_input_user'));
