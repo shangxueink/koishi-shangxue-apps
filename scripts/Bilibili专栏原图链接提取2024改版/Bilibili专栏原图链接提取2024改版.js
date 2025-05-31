@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Bilibili专栏原图链接提取2024改版
 // @namespace    https://github.com/shangxueink
-// @version      3.5
+// @version      3.6
 // @description  PC端B站专栏图片默认是经压缩过的webp。此脚本帮助用户点击按钮后获取哔哩哔哩专栏中所有原图的直链，方便使用其他工具批量下载原图。
 // @author       shangxueink
 // @license      MIT
@@ -404,6 +404,18 @@
                         src = 'https:' + src;
                     }
                     src = src.split('@')[0];
+                    // 获取图片尺寸
+                    let width = imgElement.naturalWidth || imgElement.width;
+                    let height = imgElement.naturalHeight || imgElement.height;
+
+                    if (imgElement.classList.contains('opus-para-pic')) {
+                        const img = imgElement.querySelector('img');
+                        width = img?.naturalWidth || img?.width || 0; // 确保 img 存在
+                        height = img?.naturalHeight || img?.height || 0; // 确保 img 存在                  
+                    }
+                    // 将尺寸信息添加到 URL
+                    // src = `${src}?px=${width}x${height}`;
+
                     if (!src.includes('/face') && !src.includes('/garb')) {
                         selectedUrls.push(src);
                     }
