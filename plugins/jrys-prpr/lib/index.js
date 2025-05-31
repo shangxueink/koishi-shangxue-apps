@@ -422,7 +422,6 @@ ${dJson.unsignText}\n
           Checkin_HintText_messageid = await session.send(config.Checkin_HintText)
         }
 
-
         let page;
         try {
           if (config.markdown_button_mode !== "raw_jrys") {
@@ -862,18 +861,17 @@ ${dJson.unsignText}
       if (!config.markdown_button_mode_initiative) {
         markdownMessage.msg_id = session.messageId;
       }
-
-      let canvasimage;
       let originalWidth;
       let originalHeight;
-
-      try {
-        canvasimage = await ctx.canvas.loadImage(imageToload);
+      // 尝试从 URL 中解析尺寸
+      const sizeMatch = imageUrl.match(/\?px=(\d+)x(\d+)$/);
+      if (sizeMatch) {
+        originalWidth = parseInt(sizeMatch[1], 10);
+        originalHeight = parseInt(sizeMatch[2], 10);
+      } else {
+        const canvasimage = await ctx.canvas.loadImage(imageToload || imageUrl);
         originalWidth = canvasimage.naturalWidth || canvasimage.width;
         originalHeight = canvasimage.naturalHeight || canvasimage.height;
-      } catch (loadImageError) {
-        ctx.logger.error(`ctx.canvas.loadImage 加载图片失败:`, loadImageError);
-        ctx.logger.error(`失败的图片 URL: ${imageUrl}`); // 记录失败的图片 URL
       }
 
 
