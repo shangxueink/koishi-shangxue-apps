@@ -973,9 +973,19 @@ function apply(ctx, config) {
       markdownMessage.msg_id = session.messageId;
     }
 
-    const canvasimage = await ctx.canvas.loadImage(localimage || imageUrl);// 使用本地图片加载 无需上传后二次请求加载
-    let originalWidth = canvasimage.naturalWidth || canvasimage.width;
-    let originalHeight = canvasimage.naturalHeight || canvasimage.height;
+    let originalWidth;
+    let originalHeight;
+    // 尝试从 URL 中解析尺寸
+    const sizeMatch = imageUrl.match(/\?px=(\d+)x(\d+)$/);
+
+    if (sizeMatch) {
+      originalWidth = parseInt(sizeMatch[1], 10);
+      originalHeight = parseInt(sizeMatch[2], 10);
+    } else {
+      const canvasimage = await ctx.canvas.loadImage(localimage || imageUrl);
+      originalWidth = canvasimage.naturalWidth || canvasimage.width;
+      originalHeight = canvasimage.naturalHeight || canvasimage.height;
+    }
 
     if (config.markdown_button_mode === "markdown") {
       const templateId = config.nested.markdown_button_template_id;
