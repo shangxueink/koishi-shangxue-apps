@@ -2,13 +2,12 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.apply = exports.Config = exports.usage = exports.inject = exports.name = void 0;
 const { Schema, Logger, h } = require("koishi");
-
 exports.inject = {
   optional: ["qrcode"],
   required: ["i18n"]
 };
 exports.name = 'qqq-bot-manager';
-exports.reusable = true; // 声明此插件可重用
+exports.reusable = false; // 声明此插件不可重用
 exports.usage = `
 ---
 
@@ -133,16 +132,20 @@ exports.Config = Schema.intersect([
 
   Schema.object({
     QQQ: Schema.boolean().default(true).description("启用域名大写 以绕过QQ的URL消息限制<br>关闭 则直接发送 原始链接。"),
+    rawmarkdown: Schema.boolean().default(false).description("原生markdown回复"),
     consolelog: Schema.boolean().default(false).description("日志调试模式`日常使用无需开启`"),
   }).description('日志调试选项'),
 ])
 
 
+// 存储登录信息的对象，使用 userId 作为 key
+const loginStatus = {};
+
 function apply(ctx, config) {
 
   function logInfo(...args) {
     if (config.consolelog) {
-      logger.info(...args);
+      ctx.logger.info(...args);
     }
   }
 
@@ -160,6 +163,7 @@ function apply(ctx, config) {
             "loginerror": "登录失败：{0}",
             "logintimeout": "登录超时，请重新登录。",
             "loginSuccess": "登录成功！\n请使用其他指令以查看后台数据。",
+            "loginSuccess2": "登录成功！\n请使用上方按钮 查看后台数据。",
             "loginInProgress": "您已经有一个登录请求正在进行中，请稍后重试或使用 {0} 指令取消当前登录。",
             "loginCancelled": "已取消当前登录请求。",
           }
@@ -190,28 +194,79 @@ function apply(ctx, config) {
     }
   );
 
-  // 存储登录信息的对象，使用 userId 作为 key
-  const loginStatus = {};
-
-  async function fetchData(url, headers = {}, postData = null, method = 'GET') {
-    const options = {
-      method: method,
-      headers: headers,
-    };
-    if (postData) {
-      options.body = JSON.stringify(postData);
-    }
-    const response = await fetch(url, options);
-    if (!response.ok) {
-      const message = `HTTP error! status: ${response.status}`;
-      logger.error(message);
-      throw new Error(message);
-    }
-    return await response.json();
-  }
-
-
   ctx.command(`${config.commandName}`)
+    .action(async ({ session }) => {
+      if (config.rawmarkdown) {
+        await sendsomeMessage(
+          {
+            "msg_type": 2,
+            "msg_id": `${session.messageId}`,
+            // "event_id": "${INTERACTION_CREATE}",
+            "markdown": {
+              "content": "请使用手机QQ 点击 登录按钮："
+            },
+            "keyboard": {
+              "content": {
+                "rows": [
+                  {
+                    "buttons": [
+                      {
+                        "render_data": {
+                          "label": `${config.logincommandName}`,
+                          "style": 2
+                        },
+                        "action": {
+                          "type": 2,
+                          "permission": {
+                            "type": 2
+                          },
+                          "data": `${config.commandName} ${config.logincommandName}`,
+                          "enter": true
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "buttons": [
+                      {
+                        "render_data": {
+                          "label": `${config.botdatacommandName}`,
+                          "style": 2
+                        },
+                        "action": {
+                          "type": 2,
+                          "permission": {
+                            "type": 2
+                          },
+                          "data": `${config.commandName} ${config.botdatacommandName}`,
+                          "enter": true
+                        }
+                      },
+                      {
+                        "render_data": {
+                          "label": `${config.messagecommandName}`,
+                          "style": 2
+                        },
+                        "action": {
+                          "type": 2,
+                          "permission": {
+                            "type": 2
+                          },
+                          "data": `${config.commandName} ${config.messagecommandName}`,
+                          "enter": true
+                        }
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          }, session)
+      } else {
+        await session.execute(`${config.commandName} -h`)
+        return
+      }
+    })
 
   ctx.command(`${config.commandName}.${config.logincommandName}`)
     .action(async ({ session }) => {
@@ -221,7 +276,44 @@ function apply(ctx, config) {
       const userId = session.userId;
 
       if (loginStatus[userId] && loginStatus[userId].loginTime) {
-        return session.text(`commands.${config.logincommandName}.messages.loginInProgress`, [config.commandName + " " + config.cancellogincommandName]);
+        if (!config.rawmarkdown) {
+          return session.text(`commands.${config.logincommandName}.messages.loginInProgress`, [config.commandName + " " + config.cancellogincommandName]);
+        } else {
+          await sendsomeMessage(
+            {
+              "msg_type": 2,
+              "msg_id": `${session.messageId}`,
+              // "event_id": "${INTERACTION_CREATE}",
+              "markdown": {
+                "content": session.text(`commands.${config.logincommandName}.messages.loginInProgress`, [config.commandName + " " + config.cancellogincommandName])
+              },
+              "keyboard": {
+                "content": {
+                  "rows": [
+                    {
+                      "buttons": [
+                        {
+                          "render_data": {
+                            "label": `${config.cancellogincommandName}`,
+                            "style": 2
+                          },
+                          "action": {
+                            "type": 2,
+                            "permission": {
+                              "type": 2
+                            },
+                            "data": `${config.commandName} ${config.cancellogincommandName}`,
+                            "enter": true
+                          }
+                        }
+                      ]
+                    }
+                  ]
+                }
+              }
+            }, session)
+          return
+        }
       }
 
       loginStatus[userId] = { loginTime: Date.now() }; // 标记登录开始时间
@@ -242,15 +334,100 @@ function apply(ctx, config) {
             loginUrl = loginUrl.replace("q.qq.com", "Q.QQ.COM"); // 应用域名大写转换
           }
           const expireTimeSec = config.expireTimeSec;
-          const qrcodeimage = await ctx.qrcode.generateQRCode(loginUrl, 'Text')
-          let loginpleasemessage
           if (!config.qrcodeservice) {
-            loginpleasemessage = session.text(`commands.${config.logincommandName}.messages.loginplease`, [expireTimeSec, loginUrl])
-            await session.send(loginpleasemessage);
+            if (!config.rawmarkdown) {
+              const loginpleasemessage = session.text(`commands.${config.logincommandName}.messages.loginplease`, [expireTimeSec, loginUrl])
+              await session.send(loginpleasemessage);
+            } else {
+              await sendsomeMessage(
+                {
+                  "msg_type": 2,
+                  "msg_id": `${session.messageId}`,
+                  // "event_id": "${INTERACTION_CREATE}",
+                  "markdown": {
+                    "content": "请使用手机QQ 点击 登录按钮：\n---\n登录完成后，请点击下方功能按钮以查询数。"
+                  },
+                  "keyboard": {
+                    "content": {
+                      "rows": [
+                        {
+                          "buttons": [
+                            {
+                              "render_data": {
+                                "label": "点击登录",
+                                "style": 1
+                              },
+                              "action": {
+                                "type": 0,
+                                "permission": {
+                                  "type": 2
+                                },
+                                "data": `${loginUrl}`,
+                                "enter": true
+                              }
+                            },
+                          ]
+                        },
+                        {
+                          "buttons": [
+                            {
+                              "render_data": {
+                                "label": `${config.cancellogincommandName}`,
+                                "style": 2
+                              },
+                              "action": {
+                                "type": 2,
+                                "permission": {
+                                  "type": 2
+                                },
+                                "data": `${config.commandName} ${config.cancellogincommandName}`,
+                                "enter": true
+                              }
+                            }
+                          ]
+                        },
+                        {
+                          "buttons": [
+                            {
+                              "render_data": {
+                                "label": `${config.botdatacommandName}`,
+                                "style": 2
+                              },
+                              "action": {
+                                "type": 2,
+                                "permission": {
+                                  "type": 2
+                                },
+                                "data": `${config.commandName} ${config.botdatacommandName}`,
+                                "enter": true
+                              }
+                            },
+                            {
+                              "render_data": {
+                                "label": `${config.messagecommandName}`,
+                                "style": 2
+                              },
+                              "action": {
+                                "type": 2,
+                                "permission": {
+                                  "type": 2
+                                },
+                                "data": `${config.commandName} ${config.messagecommandName}`,
+                                "enter": true
+                              }
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  }
+                }, session)
+            }
           } else {
-            loginpleasemessage = h.text(session.text(`commands.${config.logincommandName}.messages.loginplease`, [expireTimeSec])) + qrcodeimage
+            const qrcodeimage = await ctx.qrcode.generateQRCode(loginUrl, 'Text')
+            const loginpleasemessage = h.text(session.text(`commands.${config.logincommandName}.messages.loginplease`, [expireTimeSec])) + qrcodeimage
+            await session.send(loginpleasemessage);
           }
-          await session.send(loginpleasemessage);
           logInfo(`[${userId}] 已发送登录链接，等待用户扫码或点击登录，链接: ${loginUrl}`);
 
           const startTime = Date.now();
@@ -307,7 +484,59 @@ function apply(ctx, config) {
             }
             loginResult = await checkLoginStatus();
             if (loginResult === true) {
-              await session.send(session.text(`commands.${config.logincommandName}.messages.loginSuccess`));
+              if (!config.rawmarkdown) {
+                await session.send(session.text(`commands.${config.logincommandName}.messages.loginSuccess`));
+              } else {
+                /*await sendsomeMessage(
+                  {
+                    "msg_type": 2,
+                    "msg_id": `${session.messageId}`,
+                    // "event_id": "${INTERACTION_CREATE}",
+                    "markdown": {
+                      "content": "登录成功！\n请使用其他指令以查看后台数据。"
+                    },
+                    "keyboard": {
+                      "content": {
+                        "rows": [
+                          {
+                            "buttons": [
+                              {
+                                "render_data": {
+                                  "label": `${config.botdatacommandName}`,
+                                  "style": 2
+                                },
+                                "action": {
+                                  "type": 2,
+                                  "permission": {
+                                    "type": 2
+                                  },
+                                  "data": `${config.commandName} ${config.botdatacommandName}`,
+                                  "enter": true
+                                }
+                              },
+                              {
+                                "render_data": {
+                                  "label": `${config.messagecommandName}`,
+                                  "style": 2
+                                },
+                                "action": {
+                                  "type": 2,
+                                  "permission": {
+                                    "type": 2
+                                  },
+                                  "data": `${config.commandName} ${config.messagecommandName}`,
+                                  "enter": true
+                                }
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    }
+                  }, session)*/
+                /*这里这样回复markdown会导致{ response: { data: { message: '消息被去重，请检查请求msgseq', code: 40054005, err_code: 40054005, trace_id: '3c90532b4e79b552c5065d0ef901452a' }, url: 'https://api.sgroup.qq.com/v2/groups/A54255ACA3D13E2B36D0E4997A35466D/messages', status: 400, statusText: 'Bad Request', headers: Headers { date: 'Sat, 31 May 2025 19:32:50 GMT', 'content-type': 'application/json', 'content-length': '135', connection: 'keep-alive', 'x-tps-trace-id': '3c90532b4e79b552c5065d0ef901452a', server: 'TAPISIX/2.2.2', 'access-control-allow-credentials': 'true', 'access-control-allow-methods': 'GET, POST, OPTIONS', 'access-control-allow-headers': 'DNT,X-Mx-ReqToken,Keep-Alive,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Authorization,authorization' } }, code: undefined, [Symbol(cordis.http.error)]: true } */
+                await session.send(session.text(`commands.${config.logincommandName}.messages.loginSuccess2`));
+              }
               return;
             } else if (loginResult === false) {
               await session.send(session.text(`commands.${config.logincommandName}.messages.loginerror`, ["验证失败，请重试"]));
@@ -365,7 +594,76 @@ function apply(ctx, config) {
       const userLoginInfo = loginStatus[userId];
 
       if (!userLoginInfo || !userLoginInfo.uin) { // 检查 uin 确保登录成功
-        return session.text(`commands.${config.messagecommandName}.messages.noLogin`);
+        if (!config.rawmarkdown) {
+          return session.text(`commands.${config.messagecommandName}.messages.noLogin`);
+        } else {
+          await sendsomeMessage(
+            {
+              "msg_type": 2,
+              "msg_id": `${session.messageId}`,
+              // "event_id": "${INTERACTION_CREATE}",
+              "markdown": {
+                "content": "请使用手机QQ 点击 登录按钮："
+              },
+              "keyboard": {
+                "content": {
+                  "rows": [
+                    {
+                      "buttons": [
+                        {
+                          "render_data": {
+                            "label": `${config.logincommandName}`,
+                            "style": 2
+                          },
+                          "action": {
+                            "type": 2,
+                            "permission": {
+                              "type": 2
+                            },
+                            "data": `${config.commandName} ${config.logincommandName}`,
+                            "enter": true
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "buttons": [
+                        {
+                          "render_data": {
+                            "label": `${config.botdatacommandName}`,
+                            "style": 2
+                          },
+                          "action": {
+                            "type": 2,
+                            "permission": {
+                              "type": 2
+                            },
+                            "data": `${config.commandName} ${config.botdatacommandName}`,
+                            "enter": true
+                          }
+                        },
+                        {
+                          "render_data": {
+                            "label": `${config.messagecommandName}`,
+                            "style": 2
+                          },
+                          "action": {
+                            "type": 2,
+                            "permission": {
+                              "type": 2
+                            },
+                            "data": `${config.commandName} ${config.messagecommandName}`,
+                            "enter": true
+                          }
+                        }
+                      ]
+                    }
+                  ]
+                }
+              }
+            }, session)
+          return
+        }
       }
 
       const messageUrl = "https://q.qq.com/pb/AppFetchPrivateMsg";
@@ -400,7 +698,7 @@ function apply(ctx, config) {
             for (let i = 0; i < count; i++) {
               const msg = messages[i];
               let contentText = session.text(`commands.${config.messagecommandName}.messages.messageItem`, [msg.title, new Date(parseInt(msg.send_time) * 1000).toLocaleString(), msg.content]);
-              contentText = contentText.replace(/q.qq.com/g, config.QQQ ? 'Q.QQ.COM' : 'q.qq.com'); // 统一替换站内信内容中的域名
+              contentText = contentText.replace(/q.qq.com/g, config.QQQ ? '' : 'q.qq.com'); // 统一替换站内信内容中的域名
               if (config.isfigureQQmessage && session.platform === "onebot") {
                 figureContent.children.push(h('message', attrs, contentText));
               } else {
@@ -413,7 +711,57 @@ function apply(ctx, config) {
               await session.send(figureContent);
             } else {
               logInfo(`[${userId}] 使用累加拼接发送站内信`);
-              await session.send(textContent.trim()); // 发送累加文本消息，去除尾部可能的换行符
+              if (!config.rawmarkdown) {
+                await session.send(textContent.trim()); // 发送累加文本消息，去除尾部可能的换行符
+              } else {
+                await sendsomeMessage(
+                  {
+                    "msg_type": 2,
+                    "msg_id": `${session.messageId}`,
+                    // "event_id": "${INTERACTION_CREATE}",
+                    "markdown": {
+                      "content": `\`\`\`\n${textContent}\n\`\`\``
+                    },
+                    "keyboard": {
+                      "content": {
+                        "rows": [
+                          {
+                            "buttons": [
+                              {
+                                "render_data": {
+                                  "label": `${config.botdatacommandName}`,
+                                  "style": 2
+                                },
+                                "action": {
+                                  "type": 2,
+                                  "permission": {
+                                    "type": 2
+                                  },
+                                  "data": `${config.commandName} ${config.botdatacommandName}`,
+                                  "enter": true
+                                }
+                              },
+                              {
+                                "render_data": {
+                                  "label": `${config.messagecommandName}`,
+                                  "style": 2
+                                },
+                                "action": {
+                                  "type": 2,
+                                  "permission": {
+                                    "type": 2
+                                  },
+                                  "data": `${config.commandName} ${config.messagecommandName}`,
+                                  "enter": true
+                                }
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    }
+                  }, session)
+              }
             }
 
 
@@ -500,7 +848,58 @@ function apply(ctx, config) {
             await session.send(figureContent); // 一次性发送合并转发消息
           } else {
             logInfo(`[${userId}] 发送累加文本机器人数据`);
-            await session.send(textContent.trim()); // 一次性发送累加文本消息，去除尾部可能的换行符
+            if (!config.rawmarkdown) {
+              await session.send(textContent.trim()); // 一次性发送累加文本消息，去除尾部可能的换行符
+            } else {
+              await sendsomeMessage(
+                {
+                  "msg_type": 2,
+                  "msg_id": `${session.messageId}`,
+                  // "event_id": "${INTERACTION_CREATE}",
+                  "markdown": {
+                    "content": `\`\`\`\n${textContent}\n\`\`\``
+                  },
+                  "keyboard": {
+                    "content": {
+                      "rows": [
+                        {
+                          "buttons": [
+                            {
+                              "render_data": {
+                                "label": `${config.botdatacommandName}`,
+                                "style": 2
+                              },
+                              "action": {
+                                "type": 2,
+                                "permission": {
+                                  "type": 2
+                                },
+                                "data": `${config.commandName} ${config.botdatacommandName}`,
+                                "enter": true
+                              }
+                            },
+                            {
+                              "render_data": {
+                                "label": `${config.messagecommandName}`,
+                                "style": 2
+                              },
+                              "action": {
+                                "type": 2,
+                                "permission": {
+                                  "type": 2
+                                },
+                                "data": `${config.commandName} ${config.messagecommandName}`,
+                                "enter": true
+                              }
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  }
+                }, session)
+            }
+
           }
 
 
@@ -519,6 +918,40 @@ function apply(ctx, config) {
 
     });
 
+
+  async function fetchData(url, headers = {}, postData = null, method = 'GET') {
+    const options = {
+      method: method,
+      headers: headers,
+    };
+    if (postData) {
+      options.body = JSON.stringify(postData);
+    }
+    const response = await fetch(url, options);
+    if (!response.ok) {
+      const message = `HTTP error! status: ${response.status}`;
+      logger.error(message);
+      throw new Error(message);
+    }
+    return await response.json();
+  }
+  async function sendsomeMessage(message, session) {
+    try {
+      const { guild, user } = session.event;
+      const { qq, qqguild, channelId } = session;
+      if (guild?.id) {
+        if (qq) {
+          await qq.sendMessage(channelId, message);
+        } else if (qqguild) {
+          await qqguild.sendMessage(channelId, message);
+        }
+      } else if (user?.id && qq) {
+        await qq.sendPrivateMessage(user.id, message);
+      }
+    } catch (error) {
+      ctx.logger.error(`发送markdown消息时出错:`, error);
+    }
+  }
 }
 
 exports.apply = apply;
