@@ -698,7 +698,11 @@ function apply(ctx, config) {
             for (let i = 0; i < count; i++) {
               const msg = messages[i];
               let contentText = session.text(`commands.${config.messagecommandName}.messages.messageItem`, [msg.title, new Date(parseInt(msg.send_time) * 1000).toLocaleString(), msg.content]);
-              contentText = contentText.replace(/q.qq.com/g, config.QQQ ? '' : 'q.qq.com'); // 统一替换站内信内容中的域名
+              if (config.QQQ) {
+                // 移除所有 URL
+                const urlRegex = /(https?:\/\/[^\s]+)/g; // 匹配 http 或 https 开头的 URL
+                contentText = contentText.replace(urlRegex, '');
+              }
               if (config.isfigureQQmessage && session.platform === "onebot") {
                 figureContent.children.push(h('message', attrs, contentText));
               } else {
