@@ -973,7 +973,7 @@ function apply(ctx, config) {
       markdownMessage.msg_id = session.messageId;
     }
 
-    const canvasimage = await ctx.canvas.loadImage(localimage); // 使用本地图片加载 无需上传后二次请求加载
+    const canvasimage = await ctx.canvas.loadImage(localimage || imageUrl);// 使用本地图片加载 无需上传后二次请求加载
     let originalWidth = canvasimage.naturalWidth || canvasimage.width;
     let originalHeight = canvasimage.naturalHeight || canvasimage.height;
 
