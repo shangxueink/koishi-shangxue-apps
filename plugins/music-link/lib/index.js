@@ -460,7 +460,7 @@ const command7_return_data_Field_default = [
     }
 ];
 
-const command8_return_wyydata_Field_default = [
+const command8_return_QQdata_Field_default = [
     {
         "data": "song_name",
         "describe": "歌曲名称",
@@ -680,10 +680,10 @@ const Config = Schema.intersect([
         Schema.object({
             serverSelect: Schema.const('command8').required(),
             command8: Schema.string().default('龙珠搜索').description('龙珠API的指令名称'),
-            command8_wyyQuality: Schema.number().default(1).description('网易云音乐默认下载音质。`找不到对应音质，会自动使用标准音质`<br>1(标准音质)/2(极高音质)/3(无损音质)/4(Hi-Res音质)/5(高清环绕声)/6(沉浸环绕声)/7(超清母带)'),
+            // command8_wyyQuality: Schema.number().default(1).description('QQ音乐默认下载音质。`找不到对应音质，会自动使用标准音质`<br>1(标准音质)/2(极高音质)/3(无损音质)/4(Hi-Res音质)/5(高清环绕声)/6(沉浸环绕声)/7(超清母带)'),
             command8_searchList: Schema.number().default(20).min(1).max(50).description('歌曲搜索的列表长度。返回的候选项个数。'),
 
-            command8_return_wyydata_Field: Schema.array(Schema.object({
+            command8_return_QQdata_Field: Schema.array(Schema.object({
                 data: Schema.string().description('返回的字段'),
                 describe: Schema.string().description('对该字段的中文描述'),
                 type: Schema.union([
@@ -694,7 +694,7 @@ const Config = Schema.intersect([
                     Schema.const('file').description('文件（file）'),
                 ]).description('字段发送类型'),
                 enable: Schema.boolean().default(true).description('是否启用')
-            })).role('table').default(command8_return_wyydata_Field_default).description('网易云歌曲  返回信息的字段选择<br>[➣ 点我查看该API返回内容示例](https://api.dragonlongzhu.cn/api/dg_QQmusicflac.php?msg=%E5%9B%B4%E6%A0%8F%E6%A1%A3%E6%A1%88&type=json&br=1&num=20&n=1)'),
+            })).role('table').default(command8_return_QQdata_Field_default).description('QQ歌曲  返回信息的字段选择<br>[➣ 点我查看该API返回内容示例](https://api.dragonlongzhu.cn/api/dg_QQmusicflac.php?msg=%E5%9B%B4%E6%A0%8F%E6%A1%A3%E6%A1%88&type=json&br=1&num=20&n=1)'),
         }).description('龙珠API返回设置'),
 
         Schema.object({
@@ -1885,7 +1885,7 @@ function apply(ctx, config) {
 
                         logInfo(JSON.stringify(wyDetailsData.data));
                         details = wyDetailsData.data; // 赋值歌曲详细信息
-                        songDetails8 = generateResponse(session, details, config.command8_return_wyydata_Field);
+                        songDetails8 = generateResponse(session, details, config.command8_return_QQdata_Field);
                     } catch (error) {
                         logger.error('获取龙珠QQ歌曲详情时发生错误', error);
                         return '无法获取QQ音乐歌曲下载链接。'; // 针对详情获取错误返回更具体的提示
