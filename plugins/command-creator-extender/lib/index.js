@@ -268,30 +268,39 @@ async function apply(ctx, config) {
     }
 
 
-    // 计算下一次执行时间
     function getNextTime(task, now) {
       const normalizedTime = task.scheduletime.replace(/\//g, '-');
       const [datePart, timePart] = normalizedTime.split(' ');
       const [hours, minutes, seconds] = timePart.split(':').map(Number);
 
-      let nextTime = new Date(now);
-      nextTime.setHours(hours);
-      nextTime.setMinutes(minutes);
-      nextTime.setSeconds(seconds);
-      nextTime.setMilliseconds(0); // 确保毫秒为0，避免误差
+      // 创建基准时间点
+      let baseTime = new Date(normalizedTime);
+      if (isNaN(baseTime.getTime())) {
+        // 如果日期解析失败，使用当前日期
+        baseTime = new Date(now);
+        baseTime.setHours(hours, minutes, seconds, 0);
+      }
 
-      if (nextTime <= now) {
-        const cycleTime = task.cycletime || 1; // 默认值为1，防止 undefined 导致错误
+      // 对于"once"类型，直接返回配置的时间
+      if (task.every === 'once') {
+        return baseTime;
+      }
 
+      // 计算下一个执行时间
+      let nextTime = new Date(baseTime);
+      const cycleTime = task.cycletime || 1;
+
+      // 如果基准时间已经过去，计算下一个周期的时间
+      while (nextTime <= now) {
         switch (task.every) {
           case 'sec':
-            nextTime = new Date(now.getTime() + cycleTime * 1000);
+            nextTime = new Date(nextTime.getTime() + cycleTime * 1000);
             break;
           case 'min':
-            nextTime = new Date(now.getTime() + cycleTime * 60000);
+            nextTime = new Date(nextTime.getTime() + cycleTime * 60000);
             break;
           case 'hour':
-            nextTime = new Date(now.getTime() + cycleTime * 3600000);
+            nextTime = new Date(nextTime.getTime() + cycleTime * 3600000);
             break;
           case 'day':
             nextTime.setDate(nextTime.getDate() + cycleTime);
@@ -318,7 +327,6 @@ async function apply(ctx, config) {
 
       return nextTime;
     }
-
 
     // 定时任务处理器
     function setupSchedules() {
@@ -365,12 +373,13 @@ async function apply(ctx, config) {
               nextTime = getNextTime(task, now);
               const nextDelay = nextTime.getTime() - now.getTime();
 
-              logInfo(`下次执行时间 #${index}`, {
+              logInfo(`执行定时任务 #${index}`, {
                 bot: task.botId,
                 executeAt: `${nextTime}`,
                 [taskType]: taskContent, // 使用动态键名
+                nextExecuteAt: `${nextTime}`,
                 every: task.every,
-                cycletime: task.cycletime // 添加 cycletime 字段
+                cycletime: task.cycletime
               });
 
               ctx.setTimeout(scheduleTask, nextDelay);
