@@ -310,7 +310,7 @@ export function apply(ctx: Context, config: Config) {
             (typeof session.bot.getUser === 'function' ?
               ((await session.bot.getUser(targetUserId))?.name || targetUserId) :
               targetUserId);
-          if (targetUserId = session.userId) {
+          if (targetUserId === session.userId) {
             await session.send("不允许自己注入自己哦~ 换一个用户吧");
             return;
           }
@@ -347,7 +347,10 @@ export function apply(ctx: Context, config: Config) {
         const randomIndex = Math.floor(Math.random() * filteredRecords.length);
         const targetRecord = filteredRecords[randomIndex];
         targetUserId = targetRecord.userid;
-        targetUsername = targetRecord.username || `用户 ${targetUserId}`;
+        targetUsername = targetRecord.username ||
+          (typeof session.bot.getUser === 'function' ?
+            ((await session.bot.getUser(targetUserId))?.name || targetUserId) :
+            targetUserId);
       }
 
       if (!targetUserId) {
