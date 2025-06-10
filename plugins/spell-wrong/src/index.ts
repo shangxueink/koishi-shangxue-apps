@@ -1,9 +1,8 @@
 import { Schema, Context, h } from 'koishi'
-import { isFunction } from 'util';
 
 export const name = 'spell-wrong'
 export const inject = {
-  required: ['http', 'i18n', 'logger']
+  required: ['logger']
 }
 
 export const usage = `
@@ -11,12 +10,19 @@ export const usage = `
 ---
 
 
-通过普通中间件实现监听消息，收到消息后对session.content进行判断，如果不是以 全局前缀+指令名称/别名 开头的话，那么就对用户做出提示！
+通过普通中间件实现监听消息，收到消息后对 session.content 进行判断，
 
-提示返回内容支持元素消息
+如果不是以 全局前缀+指令名称/别名 开头的话，那么就对用户做出提示！
+
+提示返回部分支持自定义逻辑
 
 ---
 
+比较适用于adapter-qq的机器人。
+
+但是adapter-onebot使用时，在无at前缀触发的情况下，未做功能适配，所以效果不尽人意。
+
+---
 `;
 
 

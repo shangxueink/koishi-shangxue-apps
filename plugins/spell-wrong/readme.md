@@ -2,14 +2,7 @@
 
 [![npm](https://img.shields.io/npm/v/koishi-plugin-spell-wrong?style=flat-square)](https://www.npmjs.com/package/koishi-plugin-spell-wrong)
 
-
-> 当用户拼错指令时，给予友好提示
-
-## 简介
-
-这个插件可以检测用户输入的是否为有效的指令格式。当用户输入不是有效指令时，插件会自动返回一个友好的提示，帮助用户正确使用机器人功能。
-
-![效果预览](https://i0.hdslb.com/bfs/openplatform/efff3a76e737a7c986f670b4c64ad878ec527927.png)
+> 当用户拼错指令时，给予友好提示。当用户输入不是有效指令时，插件会自动返回一个友好的提示，帮助用户正确使用机器人功能。
 
 ## 功能特点
 
@@ -17,6 +10,8 @@
 - 支持自定义提示消息和行为
 - 可配置是否仅在@机器人时触发
 - 灵活控制中间件优先级，可选择是否让其他功能(如AI对话)优先处理
+
+![效果预览](https://i0.hdslb.com/bfs/openplatform/efff3a76e737a7c986f670b4c64ad878ec527927.png)
 
 ## 安装
 
