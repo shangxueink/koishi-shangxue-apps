@@ -1,0 +1,22 @@
+{
+  "name": "koishi-plugin-spell-wrong",
+  "description": "[<ruby>你拼错了指令<rp>（</rp><rt>点我查看README</rt><rp>）</rp></ruby>](https://www.npmjs.com/package/koishi-plugin-spell-wrong)。支持在用户输入没有被处理的情况下，进行提示返回处理。 [点我预览效果图](https://i0.hdslb.com/bfs/openplatform/efff3a76e737a7c986f670b4c64ad878ec527927.png) ",
+  "version": "0.1.0",
+  "main": "lib/index.js",
+  "typings": "lib/index.d.ts",
+  "files": [
+    "lib",
+    "src"
+  ],
+  "license": "MIT",
+  "keywords": [
+    "chatbot",
+    "plugin",
+    "koishi",
+    "拼错指令",
+    "提示语返回"
+  ],
+  "peerDependencies": {
+    "koishi": "4.18.0"
+  }
+}
