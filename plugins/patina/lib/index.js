@@ -6,6 +6,7 @@ const { Schema, Logger, h } = require("koishi");
 const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
+const nodeurl = require('node:url');
 
 exports.name = "patina";
 exports.inject = {
@@ -161,7 +162,7 @@ async function apply(ctx, config) {
     return path.join(__dirname, `temp-image-${uniqueId}.jpg`);
   }
 
-  function extractImageUrl(input) {
+  async function extractImageUrl(session, input) {
     const parsedElements = h.parse(input);
     // 遍历解析后的元素
     for (const element of parsedElements) {
@@ -170,9 +171,16 @@ async function apply(ctx, config) {
         const { id } = element.attrs;
         if (id) {
           // 返回 QQ 头像 URL
-          return `http://q.qlogo.cn/headimg_dl?dst_uin=${id}&spec=640`;
+          if (typeof session.bot.getUser === 'function') {
+            const getUserdata = await session.bot.getUser(id)
+            loggerinfo(getUserdata)
+            return getUserdata.avatar
+          } else {
+            return `暂不支持通过at获取用户头像哦`;
+          }
         }
       }
+
       // 检查是否为 'img' 类型
       if (element.type === 'img') {
         const { src } = element.attrs;
@@ -182,6 +190,7 @@ async function apply(ctx, config) {
         }
       }
     }
+
     // 检查输入是否为纯数字（QQ 号）
     if (/^\d+$/.test(input)) {
       return `http://q.qlogo.cn/headimg_dl?dst_uin=${input}&spec=640`;
@@ -214,7 +223,7 @@ async function apply(ctx, config) {
         }
 
         // 提取图片 URL
-        const imageURL = extractImageUrl(image);
+        const imageURL = await extractImageUrl(session, image);
         loggerinfo(`图片URL: ${imageURL}`); // 记录日志，方便调试
 
         try {
@@ -328,7 +337,7 @@ async function apply(ctx, config) {
         }
 
         // 提取图片 URL
-        const imageURL = extractImageUrl(image);
+        const imageURL = await extractImageUrl(session, image);
         loggerinfo(`图片URL: ${imageURL}`); // 记录日志，方便调试
 
         try {
@@ -579,8 +588,8 @@ async function apply(ctx, config) {
       .option('weight', '-w <weight:number>', '里图混合权重')
       .action(async ({ session, options }, img1, img2) => {
         const miragehtml = path.join(__dirname, '../html/mirage/mirage.html');
-        loggerinfo(img1);
-        loggerinfo(img2);
+        if (img1) loggerinfo(img1);
+        if (img2) loggerinfo(img2);
         if (!ctx.puppeteer) {
           await session.send("没有开启puppeteer服务");
           return;
@@ -590,13 +599,13 @@ async function apply(ctx, config) {
           await session.send("请发送一张图片作为【表图】：");
           img1 = await session.prompt(30000);
         }
-        img1 = extractImageUrl(img1);
+        img1 = await extractImageUrl(session, img1);
         // 获取里图
         if (!img2) {
           await session.send("请发送一张图片作为【里图】：");
           img2 = await session.prompt(30000);
         }
-        img2 = extractImageUrl(img2);
+        img2 = await extractImageUrl(session, img2);
         if (!img1 || !img2) {
           await session.send("未检测到有效的图片，请重试。");
           return;
@@ -614,7 +623,7 @@ async function apply(ctx, config) {
           await downloadImage(ctx, img1, tempCoverPath);
           await downloadImage(ctx, img2, tempInnerPath);
 
-          await page.goto(`file://${miragehtml}`, { waitUntil: 'networkidle2' });
+          await page.goto(nodeurl.pathToFileURL(miragehtml), { waitUntil: 'networkidle2' });
 
           // 配置全彩输出
           const fullColor = options.fullColor !== undefined ? options.fullColor : config.Full_color_output;
