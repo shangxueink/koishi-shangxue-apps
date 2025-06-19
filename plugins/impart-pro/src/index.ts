@@ -4,6 +4,7 @@ import { } from 'koishi-plugin-monetary'
 export const name = 'impart-pro';
 
 export interface Config {
+  commandList: any;
   randomdrawing: string;
   milliliter_range: number[];
   duelLossCurrency: number;
@@ -87,9 +88,36 @@ export const usage = `
 本插件的排行榜用户昵称可以通过 [callme](/market?keyword=callme) 插件自定义
 
 在未指定 callme 插件的名称的时候，默认使用 适配器的 username，或者userid
+
+---
+
+必需服务：i18n 
+
+必需服务：database 
+
+必需服务：monetary 
+
+可选服务：puppeteer 
+
+---
 `;
 
 export const Config: Schema<Config> = Schema.intersect([
+  Schema.object({
+    commandList: Schema.object({
+      command: Schema.string().default("impartpro").description("父级 指令名称"),
+      command1: Schema.string().default("注入").description("注入 指令名称"),
+      command2: Schema.string().default("保养").description("保养 指令名称"),
+      command3: Schema.string().default("开导").description("开导 令名称"),
+      command4: Schema.string().default("牛牛决斗").description("牛牛决斗 指令名称"),
+      command5: Schema.string().default("重开牛牛").description("重开牛牛 指令名称"),
+      command6: Schema.string().default("注入排行榜").description("注入排行榜 指令名称"),
+      command7: Schema.string().default("牛牛排行榜").description("牛牛排行榜 指令名称"),
+      command8: Schema.string().default("看看牛牛").description("看看牛牛 指令名称"),
+      command9: Schema.string().default("锁牛牛").description("锁牛牛 指令名称"),
+    }).collapse().description("指令名称列表<br>自定义指令名称"),
+  }).description('指令名称设置'),
+
   Schema.object({
     defaultLength: Schema.tuple([Number, Number]).description("【初始生成】的牛牛长度（cm）<br>右侧代表最大的偏差百分比（%）（默认在 18 ± 45%）").default([18, 45]),
     exerciseRate: Schema.array(Schema.object({
@@ -148,7 +176,6 @@ export const Config: Schema<Config> = Schema.intersect([
         "rate": 0
       }
     ]),
-    //exerciseRate: Schema.number().role('slider').min(0).max(100).step(1).default(80).description("【锻炼成功】概率。"),
     exerciseWinGrowthRange: Schema.tuple([Number, Number]).description("【锻炼成功】增长的牛牛长度（cm）<br>右侧代表最大的偏差百分比（%）（默认在 10 ± 45%）").default([10, 45]),
     exerciseLossReductionRange: Schema.tuple([Number, Number]).description("【锻炼失败】减少的牛牛长度（cm）<br>右侧代表最大的偏差百分比（%）（默认在 12 ± 45%）").default([12, 45]),
     exerciseCooldownTime: Schema.number().min(0).max(86400).step(1).default(5).description("【锻炼牛牛】间隔休息时间（秒）"),
@@ -237,7 +264,6 @@ export const Config: Schema<Config> = Schema.intersect([
 ]);
 
 
-
 interface impartproTable {
   userid: string;
   username: string;
@@ -257,11 +283,11 @@ declare module 'koishi' {
 }
 
 export const inject = {
-  required: ["database", "monetary"],
+  required: ["i18n", "database", "monetary"],
   optional: ['puppeteer']
 };
 export function apply(ctx: Context, config: Config) {
-  // 扩展数据库表
+
   ctx.model.extend('impartpro', {
     userid: 'string',// 用户ID唯一标识
     username: 'string', // 用户名
@@ -276,13 +302,118 @@ export function apply(ctx: Context, config: Config) {
     primary: ['userid'],
   });
 
-  ctx.command('impartpro', '在群里玩银帕')
+  // TODO 本地化 但是太多 不想做
+  ctx.i18n.define("zh-CN", {
+    commands: {
+      [config.commandList.command]: {
+        description: "在群里玩牛牛相关游戏",
+      },
+      [config.commandList.command1]: {
+        arguments: {
+          user: "目标用户",
+        },
+        description: "注入群友",
+        messages: {
+          // "success": "你没有权限触发这个指令。",
+        },
+        options: {
+          help: "查看指令帮助",
+        }
+      },
+      [config.commandList.command2]: {
+        description: "通过花费货币来增加牛牛的长度",
+        messages: {
+          //"success": "成功增加牛牛长度！",
+        },
+        options: {
+          help: "查看指令帮助",
+        }
+      },
+      [config.commandList.command3]: {
+        arguments: {
+          user: "目标用户",
+        },
+        description: "让牛牛成长！",
+        messages: {
+          //"success": "开导成功！",
+        },
+        options: {
+          help: "查看指令帮助",
+        }
+      },
+      [config.commandList.command4]: {
+        arguments: {
+          user: "目标用户",
+        },
+        description: "决斗牛牛！",
+        messages: {
+          //"challenge": "发起了牛牛决斗！",
+        },
+        options: {
+          help: "查看指令帮助",
+        }
+      },
+      [config.commandList.command5]: {
+        description: "重开一个牛牛~",
+        messages: {
+          // "success": "重开成功！",
+        },
+        options: {
+          help: "查看指令帮助",
+        }
+      },
+      [config.commandList.command6]: {
+        description: "查看注入排行榜",
+        messages: {
+          // "title": "注入排行榜",
+        },
+        options: {
+          help: "查看指令帮助",
+        }
+      },
+      [config.commandList.command7]: {
+        description: "查看牛牛排行榜",
+        messages: {
+          // "title": "牛牛排行榜",
+        },
+        options: {
+          help: "查看指令帮助",
+        }
+      },
+      [config.commandList.command8]: {
+        arguments: {
+          user: "目标用户",
+        },
+        description: "查看牛牛",
+        messages: {
+          //  "notFound": "未找到该用户的牛牛信息",
+        },
+        options: {
+          help: "查看指令帮助",
+        }
+      },
+      [config.commandList.command9]: {
+        arguments: {
+          user: "目标用户",
+        },
+        description: "开启/禁止牛牛大作战",
+        messages: {
+          // "locked": "已锁定牛牛大作战",
+          //  "unlocked": "已解锁牛牛大作战",
+        },
+        options: {
+          help: "查看指令帮助",
+        }
+      }
+    }
+  });
 
-  ctx.command('impartpro/注入 [user]', '注入群友')
-    .alias("injectml")
+  ctx.command(config.commandList.command)
+
+  ctx.command(`impartpro/${config.commandList.command1} [user]`)
     .userFields(["id", "name", "permissions"])
-    .example("注入")
-    .example("注入 @用户")
+    .example(config.commandList.command1)
+    .example(`${config.commandList.command1} @用户`)
     .action(async ({ session }, user) => {
       // 检查是否被禁止触发
       if (!await isUserAllowed(ctx, session.userId, session.channelId)) {
@@ -391,8 +522,7 @@ export function apply(ctx: Context, config: Config) {
     });
 
 
-  ctx.command('impartpro/保养', '通过花费货币来增加牛牛的长度')
-    .alias("保养牛牛")
+  ctx.command(`impartpro/${config.commandList.command2}`)
     .userFields(["id", "name", "permissions"])
     .action(async ({ session }) => {
       const userId = session.userId;
@@ -455,9 +585,8 @@ export function apply(ctx: Context, config: Config) {
       return;
     });
 
-  ctx.command('impartpro/开导 [user]', '让牛牛成长！')
-    .alias('打胶')
-    .example("开导 @用户")
+  ctx.command(`impartpro/${config.commandList.command3} [user]`)
+    .example(`${config.commandList.command3} @用户`)
     .userFields(["id", "name", "permissions"])
     .action(async ({ session }, user) => {
       let userId = session.userId;
@@ -481,7 +610,9 @@ export function apply(ctx: Context, config: Config) {
             return;
           }
           userId = id;
-          username = name || userId;
+          username = name || (typeof session.bot.getUser === 'function' ?
+            ((await session.bot.getUser(userId))?.name || userId) :
+            userId);
         } else {
           await session.send('不可用的用户！请检查输入');
           return;
@@ -587,9 +718,8 @@ export function apply(ctx: Context, config: Config) {
       return;
     });
 
-  ctx.command('impartpro/牛牛决斗 [user]', '决斗牛牛！')
-    .alias('嗦牛牛')
-    .example("牛牛决斗 @用户")
+  ctx.command(`impartpro/${config.commandList.command4} [user]`)
+    .example(`${config.commandList.command4} @用户`)
     .userFields(["id", "name", "permissions"])
     .action(async ({ session }, user) => {
       let userId = session.userId;
@@ -613,7 +743,9 @@ export function apply(ctx: Context, config: Config) {
             return;
           }
           userId = id;
-          username = name || userId;
+          username = name || (typeof session.bot.getUser === 'function' ?
+            ((await session.bot.getUser(userId))?.name || userId) :
+            userId);
         } else {
           await session.send('不可用的用户！请检查输入');
           return;
@@ -731,8 +863,7 @@ export function apply(ctx: Context, config: Config) {
       return;
     });
 
-  ctx.command('impartpro/重开牛牛', '重开一个牛牛~')
-    .alias('生成牛牛')
+  ctx.command(`impartpro/${config.commandList.command5}`)
     .userFields(["id", "name", "permissions"])
     .action(async ({ session }) => {
       const userId = session.userId;
@@ -780,8 +911,7 @@ export function apply(ctx: Context, config: Config) {
       }
     });
 
-  ctx.command('impartpro/注入排行榜', '查看注入排行榜')
-    .alias('injectleaderboard')
+  ctx.command(`impartpro/${config.commandList.command6}`)
     .userFields(["id", "name", "permissions"])
     .action(async ({ session }) => {
       // 检查是否被禁止触发
@@ -952,8 +1082,7 @@ ${record.order === 3 ? '<span class="medal">🥉</span>' : ''}
     });
 
 
-  ctx.command('impartpro/牛牛排行榜', '查看牛牛排行榜')
-    .alias('牛子排行榜')
+  ctx.command(`impartpro/${config.commandList.command7}`)
     .userFields(["id", "name", "permissions"])
     .action(async ({ session }) => {
       // 检查是否被禁止触发
@@ -1114,8 +1243,8 @@ ${record.order === 3 ? '<span class="medal">🥉</span>' : ''}
       }
     });
 
-  ctx.command('impartpro/看看牛牛 [user]', '查看牛牛')
-    .example("看看牛牛 @用户")
+  ctx.command(`impartpro/${config.commandList.command8} [user]`)
+    .example(`${config.commandList.command8} @用户`)
     .userFields(["id", "name", "permissions"])
     .action(async ({ session }, user) => {
       let userId = session.userId;
@@ -1152,10 +1281,10 @@ ${record.order === 3 ? '<span class="medal">🥉</span>' : ''}
       return;
     });
 
-  ctx.command('impartpro/锁牛牛 [user]', '开启/禁止牛牛大作战')
+  ctx.command(`impartpro/${config.commandList.command9} [user]`)
     .alias('开启牛牛大作战')
     .alias('关闭牛牛大作战')
-    .example("锁牛牛 @用户")
+    .example(`${config.commandList.command9} @用户`)
     .userFields(["id", "name", "permissions"])
     .action(async ({ session }, user) => {
       const permissionScope = config.permissionScope;
