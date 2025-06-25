@@ -572,6 +572,12 @@ export function apply(ctx, config) {
 
 
                     if (config.helpmode === '3' || config.helpmode === '3.2') { // 模式 3.2 同样使用 JSON 导入
+                        if (localBackgroundURL) {
+                            let parsedJson = JSON.parse(helpContent); // 解析 JSON
+                            parsedJson.config.backgroundImage = localBackgroundURL; // 改写背景图字段
+                            helpContent = JSON.stringify(parsedJson); // 转回字符串
+                        }  
+                      
                         // JSON模式处理
                         const textarea = await logElementAction('.popup-content textarea', '输入JSON内容');
                         await page.evaluate((element, content) => {
