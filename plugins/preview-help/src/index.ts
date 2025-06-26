@@ -575,9 +575,7 @@ export function apply(ctx, config) {
                         if (localBackgroundURL) {
                             let parsedJson = JSON.parse(helpContent); // 解析 JSON
                             parsedJson.config.backgroundImage = localBackgroundURL; // 改写背景图字段
-                            helpContent = JSON.stringify(parsedJson); // 转回字符串
-                        }  
-                      
+                        }
                         // JSON模式处理
                         const textarea = await logElementAction('.popup-content textarea', '输入JSON内容');
                         await page.evaluate((element, content) => {
