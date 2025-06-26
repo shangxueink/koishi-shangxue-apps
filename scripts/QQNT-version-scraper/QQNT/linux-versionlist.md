@@ -37,3 +37,8 @@
 | Linux loongarch | 3.2.18 |   | [下载](https://dldir1v6.qq.com/qqfile/qq/QQNT/Linux/QQ_3.2.18_250616_loongarch64_01.deb) |   |   |   |
 | Linux mips | 3.2.18 |   | [下载](https://dldir1v6.qq.com/qqfile/qq/QQNT/Linux/QQ_3.2.18_250616_mips64el_01.deb) |   |   |   |
 |   |   |   |   |   |   |   |
+| Linux x64 | 3.2.18 |   | [下载](https://dldir1v6.qq.com/qqfile/qq/QQNT/Linux/QQ_3.2.18_250626_amd64_01.deb) | [下载](https://dldir1v6.qq.com/qqfile/qq/QQNT/Linux/QQ_3.2.18_250626_x86_64_01.rpm) | [下载](https://dldir1v6.qq.com/qqfile/qq/QQNT/Linux/QQ_3.2.18_250626_x86_64_01.AppImage) |   |
+| Linux arm | 3.2.18 |   | [下载](https://dldir1v6.qq.com/qqfile/qq/QQNT/Linux/QQ_3.2.18_250626_arm64_01.deb) | [下载](https://dldir1v6.qq.com/qqfile/qq/QQNT/Linux/QQ_3.2.18_250626_aarch64_01.rpm) | [下载](https://dldir1v6.qq.com/qqfile/qq/QQNT/Linux/QQ_3.2.18_250626_arm64_01.AppImage) |   |
+| Linux loongarch | 3.2.18 |   | [下载](https://dldir1v6.qq.com/qqfile/qq/QQNT/Linux/QQ_3.2.18_250626_loongarch64_01.deb) |   |   |   |
+| Linux mips | 3.2.18 |   | [下载](https://dldir1v6.qq.com/qqfile/qq/QQNT/Linux/QQ_3.2.18_250626_mips64el_01.deb) |   |   |   |
+|   |   |   |   |   |   |   |

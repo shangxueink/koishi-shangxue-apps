@@ -38,3 +38,7 @@
 | Windows x86 | 9.9.20_250616 | [下载](https://dldir1v6.qq.com/qqfile/qq/QQNT/Windows/QQ_9.9.20_250616_x86_01.exe) |   |   |   |   |
 | Windows arm | 9.9.20_250616 | [下载](https://dldir1v6.qq.com/qqfile/qq/QQNT/Windows/QQ_9.9.20_250616_arm64_01.exe) |   |   |   |   |
 |   |   |   |   |   |   |   |
+| Windows x64 | 9.9.20_250626 | [下载](https://dldir1v6.qq.com/qqfile/qq/QQNT/Windows/QQ_9.9.20_250626_x64_01.exe) |   |   |   |   |
+| Windows x86 | 9.9.20_250626 | [下载](https://dldir1v6.qq.com/qqfile/qq/QQNT/Windows/QQ_9.9.20_250626_x86_01.exe) |   |   |   |   |
+| Windows arm | 9.9.20_250626 | [下载](https://dldir1v6.qq.com/qqfile/qq/QQNT/Windows/QQ_9.9.20_250626_arm64_01.exe) |   |   |   |   |
+|   |   |   |   |   |   |   |
