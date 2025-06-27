@@ -1,6 +1,6 @@
 {
   "name": "koishi-plugin-patina",
-  "version": "2.1.1",
+  "version": "2.1.2",
   "description": "幻影坦克、像素化、相机镜框... 旨在通过 puppeteer 来让你的bot获得更多功能！",
   "main": "lib/index.js",
   "typings": "lib/index.d.ts",
