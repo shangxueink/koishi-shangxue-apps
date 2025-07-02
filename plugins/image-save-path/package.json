@@ -1,7 +1,7 @@
 {
   "name": "koishi-plugin-image-save-path",
   "description": "[<ruby>保存图片<rp>（</rp><rt>点我查看食用方法</rt><rp>）</rp></ruby>](https://www.npmjs.com/package/koishi-plugin-image-save-path) 💾支持[交互保存图片](https://i0.hdslb.com/bfs/article/a2780975ccbf74c422dd7f0333af0172312276085.png) 、 [回复保存图片](https://i0.hdslb.com/bfs/article/144dac10d99a911648b9016c620fa49a312276085.png) 、 [批量保存图片](https://i0.hdslb.com/bfs/article/a3f0844195795fc7e51f947e689fd744312276085.png) 、 [中间件批量保存图片](https://i0.hdslb.com/bfs/article/23e26c25d805e0d5d5d76958e5950d56312276085.png)。🤖支持重命文件名和后缀名。",
-  "version": "1.5.0",
+  "version": "1.6.0",
   "main": "lib/index.js",
   "typings": "lib/index.d.ts",
   "files": [
