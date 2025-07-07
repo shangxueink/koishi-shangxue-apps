@@ -1,0 +1,42 @@
+{
+  "name": "koishi-plugin-music-voice",
+  "description": "Provide the selected song as a voice",
+  "version": "1.6.7",
+  "main": "lib/index.js",
+  "typings": "lib/index.d.ts",
+  "files": [
+    "lib",
+    "src"
+  ],
+  "license": "MIT",
+  "keywords": [
+    "chatbot",
+    "koishi",
+    "plugin",
+    "music",
+    "voice",
+    "song",
+    "download"
+  ],
+  "homepage": "https://github.com/idranme/koishi-plugin-music-voice",
+  "bugs": {
+    "url": "https://github.com/idranme/koishi-plugin-music-voice/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/idranme/koishi-plugin-music-voice.git"
+  },
+  "koishi": {
+    "browser": true,
+    "description": {
+      "en": "Provide the selected song as a voice",
+      "zh": "/*语音点歌*/🎵提供QQ音乐、网易云音乐的歌曲，付费的也可以欸？！"
+    }
+  },
+  "peerDependencies": {
+    "koishi": "^4.17.3"
+  },
+  "devDependencies": {
+    "koishi-plugin-puppeteer": "^3.8.3"
+  }
+}
