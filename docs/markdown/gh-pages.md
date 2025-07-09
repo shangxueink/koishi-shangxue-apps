@@ -6,20 +6,15 @@
 
 ## 编辑 / 开发 此文档
 
-在 `docs` 目录下进行编辑或开发。
+在 `docs` 分支下进行编辑或开发。
 
-> https://github.com/shangxueink/koishi-shangxue-apps/tree/main/docs
+> https://github.com/shangxueink/koishi-shangxue-apps/tree/docs
 
-:::tip
-**请注意**： 文档的修改 与 功能的开发 请分别提交 Pull Request，避免混在一起提交。
-
-否则，你的 Pull Request 将无法通过审核。
-:::
 
 ### 开发环境配置
 
 1. **Fork 仓库**  
-   首先，请 Fork 本仓库到你的 GitHub 账号下。
+   首先，请 Fork 本仓库的 `docs` 分支 到你的 GitHub 账号下。
 
 2. **克隆仓库**  
    将你 Fork 的仓库克隆到本地：  
@@ -41,28 +36,28 @@
    ```
    打开浏览器访问 `http://localhost:5173/koishi-shangxue-apps/` 即可查看文档。
 
-   在本项目的 `docs` 目录下，编辑文档内容。
+   在本项目的 `docs` 分支下，编辑文档内容。
 
 ---
 
 ### 提交 Pull Request
 
-1. **直接修改 `main` 分支**  
-   在本地 `main` 分支上直接进行修改。
+1. **直接修改 `docs` 分支**  
+   在本地 `docs` 分支上直接进行修改。
 
 2. **提交更改**  
    完成修改后，提交你的更改：  
    ```bash
    git add .
    git commit -m "描述你的更改"
-   git push origin main
+   git push origin docs
    ```
 
 3. **创建 Pull Request**  
 
    前往 GitHub，进入你 Fork 的仓库，点击 **Compare & pull request** 按钮，
    
-   选择 `main` 分支作为目标分支，并填写 PR 描述。
+   选择 `docs` 分支作为目标分支，并填写 PR 描述。
 
 
 我们会在收到 PR 后尽快审核并合并你的贡献！感谢你的支持！
@@ -72,9 +67,9 @@
 :::tip
 一般你不需要手动更新：
 
-当 `main` 分支的 `docs` 目录变动时，`GitHub Actions` 会自动更新 `GitHub Pages`。
+当 `docs` 分支的 `docs` 目录变动时，`GitHub Actions` 会自动更新 `GitHub Pages`。
 
-参见 -> [`.github/workflows/deploy-gh-pages.yml`](https://github.com/shangxueink/koishi-shangxue-apps/blob/main/.github/workflows/deploy-gh-pages.yml)
+参见 -> [`.github/workflows/deploy-gh-pages.yml`](https://github.com/shangxueink/koishi-shangxue-apps/blob/docs/.github/workflows/deploy-gh-pages.yml)
 :::
 
 如果你需要手动触发 GitHub Actions 以更新文档，请按照以下步骤操作：
