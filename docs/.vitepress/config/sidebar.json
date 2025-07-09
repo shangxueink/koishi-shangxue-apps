@@ -24,12 +24,12 @@
                 "link": "/markdown/scriptsbeshowed"
             },
             {
-                "text": "插件列表",
-                "link": "/markdown/plugins"
-            },
-            {
                 "text": "仓库工具",
                 "link": "/markdown/scripts"
+            },
+            {
+                "text": "webUI工具",
+                "link": "/markdown/webuiscripts"
             }
         ]
     },
@@ -45,21 +45,12 @@
                 "link": "/markdown/community"
             },
             {
-                "text": "贡献鸣谢",
-                "link": "/markdown/contributors"
-            }
-        ]
-    },
-    {
-        "text": "文档相关",
-        "items": [
-            {
-                "text": "webUI工具",
-                "link": "/markdown/webuiscripts"
-            },
-            {
                 "text": "编辑文档",
                 "link": "/markdown/gh-pages"
+            },
+            {
+                "text": "贡献鸣谢",
+                "link": "/markdown/contributors"
             }
         ]
     },
