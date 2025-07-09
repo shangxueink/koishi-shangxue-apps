@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <title>黑屏小工具</title>
+  <style>
+    body {
+      background-color: rgb(32, 32, 32);
+      margin: 0;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      overflow: hidden;
+      cursor: auto;
+      color: #fff;
+      font-family: sans-serif;
+    }
+
+    #playButton {
+      width: 100px;
+      height: 100px;
+      background-color: transparent;
+      border: 2px solid white;
+      border-radius: 50%;
+      cursor: pointer;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      transition: transform 0.2s ease-in-out;
+    }
+
+    #playButton:hover {
+      transform: scale(1.1);
+    }
+
+    #playButton::before {
+      content: '';
+      display: block;
+      width: 0;
+      height: 0;
+      border-top: 20px solid transparent;
+      border-bottom: 20px solid transparent;
+      border-left: 30px solid white;
+      margin-left: 5px;
+    }
+
+    #fullscreen {
+      width: 100%;
+      height: 100%;
+      background-color: black;
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      z-index: 9999;
+      cursor: none;
+      overflow: hidden;
+    }
+
+    #fullscreen.show-cursor {
+      cursor: auto;
+    }
+
+    #fullscreen-message {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      color: rgba(200, 200, 200, 0.7);
+      font-size: 24px;
+      text-align: center;
+      display: none;
+      pointer-events: none;
+      user-select: none;
+      animation: fadeIn 0.5s ease-in-out;
+    }
+
+    #fullscreen.show-message #fullscreen-message {
+      display: block;
+    }
+
+    #fullscreen-message .countdown {
+      font-size: 1.2em;
+      font-weight: bold;
+      display: inline-block;
+      animation: pulse 1s infinite alternate;
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+      }
+
+      to {
+        opacity: 1;
+      }
+    }
+
+    @keyframes pulse {
+      from {
+        transform: scale(1);
+      }
+
+      to {
+        transform: scale(1.1);
+      }
+    }
+
+    .description {
+      margin-top: 20px;
+      text-align: center;
+      font-size: 1.2em;
+    }
+
+    .description p {
+      margin: 5px 0;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div id="playButton">
+  </div>
+
+  <div class="description">
+    <p>播放按钮</p>
+    <p>黑屏小工具，让你的屏幕保持纯黑色~~~</p>
+  </div>
+
+  <div id="fullscreen">
+    <div id="fullscreen-message">
+      双击或按下 ESC 退出全屏模式
+      <br><br>
+      静置鼠标 <span class="countdown" id="countdown">5</span> 秒后 提示文本将消失...
+    </div>
+  </div>
+
+  <script>
+    const playButton = document.getElementById('playButton');
+    const fullscreenDiv = document.getElementById('fullscreen');
+    const fullscreenMessage = document.getElementById('fullscreen-message');
+    const countdownElement = document.getElementById('countdown');
+    let isFullscreen = false;
+    let isPaused = false;
+    let canEnterFullscreen = true;
+    const fullscreenCooldown = 500;
+    let hideCursorTimeout;
+    const cursorHideDelay = 5000; // 5秒
+    let messageTimeout;
+    const messageDisplayTime = 5000; //提示信息显示5秒
+    let countdownValue = messageDisplayTime / 1000;
+
+    playButton.addEventListener('click', () => {
+      if (canEnterFullscreen) {
+        enterFullscreen();
+      }
+    });
+
+    function enterFullscreen() {
+      fullscreenDiv.style.display = 'block';
+      if (fullscreenDiv.requestFullscreen) {
+        fullscreenDiv.requestFullscreen();
+      } else if (fullscreenDiv.mozRequestFullScreen) {
+        fullscreenDiv.mozRequestFullScreen();
+      } else if (fullscreenDiv.webkitRequestFullscreen) {
+        fullscreenDiv.webkitRequestFullscreen();
+      } else if (fullscreenDiv.msRequestFullscreen) {
+        fullscreenDiv.msRequestFullscreen();
+      }
+      isFullscreen = true;
+      hideCursorAfterDelay();
+    }
+
+    function exitFullscreen() {
+      if (document.exitFullscreen) {
+        document.exitFullscreen();
+      } else if (document.mozCancelFullScreen) {
+        document.mozCancelFullScreen();
+      } else if (document.webkitExitFullscreen) {
+        document.webkitExitFullscreen();
+      } else if (document.msExitFullscreen) {
+        document.msExitFullscreen();
+      }
+      fullscreenDiv.style.display = 'none';
+      isFullscreen = false;
+      isPaused = false;
+      canEnterFullscreen = false;
+      fullscreenDiv.classList.remove('show-cursor');
+      fullscreenDiv.classList.remove('show-message');
+      clearTimeout(hideCursorTimeout);
+      clearTimeout(messageTimeout);
+      canEnterFullscreen = false; // 退出全屏后，设置冷却
+      clearInterval(countdownInterval);
+      countdownValue = messageDisplayTime / 1000;
+      countdownElement.textContent = countdownValue;
+      setTimeout(() => {
+        canEnterFullscreen = true; // 冷却时间结束后，允许进入全屏
+      }, fullscreenCooldown);
+    }
+
+    fullscreenDiv.addEventListener('click', () => {
+      if (isFullscreen) {
+        if (!isPaused) {
+          isPaused = true;
+        } else {
+          exitFullscreen();
+        }
+      }
+    });
+
+    fullscreenDiv.addEventListener('dblclick', () => {
+      if (isFullscreen) {
+        exitFullscreen();
+      }
+    });
+
+    document.addEventListener('fullscreenchange', exitHandler);
+    document.addEventListener('webkitfullscreenchange', exitHandler);
+    document.addEventListener('mozfullscreenchange', exitHandler);
+    document.addEventListener('MSFullscreenChange', exitHandler);
+
+    function exitHandler() {
+      if (!document.fullscreenElement && !document.webkitIsFullScreen && !document.mozFullScreen && !document.msFullscreenElement) {
+        fullscreenDiv.style.display = 'none';
+        isFullscreen = false;
+        isPaused = false;
+        fullscreenDiv.classList.remove('show-cursor');
+        fullscreenDiv.classList.remove('show-message');
+        clearTimeout(hideCursorTimeout);
+        clearTimeout(messageTimeout);
+        clearInterval(countdownInterval);
+        countdownValue = messageDisplayTime / 1000;
+        countdownElement.textContent = countdownValue;
+        canEnterFullscreen = false; // 通过ESC退出全屏也设置冷却
+        setTimeout(() => {
+          canEnterFullscreen = true;
+        }, fullscreenCooldown);
+      }
+    }
+
+    function hideCursorAfterDelay() {
+      clearTimeout(hideCursorTimeout);
+      hideCursorTimeout = setTimeout(() => {
+        fullscreenDiv.classList.remove('show-cursor');
+      }, cursorHideDelay);
+    }
+
+    let countdownInterval;
+
+    function startCountdown() {
+      clearInterval(countdownInterval);
+      countdownValue = messageDisplayTime / 1000;
+      countdownElement.textContent = countdownValue;
+
+      countdownInterval = setInterval(() => {
+        countdownValue--;
+        countdownElement.textContent = countdownValue;
+        if (countdownValue <= 0) {
+          clearInterval(countdownInterval);
+        }
+      }, 1000);
+    }
+
+    fullscreenDiv.addEventListener('mousemove', () => {
+      fullscreenDiv.classList.add('show-cursor');
+      fullscreenDiv.classList.add('show-message');
+      clearTimeout(hideCursorTimeout);
+      clearTimeout(messageTimeout);
+      clearInterval(countdownInterval);
+      countdownValue = messageDisplayTime / 1000;
+      countdownElement.textContent = countdownValue;
+      hideCursorAfterDelay();
+      startCountdown();
+
+      messageTimeout = setTimeout(() => {
+        fullscreenDiv.classList.remove('show-message');
+      }, messageDisplayTime);
+    });
+  </script>
+
+</body>
+
+</html>

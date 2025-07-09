@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Koishi Log Formatter</title>
+    <link rel="stylesheet" href="./css/LogFormatter.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"
+        integrity="sha512-9usAa10IRO0HhonpyAIVpjrylPvoDwiPUiKdWk5t3PyolY1cOd4DSE0Ga+ri4AuTroPR5aQvXU9xC6qOPnzFeg=="
+        crossorigin="anonymous" referrerpolicy="no-referrer" />
+</head>
+
+<body>
+
+    <h1>Koishi Log Formatter</h1>
+
+    <div class="theme-buttons">
+        <button class="theme-button theme-pale-night-dark" data-theme="pale-night-dark">Pale Night Dark</button>
+        <button class="theme-button theme-ocean-dark" data-theme="ocean-dark">Ocean Dark</button>
+        <button class="theme-button theme-solarized-dark" data-theme="solarized-dark">Solarized Dark</button>
+        <button class="theme-button theme-coffee-dark" data-theme="coffee-dark">Coffee Dark</button>
+        <button class="theme-button theme-winter-dark" data-theme="winter-dark">Winter Dark</button>
+        <button class="theme-button theme-coffee-light" data-theme="coffee-light">Coffee Light</button>
+        <button class="theme-button theme-solarized-light" data-theme="solarized-light">Solarized Light</button>
+        <button class="theme-button theme-ocean-light" data-theme="ocean-light">Ocean Light</button>
+    </div>
+
+    <div class="file-upload-container">
+        <div class="file-upload-button" id="fileUploadButton">
+            <i class="fas fa-upload file-upload-icon"></i> 从本地文件选择 或 拖动文件到此处
+            <input type="file" id="logFileInput" accept=".log">
+        </div>
+    </div>
+
+
+    <div class="container">
+        <div class="editor-container" style="width: 44%;">
+            <div class="line-numbers" id="editorLineNumbers">1<br></div>
+            <textarea id="input"
+                placeholder="在此粘贴 koishi desktop 的实例日志内容，例如：&#x0A;{&quot;id&quot;:1,&quot;type&quot;:&quot;info&quot;,&quot;level&quot;:2,&quot;name&quot;:&quot;app&quot;,&quot;meta&quot;:{},&quot;content&quot;:&quot;\u001b[38;5;15;1mKoishi/4.18.7\u001b[0m&quot;,&quot;timestamp&quot;:1744175440541}&#x0A;{&quot;id&quot;:2,&quot;type&quot;:&quot;info&quot;,&quot;level&quot;:2,&quot;name&quot;:&quot;loader&quot;,&quot;meta&quot;:{&quot;paths&quot;:[]},&quot;content&quot;:&quot;apply plugin \u001b[38;5;45mgroup:entry\u001b[0m&quot;,&quot;timestamp&quot;:1744175440571}&#x0A;{&quot;id&quot;:3,&quot;type&quot;:&quot;info&quot;,&quot;level&quot;:2,&quot;name&quot;:&quot;loader&quot;,&quot;meta&quot;:{&quot;paths&quot;:[]},&quot;content&quot;:&quot;apply plugin \u001b[38;5;45mgroup:server\u001b[0m&quot;,&quot;timestamp&quot;:1744175440572}&#x0A;{&quot;id&quot;:4,&quot;type&quot;:&quot;info&quot;,&quot;level&quot;:2,&quot;name&quot;:&quot;loader&quot;,&quot;meta&quot;:{&quot;paths&quot;:[]},&quot;content&quot;:&quot;apply plugin \u001b[38;5;45mserver:pus2nz\u001b[0m&quot;,&quot;timestamp&quot;:1744175440572}&#x0A; ... ...&#x0A; ... ...&#x0A; ... ... "></textarea>
+
+        </div>
+        <div class=" resizer"></div>
+        <div class="output-container" style="width: 56%;">
+            <div class="line-numbers" id="outputLineNumbers">1<br></div>
+            <div id="output"></div>
+        </div>
+    </div>
+
+
+    <div class="options">
+        <input type="checkbox" id="syncScroll" checked>
+        <label for="syncScroll">同步滚动</label>
+    </div>
+
+    <div class="save-file-container">
+        <button class="save-file-button" id="saveFileButton">
+            <i class="fas fa-save file-save-icon"></i> 保存到文件
+        </button>
+    </div>
+
+
+    <div class="page-footer">
+        © 2025<br>
+        <a href="https://github.com/shangxueink/koishi-shangxue-apps/tree/main" target="_blank">Github</a><br>
+        MIT License <br>
+    </div>
+
+    <script>
+        const input = document.getElementById('input');
+        const output = document.getElementById('output');
+        const themeButtons = document.querySelectorAll('.theme-button');
+        const editorLineNumbers = document.getElementById('editorLineNumbers');
+        const outputLineNumbers = document.getElementById('outputLineNumbers');
+        const syncScrollCheckbox = document.getElementById('syncScroll');
+        const fileUploadButton = document.getElementById('fileUploadButton');
+        const logFileInput = document.getElementById('logFileInput');
+        const saveFileButton = document.getElementById('saveFileButton');
+        const resizer = document.querySelector('.resizer');
+        const container = document.querySelector('.container');
+        let isDragging = false;
+
+        let isSyncing = false;
+        let tooltipTimer = null;
+        const TOOLTIP_DELAY = 300;
+        const DEFAULT_TOOLTIP_TEXT = "双击复制原始日志";
+        const COPIED_TOOLTIP_TEXT = "已复制此日志";
+
+        resizer.addEventListener('mousedown', function (e) {
+            isDragging = true;
+            document.body.style.cursor = 'ew-resize';
+            resizer.style.background = 'red';
+        });
+
+        resizer.addEventListener('mousedown', function (e) {
+            isDragging = true;
+            document.body.style.cursor = 'ew-resize';
+            resizer.style.background = 'red';
+            // 阻止默认的文本选中行为
+            e.preventDefault();
+        });
+
+        document.addEventListener('mouseup', function (e) {
+            isDragging = false;
+            document.body.style.cursor = 'default';
+            resizer.style.background = getComputedStyle(document.documentElement).getPropertyValue('--k-color-primary');
+        });
+
+        document.addEventListener('mousemove', function (e) {
+            if (!isDragging) return;
+
+            const containerRect = container.getBoundingClientRect();
+            let newWidth = e.clientX - containerRect.left;
+
+            const minWidth = 100;
+            const maxWidth = containerRect.width - 100;
+
+            newWidth = Math.max(minWidth, Math.min(maxWidth, newWidth));
+
+            const editorWidth = (newWidth / containerRect.width) * 100;
+            const outputWidth = 100 - editorWidth;
+
+            document.querySelector('.editor-container').style.width = `${editorWidth}%`;
+            document.querySelector('.output-container').style.width = `${outputWidth}%`;
+        });
+
+
+        const logEntryStartRegex = /^(?:\{.*\}|(\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}:\d{2})\s+\[([EDWIV])\])/;
+        const stackTraceRegex = /^\s+at\s|^\s*$/;
+
+        input.addEventListener('input', processLogs);
+        input.addEventListener('scroll', syncScrollInput);
+        output.addEventListener('scroll', syncScrollOutput);
+        syncScrollCheckbox.addEventListener('change', () => {
+            if (syncScrollCheckbox.checked) {
+                output.scrollTop = input.scrollTop;
+            }
+        });
+
+        themeButtons.forEach(button => {
+            button.addEventListener('click', function () {
+                setTheme(this.dataset.theme);
+            });
+        });
+
+        output.addEventListener('mouseover', handleMouseOver);
+        output.addEventListener('mouseout', handleMouseOut);
+        output.addEventListener('dblclick', handleDoubleClick);
+
+
+        logFileInput.addEventListener('change', handleFileSelect);
+
+        fileUploadButton.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            fileUploadButton.classList.add('dragover');
+        });
+
+        fileUploadButton.addEventListener('dragleave', () => {
+            fileUploadButton.classList.remove('dragover');
+        });
+
+        fileUploadButton.addEventListener('drop', handleFileDrop);
+        saveFileButton.addEventListener('click', saveFormattedLogToFile);
+
+
+        function handleFileSelect(event) {
+            const file = event.target.files[0];
+            if (file) {
+                readFileContent(file);
+            }
+            logFileInput.value = '';
+        }
+
+        function handleFileDrop(event) {
+            event.preventDefault();
+            fileUploadButton.classList.remove('dragover');
+            const file = event.dataTransfer.files[0];
+            if (file) {
+                readFileContent(file);
+            }
+        }
+
+
+        function readFileContent(file) {
+            if (!file.name.endsWith('.log')) {
+                alert("请选择 .log 文件");
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                input.value = e.target.result;
+                processLogs();
+            };
+            reader.onerror = function (e) {
+                alert("文件读取错误");
+                console.error("File reading error:", e);
+            }
+            reader.readAsText(file);
+        }
+
+
+        function processLogs() {
+            const logData = input.value;
+            const rawLines = logData.split('\n');
+            let outputHtml = '';
+            let logicalLineCount = 0;
+            let currentLogicalEntry = null;
+            let lastTimestamp = null;
+
+            for (let i = 0; i < rawLines.length; i++) {
+                const line = rawLines[i];
+                let isNewEntry = false;
+                let parsedJson = null;
+                let timestampMatch = null;
+                let currentTimestamp = null;
+
+                try {
+                    parsedJson = JSON.parse(line);
+                    if (parsedJson && parsedJson.timestamp && parsedJson.content) {
+                        isNewEntry = true;
+                        currentTimestamp = parsedJson.timestamp;
+                    } else {
+                        parsedJson = null;
+                    }
+                } catch (e) { }
+
+                if (!parsedJson) {
+                    timestampMatch = line.match(/^(\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}:\d{2})\s+\[([EDWIV])\]\s+(.*)/);
+                    if (timestampMatch) {
+                        isNewEntry = true;
+                        currentTimestamp = timestampMatch[1];
+                        currentTimestamp = new Date(currentTimestamp).getTime();
+                    }
+                }
+
+                const isContinuation = !isNewEntry && currentLogicalEntry && stackTraceRegex.test(line);
+
+                if (isNewEntry && currentLogicalEntry && currentTimestamp !== lastTimestamp) {
+                    outputHtml += formatLogicalEntry(currentLogicalEntry);
+                    logicalLineCount++;
+                    currentLogicalEntry = null;
+                }
+
+                if (isNewEntry) {
+                    if (currentTimestamp !== lastTimestamp) {
+                        logicalLineCount++;
+                    }
+                    currentLogicalEntry = {
+                        lines: [line],
+                        formattedContent: '',
+                        isJson: !!parsedJson,
+                        jsonData: parsedJson,
+                        timestampData: timestampMatch
+                    };
+                    lastTimestamp = currentTimestamp;
+                } else if (isContinuation) {
+                    if (currentLogicalEntry) {
+                        currentLogicalEntry.lines.push(line);
+                    } else {
+                        outputHtml += formatLogicalEntry({ lines: [line], isPlain: true });
+                        logicalLineCount++;
+                    }
+                } else {
+                    if (currentLogicalEntry) {
+                        outputHtml += formatLogicalEntry(currentLogicalEntry);
+                        currentLogicalCount++;
+                        currentLogicalEntry = null;
+                    }
+                    outputHtml += formatLogicalEntry({ lines: [line], isPlain: true });
+                    logicalLineCount++;
+                }
+            }
+
+            if (currentLogicalEntry) {
+                outputHtml += formatLogicalEntry(currentLogicalEntry);
+                if (!lastTimestamp) {
+                    logicalLineCount++;
+                }
+            }
+
+
+            output.innerHTML = outputHtml;
+
+            updateLineNumbers(editorLineNumbers, rawLines.length);
+            updateLineNumbers(outputLineNumbers, logicalLineCount);
+        }
+
+        function formatLogicalEntry(entry) {
+            const fullLogText = entry.lines.join('\n');
+            let formattedHtml = '';
+            const firstLine = entry.lines[0] || '';
+
+            if (entry.isJson && entry.jsonData) {
+                const json = entry.jsonData;
+                const timestamp = new Date(json.timestamp);
+                const formattedTime = formatDate(timestamp);
+                const levelType = json.type ? json.type.toLowerCase() : 'info';
+                const levelAbbr = levelType === 'warn' ? 'W' :
+                    levelType === 'error' ? 'E' :
+                        levelType === 'debug' ? 'D' :
+                            levelType === 'verbose' ? 'V' : 'I';
+                const levelClass = `log-level-${levelAbbr.toLowerCase()}`;
+                let content = removeAnsiCodes(json.content);
+
+                // 移除 "at" 前面的换行符和空格
+                content = content.replace(/\n\s+at /g, ' at ');
+
+                // 如果是错误日志且内容包含" at "但还没有换行 
+                if ((levelAbbr === 'E' || levelAbbr === 'W') && content.includes(' at ') && !content.includes('\n at ')) {
+                    // 替换 " at " 为换行后的 "at "
+                    content = content.replace(/ at /g, '\n                           at ');
+                }
+
+                const highlightedContent = highlightKeywords(escapeHtml(content));
+                const name = json.name ? `<strong>${escapeHtml(json.name)}</strong>` : '';
+                const levelValue = json.level !== undefined ? `[${json.level}]` : '';
+
+                formattedHtml = `<span class="log-timestamp">${formattedTime}</span> ${levelValue} <span class="${levelClass}">[${levelAbbr}]</span> ${name} ${highlightedContent}`;
+
+            } else if (entry.timestampData) {
+                const [, formattedTime, level, restOfLine] = entry.timestampData;
+                let highlightedContent = restOfLine;
+
+                formattedHtml = `<span class="log-timestamp">${formattedTime}</span>  <span class="log-level-${level.toLowerCase()}">[${level}]</span> ${highlightedContent}`;
+
+                // 移除 "at" 前面的换行符和空格
+                highlightedContent = highlightedContent.replace(/\n\s+at /g, ' at ');
+
+                // 如果是错误日志且内容包含" at "但还没有换行
+                if ((level === 'E' || level === 'W') && highlightedContent.includes(' at ') && !highlightedContent.includes('\n at ')) {
+                    // 替换 " at " 为换行后的 "at "
+                    highlightedContent = highlightedContent.replace(/ at /g, '\n                           at ');
+                }
+                highlightedContent = highlightKeywords(escapeHtml(highlightedContent));
+
+                formattedHtml = `<span class="log-timestamp">${formattedTime}</span> <span class="log-level-${level.toLowerCase()}">[${level}]</span> ${highlightedContent}`;
+
+            } else {
+                formattedHtml = escapeHtml(firstLine);
+            }
+
+            if (entry.lines.length > 1) {
+                for (let i = 1; i < entry.lines.length; i++) {
+                    formattedHtml += `<span class="stack-trace-line">${escapeHtml(entry.lines[i])}</span>`;
+                }
+            }
+
+            return `<div class="log-line" data-log="${escapeHtml(fullLogText)}">` +
+                `<span class="tooltiptext">${DEFAULT_TOOLTIP_TEXT}</span>` +
+                `<span class="log-content">${formattedHtml}</span>` +
+                `</div>`;
+        }
+
+
+
+        function removeAnsiCodes(str) {
+            if (typeof str !== 'string') return '';
+            return str.replace(/\u001b\[[0-9;]*m/g, '');
+        }
+
+        function formatDate(date) {
+            if (!(date instanceof Date) || isNaN(date)) {
+                return 'Invalid Date';
+            }
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            const hours = String(date.getHours()).padStart(2, '0');
+            const minutes = String(date.getMinutes()).padStart(2, '0');
+            const seconds = String(date.getSeconds()).padStart(2, '0');
+            return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+        }
+
+
+        function highlightKeywords(str) {
+            const keywords = ["reload plugin", "unload plugin", ' plugin', 'error', 'warning', 'success', 'failed', 'connect', 'disconnect', 'TypeError', "HTTPError", 'ReferenceError', 'SyntaxError', "undefined", "retcode:", "Error at ", "cannot", "ECONNRESET", "externa", "node_modules"];
+            let highlightedStr = str;
+            keywords.forEach(keyword => {
+                const regex = (keyword.endsWith('Error'))
+                    ? new RegExp(`(${keyword})`, 'gi')
+                    : new RegExp(`\\b(${keyword})\\b`, 'gi');
+                highlightedStr = highlightedStr.replace(regex, `<span class="log-keyword">$1</span>`);
+            });
+            return highlightedStr;
+        }
+
+
+        function setTheme(theme) {
+            let bgColor, textColor, lineNumberBgColor, lineNumberTextColor, tooltipBg, tooltipText;
+            const themes = {
+                'coffee-dark': {
+                    '--bg-color': '#231F1E',
+                    '--line-number-bg-color': '#292423',
+                    '--text-color': '#eee',
+                    '--k-color-primary': '#F09176',
+                    '--line-number-text-color': '#ccc',
+                    '--tooltip-bg-color': '#111',
+                    '--tooltip-text-color': '#eee'
+                },
+                'coffee-light': {
+                    '--bg-color': '#EEE9E7',
+                    '--line-number-bg-color': '#E6DFDC',
+                    '--text-color': '#111',
+                    '--k-color-primary': '#D26A4C',
+                    '--line-number-text-color': '#555',
+                    '--tooltip-bg-color': '#333',
+                    '--tooltip-text-color': '#fff'
+                },
+                'ocean-dark': {
+                    '--bg-color': '#16252D',
+                    '--line-number-bg-color': '#1A2B34',
+                    '--text-color': '#eee',
+                    '--k-color-primary': '#97C892',
+                    '--line-number-text-color': '#ccc',
+                    '--tooltip-bg-color': '#111',
+                    '--tooltip-text-color': '#eee'
+                },
+                'ocean-light': {
+                    '--bg-color': '#E8F7F7',
+                    '--line-number-bg-color': '#DBF2F1',
+                    '--text-color': '#111',
+                    '--k-color-primary': '#00B2A6',
+                    '--line-number-text-color': '#555',
+                    '--tooltip-bg-color': '#333',
+                    '--tooltip-text-color': '#fff'
+                },
+                'pale-night-dark': {
+                    '--bg-color': '#252839',
+                    '--line-number-bg-color': '#31364A',
+                    '--text-color': '#eee',
+                    '--k-color-primary': '#7D57C2',
+                    '--line-number-text-color': '#ccc',
+                    '--tooltip-bg-color': '#111',
+                    '--tooltip-text-color': '#eee'
+                },
+                'solarized-dark': {
+                    '--bg-color': '#10252c',
+                    '--line-number-bg-color': '#132c34',
+                    '--text-color': '#eee',
+                    '--k-color-primary': '#47cfc4',
+                    '--line-number-text-color': '#ccc',
+                    '--tooltip-bg-color': '#111',
+                    '--tooltip-text-color': '#eee'
+                },
+                'solarized-light': {
+                    '--bg-color': '#FEF9ED',
+                    '--line-number-bg-color': '#f4edda',
+                    '--text-color': '#111',
+                    '--k-color-primary': '#2aa198',
+                    '--line-number-text-color': '#555',
+                    '--tooltip-bg-color': '#333',
+                    '--tooltip-text-color': '#fff',
+                },
+                'winter-dark': {
+                    '--bg-color': '#021627',
+                    '--line-number-bg-color': '#021627',
+                    '--text-color': '#eee',
+                    '--k-color-primary': '#1FA0D5',
+                    '--line-number-text-color': '#ccc',
+                    '--tooltip-bg-color': '#111',
+                    '--tooltip-text-color': '#eee'
+                },
+            };
+
+            const selectedTheme = themes[theme] || themes['pale-night-dark']; // 默认主题
+
+            for (const key in selectedTheme) {
+                document.documentElement.style.setProperty(key, selectedTheme[key]);
+            }
+            const primaryColor = selectedTheme['--k-color-primary'];
+            if (primaryColor) {
+                const rgb = hexToRgb(primaryColor);
+                if (rgb) {
+                    document.documentElement.style.setProperty('--k-color-primary-rgb', `${rgb.r}, ${rgb.g}, ${rgb.b}`);
+                }
+            }
+
+            // 立即更新 resizer 的背景色
+            resizer.style.background = getComputedStyle(document.documentElement).getPropertyValue('--k-color-primary');
+        }
+
+        function hexToRgb(hex) {
+            var shorthandRegex = /^#?([a-f\d])([a-f\d])([a-f\d])$/i;
+            hex = hex.replace(shorthandRegex, function (m, r, g, b) {
+                return r + r + g + g + b + b;
+            });
+
+            var result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+            return result ? {
+                r: parseInt(result[1], 16),
+                g: parseInt(result[2], 16),
+                b: parseInt(result[3], 16)
+            } : null;
+        }
+
+
+        function updateLineNumbers(element, count) {
+            let numbers = '';
+            const displayCount = Math.max(1, count);
+            for (let i = 1; i <= displayCount; i++) {
+                numbers += i + '<br>';
+            }
+            element.innerHTML = numbers;
+            if (element.id === 'editorLineNumbers') {
+                element.scrollTop = input.scrollTop;
+            } else if (element.id === 'outputLineNumbers') {
+                element.scrollTop = output.scrollTop;
+            }
+        }
+
+        function syncScrollInput() {
+            updateLineNumbers(editorLineNumbers, input.value.split('\n').length);
+            if (isSyncing || !syncScrollCheckbox.checked) return;
+            isSyncing = true;
+            output.scrollTop = input.scrollTop;
+            updateLineNumbers(outputLineNumbers, (output.innerHTML.match(/<div class="log-line"/g) || []).length);
+            requestAnimationFrame(() => { isSyncing = false; });
+        }
+
+        function syncScrollOutput() {
+            updateLineNumbers(outputLineNumbers, (output.innerHTML.match(/<div class="log-line"/g) || []).length);
+            if (isSyncing || !syncScrollCheckbox.checked) return;
+            isSyncing = true;
+            input.scrollTop = output.scrollTop;
+            updateLineNumbers(editorLineNumbers, input.value.split('\n').length);
+            requestAnimationFrame(() => { isSyncing = false; });
+        }
+
+
+        function handleMouseOver(event) {
+            const logLine = event.target.closest('.log-line');
+            if (!logLine) return;
+
+            clearTimeout(tooltipTimer);
+            hideAllTooltips(logLine);
+
+            tooltipTimer = setTimeout(() => {
+                const tooltip = logLine.querySelector('.tooltiptext');
+                if (tooltip) {
+                    if (tooltip.textContent !== COPIED_TOOLTIP_TEXT) {
+                        tooltip.textContent = DEFAULT_TOOLTIP_TEXT;
+                    }
+                    logLine.classList.add('show-tooltip');
+                }
+            }, TOOLTIP_DELAY);
+
+            logLine.dataset.tooltipTimerId = tooltipTimer;
+        }
+
+        function handleMouseOut(event) {
+            const logLine = event.target.closest('.log-line');
+            if (!logLine) return;
+
+            const timerId = logLine.dataset.tooltipTimerId;
+            if (timerId) {
+                clearTimeout(parseInt(timerId));
+                delete logLine.dataset.tooltipTimerId;
+            }
+
+            const tooltip = logLine.querySelector('.tooltiptext');
+            if (tooltip) {
+                logLine.classList.remove('show-tooltip');
+                if (!logLine.contains(event.relatedTarget)) {
+                    tooltip.textContent = DEFAULT_TOOLTIP_TEXT;
+                }
+            }
+        }
+
+        function handleDoubleClick(event) {
+            const logLine = event.target.closest('.log-line');
+            if (!logLine) return;
+
+            const logText = logLine.dataset.log;
+            const tooltip = logLine.querySelector('.tooltiptext');
+
+            navigator.clipboard.writeText(logText)
+                .then(() => {
+                    console.log('Log copied to clipboard!');
+                    if (tooltip) {
+                        tooltip.textContent = COPIED_TOOLTIP_TEXT;
+                        logLine.classList.add('show-tooltip');
+                        setTimeout(() => {
+                            const currentTooltip = logLine.querySelector('.tooltiptext');
+                            if (currentTooltip && currentTooltip.textContent === COPIED_TOOLTIP_TEXT && !logLine.matches(':hover')) {
+                                logLine.classList.remove('show-tooltip');
+                                currentTooltip.textContent = DEFAULT_TOOLTIP_TEXT;
+                            }
+                        }, 1500);
+                    }
+                })
+                .catch(err => {
+                    console.error('Failed to copy log: ', err);
+                    if (tooltip) {
+                        tooltip.textContent = "复制失败!";
+                        logLine.classList.add('show-tooltip');
+                    }
+                });
+        }
+
+        function hideAllTooltips(exceptElement = null) {
+            document.querySelectorAll('.log-line.show-tooltip').forEach(line => {
+                if (line !== exceptElement) {
+                    line.classList.remove('show-tooltip');
+                    const tooltip = line.querySelector('.tooltiptext');
+                    if (tooltip) tooltip.textContent = DEFAULT_TOOLTIP_TEXT;
+                }
+            });
+        }
+
+
+        function escapeHtml(str) {
+            if (typeof str !== 'string') return '';
+            return str
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+
+        function saveFormattedLogToFile() {
+            const formattedLogContent = Array.from(output.querySelectorAll('.log-line'))
+                .map(line => {
+                    const contentElement = line.querySelector('.log-content');
+                    return contentElement ? contentElement.textContent : '';
+                })
+                .join('\n');
+
+            let filename = 'formatted-log.log';
+            const firstLogLine = output.querySelector('.log-line');
+            if (firstLogLine) {
+                const timestampSpan = firstLogLine.querySelector('.log-timestamp');
+                if (timestampSpan) {
+                    const timestampText = timestampSpan.textContent;
+                    const timestampForFilename = timestampText.replace(/[-:\s]/g, '-');
+                    filename = `${timestampForFilename}.log`;
+                }
+            }
+
+            const blob = new Blob([formattedLogContent], { type: 'text/plain;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const downloadLink = document.createElement('a');
+            downloadLink.href = url;
+            downloadLink.download = filename;
+
+            document.body.appendChild(downloadLink);
+            downloadLink.click();
+            document.body.removeChild(downloadLink);
+            URL.revokeObjectURL(url);
+        }
+
+
+        setTheme('pale-night-dark'); // 设置默认主题
+        processLogs();
+
+    </script>
+
+</body>
+
+</html>

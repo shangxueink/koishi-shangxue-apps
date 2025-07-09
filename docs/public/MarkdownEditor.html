@@ -1,0 +1,789 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Markdown 编辑预览器</title>
+
+    <script src="https://cdn.jsdelivr.net/npm/marked@4.3.0/marked.min.js"></script>
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/contrib/auto-render.min.js"></script>
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/highlight.js@11.7.0/styles/default.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/highlightjs@9.16.2/highlight.pack.min.js"></script>
+
+    <style>
+        :root {
+            --bg-color: #231F1E;
+            --line-number-bg-color: #292423;
+            --text-color: #eee;
+            --k-color-primary: #F09176;
+            --line-number-text-color: #ccc;
+            --tooltip-bg-color: #111;
+            --tooltip-text-color: #eee;
+            --scrollbar-thumb: rgba(240, 145, 118, 0.5);
+            --scrollbar-track: rgba(0, 0, 0, 0.2);
+            --button-bg: rgba(240, 145, 118, 0.2);
+            --button-hover-bg: rgba(240, 145, 118, 0.4);
+            --button-active-bg: rgba(240, 145, 118, 0.6);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            line-height: 1.6;
+            color: var(--text-color);
+            background-color: var(--bg-color);
+            transition: all 0.3s ease;
+        }
+
+        /* 自定义滚动条样式 */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background-color: var(--scrollbar-thumb);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background-color: var(--scrollbar-track);
+        }
+
+        /* Firefox 滚动条样式 */
+        * {
+            scrollbar-width: thin;
+            scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+        }
+
+
+        .container {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 20px;
+            background-color: rgba(0, 0, 0, 0.2);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .title {
+            font-size: 1.2rem;
+            font-weight: 600;
+        }
+
+        .controls {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .theme-selector {
+            padding: 5px 10px;
+            background-color: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 4px;
+            color: var(--text-color);
+            cursor: pointer;
+            outline: none;
+        }
+
+        .theme-selector option {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+        }
+
+        .theme-light #preview blockquote {
+            color: inherit;
+            opacity: 0.8;
+        }
+
+        .btn {
+            padding: 5px 12px;
+            background-color: var(--button-bg);
+            color: var(--text-color);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background-color 0.2s;
+        }
+
+        .btn:hover {
+            background-color: var(--button-hover-bg);
+        }
+
+        .btn:active {
+            background-color: var(--button-active-bg);
+        }
+
+        .editor-container {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+
+        .editor-container {
+            display: flex;
+            flex: 1;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            overflow: hidden;
+        }
+
+        .editor-pane,
+        .preview-pane {
+            flex: 1;
+            position: relative;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        .editor-scroll-container,
+        .preview-scroll-container {
+            height: 100%;
+            overflow-y: auto;
+            padding: 20px;
+            width: 100%;
+        }
+
+
+        .preview-pane {
+            border-left: 1px solid rgba(255, 255, 255, 0.1);
+            background-color: var(--bg-color);
+        }
+
+        #editor {
+            width: 100%;
+            height: auto;
+            min-height: calc(100% - 40px);
+            padding: 0 0 0 45px;
+            background-color: transparent;
+            color: var(--text-color);
+            border: none;
+            resize: none;
+            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+            font-size: 14px;
+            line-height: 1.6;
+            outline: none;
+            overflow: visible;
+        }
+
+
+        .line-numbers {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            width: 30px;
+            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+            font-size: 14px;
+            line-height: 1.6;
+            text-align: right;
+            color: var(--line-number-text-color);
+            background-color: var(--line-number-bg-color);
+            padding: 0 5px;
+            user-select: none;
+            overflow: hidden;
+        }
+
+        #preview {
+            color: var(--text-color);
+        }
+
+        /* Markdown 样式 */
+        #preview h1,
+        #preview h2,
+        #preview h3,
+        #preview h4,
+        #preview h5,
+        #preview h6 {
+            margin-top: 1.5em;
+            margin-bottom: 0.5em;
+            color: var(--k-color-primary);
+        }
+
+        #preview h1 {
+            font-size: 2em;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            padding-bottom: 0.3em;
+        }
+
+        #preview h2 {
+            font-size: 1.5em;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            padding-bottom: 0.3em;
+        }
+
+        #preview p {
+            margin-bottom: 1em;
+        }
+
+        #preview strong {
+            font-weight: 600;
+        }
+
+        #preview em {
+            font-style: italic;
+        }
+
+        #preview blockquote {
+            padding: 0 1em;
+            color: rgba(255, 255, 255, 0.7);
+            border-left: 4px solid var(--k-color-primary);
+            margin-bottom: 1em;
+        }
+
+        #preview ul,
+        #preview ol {
+            padding-left: 2em;
+            margin-bottom: 1em;
+        }
+
+        #preview code {
+            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+            padding: 0.2em 0.4em;
+            margin: 0;
+            font-size: 85%;
+            background-color: rgba(0, 0, 0, 0.2);
+            border-radius: 3px;
+        }
+
+        #preview pre {
+            margin-bottom: 1em;
+            padding: 1em;
+            overflow: auto;
+            background-color: rgba(0, 0, 0, 0.2);
+            border-radius: 3px;
+        }
+
+        #preview pre code {
+            padding: 0;
+            background-color: transparent;
+        }
+
+        #preview table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 1em;
+        }
+
+        #preview table th,
+        #preview table td {
+            padding: 6px 13px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        #preview table th {
+            background-color: rgba(0, 0, 0, 0.2);
+            font-weight: 600;
+        }
+
+        #preview table tr:nth-child(2n) {
+            background-color: rgba(0, 0, 0, 0.1);
+        }
+
+        #preview img {
+            max-width: 100%;
+            margin-bottom: 1em;
+        }
+
+        #preview a {
+            color: var(--k-color-primary);
+            text-decoration: none;
+        }
+
+        #preview a:hover {
+            text-decoration: underline;
+        }
+
+        #preview hr {
+            height: 1px;
+            background-color: rgba(255, 255, 255, 0.1);
+            border: none;
+            margin: 1em 0;
+        }
+
+        /* 响应式设计 */
+        @media (max-width: 768px) {
+            .editor-container {
+                flex-direction: column;
+            }
+
+            .editor-pane,
+            .preview-pane {
+                flex: none;
+                height: 50%;
+            }
+
+            .preview-pane {
+                border-left: none;
+                border-top: 1px solid rgba(255, 255, 255, 0.1);
+            }
+        }
+
+        /* 提示工具样式 */
+        .tooltip {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background-color: var(--tooltip-bg-color);
+            color: var(--tooltip-text-color);
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-size: 14px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+            opacity: 0;
+            transform: translateY(10px);
+            transition: opacity 0.3s, transform 0.3s;
+            z-index: 1000;
+        }
+
+        .tooltip.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .shortcut-hint {
+            margin-left: 5px;
+            font-size: 12px;
+            opacity: 0.7;
+        }
+
+        .sync-control {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+        }
+
+        .sync-control label {
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+            margin-right: 8px;
+        }
+
+        .sync-control input[type="radio"] {
+            margin-right: 4px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="title">Markdown 编辑预览器</div>
+            <div class="controls">
+                <div class="sync-control">
+                    <span>滚动同步：</span>
+                    <label><input type="radio" name="sync-mode" value="none"> 不同步</label>
+                    <label><input type="radio" name="sync-mode" value="to-preview"> 同步右侧</label>
+                    <label><input type="radio" name="sync-mode" value="to-editor"> 同步左侧</label>
+                </div>
+                <button id="save-btn" class="btn">保存<span class="shortcut-hint">(Ctrl+S)</span></button>
+                <button id="export-btn" class="btn">导出文件</button>
+                <select id="theme-selector" class="theme-selector">
+                    <option value="coffee-dark">咖啡色 - 暗色</option>
+                    <option value="coffee-light">咖啡色 - 亮色</option>
+                    <option value="ocean-dark">海洋色 - 暗色</option>
+                    <option value="ocean-light">海洋色 - 亮色</option>
+                    <option value="pale-night-dark">暗夜色 - 暗色</option>
+                    <option value="solarized-dark">Solarized - 暗色</option>
+                    <option value="solarized-light">Solarized - 亮色</option>
+                    <option value="winter-dark">冬季色 - 暗色</option>
+                </select>
+            </div>
+        </div>
+        <div class="editor-container">
+            <div class="editor-pane">
+                <div class="editor-scroll-container" id="editor-scroll-container">
+                    <div class="line-numbers" id="line-numbers"></div>
+                    <textarea id="editor" spellcheck="false"></textarea>
+                </div>
+            </div>
+            <div class="preview-pane">
+                <div class="preview-scroll-container" id="preview-scroll-container">
+                    <div id="preview"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div id="tooltip" class="tooltip"></div>
+
+    <script>
+        // 主题配置
+        const themes = {
+            'coffee-dark': {
+                '--bg-color': '#231F1E',
+                '--line-number-bg-color': '#292423',
+                '--text-color': '#eee',
+                '--k-color-primary': '#F09176',
+                '--line-number-text-color': '#ccc',
+                '--tooltip-bg-color': '#111',
+                '--tooltip-text-color': '#eee',
+                '--scrollbar-thumb': 'rgba(240, 145, 118, 0.5)',
+                '--scrollbar-track': 'rgba(0, 0, 0, 0.2)',
+                '--button-bg': 'rgba(240, 145, 118, 0.2)',
+                '--button-hover-bg': 'rgba(240, 145, 118, 0.4)',
+                '--button-active-bg': 'rgba(240, 145, 118, 0.6)'
+            },
+            'coffee-light': {
+                '--bg-color': '#EEE9E7',
+                '--line-number-bg-color': '#E6DFDC',
+                '--text-color': '#111',
+                '--k-color-primary': '#D26A4C',
+                '--line-number-text-color': '#555',
+                '--tooltip-bg-color': '#333',
+                '--tooltip-text-color': '#fff',
+                '--scrollbar-thumb': 'rgba(210, 106, 76, 0.5)',
+                '--scrollbar-track': 'rgba(0, 0, 0, 0.1)',
+                '--button-bg': 'rgba(210, 106, 76, 0.2)',
+                '--button-hover-bg': 'rgba(210, 106, 76, 0.3)',
+                '--button-active-bg': 'rgba(210, 106, 76, 0.5)'
+            },
+            'ocean-dark': {
+                '--bg-color': '#1B2B34',
+                '--line-number-bg-color': '#223240',
+                '--text-color': '#D8DEE9',
+                '--k-color-primary': '#6699CC',
+                '--line-number-text-color': '#A7ADBA',
+                '--tooltip-bg-color': '#111',
+                '--tooltip-text-color': '#eee',
+                '--scrollbar-thumb': 'rgba(102, 153, 204, 0.5)',
+                '--scrollbar-track': 'rgba(0, 0, 0, 0.2)',
+                '--button-bg': 'rgba(102, 153, 204, 0.2)',
+                '--button-hover-bg': 'rgba(102, 153, 204, 0.4)',
+                '--button-active-bg': 'rgba(102, 153, 204, 0.6)'
+            },
+            'ocean-light': {
+                '--bg-color': '#E7EEF4',
+                '--line-number-bg-color': '#D9E2EB',
+                '--text-color': '#1B2B34',
+                '--k-color-primary': '#3B7EA6',
+                '--line-number-text-color': '#65737E',
+                '--tooltip-bg-color': '#333',
+                '--tooltip-text-color': '#fff',
+                '--scrollbar-thumb': 'rgba(59, 126, 166, 0.5)',
+                '--scrollbar-track': 'rgba(0, 0, 0, 0.1)',
+                '--button-bg': 'rgba(59, 126, 166, 0.2)',
+                '--button-hover-bg': 'rgba(59, 126, 166, 0.3)',
+                '--button-active-bg': 'rgba(59, 126, 166, 0.5)'
+            },
+            'pale-night-dark': {
+                '--bg-color': '#292D3E',
+                '--line-number-bg-color': '#2E3248',
+                '--text-color': '#D0D0D0',
+                '--k-color-primary': '#C792EA',
+                '--line-number-text-color': '#A7ADBA',
+                '--tooltip-bg-color': '#111',
+                '--tooltip-text-color': '#eee',
+                '--scrollbar-thumb': 'rgba(199, 146, 234, 0.5)',
+                '--scrollbar-track': 'rgba(0, 0, 0, 0.2)',
+                '--button-bg': 'rgba(199, 146, 234, 0.2)',
+                '--button-hover-bg': 'rgba(199, 146, 234, 0.4)',
+                '--button-active-bg': 'rgba(199, 146, 234, 0.6)'
+            },
+            'solarized-dark': {
+                '--bg-color': '#002B36',
+                '--line-number-bg-color': '#073642',
+                '--text-color': '#839496',
+                '--k-color-primary': '#2AA198',
+                '--line-number-text-color': '#586E75',
+                '--tooltip-bg-color': '#073642',
+                '--tooltip-text-color': '#93A1A1',
+                '--scrollbar-thumb': 'rgba(42, 161, 152, 0.5)',
+                '--scrollbar-track': 'rgba(0, 0, 0, 0.2)',
+                '--button-bg': 'rgba(42, 161, 152, 0.2)',
+                '--button-hover-bg': 'rgba(42, 161, 152, 0.4)',
+                '--button-active-bg': 'rgba(42, 161, 152, 0.6)'
+            },
+            'solarized-light': {
+                '--bg-color': '#FDF6E3',
+                '--line-number-bg-color': '#EEE8D5',
+                '--text-color': '#657B83',
+                '--k-color-primary': '#2AA198',
+                '--line-number-text-color': '#93A1A1',
+                '--tooltip-bg-color': '#073642',
+                '--tooltip-text-color': '#93A1A1',
+                '--scrollbar-thumb': 'rgba(42, 161, 152, 0.5)',
+                '--scrollbar-track': 'rgba(0, 0, 0, 0.1)',
+                '--button-bg': 'rgba(42, 161, 152, 0.2)',
+                '--button-hover-bg': 'rgba(42, 161, 152, 0.3)',
+                '--button-active-bg': 'rgba(42, 161, 152, 0.5)'
+            },
+            'winter-dark': {
+                '--bg-color': '#282C34',
+                '--line-number-bg-color': '#21252B',
+                '--text-color': '#ABB2BF',
+                '--k-color-primary': '#56B6C2',
+                '--line-number-text-color': '#636D83',
+                '--tooltip-bg-color': '#111',
+                '--tooltip-text-color': '#eee',
+                '--scrollbar-thumb': 'rgba(86, 182, 194, 0.5)',
+                '--scrollbar-track': 'rgba(0, 0, 0, 0.2)',
+                '--button-bg': 'rgba(86, 182, 194, 0.2)',
+                '--button-hover-bg': 'rgba(86, 182, 194, 0.4)',
+                '--button-active-bg': 'rgba(86, 182, 194, 0.6)'
+            }
+        };
+
+        // 初始化变量
+        let editor = document.getElementById('editor');
+        let preview = document.getElementById('preview');
+        let lineNumbers = document.getElementById('line-numbers');
+        let themeSelector = document.getElementById('theme-selector');
+        let tooltip = document.getElementById('tooltip');
+        let editorScrollContainer = document.getElementById('editor-scroll-container');
+        let previewScrollContainer = document.getElementById('preview-scroll-container');
+        let saveBtn = document.getElementById('save-btn');
+        let exportBtn = document.getElementById('export-btn');
+
+        // 获取存储的主题或使用默认主题
+        const savedTheme = localStorage.getItem('markdown-editor-theme') || 'pale-night-dark';
+        themeSelector.value = savedTheme;
+        applyTheme(savedTheme);
+
+        // 获取存储的内容或使用默认内容
+        const savedContent = localStorage.getItem('markdown-editor-content') || '# Markdown 编辑预览器\n\n欢迎使用 Markdown 编辑预览器！这是一个简单的示例。\n\n## 特性\n\n- 实时预览\n- 语法高亮\n- 数学公式支持\n- 多种主题\n\n## 语法示例\n\n### 代码块\n\n```javascript\nfunction hello() {\n  console.log("Hello, world!");\n}\n```\n\n### 表格\n\n| 名称 | 描述 |\n| --- | --- |\n| Markdown | 轻量级标记语言 |\n| KaTeX | 数学公式渲染 |\n\n### 数学公式\n\n行内公式: $E=mc^2$\n\n行间公式:\n\n$\\frac{d}{dx}\\left( \\int_{0}^{x} f(u)\\,du\\right)=f(x)$\n\n### 引用\n\n> 这是一个引用示例。\n> \n> — 某人\n\n### 任务列表\n\n- [x] 已完成任务\n- [ ] 未完成任务\n\n';
+        editor.value = savedContent;
+
+        // 初始化
+        updateLineNumbers();
+        renderMarkdown();
+
+        // 设置滚动同步标志
+        let isEditorScrolling = false;
+        let isPreviewScrolling = false;
+
+        // 监听编辑器输入
+        editor.addEventListener('input', function () {
+            updateLineNumbers();
+            renderMarkdown();
+            saveContent();
+        });
+
+        let syncRadios = document.querySelectorAll('input[name="sync-mode"]');
+        let syncMode = localStorage.getItem('markdown-editor-sync-mode') || 'to-preview';
+        // 修改滚动同步逻辑
+        let syncingEditor = false;
+        let syncingPreview = false;
+        // 设置初始同步模式
+        document.querySelector(`input[name="sync-mode"][value="${syncMode}"]`).checked = true;
+
+        // 监听同步模式变更
+        syncRadios.forEach(radio => {
+            radio.addEventListener('change', function () {
+                if (this.checked) {
+                    syncMode = this.value;
+                    localStorage.setItem('markdown-editor-sync-mode', syncMode);
+                    showTooltip('滚动同步模式已更改');
+                }
+            });
+        });
+
+        // 修改滚动同步逻辑
+        editorScrollContainer.addEventListener('scroll', function () {
+            if (!syncingEditor && syncMode === 'to-preview') {
+                syncingPreview = true;
+
+                // 计算滚动百分比
+                const scrollPercentage = this.scrollTop / (this.scrollHeight - this.clientHeight || 1);
+
+                // 应用到预览容器
+                previewScrollContainer.scrollTop = scrollPercentage *
+                    (previewScrollContainer.scrollHeight - previewScrollContainer.clientHeight || 1);
+
+                // 延迟重置标志
+                setTimeout(function () {
+                    syncingPreview = false;
+                }, 50);
+            }
+        });
+
+        // 修改预览容器滚动逻辑
+        previewScrollContainer.addEventListener('scroll', function () {
+            if (!syncingPreview && syncMode === 'to-editor') {
+                syncingEditor = true;
+
+                // 计算滚动百分比
+                const scrollPercentage = this.scrollTop / (this.scrollHeight - this.clientHeight || 1);
+
+                // 应用到编辑器容器
+                editorScrollContainer.scrollTop = scrollPercentage *
+                    (editorScrollContainer.scrollHeight - editorScrollContainer.clientHeight || 1);
+
+                // 延迟重置标志
+                setTimeout(function () {
+                    syncingEditor = false;
+                }, 50);
+            }
+        });
+
+        // 确保textarea高度与内容匹配
+        function adjustTextareaHeight() {
+            editor.style.height = 'auto';
+            editor.style.height = (editor.scrollHeight) + 'px';
+        }
+
+        // 在输入和窗口调整大小时调整textarea高度
+        editor.addEventListener('input', adjustTextareaHeight);
+        window.addEventListener('resize', adjustTextareaHeight);
+
+        // 初始调整
+        adjustTextareaHeight();
+
+
+        // 监听主题选择
+        themeSelector.addEventListener('change', function () {
+            const selectedTheme = themeSelector.value;
+            applyTheme(selectedTheme);
+            localStorage.setItem('markdown-editor-theme', selectedTheme);
+            showTooltip('主题已更改');
+        });
+
+        // 监听保存按钮点击
+        saveBtn.addEventListener('click', function () {
+            saveContent();
+            showTooltip('内容已保存');
+        });
+
+        // 监听导出按钮点击
+        exportBtn.addEventListener('click', function () {
+            exportMarkdown();
+        });
+
+        // 监听键盘快捷键
+        document.addEventListener('keydown', function (e) {
+            // Ctrl+S 保存
+            if (e.ctrlKey && e.key === 's') {
+                e.preventDefault();
+                saveContent();
+                showTooltip('内容已保存');
+            }
+        });
+
+        // 更新行号
+        function updateLineNumbers() {
+            const lines = editor.value.split('\n');
+            let lineNumbersHTML = '';
+            for (let i = 0; i < lines.length; i++) {
+                lineNumbersHTML += (i + 1) + '<br>';
+            }
+            lineNumbers.innerHTML = lineNumbersHTML;
+        }
+
+        // 渲染 Markdown
+        function renderMarkdown() {
+            // 配置 marked 选项
+            marked.setOptions({
+                highlight: function (code, lang) {
+                    if (lang && hljs.getLanguage(lang)) {
+                        return hljs.highlight(lang, code).value;
+                    }
+                    return hljs.highlightAuto(code).value;
+                },
+                breaks: true,
+                gfm: true,
+                headerIds: true,
+                langPrefix: 'hljs language-'
+            });
+
+            // 渲染 Markdown
+            const content = editor.value;
+            preview.innerHTML = marked.parse(content);
+
+            // 渲染数学公式
+            renderMathInElement(preview, {
+                delimiters: [
+                    { left: '$', right: '$', display: true },
+                    { left: ', right: ', display: false }
+                ],
+                throwOnError: false
+            });
+        }
+
+        // 应用主题
+        function applyTheme(themeName) {
+            const theme = themes[themeName];
+            if (theme) {
+                Object.keys(theme).forEach(key => {
+                    document.documentElement.style.setProperty(key, theme[key]);
+                });
+
+                // 添加亮/暗主题类名
+                document.body.classList.remove('theme-light', 'theme-dark');
+                if (themeName.includes('light')) {
+                    document.body.classList.add('theme-light');
+                } else {
+                    document.body.classList.add('theme-dark');
+                }
+            }
+        }
+
+
+        // 显示提示
+        function showTooltip(message) {
+            tooltip.textContent = message;
+            tooltip.classList.add('show');
+            setTimeout(() => {
+                tooltip.classList.remove('show');
+            }, 2000);
+        }
+
+        // 保存内容到本地存储
+        function saveContent() {
+            localStorage.setItem('markdown-editor-content', editor.value);
+        }
+
+        // 导出 Markdown 文件
+        function exportMarkdown() {
+            const content = editor.value;
+
+            // 检查内容是否为空
+            if (content.trim().length === 0) {
+                showTooltip('你还什么都没写呢，不给你存~');
+                return;
+            }
+
+            const blob = new Blob([content], { type: 'text/markdown' });
+            const url = URL.createObjectURL(blob);
+
+            // 创建带有时间戳的文件名
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const day = String(now.getDate()).padStart(2, '0');
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            const seconds = String(now.getSeconds()).padStart(2, '0');
+            const fileName = `${year}-${month}-${day}-${hours}-${minutes}-${seconds}.md`;
+
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = fileName;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            showTooltip('文件已导出');
+        }
+
+    </script>
+</body>
+
+</html>
