@@ -4,8 +4,8 @@ on:
   push:
     branches:
       - main  # 触发条件，推送到 main 分支时
-  schedule:
-    - cron: '0 * * * *'  # 每小时的第0分钟触发心跳提交
+  #schedule:
+    #- cron: '0 * * * *'  # 每小时的第0分钟触发心跳提交
 
 jobs:
   publish:
