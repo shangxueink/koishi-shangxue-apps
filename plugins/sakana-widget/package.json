@@ -1,7 +1,7 @@
 {
   "name": "koishi-plugin-sakana-widget",
   "description": "石蒜模拟器网页小组件 for Koishi。灵感来自 [live2d插件](https://github.com/koishijs/koishi-plugin-live2d)",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "main": "lib/index.js",
   "typings": "lib/index.d.ts",
   "files": [
@@ -12,6 +12,10 @@
     "src"
   ],
   "license": "MIT",
+  "homepage": "https://github.com/shangxueink/koishi-shangxue-apps/",
+  "bugs": {
+    "url": "https://github.com/shangxueink/koishi-shangxue-apps/issues"
+  },
   "keywords": [
     "chatbot",
     "koishi",
