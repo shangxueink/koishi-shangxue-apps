@@ -1,0 +1,29 @@
+{
+  "name": "koishi-plugin-sakana-widget",
+  "description": "石蒜模拟器网页小组件 for Koishi。灵感来自 [live2d插件](https://github.com/koishijs/koishi-plugin-live2d)",
+  "version": "1.0.0",
+  "main": "lib/index.js",
+  "typings": "lib/index.d.ts",
+  "files": [
+    "lib",
+    "dist",
+    "client",
+    "public",
+    "src"
+  ],
+  "license": "MIT",
+  "keywords": [
+    "chatbot",
+    "koishi",
+    "plugin",
+    "sakana-widget"
+  ],
+  "peerDependencies": {
+    "koishi": "^4.18.7"
+  },
+  "devDependencies": {
+    "@koishijs/client": "^5.0.0",
+    "@koishijs/plugin-console": "^5.0.0",
+    "vue": "^3.0.0"
+  }
+}
