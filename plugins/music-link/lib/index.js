@@ -639,6 +639,7 @@ const Config = Schema.intersect([
             command6: Schema.string().default('网易点歌').description('`网易点歌`的指令名称<br>输入歌曲ID，返回歌曲'),
             command6_searchList: Schema.number().default(20).min(1).max(50).description('歌曲搜索的列表长度。返回的候选项个数。'),
             maxDuration: Schema.natural().description('歌曲最长持续时间，单位为：秒').default(900),
+            command6_useProxy: Schema.boolean().experimental().description('是否使用 Apifox Web Proxy 代理请求（适用于海外用户）').default(false),
             command6_usedAPI: Schema.union([
                 Schema.const('api.injahow.cn').description('（稳定）黑胶只能30秒的`api.injahow.cn`后端（适合官方bot）'),
                 Schema.const('meting.jmstrand.cn').description('（推荐）稳定性未知、全部可听的`meting.jmstrand.cn`后端').experimental(),
@@ -1477,7 +1478,15 @@ function apply(ctx, config) {
                             // 请求 163 API 获取歌曲详情 (用于获取歌曲名称、艺术家、图片等信息，与获取直链的 API 无关)
                             const apiBase = `http://music.163.com/api/song/detail/?id=${keyword}&ids=[${keyword}]`;
                             logInfo("请求 API (ID点歌):", apiBase);
-                            const apiResponse = await ctx.http.get(apiBase);
+
+                            let apiResponse;
+                            if (config.command6_useProxy) {
+                                // 使用代理请求
+                                apiResponse = await requestWithProxy(apiBase);
+                            } else {
+                                // 直接请求
+                                apiResponse = await ctx.http.get(apiBase);
+                            }
 
                             let parsedApiResponse;
                             try {
@@ -1502,7 +1511,15 @@ function apply(ctx, config) {
                             let lyric = '歌词获取失败';
                             try {
                                 const lyricApiUrl = `https://music.163.com/api/song/lyric?id=${keyword}&lv=1&kv=1&tv=-1`;
-                                const lyricResponse = await ctx.http.get(lyricApiUrl);
+
+                                let lyricResponse;
+                                if (config.command6_useProxy) {
+                                    // 使用代理请求
+                                    lyricResponse = await requestWithProxy(lyricApiUrl);
+                                } else {
+                                    // 直接请求
+                                    lyricResponse = await ctx.http.get(lyricApiUrl);
+                                }
                                 const parsedLyricResponse = JSON.parse(lyricResponse);
                                 if (parsedLyricResponse.code === 200 && parsedLyricResponse.lrc && parsedLyricResponse.lrc.lyric) {
                                     lyric = `\n${parsedLyricResponse.lrc.lyric}`;
@@ -1534,7 +1551,15 @@ function apply(ctx, config) {
                         try {
                             const searchApiUrl = `http://music.163.com/api/search/get/web?csrf_token=hlpretag=&hlposttag=&s=${encodeURIComponent(keyword)}&type=1&offset=0&total=true&limit=${config.command6_searchList}`;
                             logInfo("请求搜索 API:", searchApiUrl);
-                            const searchApiResponse = await ctx.http.get(searchApiUrl);
+
+                            let searchApiResponse;
+                            if (config.command6_useProxy) {
+                                // 使用代理请求
+                                searchApiResponse = await requestWithProxy(searchApiUrl);
+                            } else {
+                                // 直接请求
+                                searchApiResponse = await ctx.http.get(searchApiUrl);
+                            }
 
                             let parsedSearchApiResponse;
                             try {
@@ -1603,7 +1628,15 @@ function apply(ctx, config) {
                             // 获取歌曲详情 (用于获取歌曲名称、艺术家、图片等，与获取直链的 API 无关)
                             const detailApiUrl = `http://music.163.com/api/song/detail/?id=${selectedSongId}&ids=[${selectedSongId}]`;
                             logInfo("请求歌曲详情 API:", detailApiUrl);
-                            const detailApiResponse = await ctx.http.get(detailApiUrl);
+
+                            let detailApiResponse;
+                            if (config.command6_useProxy) {
+                                // 使用代理请求
+                                detailApiResponse = await requestWithProxy(detailApiUrl);
+                            } else {
+                                // 直接请求
+                                detailApiResponse = await ctx.http.get(detailApiUrl);
+                            }
                             const detailParsedApiResponse = JSON.parse(detailApiResponse);
 
                             if (!detailParsedApiResponse || detailParsedApiResponse.code !== 200 || !detailParsedApiResponse.songs || detailParsedApiResponse.songs.length === 0) {
@@ -1630,7 +1663,15 @@ function apply(ctx, config) {
                             let lyric = '歌词获取失败';
                             try {
                                 const lyricApiUrl = `https://music.163.com/api/song/lyric?id=${selectedSongId}&lv=1&kv=1&tv=-1`;
-                                const lyricResponse = await ctx.http.get(lyricApiUrl);
+
+                                let lyricResponse;
+                                if (config.command6_useProxy) {
+                                    // 使用代理请求
+                                    lyricResponse = await requestWithProxy(lyricApiUrl);
+                                } else {
+                                    // 直接请求
+                                    lyricResponse = await ctx.http.get(lyricApiUrl);
+                                }
                                 const parsedLyricResponse = JSON.parse(lyricResponse);
                                 if (parsedLyricResponse.code === 200 && parsedLyricResponse.lrc && parsedLyricResponse.lrc.lyric) {
                                     lyric = `\n${parsedLyricResponse.lrc.lyric}`;
@@ -1662,7 +1703,6 @@ function apply(ctx, config) {
                     }
                 });
         }
-
 
         if (config.serverSelect === "command7") {
             ctx.command(`${config.command7} <keyword:text>`)
@@ -1897,6 +1937,25 @@ function apply(ctx, config) {
                     }
                     return songDetails8;
                 });
+        }
+
+        // 代理请求函数
+        async function requestWithProxy(targetUrl) {
+            const proxyUrl = 'https://web-proxy.apifox.cn/api/v1/request';
+            logInfo(`使用${proxyUrl}代理请求${targetUrl}`)
+            try {
+                const response = await ctx.http.post(proxyUrl, {}, {
+                    headers: {
+                        'api-u': targetUrl,
+                        'api-o0': 'method=GET, timings=true, timeout=3000',
+                        'Content-Type': 'application/json'
+                    }
+                });
+                return response;
+            } catch (error) {
+                logger.error('代理请求失败', error);
+                throw error;
+            }
         }
 
         async function ensureTempDir() {
