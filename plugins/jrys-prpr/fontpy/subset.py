@@ -1,5 +1,7 @@
 import json
 import os
+from fontTools.ttLib import TTFont
+from fontTools.subset import Subsetter, Options
 
 
 def extract_all_json_characters(json_file):
@@ -55,8 +57,6 @@ def subset_font(font_file, chars, output_file):
         chars: 要保留的字符集合。
         output_file: 裁剪后的字体文件路径。
     """
-    from fontTools.ttLib import TTFont
-    from fontTools.subset import Subsetter, Options
     try:
         font = TTFont(font_file)
 
@@ -64,7 +64,9 @@ def subset_font(font_file, chars, output_file):
         options.name_IDs = '*'  # 保留所有 name 表中的信息
         subsetter = Subsetter(options=options)
 
-        subsetter.populate(unicodes=[ord(c) for c in chars])
+        # 确保 chars 是一个集合，并且包含所有需要保留的字符的 Unicode 码点
+        unicodes_to_keep = [ord(c) for c in chars]
+        subsetter.populate(unicodes=unicodes_to_keep)
 
         subsetter.subset(font)
 
@@ -81,7 +83,7 @@ def subset_font(font_file, chars, output_file):
 
 
 if __name__ == "__main__":
-    json_file = r"../lib/jrys.json"
+    json_file = r"./../lib/jrys.json"
     font_file = "千图马克手写体.ttf"
     output_file = "千图马克手写体lite.ttf"
     txt_file = "characters.txt"
@@ -90,7 +92,12 @@ if __name__ == "__main__":
     required_chars = extract_all_json_characters(json_file)
 
     if required_chars:
-        print(f"提取到的字符数: {len(required_chars)}")
+        print(f"从 JSON 文件中提取到的字符数: {len(required_chars)}")
+
+        # --- 在这里添加额外字符 ---
+        extra_chars_str = "仅供娱乐相信科学请勿迷信"
+        required_chars.update(set(extra_chars_str))
+        print(f"添加额外字符后，总字符数: {len(required_chars)}")
 
         if write_characters_to_txt(required_chars, txt_file):
             # 裁剪字体
