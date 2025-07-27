@@ -632,7 +632,7 @@ const Config = Schema.intersect([
         Schema.object({
             serverSelect: Schema.const('command6'),
             command6: Schema.string().default('网易点歌').description('`网易点歌`的指令名称<br>输入歌曲ID，返回歌曲'),
-            command6_searchList: Schema.number().default(20).min(1).max(100).description('歌曲搜索的列表长度。返回的候选项个数。'),
+            command6_searchList: Schema.number().default(20).min(1).max(100).description('歌曲搜索的列表长度。返回的候选项个数。不建议超过50，可能超过最长文本长度/让图片渲染、发送、加载时间变长'),
             maxDuration: Schema.natural().description('歌曲最长持续时间，单位为：秒').default(900),
             command6_useProxy: Schema.boolean().experimental().description('是否使用 Apifox Web Proxy 代理请求（适用于海外用户）').default(false),
             command6_usedAPI: Schema.union([
