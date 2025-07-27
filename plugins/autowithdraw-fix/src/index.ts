@@ -196,6 +196,13 @@ export async function apply(ctx: Context, config) {
       if (config.loggerinfo_content) logInfo("原始响应发送内容:", outputContent);
       logInfo("Session SN:", sessionSn);
 
+      // 检查消息内容是否为空
+      if (!outputContent || outputContent.trim() === '') {
+        logInfo("消息内容为空，跳过代理发送");
+        logInfo("========= before-send 事件结束 =========");
+        return; // 跳过处理，使用原始发送方式
+      }
+
       // 检查是否来自已撤回的session
       if (withdrawnSessions.has(sessionSn)) {
         logInfo(`拦截已撤回session的后续消息: SN=${sessionSn}`);
