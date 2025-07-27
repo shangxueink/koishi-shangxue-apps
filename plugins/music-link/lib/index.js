@@ -1150,7 +1150,6 @@ function apply(ctx, config) {
                 .option('number', '-n <number:number> 歌曲序号')
                 .example("歌曲搜索 -p QQ -n 1 蔚蓝档案")
                 .action(async ({ session, options }, keyword) => {
-                    await session.send("music command 5");
                     if (!ctx.puppeteer) {
                         await session.send(h.text(session.text(`.nopuppeteer`)));
                         return;
