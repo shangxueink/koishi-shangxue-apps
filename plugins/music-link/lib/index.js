@@ -510,6 +510,7 @@ const platformMap = {
 
 const Config = Schema.intersect([
     Schema.object({
+        enableReplySonglist: Schema.boolean().default(false).description("开启后 发送歌单消息的时候 会回复触发指令的消息"),
         waitTimeout: Schema.natural().role('s').description('允许用户返回选择序号的等待时间').default(45),
         exitCommand: Schema.string().default('0, 不听了').description('退出选择指令，多个指令间请用逗号分隔开'), // 兼容中文逗号、英文逗号
         menuExitCommandTip: Schema.boolean().default(false).description('是否在歌单内容的后面，加上退出选择指令的文字提示'),
@@ -631,7 +632,7 @@ const Config = Schema.intersect([
         Schema.object({
             serverSelect: Schema.const('command6'),
             command6: Schema.string().default('网易点歌').description('`网易点歌`的指令名称<br>输入歌曲ID，返回歌曲'),
-            command6_searchList: Schema.number().default(20).min(1).max(50).description('歌曲搜索的列表长度。返回的候选项个数。'),
+            command6_searchList: Schema.number().default(20).min(1).max(100).description('歌曲搜索的列表长度。返回的候选项个数。'),
             maxDuration: Schema.natural().description('歌曲最长持续时间，单位为：秒').default(900),
             command6_useProxy: Schema.boolean().experimental().description('是否使用 Apifox Web Proxy 代理请求（适用于海外用户）').default(false),
             command6_usedAPI: Schema.union([
@@ -676,7 +677,7 @@ const Config = Schema.intersect([
             serverSelect: Schema.const('command8').required(),
             command8: Schema.string().default('龙珠搜索').description('龙珠API的指令名称'),
             // command8_wyyQuality: Schema.number().default(1).description('QQ音乐默认下载音质。`找不到对应音质，会自动使用标准音质`<br>1(标准音质)/2(极高音质)/3(无损音质)/4(Hi-Res音质)/5(高清环绕声)/6(沉浸环绕声)/7(超清母带)'),
-            command8_searchList: Schema.number().default(20).min(1).max(50).description('歌曲搜索的列表长度。返回的候选项个数。'),
+            command8_searchList: Schema.number().default(20).min(1).max(100).description('歌曲搜索的列表长度。返回的候选项个数。'),
 
             command8_return_QQdata_Field: Schema.array(Schema.object({
                 data: Schema.string().description('返回的字段'),
@@ -952,6 +953,7 @@ function apply(ctx, config) {
                     } else {
                         // 给用户选择序号
                         const qqListText = qqData?.length ? formatSongList(qqData, 'QQ Music', 0, 10) : '<b>QQ Music</b>: 无法获取歌曲列表';
+
                         const neteaseListText = neteaseData?.length ? formatSongList(neteaseData, 'NetEase Music', qqData?.length ? 0 : 10, 20) : '<b>NetEase Music</b>: 无法获取歌曲列表';
                         const listText = `${qqListText}<br /><br />${neteaseListText}`;
                         const exitCommands = config.exitCommand.split(/[,，]/).map(cmd => cmd.trim());
@@ -961,19 +963,27 @@ function apply(ctx, config) {
                         if (config.imageMode) {
                             const imageBuffer = await generateSongListImage(ctx.puppeteer, listText);
                             const payload = [
+                                ...( config.enableReplySonglist ? [h.quote(session.messageId)] : [] ),
                                 h.image(imageBuffer, 'image/png'),
                                 h.text(`${exitCommandTip.replaceAll('<br />', '\n')}${h.text(session.text(`.waitTime`, [config.waitTimeout]))}`),
                             ];
                             const msg = await session.send(payload);
                             quoteId = msg.at(-1);
                         } else {
-                            const msg = await session.send(`${listText}<br /><br />${exitCommandTip}${h.text(session.text(`.waitTime`, [config.waitTimeout]))}`);
+                            const payload = [
+                                ...( config.enableReplySonglist ? [h.quote(session.messageId)] : [] ),
+                                // h('b', {}, "qwq, hihi"), // 这样写就不会发送原始<b>文本了
+                                parseBToH(`${listText.replaceAll('<br />', '\n')}\n\n${exitCommandTip.replaceAll('<br />', '\n')}${h.text(session.text(`.waitTime`, [config.waitTimeout]))}`)
+                            ]
+                            const msg = await session.send(payload);
+                            // const msg = await session.send(`${listText.replaceAll('<br />', '\n')}\n\n${exitCommandTip.replaceAll('<br />', '\n')}${h.text(session.text(`.waitTime`, [config.waitTimeout]))}`);
                             quoteId = msg.at(-1);
                         }
 
                         const input = await session.prompt(config.waitTimeout * 1000);
                         if (!input) {
-                            return quoteId ? h.quote(quoteId) : '' + h.text(session.text(`.waitTimeout`));
+                            return `${quoteId ? h.quote(quoteId) : ''}${session.text(`.waitTimeout`)}`;
+
                         }
                         if (exitCommands.includes(input)) {
                             return h.text(session.text(`.exitprompt`));
@@ -1079,19 +1089,24 @@ function apply(ctx, config) {
                         if (config.imageMode) {
                             const imageBuffer = await generateSongListImage(ctx.puppeteer, kugouListText);
                             const payload = [
+                                ...( config.enableReplySonglist ? [h.quote(session.messageId)] : [] ),
                                 h.image(imageBuffer, 'image/png'),
                                 h.text(`${exitCommandTip.replaceAll('<br />', '\n')}${h.text(session.text(`.waitTime`, [config.waitTimeout]))}`),
                             ];
                             const msg = await session.send(payload);
                             quoteId = msg.at(-1);
                         } else {
-                            const msg = await session.send(`${kugouListText}<br /><br />${exitCommandTip}${h.text(session.text(`.waitTime`, [config.waitTimeout]))}`);
+                            const payload = [
+                                ...( config.enableReplySonglist ? [h.quote(session.messageId)] : [] ),
+                                parseBToH(`${kugouListText.replaceAll('<br />', '\n')}<br /><br />${exitCommandTip.replaceAll('<br />', '\n')}${h.text(session.text(`.waitTime`, [config.waitTimeout]))}`)
+                            ]
+                            const msg = await session.send(payload);
                             quoteId = msg.at(-1);
                         }
 
                         const input = await session.prompt(config.waitTimeout * 1000);
                         if (!input) {
-                            return `${quoteId ? h.quote(quoteId) : ''}输入超时，已取消点歌。`;
+                            return `${quoteId ? h.quote(quoteId) : ''}${session.text(`.waitTimeout`)}`;
                         }
                         if (exitCommands.includes(input)) {
                             return h.text(session.text(`.exitprompt`));
@@ -1125,15 +1140,17 @@ function apply(ctx, config) {
                         logger.error(`获取歌曲失败：${JSON.stringify(song)}`);
                         return '获取歌曲失败：' + song.msg;
                     }
-                });
+                }); 
         }
 
-        if (config.serverSelect === "command5") {
+        
+        if (config.serverSelect === "command5" ) {
             ctx.command(`${config.command5} <keyword:text>`)
                 .option('platform', '-p <platform:string> 平台名称')
                 .option('number', '-n <number:number> 歌曲序号')
                 .example("歌曲搜索 -p QQ -n 1 蔚蓝档案")
                 .action(async ({ session, options }, keyword) => {
+                    await session.send("music command 5");
                     if (!ctx.puppeteer) {
                         await session.send(h.text(session.text(`.nopuppeteer`)));
                         return;
@@ -1276,6 +1293,7 @@ function apply(ctx, config) {
                                             try {
                                                 const screenshot = await generateSongListImage(ctx.puppeteer, listText, screenshotPage);
                                                 await session.send([
+                                                    // ...( config.enableReplySonglist ? [h.quote(session.messageId)] : [] ),
                                                     h.image(screenshot, 'image/png'),
                                                     h.text(promptText),
                                                 ]);
@@ -1350,7 +1368,7 @@ function apply(ctx, config) {
                                     if (!songDetails.lyric) {
                                         songDetails.lyric = jsonData.lyric;
                                         logInfo("捕获到歌词 API 响应");
-                                        logInfo(`歌词: ${jsonData.lyric ? jsonData.lyric.substring(0, 50) + '...' : '无'}`);
+                                        logInfo(`歌词: ${jsonData.lyric ? jsonData.lyric.substring(0, 100) + '...' : '无'}`);
                                     }
                                 } else if (jsonData && (jsonData.url || (jsonData.url && /\.(jpg|png|gif)/i.test(jsonData.url)))) {
                                     // 封面
@@ -1589,19 +1607,24 @@ function apply(ctx, config) {
                                 if (config.imageMode) {
                                     const imageBuffer = await generateSongListImage(ctx.puppeteer, formattedList);
                                     const payload = [
+                                        ...( config.enableReplySonglist ? [h.quote(session.messageId)] : [] ),
                                         h.image(imageBuffer, 'image/png'),
                                         h.text(`${exitCommandTip.replaceAll('<br />', '\n')}${h.text(session.text(`.waitTime`, [config.waitTimeout]))}`),
                                     ];
                                     const msg = await session.send(payload);
                                     quoteId = msg.at(-1);
                                 } else {
-                                    const msg = await session.send(`${formattedList}<br /><br />${exitCommandTip}${h.text(session.text(`.waitTime`, [config.waitTimeout]))}`);
+                                    const payload = [
+                                        ...( config.enableReplySonglist ? [h.quote(session.messageId)] : [] ),
+                                        parseBToH(`${formattedList.replaceAll('<br />', '\n')}\n\n${exitCommandTip.replaceAll('<br />', '\n')}${h.text(session.text(`.waitTime`, [config.waitTimeout]))}`)
+                                    ]
+                                    const msg = await session.send(payload);
                                     quoteId = msg.at(-1);
                                 }
 
                                 input = await session.prompt(config.waitTimeout * 1000);
                                 if (!input) {
-                                    return quoteId ? h.quote(quoteId) : '' + h.text(session.text(`.waitTimeout`));
+                                    return `${quoteId ? h.quote(quoteId) : ''}${session.text(`.waitTimeout`)}`;
                                 }
                                 if (exitCommands.includes(input)) {
                                     return h.text(session.text(`.exitprompt`));
@@ -1781,6 +1804,7 @@ function apply(ctx, config) {
                             selectedIndex = options.number;
                         } else {
                             await session.send([
+                                ...( config.enableReplySonglist ? [h.quote(session.messageId)] : [] ),
                                 h.image(screenshot, 'image/png'),
                                 h.text(promptText),
                             ]);
@@ -1881,19 +1905,31 @@ function apply(ctx, config) {
                         // 歌曲列表消息
                         const songListMessage = songListDisplay.join('\n');
 
+                        let quoteId;
+
                         // 判断是否使用图片模式
                         if (config.imageMode) {
                             const listText = songListMessage.replace(/\n/g, '<br />');
                             const imageBuffer = await generateSongListImage(ctx.puppeteer, listText);
-                            await session.send(h.image(imageBuffer, 'image/png') + `${promptText}`);
+                            const payload = [
+                                ...( config.enableReplySonglist ? [h.quote(session.messageId)] : [] ),
+                                h.image(imageBuffer, 'image/png'),
+                                h.text(`${promptText}`)
+                            ]
+                            await session.send( payload );
                         } else {
-                            await session.send(`以下是搜索结果：\n${songListMessage}\n${promptText}`);
+                            const payload = [
+                                ...( config.enableReplySonglist ? [h.quote(session.messageId)] : [] ),
+                                `以下是搜索结果：\n${songListMessage}\n${promptText}`
+                            ]
+                            quoteId = await session.send(payload);
                         }
 
                         // 用户回复序号
                         const songChoice = await session.prompt(config.waitTimeout * 1000);
                         if (!songChoice) {
-                            return '输入超时，已取消点歌。';
+                            // return '输入超时，已取消点歌。';
+                            return `${quoteId ? h.quote(quoteId) : ''}${session.text(`.waitTimeout`)}`;
                         }
 
                         // 检查是否是退出命令
@@ -2225,6 +2261,31 @@ function apply(ctx, config) {
                 .map((song, index) => `${index + startIndex + 1}. ${song.songname || song.title || song.name} -- ${song.name || song.author}`)
                 .join('<br />');
             return `<b>${platform}</b>:<br />${formattedList}`;
+        }
+
+        function parseBToH(htmlString) {
+            const elements = [];
+            // 匹配 <b>...</b>, <br/>, <br> 标签，以及两者之间的普通文本
+            // 使用非贪婪匹配 .*? 来确保 <b> 和 </b> 之间匹配尽可能少的内容
+            const parts = htmlString.split(/(<b>.*?<\/b>|<br\s*\/?>)/i);
+
+            parts.forEach(part => {
+                if (!part) return; // 跳过空字符串
+
+                if (part.toLowerCase().startsWith('<b>') && part.toLowerCase().endsWith('</b>')) {
+                    // 匹配到 <b>...</b>
+                    const boldText = part.slice(3, -4); // 移除 <b> 和 </b>
+                    elements.push(h('b', {}, boldText));
+                } else if (part.toLowerCase() === '<br/>' || part.toLowerCase() === '<br />' || part.toLowerCase() === '<br>') {
+                    // 匹配到 <br/> 或 <br>
+                    elements.push(h.br());
+                } else {
+                    // 其他文本内容
+                    elements.push(h.text(part));
+                }
+            });
+
+            return h('fragment', {}, elements);
         }
 
         async function searchQQ(http, query) {
