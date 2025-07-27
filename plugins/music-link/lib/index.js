@@ -613,7 +613,7 @@ const Config = Schema.intersect([
             Schema.const('24bit').description('24bit无损 [ 网易云 / QQ / Tidal / Qobuz ]'),
             ]).role('radio').description('音乐 **默认**下载音质。').default('320K'),
             */
-            command5_searchList: Schema.number().default(20).min(1).max(20).description('歌曲搜索的列表长度。返回的候选项个数。'),
+            command5_searchList: Schema.number().default(20).min(1).max(100).description('歌曲搜索的列表长度。返回的候选项个数。不建议超过50，可能超过最长文本长度/让图片渲染、发送、加载时间变长'),
             command5_page_setTimeout: Schema.number().default(15).min(1).description('等待页面完全加载的等待时间（秒）'),
             command5_return_data_Field: Schema.array(Schema.object({
                 data: Schema.string().description('返回的字段'),
@@ -658,7 +658,7 @@ const Config = Schema.intersect([
         Schema.object({
             serverSelect: Schema.const('command7').required(),
             command7: Schema.string().default('音乐搜索器').description('`音乐搜索器`的指令名称<br>使用 dev.iw233.cn 提供的网站'),
-            command7_searchList: Schema.number().default(10).min(1).step(1).max(10).description('歌曲搜索的列表长度。返回的候选项个数。<br>为`网易云音乐`的组合'),
+            command7_searchList: Schema.number().default(10).min(1).step(1).max(100).description('歌曲搜索的列表长度。返回的候选项个数。<br>为`网易云音乐`的组合。不建议超过10，可能超过最长文本长度/让图片渲染、发送、加载时间变长'),
             command7_return_data_Field: Schema.array(Schema.object({
                 data: Schema.string().description('返回的字段'),
                 describe: Schema.string().description('对该字段的中文描述'),
@@ -677,7 +677,7 @@ const Config = Schema.intersect([
             serverSelect: Schema.const('command8').required(),
             command8: Schema.string().default('龙珠搜索').description('龙珠API的指令名称'),
             // command8_wyyQuality: Schema.number().default(1).description('QQ音乐默认下载音质。`找不到对应音质，会自动使用标准音质`<br>1(标准音质)/2(极高音质)/3(无损音质)/4(Hi-Res音质)/5(高清环绕声)/6(沉浸环绕声)/7(超清母带)'),
-            command8_searchList: Schema.number().default(20).min(1).max(100).description('歌曲搜索的列表长度。返回的候选项个数。'),
+            command8_searchList: Schema.number().default(20).min(1).max(100).description('歌曲搜索的列表长度。返回的候选项个数。不建议超过50，可能超过最长文本长度/让图片渲染、发送、加载时间变长'),
 
             command8_return_QQdata_Field: Schema.array(Schema.object({
                 data: Schema.string().description('返回的字段'),
