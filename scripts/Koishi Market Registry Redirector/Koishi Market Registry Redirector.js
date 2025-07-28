@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Koishi Market Registry Redirector
 // @namespace    https://github.com/shangxueink
-// @version      3.1
+// @version      3.3
 // @description  将 Koishi 市场注册表请求重定向到多个备用镜像源，支持自动重试，并修复时间显示问题。
 // @author       shangxueink
 // @license      MIT
@@ -160,7 +160,7 @@
         resetButtonGroup.style.display = 'flex';
         resetButtonGroup.style.width = '100%';
         resetButtonGroup.innerHTML = `
-            <button id="reset-btn" class="VPLink link button" style="width: 100%;">重置全部为默认配置</button>
+            <button id="reset-btn" class="VPLink link button" style="width: 100%;">重置为默认配置</button>
         `;
         container.appendChild(resetButtonGroup);
 
@@ -230,7 +230,7 @@
                     <div style="display: flex; width: 100%;">
                         <button class="move-up VPLink link button" data-index="${index}" style="width: 33.33%; margin-right: 0.25rem;">↑</button>
                         <button class="move-down VPLink link button" data-index="${index}" style="width: 33.33%; margin: 0 0.125rem;">↓</button>
-                        <button class="remove-mirror VPLink link button" data-index="${index}" style="width: 33.33%; margin-left: 0.25rem;">删除</button>
+                        <button class="remove-mirror VPLink link button" data-index="${index}" style="width: 33.33%; margin-left: 0.25rem;">×</button>
                     </div>
                 </div>
             `).join('');
@@ -371,7 +371,67 @@
 
         // 重置按钮事件
         document.getElementById('reset-btn').addEventListener('click', () => {
-            if (confirm('确定要重置所有配置为默认值吗？此操作不可撤销。')) {
+            showResetConfirmDialog();
+        });
+
+        // 创建重置确认对话框
+        function showResetConfirmDialog() {
+            // 创建遮罩层
+            const resetOverlay = document.createElement('div');
+            resetOverlay.style.position = 'fixed';
+            resetOverlay.style.top = '0';
+            resetOverlay.style.left = '0';
+            resetOverlay.style.width = '100%';
+            resetOverlay.style.height = '100%';
+            resetOverlay.style.backgroundColor = 'rgba(0, 0, 0, 0.6)';
+            resetOverlay.style.zIndex = '1002';
+            resetOverlay.style.display = 'flex';
+            resetOverlay.style.alignItems = 'center';
+            resetOverlay.style.justifyContent = 'center';
+
+            // 创建对话框容器
+            const resetDialog = document.createElement('div');
+            resetDialog.style.backgroundColor = 'var(--vp-c-bg)';
+            resetDialog.style.color = 'var(--vp-c-text)';
+            resetDialog.style.padding = '2rem';
+            resetDialog.style.borderRadius = '8px';
+            resetDialog.style.boxShadow = '0 4px 20px rgba(0, 0, 0, 0.3)';
+            resetDialog.style.border = '1px solid var(--vp-c-divider)';
+            resetDialog.style.maxWidth = '400px';
+            resetDialog.style.width = '90%';
+            resetDialog.style.textAlign = 'center';
+
+            // 对话框内容
+            resetDialog.innerHTML = `
+                <h3 style="margin-top: 0; margin-bottom: 1rem; color: var(--vp-c-text);">确认重置配置</h3>
+                <p style="margin-bottom: 2rem; color: var(--vp-c-text-2);">确定要重置所有配置为默认值吗？<br>此操作不可撤销。</p>
+                <div style="display: flex; gap: 1rem; justify-content: center;">
+                    <button id="reset-cancel-btn" class="VPLink link button" style="padding: 0.75rem 1.5rem; background-color: var(--vp-c-bg-soft); border: 1px solid var(--vp-c-divider);">取消</button>
+                    <button id="reset-confirm-btn" class="VPLink link button" style="padding: 0.75rem 1.5rem; background-color: #ff4757; color: white; border: 1px solid #ff4757; border-radius: 8px;">确认重置</button>
+                </div>
+            `;
+
+            resetOverlay.appendChild(resetDialog);
+            document.body.appendChild(resetOverlay);
+
+            // 初始动画
+            resetOverlay.style.opacity = '0';
+            resetDialog.style.transform = 'scale(0.9)';
+            resetDialog.style.transition = 'transform 0.2s ease-out';
+            resetOverlay.style.transition = 'opacity 0.2s ease-out';
+
+            setTimeout(() => {
+                resetOverlay.style.opacity = '1';
+                resetDialog.style.transform = 'scale(1)';
+            }, 10);
+
+            // 取消按钮事件
+            document.getElementById('reset-cancel-btn').addEventListener('click', () => {
+                closeResetDialog();
+            });
+
+            // 确认按钮事件
+            document.getElementById('reset-confirm-btn').addEventListener('click', () => {
                 // 重置配置为默认值
                 CONFIG.mirrorUrls = [...DEFAULT_CONFIG.mirrorUrls];
                 CONFIG.requestTimeout = DEFAULT_CONFIG.requestTimeout;
@@ -380,13 +440,48 @@
                 CONFIG.currentMirrorIndex = DEFAULT_CONFIG.currentMirrorIndex;
                 CONFIG.currentRetries = DEFAULT_CONFIG.currentRetries;
 
+                // 立即保存到localStorage
+                localStorage.setItem('koishiMarketConfig', JSON.stringify(CONFIG));
+
                 // 更新UI显示
                 renderMirrorList();
                 document.getElementById('timeout').value = CONFIG.requestTimeout;
                 document.getElementById('retries').value = CONFIG.maxRetries;
                 document.getElementById('debug').checked = CONFIG.debug;
+
+                // 关闭对话框
+                closeResetDialog();
+
+                // 关闭整个配置UI
+                closeConfigUI();
+            });
+
+            // 点击遮罩层关闭对话框
+            resetOverlay.addEventListener('click', (e) => {
+                if (e.target === resetOverlay) {
+                    closeResetDialog();
+                }
+            });
+
+            // 关闭对话框函数
+            function closeResetDialog() {
+                resetOverlay.style.opacity = '0';
+                resetDialog.style.transform = 'scale(0.9)';
+
+                setTimeout(() => {
+                    resetOverlay.remove();
+                }, 200);
             }
-        });
+
+            // ESC键关闭对话框
+            const handleEscKey = (e) => {
+                if (e.key === 'Escape') {
+                    closeResetDialog();
+                    document.removeEventListener('keydown', handleEscKey);
+                }
+            };
+            document.addEventListener('keydown', handleEscKey);
+        }
 
         document.getElementById('save-btn').addEventListener('click', () => {
             CONFIG.mirrorUrls = Array.from(mirrorList.querySelectorAll('input'))
@@ -494,6 +589,17 @@
             }
             .vp-doc button[title="关闭配置"]:active {
                 transform: scale(0.95) !important;
+            }
+            /* 重置确认对话框样式 */
+            #reset-confirm-btn:hover {
+                background-color: #ff3742 !important;
+                transform: translateY(-1px);
+                box-shadow: 0 2px 8px rgba(255, 71, 87, 0.3);
+            }
+            #reset-cancel-btn:hover {
+                background-color: var(--vp-c-bg-alt);
+                transform: translateY(-1px);
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
             }
         `;
         document.head.appendChild(style);
