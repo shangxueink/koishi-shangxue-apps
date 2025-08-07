@@ -1,25 +1,35 @@
 # koishi-plugin-change-auth-callme
 
-[![npm](https://www.npmjs.com/package/koishi-plugin-change-auth-callme)](https://www.npmjs.com/package/koishi-plugin-change-auth-callme)
+[![npm](https://img.shields.io/npm/v/koishi-plugin-change-auth-callme)](https://www.npmjs.com/package/koishi-plugin-change-auth-callme)
 
-本插件允许用户通过指定的命令更改他们的权限级别。此插件特别适用于需要管理用户权限的部署者。
+Koishi 权限管理插件，支持手动指令修改权限和基于角色的自动权限分配。
 
----
 
-#### 用法
 
-插件启用后，用户可以通过以下命令提升权限：
-
+### 手动修改权限
 ```
 changeauth 5
 ```
 
-以上命令将用户的权限提升至 5。用户可以根据需要调整数字以更改权限级别。
+### 自动权限分配
+启用自动授权后，插件会根据用户在群组中的角色自动分配权限：
+- 群主 (owner) → 权限 4
+- 管理员 (admin) → 权限 3  
+- 群员 (member) → 权限 1
 
-#### 配置项说明
+## 主要配置
 
-| 配置项              |  默认值        | 描述                       |
-|-------------------|------------|--------------------------|
-| `Command_Name`    |  changeauth | 注册的指令名称               |
-| `MAX_authority_Limit` |  100        | 允许修改的最大权限值            |
+| 配置项 | 默认值 | 说明 |
+|--------|--------|------|
+| `Command_Name` | `changeauth` | 指令名称 |
+| `MAX_authority_Limit` | `5` | 最大权限值 |
+| `enableAutoAuth` | `false` | 启用自动授权 |
+| `middleware_true` | `false` | 使用前置中间件 |
+| `delayTime` | `1000` | 延迟执行时间(ms) |
+
+## 注意事项
+
+- 建议配置过滤器限制使用用户
+- 前置中间件需要延迟执行以确保用户字段正确加载
+- 自动授权可能覆盖手动设置的权限
 
