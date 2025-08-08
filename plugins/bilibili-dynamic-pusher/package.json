@@ -1,0 +1,27 @@
+{
+  "name": "koishi-plugin-bilibili-dynamic-pusher",
+  "description": "Bilibili动态推送，灵感来自[bilibili-notify](https://www.npmjs.com/package/koishi-plugin-bilibili-notify)插件。需要搭配对应的适配器使用哦~",
+  "version": "1.0.0",
+  "main": "lib/index.js",
+  "typings": "lib/index.d.ts",
+  "files": [
+    "lib",
+    "src"
+  ],
+  "homepage": "https://github.com/shangxueink/koishi-shangxue-apps/tree/main/",
+  "bugs": {
+    "url": "https://github.com/shangxueink/koishi-shangxue-apps/issues"
+  },
+  "keywords": [
+    "chatbot",
+    "koishi",
+    "plugin",
+    "bilibili动态推送",
+    "rss",
+    "dynamic-pusher"
+  ],
+  "license": "MIT",
+  "peerDependencies": {
+    "koishi": "^4.18.7"
+  }
+}
