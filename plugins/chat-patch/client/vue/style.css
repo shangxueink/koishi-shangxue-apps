@@ -1725,3 +1725,118 @@ body.dragging-bubble-global {
         right: -5px;
     }
 }
+
+/* 消息历史区域的滚动条 */
+.message-history::-webkit-scrollbar {
+    width: 6px;
+}
+
+.message-history::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.message-history::-webkit-scrollbar-thumb {
+    background-color: rgba(144, 147, 153, .3);
+    border-radius: 4px;
+    transition: background-color .3s;
+}
+
+.message-history::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(144, 147, 153, .5);
+}
+
+/* 机器人列表的滚动条 */
+.bot-items::-webkit-scrollbar {
+    width: 6px;
+}
+
+.bot-items::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.bot-items::-webkit-scrollbar-thumb {
+    background-color: rgba(144, 147, 153, .3);
+    border-radius: 4px;
+    transition: background-color .3s;
+}
+
+.bot-items::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(144, 147, 153, .5);
+}
+
+/* 频道列表的滚动条 */
+.channel-items::-webkit-scrollbar {
+    width: 6px;
+}
+
+.channel-items::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.channel-items::-webkit-scrollbar-thumb {
+    background-color: rgba(144, 147, 153, .3);
+    border-radius: 4px;
+    transition: background-color .3s;
+}
+
+.channel-items::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(144, 147, 153, .5);
+}
+
+/* 合并转发消息展开区域的滚动条 */
+.forward-message-expanded::-webkit-scrollbar {
+    width: 6px;
+}
+
+.forward-message-expanded::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.forward-message-expanded::-webkit-scrollbar-thumb {
+    background-color: rgba(144, 147, 153, .3);
+    border-radius: 4px;
+    transition: background-color .3s;
+}
+
+.forward-message-expanded::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(144, 147, 153, .5);
+}
+
+/* JSON内容区域的滚动条 */
+.json-raw-content::-webkit-scrollbar {
+    width: 6px;
+}
+
+.json-raw-content::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.json-raw-content::-webkit-scrollbar-thumb {
+    background-color: rgba(144, 147, 153, .3);
+    border-radius: 4px;
+    transition: background-color .3s;
+}
+
+.json-raw-content::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(144, 147, 153, .5);
+}
+
+/* 深色模式下的滚动条样式调整 */
+@media (prefers-color-scheme: dark) {
+
+    .message-history::-webkit-scrollbar-thumb,
+    .bot-items::-webkit-scrollbar-thumb,
+    .channel-items::-webkit-scrollbar-thumb,
+    .forward-message-expanded::-webkit-scrollbar-thumb,
+    .json-raw-content::-webkit-scrollbar-thumb {
+        background-color: rgba(255, 255, 255, .2);
+    }
+
+    .message-history::-webkit-scrollbar-thumb:hover,
+    .bot-items::-webkit-scrollbar-thumb:hover,
+    .channel-items::-webkit-scrollbar-thumb:hover,
+    .forward-message-expanded::-webkit-scrollbar-thumb:hover,
+    .json-raw-content::-webkit-scrollbar-thumb:hover {
+        background-color: rgba(255, 255, 255, .4);
+    }
+}
