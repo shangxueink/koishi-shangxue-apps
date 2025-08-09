@@ -125,13 +125,54 @@
 
         <!-- 输入框 -->
         <div class="message-input">
+          <!-- 图片预览区域 -->
+          <div v-if="uploadedImages.length > 0" class="image-preview-container">
+            <div v-for="image in uploadedImages" :key="image.tempId" class="image-preview-item">
+              <img :src="image.preview" :alt="image.filename" class="preview-image" />
+              <button class="remove-image-btn" @click="removeImage(image.tempId)" title="删除图片">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                  <path
+                    d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" />
+                </svg>
+              </button>
+            </div>
+          </div>
+
           <div class="input-row">
+            <!-- 加号按钮 -->
+            <div class="input-actions">
+              <button class="add-button" @click="toggleActionMenu" :class="{ active: showActionMenu }" title="更多操作">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                  stroke-linecap="round" stroke-linejoin="round">
+                  <line x1="12" y1="5" x2="12" y2="19"></line>
+                  <line x1="5" y1="12" x2="19" y2="12"></line>
+                </svg>
+              </button>
+
+              <!-- 操作菜单 -->
+              <div v-if="showActionMenu" class="action-menu" @click.stop>
+                <button class="action-menu-item" @click="triggerImageUpload">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                    <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                    <polyline points="21,15 16,10 5,21"></polyline>
+                  </svg>
+                  上传图片
+                </button>
+              </div>
+            </div>
+
             <input v-model="inputMessage" type="text" :placeholder="inputPlaceholder" @keyup.enter="sendMessage"
-              :disabled="!canInputMessage" ref="messageInput" />
+              :disabled="!canInputMessage" ref="messageInput" @paste="handlePaste" />
             <button @click="sendMessage" :disabled="!canSendMessage" :class="{ 'is-sending': isSending }">
               {{ isSending ? '发送中...' : '发送' }}
             </button>
           </div>
+
+          <!-- 隐藏的文件输入 -->
+          <input type="file" ref="fileInput" @change="handleFileSelect" accept="image/*" multiple
+            style="display: none;" />
         </div>
       </div>
     </div>
@@ -170,6 +211,16 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, nextTick, watch, defineComponent, h } from 'vue'
 import { useContext, receive, send } from '@koishijs/client'
+
+// 辅助函数：检查是否为文件 URL
+function isFileUrl(url: string): boolean {
+  try {
+    const parsedUrl = new URL(url)
+    return parsedUrl.protocol === 'file:'
+  } catch {
+    return false
+  }
+}
 
 
 // 头像组件
@@ -308,6 +359,13 @@ const ImageComponent = defineComponent({
         if (cachedUrl) {
           imageSrc.value = cachedUrl
           imageState.value = 'loaded'
+          return
+        }
+
+        // 检查是否是本地文件路径，如果是则直接使用代理请求
+        if (isFileUrl(props.src)) {
+          console.log('ImageComponent: 检测到本地文件，使用代理请求:', props.src)
+          await loadWithCache()
           return
         }
 
@@ -509,6 +567,115 @@ const JsonCardComponent = defineComponent({
   }
 })
 
+// 合并转发消息组件
+const ForwardMessageComponent = defineComponent({
+  props: {
+    element: {
+      type: Object as () => MessageElement,
+      required: true
+    },
+    channelKey: {
+      type: String,
+      required: true
+    }
+  },
+  setup(props) {
+    const isExpanded = ref(false)
+
+    const toggleExpanded = () => {
+      isExpanded.value = !isExpanded.value
+    }
+
+    const getPreviewText = () => {
+      if (!props.element.children || props.element.children.length === 0) {
+        return {
+          previews: [],
+          messageCount: 0
+        }
+      }
+
+      const messages = props.element.children.filter((child: any) => child.type === 'message')
+      const messageCount = messages.length
+
+      // 生成预览文本
+      const previews = messages.slice(0, 3).map((msg: any) => {
+        const nickname = msg.attrs?.nickname || '用户'
+        let content = ''
+
+        if (msg.children && msg.children.length > 0) {
+          const firstChild = msg.children[0]
+          if (firstChild.type === 'text') {
+            content = (firstChild.attrs?.content || '').substring(0, 20)
+            if (content.length > 15) content += '...'
+          } else if (firstChild.type === 'img') {
+            content = '[图片]'
+          } else if (firstChild.type === 'video') {
+            content = '[视频]'
+          } else {
+            content = `[${firstChild.type}]`
+          }
+        }
+
+        return `${nickname}：${content}`
+      })
+
+      return {
+        previews,
+        messageCount
+      }
+    }
+
+    const renderForwardedMessage = (message: any, index: number) => {
+      const nickname = message.attrs?.nickname || '用户'
+      const userId = message.attrs?.userId || 'unknown'
+
+      return h('div', {
+        key: index,
+        class: 'forwarded-message-item'
+      }, [
+        h('div', { class: 'forwarded-message-header' }, [
+          h('span', { class: 'forwarded-message-nickname' }, nickname),
+          h('span', { class: 'forwarded-message-userid' }, `(${userId})`)
+        ]),
+        h('div', { class: 'forwarded-message-content' },
+          message.children?.map((child: any, childIndex: number) =>
+            h(MessageElement, {
+              key: childIndex,
+              element: child,
+              channelKey: props.channelKey
+            })
+          ) || []
+        )
+      ])
+    }
+
+    return () => {
+      const { previews, messageCount } = getPreviewText()
+
+      return h('div', { class: 'forward-message-container' }, [
+        h('div', {
+          class: 'forward-message-preview',
+          onClick: toggleExpanded
+        }, [
+          h('div', { class: 'forward-message-title' }, '聊天记录'),
+          ...previews.map((preview, index) =>
+            h('div', { key: index, class: 'forward-message-preview-item' }, preview)
+          ),
+          h('div', { class: 'forward-message-footer' }, [
+            h('span', { class: 'forward-message-count' }, `查看${messageCount}条转发消息`),
+            h('span', { class: 'forward-message-toggle' }, isExpanded.value ? '▲' : '▼')
+          ])
+        ]),
+        isExpanded.value && h('div', { class: 'forward-message-expanded' },
+          props.element.children
+            ?.filter((child: any) => child.type === 'message')
+            .map((message: any, index: number) => renderForwardedMessage(message, index)) || []
+        )
+      ])
+    }
+  }
+})
+
 const MessageElement = defineComponent({
   props: {
     element: {
@@ -532,6 +699,16 @@ const MessageElement = defineComponent({
         case 'img':
         case 'image':
           const imageUrl = element.attrs.src || element.attrs.url || element.attrs.file
+
+          // 调试信息：记录图片 URL 类型
+          if (imageUrl && isFileUrl(imageUrl)) {
+            console.log('检测到本地文件路径:', imageUrl)
+          } else if (imageUrl?.startsWith('http')) {
+            console.log('检测到网络图片:', imageUrl)
+          } else {
+            console.log('检测到其他类型图片URL:', imageUrl)
+          }
+
           return h('div', { class: 'message-image-container' }, [
             h(ImageComponent, {
               src: imageUrl,
@@ -543,6 +720,12 @@ const MessageElement = defineComponent({
 
         case 'mface':
           const mfaceimageUrl = element.attrs.src || element.attrs.url || element.attrs.file
+
+          // 调试信息：记录表情图片 URL 类型
+          if (mfaceimageUrl && isFileUrl(mfaceimageUrl)) {
+            console.log('检测到本地表情文件路径:', mfaceimageUrl)
+          }
+
           return h('div', { class: 'message-image-container' }, [
             h(ImageComponent, {
               src: mfaceimageUrl,
@@ -580,12 +763,34 @@ const MessageElement = defineComponent({
               channelKey: props.channelKey
             })
           ])
+
+        case 'p':
+          // 处理段落元素，递归渲染子元素
+          if (element.children && element.children.length > 0) {
+            const childElements = element.children.map((child, index) =>
+              h(MessageElement, {
+                key: index,
+                element: child,
+                channelKey: props.channelKey
+              })
+            )
+            return h('div', { class: 'message-paragraph' }, childElements)
+          } else {
+            return h('div', { class: 'message-paragraph' }, '')
+          }
+        case 'figure':
+          // 处理合并转发消息，创建可折叠的消息组件
+          return h(ForwardMessageComponent, {
+            element: element,
+            channelKey: props.channelKey
+          })
         default:
           // 未知类型
           return h('span', {
             class: 'message-unknown',
             title: `未知消息类型: ${element.type}`
           }, element.attrs.content || `[${element.type}]`)
+
       }
     }
 
@@ -597,6 +802,7 @@ interface SendMessageResponse {
   success: boolean
   messageId?: string
   error?: string
+  tempImageIds?: string[]
 }
 
 interface BotInfo {
@@ -673,13 +879,13 @@ const pluginConfig = ref<{
     platformName: string
     exactMatch: boolean
   }>
-  chatContainerHeight: number 
+  chatContainerHeight: number
 }>({
   maxMessagesPerChannel: 1000,
   keepMessagesOnClear: 50,
   loggerinfo: false,
   blockedPlatforms: [],
-  chatContainerHeight: 80 
+  chatContainerHeight: 80
 })
 
 // 图片缓存 - IndexedDB
@@ -695,6 +901,59 @@ interface ImageCacheItem {
 const imageBlobUrls = ref<Record<string, string>>({})
 const maxImagesPerChannel = 200 // 每个频道最大缓存图片数量
 
+// 内存管理配置
+const MAX_MEMORY_USAGE = 100 * 1024 * 1024 // 100MB 最大内存使用量
+const MAX_BLOB_COUNT = 50 // 最大blob URL数量
+let currentMemoryUsage = 0 // 当前内存使用量估算
+
+// 内存管理函数
+function estimateBlobSize(blob: Blob): number {
+  return blob.size || 0
+}
+
+function updateMemoryUsage(sizeChange: number) {
+  currentMemoryUsage += sizeChange
+  if (pluginConfig.value.loggerinfo) {
+    console.log(`内存使用量变化: ${sizeChange > 0 ? '+' : ''}${(sizeChange / 1024 / 1024).toFixed(2)}MB, 总计: ${(currentMemoryUsage / 1024 / 1024).toFixed(2)}MB`)
+  }
+}
+
+// 清理最旧的blob URL以释放内存
+function cleanupOldestBlobs(targetCount: number = 10) {
+  const blobEntries = Object.entries(imageBlobUrls.value)
+  if (blobEntries.length <= targetCount) return
+
+  // 简单的LRU策略：清理最早创建的blob
+  const toRemove = blobEntries.slice(0, blobEntries.length - targetCount)
+
+  let freedMemory = 0
+  toRemove.forEach(([url, blobUrl]) => {
+    URL.revokeObjectURL(blobUrl)
+    delete imageBlobUrls.value[url]
+    freedMemory += 500 * 1024 // 估算每个图片500KB
+    if (pluginConfig.value.loggerinfo) {
+      console.log('清理旧blob URL:', url)
+    }
+  })
+
+  updateMemoryUsage(-freedMemory)
+}
+
+// 检查内存使用情况并清理
+function checkAndCleanupMemory() {
+  const blobCount = Object.keys(imageBlobUrls.value).length
+
+  // 如果blob数量过多，清理一些
+  if (blobCount > MAX_BLOB_COUNT) {
+    cleanupOldestBlobs(Math.floor(MAX_BLOB_COUNT * 0.7)) // 清理到70%
+  }
+
+  // 如果估算内存使用过高，也进行清理
+  if (currentMemoryUsage > MAX_MEMORY_USAGE) {
+    cleanupOldestBlobs(Math.floor(MAX_BLOB_COUNT * 0.5)) // 清理到50%
+  }
+}
+
 // IndexedDB
 let imageDB: IDBDatabase | null = null
 const DB_NAME = 'ChatImageCache'
@@ -704,6 +963,16 @@ const STORE_NAME = 'images'
 const selectedBot = ref<string>('')
 const selectedChannel = ref<string>('')
 const inputMessage = ref<string>('')
+
+// 图片上传相关状态
+const uploadedImages = ref<Array<{
+  tempId: string
+  filename: string
+  preview: string
+  size: number
+}>>([])
+const showActionMenu = ref<boolean>(false)
+const fileInput = ref<HTMLInputElement>()
 
 // 手机端状态管理
 const isMobile = ref<boolean>(false)
@@ -807,7 +1076,7 @@ const currentChannelKey = computed(() => {
 })
 
 const canSendMessage = computed(() => {
-  return selectedBot.value && selectedChannel.value && inputMessage.value.trim() && !isSending.value
+  return selectedBot.value && selectedChannel.value && (inputMessage.value.trim() || uploadedImages.value.length > 0) && !isSending.value
 })
 
 const canInputMessage = computed(() => {
@@ -831,7 +1100,7 @@ const mobileViewClass = computed(() => {
 // 输入框提示文字
 const inputPlaceholder = computed(() => {
   if (isMobile.value) {
-    return '屏幕左滑返回，上滑唤起聊天框'
+    return '输入消息...（屏幕左滑返回）'
   } else {
     return '输入消息...'
   }
@@ -1066,22 +1335,48 @@ async function sendMessage() {
   if (!canSendMessage.value) return
 
   const messageContent = inputMessage.value.trim()
-  if (!messageContent) return
+  if (!messageContent && uploadedImages.value.length === 0) return
 
   // 设置发送状态
   isSending.value = true
+
+  // 保存当前的图片信息，用于后续清理
+  const currentImages = [...uploadedImages.value]
 
   try {
     // 调用后端 API 发送消息
     const result = await (send as any)('send-message', {
       selfId: selectedBot.value,
       channelId: selectedChannel.value,
-      content: messageContent
-    }) as SendMessageResponse
+      content: messageContent,
+      images: currentImages.map(img => ({
+        tempId: img.tempId,
+        filename: img.filename
+      }))
+    }) as SendMessageResponse & { tempImageIds?: string[] }
 
     if (result.success) {
-      // 清空输入框
+      // 清空输入框和图片预览
       inputMessage.value = ''
+
+      // 释放blob URL
+      currentImages.forEach(img => {
+        URL.revokeObjectURL(img.preview)
+      })
+      uploadedImages.value = []
+      showActionMenu.value = false
+
+      // 消息发送成功后，主动通知后端清理临时文件
+      if (result.tempImageIds && result.tempImageIds.length > 0) {
+        try {
+          await (send as any)('cleanup-temp-images', {
+            tempImageIds: result.tempImageIds
+          })
+          console.log('临时图片清理完成:', result.tempImageIds)
+        } catch (cleanupError) {
+          console.warn('清理临时图片失败:', cleanupError)
+        }
+      }
     } else {
       console.error('消息发送失败:', result.error)
       // 使用showNotification显示错误提示
@@ -1093,6 +1388,128 @@ async function sendMessage() {
   } finally {
     // 重置发送状态
     isSending.value = false
+  }
+}
+
+// 图片上传相关方法
+function toggleActionMenu() {
+  showActionMenu.value = !showActionMenu.value
+}
+
+function triggerImageUpload() {
+  if (fileInput.value) {
+    fileInput.value.click()
+  }
+  showActionMenu.value = false
+}
+
+async function handleFileSelect(event: Event) {
+  const target = event.target as HTMLInputElement
+  const files = target.files
+  if (!files || files.length === 0) return
+
+  for (const file of Array.from(files)) {
+    await uploadImage(file)
+  }
+
+  // 清空文件输入，允许重复选择同一文件
+  target.value = ''
+}
+
+async function handlePaste(event: ClipboardEvent) {
+  const items = event.clipboardData?.items
+  if (!items) return
+
+  for (const item of Array.from(items)) {
+    if (item.type.startsWith('image/')) {
+      event.preventDefault()
+      const file = item.getAsFile()
+      if (file) {
+        await uploadImage(file)
+      }
+    }
+  }
+}
+
+async function uploadImage(file: File) {
+  try {
+    // 检查文件大小 (限制为10MB)
+    if (file.size > 10 * 1024 * 1024) {
+      showNotification('图片文件过大，请选择小于10MB的图片', 'error')
+      return
+    }
+
+    // 检查文件类型
+    if (!file.type.startsWith('image/')) {
+      showNotification('请选择图片文件', 'error')
+      return
+    }
+
+    // 转换为base64
+    const base64 = await fileToBase64(file)
+
+    // 创建预览URL
+    const preview = URL.createObjectURL(file)
+
+    // 调用后端API上传图片
+    const result = await (send as any)('upload-image', {
+      file: base64,
+      filename: file.name,
+      mimeType: file.type
+    })
+
+    if (result.success) {
+      uploadedImages.value.push({
+        tempId: result.tempId,
+        filename: file.name,
+        preview: preview,
+        size: file.size
+      })
+    } else {
+      URL.revokeObjectURL(preview)
+      showNotification('图片上传失败: ' + result.error, 'error')
+    }
+  } catch (error: any) {
+    console.error('上传图片失败:', error)
+    showNotification('图片上传失败: ' + (error?.message || String(error)), 'error')
+  }
+}
+
+async function removeImage(tempId: string) {
+  try {
+    // 从列表中移除
+    const imageIndex = uploadedImages.value.findIndex(img => img.tempId === tempId)
+    if (imageIndex !== -1) {
+      const image = uploadedImages.value[imageIndex]
+      // 释放预览URL
+      URL.revokeObjectURL(image.preview)
+      uploadedImages.value.splice(imageIndex, 1)
+    }
+
+    // 调用后端API删除临时文件
+    await (send as any)('delete-temp-image', { tempId })
+  } catch (error: any) {
+    console.error('删除图片失败:', error)
+  }
+}
+
+function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(reader.result as string)
+    reader.onerror = reject
+    reader.readAsDataURL(file)
+  })
+}
+
+// 点击外部关闭菜单
+function handleClickOutside(event: Event) {
+  const target = event.target as HTMLElement
+  if (!target.closest('.input-actions')) {
+    showActionMenu.value = false
+  }
+  if (!target.closest('.context-menu')) {
+    hideContextMenu()
   }
 }
 
@@ -1128,7 +1545,7 @@ function checkScrollPosition() {
     const { scrollTop, scrollHeight, clientHeight } = messageHistory.value
     const distanceFromBottom = scrollHeight - (scrollTop + clientHeight)
     const isAtBottom = distanceFromBottom <= 50
-    
+
     const shouldShowButton = !isAtBottom
 
     showScrollButton.value = shouldShowButton
@@ -1655,9 +2072,15 @@ async function getCachedImageUrl(channelKey: string, originalUrl: string): Promi
   const cacheItem = await getImageFromDB(originalUrl)
   if (!cacheItem) return null
 
+  // 检查内存使用情况
+  checkAndCleanupMemory()
+
   // 创建blob URL并缓存到内存
   const blobUrl = URL.createObjectURL(cacheItem.blob)
   imageBlobUrls.value[originalUrl] = blobUrl
+
+  // 更新内存使用量
+  updateMemoryUsage(estimateBlobSize(cacheItem.blob))
 
   // 更新访问时间
   cacheItem.timestamp = Date.now()
@@ -1729,9 +2152,16 @@ async function cacheImage(channelKey: string, originalUrl: string): Promise<stri
       return null
     }
 
+    // 检查内存使用情况
+    checkAndCleanupMemory()
+
     // 创建blob URL并缓存到内存
     const blobUrl = URL.createObjectURL(blob)
     imageBlobUrls.value[originalUrl] = blobUrl
+
+    // 更新内存使用量
+    updateMemoryUsage(estimateBlobSize(blob))
+
     return blobUrl
 
   } catch (error) {
@@ -1746,6 +2176,7 @@ async function clearChannelImageCache(channelKey: string) {
     // 获取频道的所有图片
     const channelImages = await getChannelImagesFromDB(channelKey)
 
+    let freedMemory = 0
     // 删除IndexedDB中的数据
     for (const item of channelImages) {
       await deleteImageFromDB(item.url)
@@ -1753,10 +2184,29 @@ async function clearChannelImageCache(channelKey: string) {
       if (imageBlobUrls.value[item.url]) {
         URL.revokeObjectURL(imageBlobUrls.value[item.url])
         delete imageBlobUrls.value[item.url]
+        freedMemory += item.size || 0
       }
+    }
+
+    // 更新内存使用量
+    if (freedMemory > 0) {
+      updateMemoryUsage(-freedMemory)
     }
   } catch (error) {
     console.error('清理频道图片缓存失败:', error)
+  }
+}
+
+// 获取内存使用统计
+function getMemoryStats() {
+  const blobCount = Object.keys(imageBlobUrls.value).length
+  return {
+    blobCount,
+    estimatedMemoryUsage: currentMemoryUsage,
+    maxMemoryLimit: MAX_MEMORY_USAGE,
+    maxBlobLimit: MAX_BLOB_COUNT,
+    memoryUsagePercent: (currentMemoryUsage / MAX_MEMORY_USAGE * 100).toFixed(1),
+    blobUsagePercent: (blobCount / MAX_BLOB_COUNT * 100).toFixed(1)
   }
 }
 
@@ -1919,7 +2369,7 @@ function handleMessageEvent(messageEvent: any) {
   chatData.value = { ...chatData.value }
 }
 
-// 处理机器人发送消息成功事件
+// 处理机器人发送消息成功事件（通过前端发送消息API触发）
 function handleBotMessageSentEvent(sentEvent: any) {
   const channelKey = `${sentEvent.selfId}:${sentEvent.channelId}`
   if (!chatData.value.messages[channelKey]) {
@@ -1986,6 +2436,132 @@ function handleBotMessageSentEvent(sentEvent: any) {
   chatData.value = { ...chatData.value }
 }
 
+// 处理机器人消息事件（通过before-send事件监听触发）
+function handleBotMessageEvent(botMessageEvent: any) {
+  // 更新机器人信息
+  if (!chatData.value.bots[botMessageEvent.selfId]) {
+    chatData.value.bots[botMessageEvent.selfId] = {
+      selfId: botMessageEvent.selfId,
+      platform: botMessageEvent.platform,
+      username: botMessageEvent.bot?.name || `Bot-${botMessageEvent.selfId}`,
+      avatar: botMessageEvent.bot?.avatar,
+      status: 'online'
+    }
+  } else {
+    // 更新机器人状态和信息
+    const existingBot = chatData.value.bots[botMessageEvent.selfId]
+    existingBot.status = 'online'
+    if (botMessageEvent.bot?.name && existingBot.username !== botMessageEvent.bot.name) {
+      existingBot.username = botMessageEvent.bot.name
+    }
+    if (botMessageEvent.bot?.avatar && existingBot.avatar !== botMessageEvent.bot.avatar) {
+      existingBot.avatar = botMessageEvent.bot.avatar
+    }
+  }
+
+  // 更新频道信息
+  if (!chatData.value.channels[botMessageEvent.selfId]) {
+    chatData.value.channels[botMessageEvent.selfId] = {}
+  }
+
+  if (botMessageEvent.channelId && !chatData.value.channels[botMessageEvent.selfId][botMessageEvent.channelId]) {
+    const channelName = botMessageEvent.guildId
+      ? `${botMessageEvent.guildName || botMessageEvent.guildId} (${botMessageEvent.channelId})`
+      : `私信 ${botMessageEvent.channelId}`
+
+    chatData.value.channels[botMessageEvent.selfId][botMessageEvent.channelId] = {
+      id: botMessageEvent.channelId,
+      name: channelName,
+      type: botMessageEvent.channelType || 0,
+      guildId: botMessageEvent.guildId,
+      guildName: botMessageEvent.guildName || botMessageEvent.guildId || '私聊'
+    }
+  }
+
+  // 添加机器人消息
+  if (botMessageEvent.messageId && botMessageEvent.content && botMessageEvent.channelId) {
+    const channelKey = `${botMessageEvent.selfId}:${botMessageEvent.channelId}`
+    if (!chatData.value.messages[channelKey]) {
+      chatData.value.messages[channelKey] = []
+    }
+
+    // 检查消息是否已存在
+    const exists = chatData.value.messages[channelKey].find(m => m.id === botMessageEvent.messageId)
+    if (!exists) {
+      const message: MessageInfo = {
+        id: botMessageEvent.messageId,
+        content: botMessageEvent.content,
+        userId: botMessageEvent.userId,
+        username: botMessageEvent.username,
+        avatar: botMessageEvent.avatar,
+        timestamp: botMessageEvent.timestamp,
+        channelId: botMessageEvent.channelId,
+        selfId: botMessageEvent.selfId,
+        elements: botMessageEvent.elements,
+        isBot: true, // 标记为机器人消息
+        quote: botMessageEvent.quote
+      }
+
+      // 按时间戳排序插入消息
+      const messages = chatData.value.messages[channelKey]
+      let insertIndex = messages.length
+
+      // 找到正确的插入位置（按时间戳排序）
+      for (let i = messages.length - 1; i >= 0; i--) {
+        if (messages[i].timestamp <= botMessageEvent.timestamp) {
+          insertIndex = i + 1
+          break
+        }
+        if (i === 0) {
+          insertIndex = 0
+        }
+      }
+
+      messages.splice(insertIndex, 0, message)
+
+      // 保持消息数量限制
+      if (messages.length > 100) {
+        chatData.value.messages[channelKey] = messages.slice(-100)
+      }
+
+      // 更新频道消息数量缓存
+      channelMessageCounts.value[channelKey] = messages.length
+
+      // 在添加新消息前检查用户是否在底部附近
+      const wasNearBottom = isNearBottom()
+
+      // 智能滚动：基于添加消息前的位置状态来决定是否滚动
+      nextTick(() => {
+        // 再次等待，确保新消息的DOM已经渲染
+        setTimeout(() => {
+          if (wasNearBottom) {
+            scrollToBottom()
+          }
+        }, 10)
+      })
+    }
+  }
+
+  // 异步预缓存消息中的图片
+  if (botMessageEvent.elements && botMessageEvent.elements.length > 0) {
+    const channelKey = `${botMessageEvent.selfId}:${botMessageEvent.channelId}`
+    botMessageEvent.elements.forEach((element: any) => {
+      if ((element.type === 'img' || element.type === 'image' || element.type === 'mface') && element.attrs) {
+        const imageUrl = element.attrs.src || element.attrs.url || element.attrs.file
+        if (imageUrl) {
+          // 异步缓存，不阻塞消息显示
+          cacheImage(channelKey, imageUrl).catch(error => {
+            console.warn('预缓存图片失败:', imageUrl, error)
+          })
+        }
+      }
+    })
+  }
+
+  // 触发响应式更新
+  chatData.value = { ...chatData.value }
+}
+
 // 监听消息变化，只在切换频道时自动滚动到底部
 watch(currentMessages, (newMessages, oldMessages) => {
   // 只有在切换频道时（消息数组完全不同）才自动滚动
@@ -2027,10 +2603,8 @@ async function loadChatData() {
         // 按时间戳排序
         convertedChannelMessages.sort((a, b) => a.timestamp - b.timestamp)
 
-        // 转换channelKey格式：从 "selfId-channelId" 到 "selfId:channelId"
-        const [selfId, channelId] = channelKey.split('-')
-        const frontendChannelKey = `${selfId}:${channelId}`
-        convertedMessages[frontendChannelKey] = convertedChannelMessages
+        // 现在后端已经使用冒号格式，直接使用即可
+        convertedMessages[channelKey] = convertedChannelMessages
       }
 
       // 更新聊天数据
@@ -2063,9 +2637,8 @@ async function loadAllChannelMessageCounts() {
       // 转换格式：从 "selfId-channelId" 到 "selfId:channelId"
       const convertedCounts: Record<string, number> = {}
       for (const [channelKey, count] of Object.entries(result.counts)) {
-        const [selfId, channelId] = channelKey.split('-')
-        const frontendChannelKey = `${selfId}:${channelId}`
-        convertedCounts[frontendChannelKey] = count as number
+        // 现在后端已经使用冒号格式，直接使用即可
+        convertedCounts[channelKey] = count as number
       }
 
       channelMessageCounts.value = convertedCounts
@@ -2177,8 +2750,8 @@ function handleTouchMove(event: TouchEvent) {
       isSwipeActive.value = true
 
       // 显示滑动指示器
-      const swipeDistance = Math.min(deltaX, 150)
-      const threshold = 100
+      const swipeDistance = Math.min(deltaX, 200)
+      const threshold = 150 // 增加阈值，减少误触
 
       if (swipeDistance > threshold) {
         swipeIndicator.value = { show: true, text: '松开返回' }
@@ -2207,9 +2780,9 @@ function handleTouchEnd(event: TouchEvent) {
     const deltaY = touchCurrent.value.y - touchStart.value.y
 
     // 检查是否满足返回条件 (水平滑动)
-    const isRightSwipe = deltaX > 100 // 滑动距离超过100px
+    const isRightSwipe = deltaX > 150 // 滑动距离超过150px，减少误触
     const isHorizontal = Math.abs(deltaX) > Math.abs(deltaY) // 水平滑动
-    const isFastHorizontalSwipe = duration < 300 && deltaX > 50 // 快速水平滑动
+    const isFastHorizontalSwipe = duration < 300 && deltaX > 80 // 快速水平滑动，也增加阈值
 
     if ((isRightSwipe && isHorizontal) || isFastHorizontalSwipe) {
       performSwipeBack()
@@ -2250,6 +2823,9 @@ onMounted(async () => {
   checkMobile()
   window.addEventListener('resize', checkMobile)
 
+  // 添加点击外部关闭菜单的监听器
+  document.addEventListener('click', handleClickOutside)
+
   // 初始化IndexedDB
   const dbInitialized = await initImageDB()
   if (!dbInitialized) {
@@ -2265,6 +2841,7 @@ onMounted(async () => {
   // 然后开始监听消息事件
   const dispose1 = receive('chat-message-event', handleMessageEvent) as (() => void) | undefined
   const dispose2 = receive('bot-message-sent-event', handleBotMessageSentEvent) as (() => void) | undefined
+  const dispose3 = receive('chat-bot-message-event', handleBotMessageEvent) as (() => void) | undefined
 
   // 添加滚动监听
   watch(selectedChannel, (newChannelId) => {
@@ -2283,15 +2860,24 @@ onMounted(async () => {
     }
   }, { immediate: true }); // immediate: true 确保在组件挂载时也执行一次
 
+  // 定期检查和清理内存（每2分钟）
+  setInterval(() => {
+    checkAndCleanupMemory()
+  }, 2 * 60 * 1000)
+
   // 在组件卸载时清理监听器
   onUnmounted(() => {
     window.removeEventListener('resize', checkMobile)
+    document.removeEventListener('click', handleClickOutside)
 
     if (dispose1 && typeof dispose1 === 'function') {
       dispose1()
     }
     if (dispose2 && typeof dispose2 === 'function') {
       dispose2()
+    }
+    if (dispose3 && typeof dispose3 === 'function') {
+      dispose3()
     }
 
     // 确保在卸载时移除监听器
