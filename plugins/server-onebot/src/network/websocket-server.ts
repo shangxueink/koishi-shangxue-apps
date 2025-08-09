@@ -9,6 +9,7 @@ const kClient = Symbol('client')
 export class WebSocketServer {
     private actionRouter: ActionRouter
     private route: any
+    private recentRequests: Map<string, number> = new Map() // 存储最近的请求，用于去重
 
     constructor(
         private ctx: Context,
@@ -16,6 +17,16 @@ export class WebSocketServer {
     ) {
         this.actionRouter = new ActionRouter(ctx, { selfId: this.config.selfId || '114514' })
         this.setupWebSocketServer()
+
+        // 定期清理过期的请求记录
+        setInterval(() => {
+            const now = Date.now()
+            for (const [key, timestamp] of this.recentRequests.entries()) {
+                if (now - timestamp > 5000) { // 5秒后清理
+                    this.recentRequests.delete(key)
+                }
+            }
+        }, 10000) // 每10秒清理一次
     }
 
     private setupWebSocketServer() {
@@ -47,6 +58,7 @@ export class WebSocketServer {
             }
 
             client.authorized = true
+            client.selfId = selfId
 
             // 获取客户端地址信息
             const clientAddress = socket.remoteAddress || 'unknown'
@@ -105,6 +117,26 @@ export class WebSocketServer {
             return socket.close(4000, 'invalid message')
         }
 
+        // 请求去重检查
+        const requestKey = `${request.action}-${JSON.stringify(request.params)}-${request.echo || 'no-echo'}`
+        const now = Date.now()
+        const lastRequestTime = this.recentRequests.get(requestKey)
+
+        if (lastRequestTime && (now - lastRequestTime) < 1000) { // 1秒内的重复请求
+            logInfo('[onebot:duplicate-request] Ignoring duplicate request: %s', request.action)
+            return
+        }
+
+        this.recentRequests.set(requestKey, now)
+
+        // 更新客户端状态，记录最后的消息ID（如果是发送消息的请求）
+        if (request.action.includes('send_') && request.params) {
+            // 从参数中提取可能的消息ID信息，用于后续的被动消息发送
+            if (request.params.message_id) {
+                client.lastMessageId = request.params.message_id.toString()
+            }
+        }
+
         // 详细的请求日志
         logInfo('[onebot:api-request] Action: %s, Params: %o, Echo: %s',
             request.action, request.params, request.echo || 'none')
@@ -122,7 +154,12 @@ export class WebSocketServer {
                 request.action, response.status, duration, request.echo || 'none')
 
             if (response.status === 'ok') {
-                logInfo('[onebot:api-success] Action: %s, Data: %o', request.action, response.data)
+                // 对于返回大量数据的请求，简化日志输出
+                if (request.action.includes('_list') && Array.isArray(response.data)) {
+                    logInfo('[onebot:api-success] Action: %s, Data count: %d', request.action, response.data.length)
+                } else {
+                    logInfo('[onebot:api-success] Action: %s, Data: %o', request.action, response.data)
+                }
             } else {
                 logInfo('[onebot:api-failed] Action: %s, Error: %s, Retcode: %d',
                     request.action, response.message, response.retcode)

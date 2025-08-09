@@ -11,6 +11,7 @@ export class WebSocketClient {
     private isConnecting = false
     private isStopped = false
     private reconnectAttempts = 0
+    private recentRequests: Map<string, number> = new Map() // 存储最近的请求，用于去重
 
     constructor(
         private ctx: Context,
@@ -24,6 +25,16 @@ export class WebSocketClient {
         }
     ) {
         this.actionRouter = new ActionRouter(ctx, { selfId: this.config.selfId })
+
+        // 定期清理过期的请求记录
+        setInterval(() => {
+            const now = Date.now()
+            for (const [key, timestamp] of this.recentRequests.entries()) {
+                if (now - timestamp > 5000) { // 5秒后清理
+                    this.recentRequests.delete(key)
+                }
+            }
+        }, 10000) // 每10秒清理一次
     }
 
     /**
@@ -185,15 +196,46 @@ export class WebSocketClient {
             return
         }
 
+        // 请求去重检查
+        const requestKey = `${request.action}-${JSON.stringify(request.params)}-${request.echo || 'no-echo'}`
+        const now = Date.now()
+        const lastRequestTime = this.recentRequests.get(requestKey)
+
+        if (lastRequestTime && (now - lastRequestTime) < 1000) { // 1秒内的重复请求
+            logInfo('[onebot:duplicate-request] Ignoring duplicate request: %s', request.action)
+            return
+        }
+
+        this.recentRequests.set(requestKey, now)
+
         logInfo('[onebot:reverse-request] %o', request)
 
         try {
-            const clientState: ClientState = { authorized: true }
+            const clientState: ClientState = {
+                authorized: true,
+                selfId: this.config.selfId
+            }
+
+            // 更新客户端状态，记录最后的消息ID（如果是发送消息的请求）
+            if (request.action.includes('send_') && request.params) {
+                // 从参数中提取可能的消息ID信息，用于后续的被动消息发送
+                if (request.params.message_id) {
+                    clientState.lastMessageId = request.params.message_id.toString()
+                }
+            }
+
             const response = await this.actionRouter.handle(request, clientState)
 
             if (this.socket?.readyState === WebSocket.OPEN) {
                 this.socket.send(JSON.stringify(response))
-                logInfo('[onebot:reverse-response] %o', response)
+
+                // 对于返回大量数据的请求，简化日志输出
+                if (request.action.includes('_list') && response.status === 'ok' && Array.isArray(response.data)) {
+                    logInfo('[onebot:reverse-response] Action: %s, Status: %s, Data count: %d',
+                        request.action, response.status, response.data.length)
+                } else {
+                    logInfo('[onebot:reverse-response] %o', response)
+                }
             }
         } catch (error) {
             const response: OneBotActionResponse = {

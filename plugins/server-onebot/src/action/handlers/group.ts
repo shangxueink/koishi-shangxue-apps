@@ -1,7 +1,7 @@
 import { Context } from 'koishi'
 import { ActionHandler, ClientState, GroupInfo, UserInfo } from '../../types'
 import { BotFinder } from '../../bot-finder'
-import { loggerError } from '../../../src/index'
+import { loggerError, logInfo } from '../../../src/index'
 import { encodeStringId } from '../../utils'
 
 export function createGroupHandlers(ctx: Context, config?: { selfId: string }): Record<string, ActionHandler> {
@@ -137,13 +137,44 @@ export function createGroupHandlers(ctx: Context, config?: { selfId: string }): 
         get_group_list: async (params: {
             no_cache?: boolean
         }, clientState: ClientState) => {
-            const groups = await getGroupListLogic(params, clientState)
-            return groups.map(group => ({
-                group_id: group.id,
-                group_name: group.name,
-                member_count: group.member_count || 0,
-                max_member_count: group.max_member_count || 0,
-            } as GroupInfo))
+            try {
+                // 直接从数据库查询 channel 表，避免依赖 bot
+                if (!ctx.database || typeof ctx.database.get !== 'function') {
+                    return []
+                }
+
+                // 查询 channel 表获取所有群组/频道信息
+                const channels = await ctx.database.get('channel', {})
+
+                // 去重 guildId，因为一个群可能有多个频道
+                const uniqueGuildIds = new Set<string>()
+                const groups: GroupInfo[] = []
+
+                for (const channel of channels) {
+                    const guildId = channel.guildId || channel.id
+
+                    // 跳过已处理的 guildId
+                    if (uniqueGuildIds.has(guildId)) {
+                        continue
+                    }
+                    uniqueGuildIds.add(guildId)
+
+                    const encodedId = encodeStringId(guildId)
+
+                    groups.push({
+                        group_id: encodedId,
+                        group_name: 'koishi-server-onebot', // 固定名称
+                        member_count: 0,
+                        max_member_count: 0,
+                    } as GroupInfo)
+                }
+
+                logInfo('Retrieved %d groups from database for get_group_list', groups.length)
+                return groups
+            } catch (error) {
+                loggerError('Failed to get group list: %s', error.message)
+                return []
+            }
         },
 
         // 获取频道信息 // get_group_info  这三个不一样吗
@@ -162,22 +193,84 @@ export function createGroupHandlers(ctx: Context, config?: { selfId: string }): 
         get_guild_channel_list: async (params: {
             no_cache?: boolean
         }, clientState: ClientState) => {
-            const groups = await getGroupListLogic(params, clientState)
-            return groups.map(group => ({
-                guild_id: group.id,
-                guild_name: group.name,
-            }))
+            try {
+                // 直接从数据库查询 channel 表，避免依赖 bot
+                if (!ctx.database || typeof ctx.database.get !== 'function') {
+                    return []
+                }
+
+                // 查询 channel 表获取所有群组/频道信息
+                const channels = await ctx.database.get('channel', {})
+
+                // 去重 guildId，因为一个群可能有多个频道
+                const uniqueGuildIds = new Set<string>()
+                const guilds: Array<{ guild_id: string | number, guild_name: string }> = []
+
+                for (const channel of channels) {
+                    const guildId = channel.guildId || channel.id
+
+                    // 跳过已处理的 guildId
+                    if (uniqueGuildIds.has(guildId)) {
+                        continue
+                    }
+                    uniqueGuildIds.add(guildId)
+
+                    const encodedId = encodeStringId(guildId)
+
+                    guilds.push({
+                        guild_id: encodedId,
+                        guild_name: 'koishi-server-onebot', // 固定名称
+                    })
+                }
+
+                logInfo('Retrieved %d guilds from database for get_guild_channel_list', guilds.length)
+                return guilds
+            } catch (error) {
+                loggerError('Failed to get guild channel list: %s', error.message)
+                return []
+            }
         },
 
         // 获取频道列表 // get_group_list 
         get_guild_list: async (params: {
             no_cache?: boolean
         }, clientState: ClientState) => {
-            const groups = await getGroupListLogic(params, clientState)
-            return groups.map(group => ({
-                guild_id: group.id,
-                guild_name: group.name,
-            }))
+            try {
+                // 直接从数据库查询 channel 表，避免依赖 bot
+                if (!ctx.database || typeof ctx.database.get !== 'function') {
+                    return []
+                }
+
+                // 查询 channel 表获取所有群组/频道信息
+                const channels = await ctx.database.get('channel', {})
+
+                // 去重 guildId，因为一个群可能有多个频道
+                const uniqueGuildIds = new Set<string>()
+                const guilds: Array<{ guild_id: string | number, guild_name: string }> = []
+
+                for (const channel of channels) {
+                    const guildId = channel.guildId || channel.id
+
+                    // 跳过已处理的 guildId
+                    if (uniqueGuildIds.has(guildId)) {
+                        continue
+                    }
+                    uniqueGuildIds.add(guildId)
+
+                    const encodedId = encodeStringId(guildId)
+
+                    guilds.push({
+                        guild_id: encodedId,
+                        guild_name: 'koishi-server-onebot', // 固定名称
+                    })
+                }
+
+                logInfo('Retrieved %d guilds from database for get_guild_list', guilds.length)
+                return guilds
+            } catch (error) {
+                loggerError('Failed to get guild list: %s', error.message)
+                return []
+            }
         },
 
         // 获取群成员信息
@@ -238,6 +331,8 @@ export function createGroupHandlers(ctx: Context, config?: { selfId: string }): 
             group_id: string | number
             no_cache?: boolean
         }, clientState: ClientState) => {
+            logInfo('Decoded group_id %s to %s', params.group_id, params.group_id.toString())
+
             const bot = await botFinder.findBot(params, clientState)
             if (!bot) {
                 throw new Error('Bot not found')
@@ -245,7 +340,7 @@ export function createGroupHandlers(ctx: Context, config?: { selfId: string }): 
 
             try {
                 const members = await bot.getGuildMemberList(params.group_id.toString())
-                return (members.data || []).map(member => ({
+                const memberList = (members.data || []).map(member => ({
                     user_id: parseInt(member.user?.id) || member.user?.id,
                     nickname: member.user?.name || '',
                     card: member.nick || '',
@@ -262,8 +357,11 @@ export function createGroupHandlers(ctx: Context, config?: { selfId: string }): 
                     card_changeable: true,
                     shut_up_timestamp: 0,
                 } as UserInfo))
+
+                logInfo('Retrieved %d members for group %s', memberList.length, params.group_id)
+                return memberList
             } catch (error) {
-                // loggerError('Failed to get member list for %s: %s', params.group_id, error.message)
+                loggerError('Failed to get member list for %s: %s', params.group_id, error.message)
                 return []
             }
         },

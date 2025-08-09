@@ -1,6 +1,7 @@
 
 import { OneBotMessage, OneBotNoticeEvent, OneBotRequestEvent, CQCode } from './types'
 import { h, Session } from 'koishi'
+import { logInfo, loggerError, loggerInfo } from './index'
 
 /**
  * 生成唯一 ID
@@ -420,6 +421,282 @@ export function createHeartbeatEvent(selfId: string, platform: string, interval:
  */
 export { decodeStringId, encodeStringId }
 
+/**
+ * 使用 session 发送消息的智能函数
+ * 优先使用 session.send（被动消息），失败时回退到主动消息发送
+ */
+export async function sendWithSession(
+    ctx: any,
+    targetChannelId: string,
+    targetUserId: string | null,
+    elements: any[],
+    isPrivate: boolean = false,
+    selfId?: string
+): Promise<string | string[]> {
+    logInfo("=== sendWithSession called ===")
+    logInfo(`targetChannelId: ${targetChannelId}`)
+    logInfo(`targetUserId: ${targetUserId}`)
+    logInfo(`isPrivate: ${isPrivate}`)
+    logInfo(`selfId: ${selfId}`)
+    logInfo("===============================")
+
+    // 存储最近的 session，用于被动消息发送
+    const recentSessions = getRecentSessions()
+
+    // 查找匹配的 session（1分钟内的消息）
+    const matchingSession = findMatchingSession(recentSessions, targetChannelId, targetUserId, isPrivate)
+
+    if (matchingSession) {
+        try {
+            // 检查 session 是否还在有效期内
+            const sessionAge = Date.now() - matchingSession.timestamp
+            const maxAge = matchingSession.platform === 'qq' ? 5 * 60 * 1000 - 2000 : 60000 // QQ: 5分钟-2秒, 其他: 1分钟
+
+            if (sessionAge < maxAge) {
+                // 尝试使用 session.send 发送被动消息
+                const result = await matchingSession.session.send(elements)
+                if (result && (Array.isArray(result) ? result.length > 0 : true)) {
+                    logInfo('Successfully sent message using session.send (passive message)')
+                    return result
+                }
+            } else {
+                logInfo(`Session expired (age: ${sessionAge}ms, max: ${maxAge}ms), falling back to active message`)
+            }
+        } catch (error) {
+            // session.send 失败，继续尝试主动发送
+            loggerError('Session.send failed, falling back to active message sending:', error.message)
+        }
+
+        // 如果被动消息发送失败，使用匹配 session 的 selfId 进行主动发送
+        if (!selfId) {
+            selfId = matchingSession.selfId
+            logInfo(`Using selfId from matching session: ${selfId}`)
+        }
+    } else {
+        logInfo('No matching session found, using active message sending')
+    }
+
+    // 回退到主动消息发送
+    return await sendActiveMessage(ctx, targetChannelId, targetUserId, elements, isPrivate, selfId)
+}
+
+/**
+ * 主动发送消息
+ */
+async function sendActiveMessage(
+    ctx: any,
+    targetChannelId: string,
+    targetUserId: string | null,
+    elements: any[],
+    isPrivate: boolean,
+    selfId?: string
+): Promise<string | string[]> {
+    logInfo("=== sendActiveMessage called ===")
+    logInfo(`selfId: ${selfId}`)
+    logInfo(`Available bots: ${Object.values(ctx.bots).map((b: any) => `${b.selfId}(${b.platform})`).join(', ')}`)
+
+    let targetBot = null
+
+    // 如果提供了 selfId，优先使用对应的 bot
+    if (selfId) {
+        targetBot = Object.values(ctx.bots).find((b: any) => b.selfId === selfId || b.user?.id === selfId)
+        logInfo(`Found bot by selfId: ${targetBot ? `${targetBot.selfId}(${targetBot.platform})` : 'null'}`)
+        if (targetBot) {
+            logInfo(`Found specific bot by selfId: ${targetBot.selfId} (platform: ${targetBot.platform})`)
+        } else {
+            loggerError(`No bot found with selfId: ${selfId}, falling back to general selection`)
+        }
+    }
+
+    // 如果没有找到指定的 bot，使用通用选择策略
+    if (!targetBot) {
+        targetBot = await findBestAvailableBot(ctx.bots, isPrivate)
+    }
+
+    if (!targetBot) {
+        throw new Error(`No suitable bot found for sending message${selfId ? ` (requested selfId: ${selfId})` : ''}`)
+    }
+
+    logInfo(`Using bot: ${targetBot.selfId} (platform: ${targetBot.platform}) for ${isPrivate ? 'private' : 'group'} message`)
+    // 根据平台特性发送消息
+    if (isPrivate && targetUserId) {
+        return await sendPrivateMessageWithPlatformAdaptation(targetBot, targetUserId, elements)
+    } else {
+        return await sendGroupMessageWithPlatformAdaptation(targetBot, targetChannelId, elements)
+    }
+}
+
+/**
+ * 针对不同平台适配的私聊消息发送
+ */
+async function sendPrivateMessageWithPlatformAdaptation(
+    bot: any,
+    userId: string,
+    elements: any[]
+): Promise<string | string[]> {
+    // QQ 官方平台特殊处理
+    if (bot.platform === 'qq') {
+        try {
+            // 对于 QQ 平台，优先使用 sendPrivateMessage
+            if (bot.sendPrivateMessage) {
+                return await bot.sendPrivateMessage(userId, elements)
+            }
+        } catch (error) {
+            // QQ 平台发送失败，记录错误但继续尝试其他方式
+            loggerError('QQ platform sendPrivateMessage failed:', error.message)
+            // 对于 QQ 平台，如果私聊发送失败，可能是因为缺少 msg_id
+            throw new Error(`QQ platform private messaging failed (may require msg_id from recent session): ${error.message}`)
+        }
+    }
+
+    // 通用发送方式，尝试多种频道 ID 格式
+    const channelFormats = [
+        `private:${userId}`,
+        userId,
+        `user:${userId}`,
+        `dm:${userId}`
+    ]
+
+    for (const channelId of channelFormats) {
+        try {
+            const result = await bot.sendMessage(channelId, elements)
+            if (result && (Array.isArray(result) ? result.length > 0 : true)) {
+                return result
+            }
+        } catch (error) {
+            // 继续尝试下一种格式
+            continue
+        }
+    }
+
+    throw new Error('Failed to send private message with all methods')
+}
+
+/**
+ * 针对不同平台适配的群消息发送
+ */
+async function sendGroupMessageWithPlatformAdaptation(
+    bot: any,
+    channelId: string,
+    elements: any[]
+): Promise<string | string[]> {
+    // QQ 官方平台特殊处理
+    if (bot.platform === 'qq') {
+        try {
+            // 对于 QQ 平台，直接使用 sendMessage，QQ 适配器内部会处理 msg_id
+            if (bot.sendMessage) {
+                return await bot.sendMessage(channelId, elements)
+            }
+        } catch (error) {
+            loggerError('QQ platform group message failed:', error.message)
+            // 对于 QQ 平台，如果直接发送失败，可能是因为缺少 msg_id
+            // 这种情况下应该抛出更明确的错误信息
+            throw new Error(`QQ platform active messaging failed (may require msg_id from recent session): ${error.message}`)
+        }
+    }
+
+    // 通用发送方式，尝试多种频道 ID 格式
+    const channelFormats = [
+        channelId,
+        `public:${channelId}`,
+        `group:${channelId}`,
+        `channel:${channelId}`,
+        `guild:${channelId}`
+    ]
+
+    for (const format of channelFormats) {
+        try {
+            const result = await bot.sendMessage(format, elements)
+            if (result && (Array.isArray(result) ? result.length > 0 : true)) {
+                return result
+            }
+        } catch (error) {
+            continue
+        }
+    }
+
+    throw new Error('Failed to send group message with all channel formats')
+}
+
+// 存储最近的 session 的全局变量
+const recentSessionsMap = new Map<string, {
+    session: any,
+    timestamp: number,
+    channelId: string,
+    userId: string | null,
+    isPrivate: boolean,
+    platform: string,
+    selfId: string
+}>()
+
+/**
+ * 存储最近的 session
+ */
+export function storeRecentSession(session: any) {
+    const key = `${session.platform}-${session.selfId}-${session.channelId || session.userId}`
+    const sessionData = {
+        session,
+        timestamp: Date.now(),
+        channelId: session.channelId,
+        userId: session.userId,
+        isPrivate: session.isDirect || false,
+        platform: session.platform,
+        selfId: session.selfId
+    }
+
+    recentSessionsMap.set(key, sessionData)
+
+    // 清理超过5分钟的 session（适应 QQ 平台的超时时间）
+    const fiveMinutesAgo = Date.now() - (5 * 60 * 1000)
+    for (const [k, v] of recentSessionsMap.entries()) {
+        if (v.timestamp < fiveMinutesAgo) {
+            recentSessionsMap.delete(k)
+        }
+    }
+}
+
+/**
+ * 获取最近的 sessions
+ */
+function getRecentSessions() {
+    const fiveMinutesAgo = Date.now() - (5 * 60 * 1000)
+    const recentSessions = []
+
+    for (const [key, sessionData] of recentSessionsMap.entries()) {
+        if (sessionData.timestamp >= fiveMinutesAgo) {
+            recentSessions.push(sessionData)
+        }
+    }
+
+    return recentSessions
+}
+
+/**
+ * 查找匹配的 session
+ */
+function findMatchingSession(
+    recentSessions: any[],
+    targetChannelId: string,
+    targetUserId: string | null,
+    isPrivate: boolean
+) {
+    for (const sessionData of recentSessions) {
+        if (isPrivate) {
+            // 私聊消息匹配
+            if (sessionData.isPrivate && sessionData.userId === targetUserId) {
+                return sessionData
+            }
+        } else {
+            // 群消息匹配
+            if (!sessionData.isPrivate && sessionData.channelId === targetChannelId) {
+                return sessionData
+            }
+        }
+    }
+
+    return null
+}
+
 export function createLifecycleEvent(selfId: string, platform: string, subType: 'enable' | 'disable' | 'connect'): any {
     return {
         post_type: 'meta_event',
@@ -486,4 +763,33 @@ export function cqCodeToOneBotMessage(cqCodes: CQCode[]): OneBotMessage[] {
         type: cq.type,
         data: cq.data
     }))
+}
+/**
+ 
+* 查找最佳可用的 bot（当没有指定 selfId 时使用）
+ */
+async function findBestAvailableBot(bots: any[], isPrivate: boolean): Promise<any | null> {
+    // 优先查找非 QQ 平台的 bot（因为 QQ 平台对主动消息有限制）
+    const nonQQBots = bots.filter((bot: any) => bot.platform !== 'qq')
+    const qqBots = bots.filter((bot: any) => bot.platform === 'qq')
+
+    // 先尝试非 QQ 平台的 bot
+    for (const bot of nonQQBots) {
+        if (isPrivate && (bot.sendPrivateMessage || bot.sendMessage)) {
+            return bot
+        } else if (!isPrivate && bot.sendMessage) {
+            return bot
+        }
+    }
+
+    // 如果没有找到非 QQ 平台的 bot，再尝试 QQ 平台的 bot
+    for (const bot of qqBots) {
+        if (isPrivate && (bot.sendPrivateMessage || bot.sendMessage)) {
+            return bot
+        } else if (!isPrivate && bot.sendMessage) {
+            return bot
+        }
+    }
+
+    return null
 }

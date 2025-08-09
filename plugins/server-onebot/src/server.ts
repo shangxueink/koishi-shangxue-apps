@@ -1,5 +1,5 @@
 
-import { sessionToOneBotEvent, createHeartbeatEvent, createLifecycleEvent } from './utils'
+import { sessionToOneBotEvent, createHeartbeatEvent, createLifecycleEvent, storeRecentSession } from './utils'
 import { logInfo, loggerError, loggerInfo } from './index'
 import { Context, Logger, Session } from 'koishi'
 import { WebSocketServer } from './network/websocket-server'
@@ -182,6 +182,9 @@ export class OneBotServer {
     private handleSessionEvent(session: Session) {
         // 不处理有【at别人的前缀】消息
         // if (session.stripped?.hasAt && !session.stripped?.atSelf) return
+
+        // 存储最近的 session，用于被动消息发送
+        storeRecentSession(session)
 
         const event = sessionToOneBotEvent(session, this.config.selfId)
         if (!event) {

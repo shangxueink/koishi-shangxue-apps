@@ -1,8 +1,72 @@
-import { oneBotMessageToElements, decodeStringId } from '../../utils'
+import { oneBotMessageToElements, decodeStringId, sendWithSession } from '../../utils'
 import { logInfo, loggerError, loggerInfo } from '../../../src/index'
 import { ActionHandler, ClientState } from '../../types'
 import { BotFinder } from '../../bot-finder'
 import { Context } from 'koishi'
+
+/**
+ * 统一的消息发送逻辑
+ */
+async function sendMessage(
+    ctx: Context,
+    params: {
+        message: string | any[]
+        user_id?: string | number
+        group_id?: string | number
+        message_type?: 'private' | 'group'
+    },
+    clientState: ClientState
+): Promise<{ message_id: string | string[] }> {
+    logInfo(`=== sendMessage called ===`)
+    logInfo(`clientState.selfId: ${clientState.selfId}`)
+    logInfo(`clientState.lastMessageId: ${clientState.lastMessageId}`)
+    logInfo(`params: ${JSON.stringify(params)}`)
+
+    const elements = oneBotMessageToElements(params.message)
+
+    // 确定消息类型和目标
+    let isPrivate = false
+    let targetChannelId: string
+    let targetUserId: string | null = null
+
+    if (params.group_id) {
+        // 群消息
+        isPrivate = false
+        targetChannelId = decodeStringId(params.group_id)
+        targetUserId = null
+    } else if (params.user_id) {
+        // 私聊消息
+        isPrivate = true
+        targetUserId = decodeStringId(params.user_id)
+        targetChannelId = `private:${targetUserId}`
+    } else if (params.message_type === 'private' && params.user_id) {
+        // 明确指定私聊类型
+        isPrivate = true
+        targetUserId = decodeStringId(params.user_id)
+        targetChannelId = `private:${targetUserId}`
+    } else if (params.message_type === 'group' && params.group_id) {
+        // 明确指定群聊类型
+        isPrivate = false
+        targetChannelId = decodeStringId(params.group_id)
+        targetUserId = null
+    } else {
+        throw new Error('Invalid parameters: must specify either user_id or group_id')
+    }
+
+    // 使用统一的发送逻辑
+    const result = await sendWithSession(
+        ctx,
+        targetChannelId,
+        targetUserId,
+        elements,
+        isPrivate,
+        clientState.selfId
+    )
+
+    return {
+        message_id: Array.isArray(result) ? result[0] : result
+    }
+}
 
 export function createMessageHandlers(ctx: Context, config?: { selfId: string }): Record<string, ActionHandler> {
     const botFinder = new BotFinder(ctx)
@@ -17,106 +81,7 @@ export function createMessageHandlers(ctx: Context, config?: { selfId: string })
             message: string | any[]
             auto_escape?: boolean
         }, clientState: ClientState) => {
-            const bot = await botFinder.findBot(params, clientState)
-            if (!bot) {
-                throw new Error('Bot not found')
-            }
-
-            const elements = oneBotMessageToElements(params.message)
-
-            if (params.group_id) {
-                // 发送群消息
-                // 解码数字ID为原始字符串ID
-                const originalGroupId = decodeStringId(params.group_id)
-
-                // 尝试多种频道 ID 格式发送消息
-                let result = await bot.sendMessage(originalGroupId, elements)
-
-                // 检查是否发送成功（非空数组）
-                if (!result || (Array.isArray(result) && result.length === 0)) {
-                    // 尝试添加 public: 前缀
-                    result = await bot.sendMessage(`public:${originalGroupId}`, elements)
-
-                    if (!result || (Array.isArray(result) && result.length === 0)) {
-                        // 尝试添加 group: 前缀
-                        result = await bot.sendMessage(`group:${originalGroupId}`, elements)
-
-                        if (!result || (Array.isArray(result) && result.length === 0)) {
-                            throw new Error('Failed to send message with all channel ID formats')
-                        }
-                    }
-                }
-
-                return {
-                    message_id: Array.isArray(result) ? result[0] : result
-                }
-            } else if (params.user_id) {
-                // 发送私聊消息
-                try {
-                    // 解码数字ID为原始字符串ID
-                    const originalUserId = decodeStringId(params.user_id)
-
-                    // 查找对应的私聊channel
-                    const privateChannelId = await botFinder.getPrivateChannelId(originalUserId)
-
-                    let result
-                    // 尝试多种发送方式
-                    try {
-                        if (privateChannelId) {
-                            result = await bot.sendMessage(privateChannelId, elements)
-                        } else {
-                            result = await bot.sendPrivateMessage(originalUserId, elements)
-                        }
-                    } catch (primaryError) {
-                        // 尝试其他方法
-                        try {
-                            result = await bot.sendMessage(`private:${originalUserId}`, elements)
-                        } catch (secondaryError) {
-                            result = await bot.sendPrivateMessage(originalUserId, elements)
-                        }
-                    }
-
-                    return {
-                        message_id: Array.isArray(result) ? result[0] : result
-                    }
-                } catch (error) {
-                    throw new Error(`Failed to send private message: ${error.message}`)
-                }
-            } else if (params.message_type === 'private' && params.user_id) {
-                // 明确指定私聊类型
-                const originalUserId = decodeStringId(params.user_id)
-                const result = await bot.sendPrivateMessage(originalUserId, elements)
-                return {
-                    message_id: Array.isArray(result) ? result[0] : result
-                }
-            } else if (params.message_type === 'group' && params.group_id) {
-                // 明确指定群聊类型
-                const originalGroupId = decodeStringId(params.group_id)
-
-                // 尝试多种频道 ID 格式发送消息
-                let result = await bot.sendMessage(originalGroupId, elements)
-
-                // 检查是否发送成功（非空数组）
-                if (!result || (Array.isArray(result) && result.length === 0)) {
-                    // 尝试添加 public: 前缀
-                    result = await bot.sendMessage(`public:${originalGroupId}`, elements)
-
-                    if (!result || (Array.isArray(result) && result.length === 0)) {
-                        // 尝试添加 group: 前缀
-                        result = await bot.sendMessage(`group:${originalGroupId}`, elements)
-
-                        if (!result || (Array.isArray(result) && result.length === 0)) {
-                            throw new Error('Failed to send message with all channel ID formats')
-                        }
-                    }
-                }
-
-                return {
-                    message_id: Array.isArray(result) ? result[0] : result
-                }
-            } else {
-                throw new Error('Invalid parameters: must specify either user_id or group_id')
-            }
+            return await sendMessage(ctx, params, clientState)
         },
 
         // 发送私聊消息
@@ -125,55 +90,7 @@ export function createMessageHandlers(ctx: Context, config?: { selfId: string })
             message: string | any[]
             auto_escape?: boolean
         }, clientState: ClientState) => {
-            const bot = await botFinder.findBot(params, clientState)
-            if (!bot) {
-                throw new Error('Bot not found')
-            }
-
-            try {
-                const elements = oneBotMessageToElements(params.message)
-
-                // 解码数字ID为原始字符串ID
-                const originalUserId = decodeStringId(params.user_id)
-                // 查找对应的私聊channel
-                const privateChannelId = await botFinder.getPrivateChannelId(originalUserId)
-                // 尝试多种发送方式
-                let result
-                try {
-                    if (privateChannelId) {
-                        result = await bot.sendMessage(privateChannelId, elements)
-                    } else {
-                        result = await bot.sendPrivateMessage(originalUserId, elements)
-                    }
-                } catch (primaryError) {
-                    // 尝试其他方法
-                    try {
-                        result = await bot.sendMessage(`private:${originalUserId}`, elements)
-                    } catch (secondaryError) {
-                        result = await bot.sendPrivateMessage(originalUserId, elements)
-                    }
-                }
-
-                return {
-                    message_id: Array.isArray(result) ? result[0] : result
-                }
-            } catch (error) {
-                const errorMessage = error.message || 'Unknown error occurred'
-                // 如果发送失败，尝试使用 sendPrivateMessage
-                try {
-                    const elements = oneBotMessageToElements(params.message)
-                    const originalUserId = decodeStringId(params.user_id)
-                    const result = await bot.sendPrivateMessage(originalUserId, elements)
-
-                    return {
-                        message_id: Array.isArray(result) ? result[0] : result
-                    }
-                } catch (fallbackError) {
-                    const fallbackErrorMessage = fallbackError.message || 'Unknown fallback error occurred'
-                    loggerError('Fallback private message also failed: %s', fallbackErrorMessage)
-                    throw new Error(`Failed to send private message: ${errorMessage}`)
-                }
-            }
+            return await sendMessage(ctx, { ...params, message_type: 'private' }, clientState)
         },
 
         // 发送群消息
@@ -182,55 +99,7 @@ export function createMessageHandlers(ctx: Context, config?: { selfId: string })
             message: string | any[]
             auto_escape?: boolean
         }, clientState: ClientState) => {
-            const bot = await botFinder.findBot(params, clientState)
-            if (!bot) {
-                throw new Error('Bot not found')
-            }
-
-            const elements = oneBotMessageToElements(params.message)
-            // 解码数字ID为原始字符串ID
-            const originalGroupId = decodeStringId(params.group_id)
-
-
-            // 尝试多种频道 ID 格式发送消息
-            let result
-
-            // 首先尝试原始 ID
-            result = await bot.sendMessage(originalGroupId, elements)
-
-            // 检查是否发送成功（非空数组）
-            if (!result || (Array.isArray(result) && result.length === 0)) {
-                // 如果失败，尝试添加 public: 前缀 //（适用于 iirose 等平台）
-                const publicChannelId = `public:${originalGroupId}`
-                result = await bot.sendMessage(publicChannelId, elements)
-
-                // 如果 public: 前缀也失败，尝试 group: 前缀
-                if (!result || (Array.isArray(result) && result.length === 0)) {
-                    const groupChannelId = `group:${originalGroupId}`
-                    result = await bot.sendMessage(groupChannelId, elements)
-
-                    // 如果所有格式都失败，抛出错误
-                    if (!result || (Array.isArray(result) && result.length === 0)) {
-                        throw new Error(`Failed to send message with all channel ID formats`)
-                    }
-                }
-            }
-
-            // 尝试不同的方式提取 message_id
-            let messageId
-            if (Array.isArray(result)) {
-                messageId = result[0]
-            } else if (result && typeof result === 'object') {
-                // 如果返回的是对象，尝试提取 id 或 messageId
-                const resultObj = result as any
-                messageId = resultObj.id || resultObj.messageId || resultObj.message_id || result
-            } else {
-                messageId = result
-            }
-
-            return {
-                message_id: messageId
-            }
+            return await sendMessage(ctx, { ...params, message_type: 'group' }, clientState)
         },
 
         // 撤回消息
@@ -285,37 +154,13 @@ export function createMessageHandlers(ctx: Context, config?: { selfId: string })
             group_id: string | number
             messages: any[]
         }, clientState: ClientState) => {
-            const bot = await botFinder.findBot(params, clientState)
-            if (!bot) {
-                throw new Error('Bot not found')
-            }
-
             // 这是一个简化实现，实际需要根据 OneBot 协议处理转发消息格式
-            const elements = oneBotMessageToElements(params.messages)
-            // 解码数字ID为原始字符串ID
-            const originalGroupId = decodeStringId(params.group_id)
-
-            // 尝试多种频道 ID 格式发送消息
-            let result = await bot.sendMessage(originalGroupId, elements)
-
-            // 检查是否发送成功（非空数组）
-            if (!result || (Array.isArray(result) && result.length === 0)) {
-                // 尝试添加 public: 前缀
-                result = await bot.sendMessage(`public:${originalGroupId}`, elements)
-
-                if (!result || (Array.isArray(result) && result.length === 0)) {
-                    // 尝试添加 group: 前缀
-                    result = await bot.sendMessage(`group:${originalGroupId}`, elements)
-
-                    if (!result || (Array.isArray(result) && result.length === 0)) {
-                        throw new Error('Failed to send message with all channel ID formats')
-                    }
-                }
-            }
-
-            return {
-                message_id: Array.isArray(result) ? result[0] : result
-            }
+            // TODO
+            return await sendMessage(ctx, {
+                group_id: params.group_id,
+                message: params.messages,
+                message_type: 'group'
+            }, clientState)
         },
 
         // 发送合并转发消息 (私聊)
@@ -323,19 +168,11 @@ export function createMessageHandlers(ctx: Context, config?: { selfId: string })
             user_id: string | number
             messages: any[]
         }, clientState: ClientState) => {
-            const bot = await botFinder.findBot(params, clientState)
-            if (!bot) {
-                throw new Error('Bot not found')
-            }
-
-            const elements = oneBotMessageToElements(params.messages)
-            // 解码数字ID为原始字符串ID
-            const originalUserId = decodeStringId(params.user_id)
-            const result = await bot.sendPrivateMessage(originalUserId, elements)
-
-            return {
-                message_id: Array.isArray(result) ? result[0] : result
-            }
+            return await sendMessage(ctx, {
+                user_id: params.user_id,
+                message: params.messages,
+                message_type: 'private'
+            }, clientState)
         },
 
         // 标记消息已读

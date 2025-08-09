@@ -87,6 +87,7 @@ export interface ClientState {
     platform?: string
     selfId?: string
     lastHeartbeat?: number
+    lastMessageId?: string
 }
 
 // 动作处理器类型
