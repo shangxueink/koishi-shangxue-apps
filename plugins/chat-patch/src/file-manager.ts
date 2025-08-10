@@ -3,11 +3,13 @@ import fs from 'node:fs'
 import { Context, Logger } from 'koishi'
 import { ChatData, MessageInfo } from './types'
 import { Config } from './config'
+import { Utils } from './utils'
 
 export class FileManager {
     private dataFilePath: string
     private fileOperationLock = Promise.resolve()
     private logger: Logger
+    private utils: Utils
 
     constructor(
         private ctx: Context,
@@ -15,6 +17,7 @@ export class FileManager {
     ) {
         this.dataFilePath = path.resolve(ctx.baseDir, 'data', 'chat-patch', 'chat-data.json')
         this.logger = ctx.logger('chat-patch')
+        this.utils = new Utils(config)
     }
 
     // 确保目录存在
@@ -119,8 +122,11 @@ export class FileManager {
                 messageInfo.timestamp = Date.now()
             }
 
+            // 清理消息中的base64内容
+            const cleanedMessageInfo = this.utils.cleanBase64Content(messageInfo) as MessageInfo
+
             const beforeCount = data.messages[channelKey].length
-            data.messages[channelKey].push(messageInfo)
+            data.messages[channelKey].push(cleanedMessageInfo)
             const afterCount = data.messages[channelKey].length
 
             // 限制消息数量 - 保留最新的消息

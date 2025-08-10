@@ -127,12 +127,12 @@ export class MessageHandler {
                 timestamp: timestamp,
                 channelId: session.channelId,
                 selfId: session.selfId,
-                elements: elements,
+                elements: this.utils.cleanBase64Content(elements),
                 type: 'user',
                 guildId: session.guildId,
                 guildName: guildName,
                 platform: session.platform || 'unknown',
-                quote: quoteInfo
+                quote: quoteInfo ? this.utils.cleanBase64Content(quoteInfo) : undefined
             }
 
             await this.fileManager.addMessageToFile(messageInfo)
@@ -151,8 +151,8 @@ export class MessageHandler {
                 guildId: session.guildId,
                 guildName: guildName,
                 channelType: session.type || 0,
-                elements: elements,
-                quote: quoteInfo,
+                elements: this.utils.cleanBase64Content(elements),
+                quote: quoteInfo ? this.utils.cleanBase64Content(quoteInfo) : undefined,
                 bot: {
                     avatar: session.bot.user?.avatar,
                     name: session.bot.user?.name,
@@ -189,7 +189,7 @@ export class MessageHandler {
                 timestamp: timestamp,
                 channelId: session.event?.channel?.id || session.channelId,
                 selfId: session.selfId,
-                elements: session.event?.message?.elements,
+                elements: this.utils.cleanBase64Content(session.event?.message?.elements),
                 type: 'bot',
                 guildId: session.event?.guild?.id || session.guildId,
                 guildName: guildName,
@@ -212,7 +212,7 @@ export class MessageHandler {
                 guildId: session.event?.guild?.id || session.guildId,
                 guildName: guildName,
                 channelType: session.event?.channel?.type || session.type || 0,
-                elements: session.event?.message?.elements,
+                elements: this.utils.cleanBase64Content(session.event?.message?.elements),
                 bot: {
                     avatar: session.bot.user?.avatar,
                     name: session.bot.user?.name,
