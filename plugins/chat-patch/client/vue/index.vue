@@ -222,7 +222,6 @@ function isFileUrl(url: string): boolean {
   }
 }
 
-
 // 头像组件
 const AvatarComponent = defineComponent({
   props: {
@@ -899,12 +898,34 @@ interface ImageCacheItem {
 
 // 内存中的URL缓存
 const imageBlobUrls = ref<Record<string, string>>({})
-const maxImagesPerChannel = 200 // 每个频道最大缓存图片数量
 
 // 内存管理配置
 const MAX_MEMORY_USAGE = 100 * 1024 * 1024 // 100MB 最大内存使用量
 const MAX_BLOB_COUNT = 50 // 最大blob URL数量
 let currentMemoryUsage = 0 // 当前内存使用量估算
+
+// IndexedDB 配置和限制
+let imageDB: IDBDatabase | null = null
+const DB_NAME = 'ChatImageCache'
+const DB_VERSION = 2 // 版本号
+const STORE_NAME = 'images'
+
+// 严格的存储限制
+const MAX_DB_SIZE = 50 * 1024 * 1024 // 50MB 最大数据库大小
+const MAX_IMAGES_PER_CHANNEL = 100 // 每个频道最多缓存100张图片
+const MAX_TOTAL_IMAGES = 500 // 总共最多缓存500张图片
+const MAX_IMAGE_SIZE = 2 * 1024 * 1024 // 单张图片最大2MB
+const CLEANUP_THRESHOLD = 0.8 // 当达到80%限制时开始清理
+const DB_HEALTH_CHECK_INTERVAL = 60 * 1000 // 每分钟检查一次数据库健康状态
+
+// 数据库状态跟踪
+let currentDbSize = 0
+let currentImageCount = 0
+let lastHealthCheck = 0
+
+const selectedBot = ref<string>('')
+const selectedChannel = ref<string>('')
+const inputMessage = ref<string>('')
 
 // 内存管理函数
 function estimateBlobSize(blob: Blob): number {
@@ -954,16 +975,6 @@ function checkAndCleanupMemory() {
   }
 }
 
-// IndexedDB
-let imageDB: IDBDatabase | null = null
-const DB_NAME = 'ChatImageCache'
-const DB_VERSION = 1
-const STORE_NAME = 'images'
-
-const selectedBot = ref<string>('')
-const selectedChannel = ref<string>('')
-const inputMessage = ref<string>('')
-
 // 图片上传相关状态
 const uploadedImages = ref<Array<{
   tempId: string
@@ -971,6 +982,7 @@ const uploadedImages = ref<Array<{
   preview: string
   size: number
 }>>([])
+
 const showActionMenu = ref<boolean>(false)
 const fileInput = ref<HTMLInputElement>()
 
@@ -1771,7 +1783,6 @@ function resetDragState() {
   removeThresholdCircle()
 }
 
-// getDragStyle 不再直接用于拖拽中的元素，而是用于原始元素隐藏
 function getDragStyle(channelId: string) {
   if (draggingChannel.value === channelId && isDragReady.value) {
     // 当拖拽开始且准备就绪时，隐藏原始气泡
@@ -1951,30 +1962,319 @@ function removeThresholdCircle() {
   }
 }
 
-// IndexedDB初始化
-async function initImageDB(): Promise<boolean> {
-  return new Promise((resolve, reject) => {
-    const request = indexedDB.open(DB_NAME, DB_VERSION)
+// 数据库健康检查
+async function checkDatabaseHealth(): Promise<boolean> {
+  try {
+    if (!imageDB) return false
 
-    request.onerror = () => {
-      console.error('IndexedDB初始化失败:', request.error)
-      resolve(false)
+    const now = Date.now()
+    if (now - lastHealthCheck < DB_HEALTH_CHECK_INTERVAL) {
+      return true // 跳过频繁检查
     }
+
+    lastHealthCheck = now
+
+    // 获取数据库统计信息
+    const stats = await getDatabaseStats()
+    currentDbSize = stats.totalSize
+    currentImageCount = stats.totalImages
+
+    console.log('数据库健康检查:', {
+      大小: `${(currentDbSize / 1024 / 1024).toFixed(2)}MB / ${(MAX_DB_SIZE / 1024 / 1024).toFixed(2)}MB`,
+      图片数量: `${currentImageCount} / ${MAX_TOTAL_IMAGES}`,
+      使用率: `${(currentDbSize / MAX_DB_SIZE * 100).toFixed(1)}%`
+    })
+
+    // 检查是否需要清理
+    const sizeRatio = currentDbSize / MAX_DB_SIZE
+    const countRatio = currentImageCount / MAX_TOTAL_IMAGES
+
+    if (sizeRatio > CLEANUP_THRESHOLD || countRatio > CLEANUP_THRESHOLD) {
+      console.warn('数据库使用率过高，开始自动清理')
+      await performAutomaticCleanup()
+    }
+
+    // 检查是否超过硬限制
+    if (sizeRatio > 0.95 || countRatio > 0.95) {
+      console.error('数据库接近极限，执行紧急清理')
+      await performEmergencyCleanup()
+    }
+
+    return true
+  } catch (error) {
+    console.error('数据库健康检查失败:', error)
+    return false
+  }
+}
+
+// 获取数据库统计信息
+async function getDatabaseStats(): Promise<{ totalSize: number, totalImages: number, channelStats: Record<string, number> }> {
+  if (!imageDB) return { totalSize: 0, totalImages: 0, channelStats: {} }
+
+  return new Promise((resolve) => {
+    const transaction = imageDB!.transaction([STORE_NAME], 'readonly')
+    const store = transaction.objectStore(STORE_NAME)
+    const request = store.getAll()
 
     request.onsuccess = () => {
-      imageDB = request.result
-      resolve(true)
+      const items: ImageCacheItem[] = request.result || []
+      let totalSize = 0
+      const channelStats: Record<string, number> = {}
+
+      items.forEach(item => {
+        totalSize += item.size || 0
+        channelStats[item.channelKey] = (channelStats[item.channelKey] || 0) + 1
+      })
+
+      resolve({
+        totalSize,
+        totalImages: items.length,
+        channelStats
+      })
     }
 
-    request.onupgradeneeded = (event) => {
-      const db = (event.target as IDBOpenDBRequest).result
+    request.onerror = () => {
+      console.error('获取数据库统计失败:', request.error)
+      resolve({ totalSize: 0, totalImages: 0, channelStats: {} })
+    }
+  })
+}
 
-      // 创建对象存储
-      if (!db.objectStoreNames.contains(STORE_NAME)) {
-        const store = db.createObjectStore(STORE_NAME, { keyPath: 'url' })
-        store.createIndex('channelKey', 'channelKey', { unique: false })
-        store.createIndex('timestamp', 'timestamp', { unique: false })
+// 自动清理
+async function performAutomaticCleanup() {
+  try {
+    console.log('开始自动清理...')
+
+    // 获取所有图片，按时间排序
+    const allImages = await getAllImagesFromDB()
+    if (allImages.length === 0) return
+
+    // 按频道分组
+    const channelGroups: Record<string, ImageCacheItem[]> = {}
+    allImages.forEach(item => {
+      if (!channelGroups[item.channelKey]) {
+        channelGroups[item.channelKey] = []
       }
+      channelGroups[item.channelKey].push(item)
+    })
+
+    let cleanedCount = 0
+    let freedSize = 0
+
+    // 清理每个频道超出限制的图片
+    for (const [channelKey, images] of Object.entries(channelGroups)) {
+      if (images.length > MAX_IMAGES_PER_CHANNEL) {
+        // 按时间排序，删除最旧的
+        images.sort((a, b) => a.timestamp - b.timestamp)
+        const toDelete = images.slice(0, images.length - MAX_IMAGES_PER_CHANNEL)
+
+        for (const item of toDelete) {
+          await deleteImageFromDB(item.url)
+          cleanedCount++
+          freedSize += item.size || 0
+
+          // 清理内存中的blob URL
+          if (imageBlobUrls.value[item.url]) {
+            URL.revokeObjectURL(imageBlobUrls.value[item.url])
+            delete imageBlobUrls.value[item.url]
+          }
+        }
+      }
+    }
+
+    console.log(`自动清理完成: 清理了 ${cleanedCount} 张图片，释放了 ${(freedSize / 1024 / 1024).toFixed(2)}MB`)
+
+    // 更新统计
+    currentImageCount -= cleanedCount
+    currentDbSize -= freedSize
+
+  } catch (error) {
+    console.error('自动清理失败:', error)
+  }
+}
+
+// 紧急清理 // 激进
+async function performEmergencyCleanup() {
+  try {
+    console.log('开始紧急清理...')
+
+    // 获取所有图片
+    const allImages = await getAllImagesFromDB()
+    if (allImages.length === 0) return
+
+    // 按时间排序，只保留最新的一部分
+    allImages.sort((a, b) => b.timestamp - a.timestamp)
+    const keepCount = Math.floor(MAX_TOTAL_IMAGES * 0.3) // 只保留30%
+    const toDelete = allImages.slice(keepCount)
+
+    let cleanedCount = 0
+    let freedSize = 0
+
+    for (const item of toDelete) {
+      await deleteImageFromDB(item.url)
+      cleanedCount++
+      freedSize += item.size || 0
+
+      // 清理内存中的blob URL
+      if (imageBlobUrls.value[item.url]) {
+        URL.revokeObjectURL(imageBlobUrls.value[item.url])
+        delete imageBlobUrls.value[item.url]
+      }
+    }
+
+    console.log(`紧急清理完成: 清理了 ${cleanedCount} 张图片，释放了 ${(freedSize / 1024 / 1024).toFixed(2)}MB`)
+
+    // 更新统计
+    currentImageCount = keepCount
+    currentDbSize -= freedSize
+
+  } catch (error) {
+    console.error('紧急清理失败:', error)
+  }
+}
+
+// 获取所有图片
+async function getAllImagesFromDB(): Promise<ImageCacheItem[]> {
+  if (!imageDB) return []
+
+  return new Promise((resolve) => {
+    const transaction = imageDB!.transaction([STORE_NAME], 'readonly')
+    const store = transaction.objectStore(STORE_NAME)
+    const request = store.getAll()
+
+    request.onsuccess = () => {
+      resolve(request.result || [])
+    }
+
+    request.onerror = () => {
+      console.error('获取所有图片失败:', request.error)
+      resolve([])
+    }
+  })
+}
+
+// 清理所有IndexedDB数据 //紧急情况使用
+async function clearAllIndexedDBData(): Promise<boolean> {
+  return new Promise((resolve) => {
+    try {
+      // 先关闭现有连接
+      if (imageDB) {
+        imageDB.close()
+        imageDB = null
+      }
+
+      // 删除整个数据库
+      const deleteRequest = indexedDB.deleteDatabase(DB_NAME)
+
+      deleteRequest.onsuccess = () => {
+        console.log('IndexedDB数据库已完全清理')
+        currentDbSize = 0
+        currentImageCount = 0
+        resolve(true)
+      }
+
+      deleteRequest.onerror = () => {
+        console.error('清理IndexedDB数据库失败:', deleteRequest.error)
+        resolve(false)
+      }
+
+      deleteRequest.onblocked = () => {
+        console.warn('IndexedDB数据库删除被阻塞，可能有其他连接正在使用')
+        // 等待一段时间后重试
+        setTimeout(() => {
+          resolve(false)
+        }, 5000)
+      }
+    } catch (error) {
+      console.error('清理数据库时出错:', error)
+      resolve(false)
+    }
+  })
+}
+
+// IndexedDB初始化
+async function initImageDB(): Promise<boolean> {
+  try {
+    // 首先尝试打开数据库
+    const success = await openDatabase()
+    if (!success) {
+      console.warn('数据库打开失败，尝试清理后重新初始化')
+      await clearAllIndexedDBData()
+      return await openDatabase()
+    }
+
+    // 数据库打开成功，进行初始健康检查
+    setTimeout(async () => {
+      const stats = await getDatabaseStats()
+      console.log('数据库初始状态:', {
+        大小: `${(stats.totalSize / 1024 / 1024).toFixed(2)}MB`,
+        图片数量: stats.totalImages,
+        频道分布: stats.channelStats
+      })
+
+      // 如果初始状态就超过限制，执行清理
+      if (stats.totalSize > MAX_DB_SIZE * 0.9 || stats.totalImages > MAX_TOTAL_IMAGES * 0.9) {
+        console.warn('数据库初始状态接近限制，执行清理')
+        await performAutomaticCleanup()
+      }
+    }, 1000)
+
+    return true
+  } catch (error) {
+    console.error('IndexedDB初始化出错:', error)
+    return false
+  }
+}
+
+// 打开数据库的内部函数
+async function openDatabase(): Promise<boolean> {
+  return new Promise((resolve) => {
+    try {
+      const request = indexedDB.open(DB_NAME, DB_VERSION)
+
+      request.onerror = () => {
+        console.error('IndexedDB打开失败:', request.error)
+        resolve(false)
+      }
+
+      request.onsuccess = () => {
+        imageDB = request.result
+
+        // 添加错误处理
+        imageDB.onerror = (event) => {
+          console.error('IndexedDB运行时错误:', event)
+        }
+
+        // 添加版本变更处理
+        imageDB.onversionchange = () => {
+          console.warn('IndexedDB版本变更，关闭连接')
+          imageDB?.close()
+          imageDB = null
+        }
+
+        resolve(true)
+      }
+
+      request.onupgradeneeded = (event) => {
+        const db = (event.target as IDBOpenDBRequest).result
+
+        // 创建对象存储
+        if (!db.objectStoreNames.contains(STORE_NAME)) {
+          const store = db.createObjectStore(STORE_NAME, { keyPath: 'url' })
+          store.createIndex('channelKey', 'channelKey', { unique: false })
+          store.createIndex('timestamp', 'timestamp', { unique: false })
+          store.createIndex('size', 'size', { unique: false })
+          console.log('IndexedDB对象存储创建完成')
+        }
+      }
+
+      request.onblocked = () => {
+        console.warn('IndexedDB打开被阻塞')
+        resolve(false)
+      }
+    } catch (error) {
+      console.error('打开数据库时出错:', error)
+      resolve(false)
     }
   })
 }
@@ -2003,20 +2303,60 @@ async function getImageFromDB(url: string): Promise<ImageCacheItem | null> {
 async function saveImageToDB(item: ImageCacheItem): Promise<boolean> {
   if (!imageDB) return false
 
-  return new Promise((resolve) => {
-    const transaction = imageDB!.transaction([STORE_NAME], 'readwrite')
-    const store = transaction.objectStore(STORE_NAME)
-    const request = store.put(item)
-
-    request.onsuccess = () => {
-      resolve(true)
+  try {
+    // 检查单张图片大小
+    if (item.size > MAX_IMAGE_SIZE) {
+      console.warn(`图片过大，跳过缓存: ${(item.size / 1024 / 1024).toFixed(2)}MB > ${(MAX_IMAGE_SIZE / 1024 / 1024).toFixed(2)}MB`)
+      return false
     }
 
-    request.onerror = () => {
-      console.error('保存图片到IndexedDB失败:', request.error)
-      resolve(false)
+    // 执行健康检查
+    await checkDatabaseHealth()
+
+    // 检查是否会超过限制
+    if (currentDbSize + item.size > MAX_DB_SIZE) {
+      console.warn('添加图片会超过数据库大小限制，执行清理')
+      await performAutomaticCleanup()
+
+      // 清理后再次检查
+      if (currentDbSize + item.size > MAX_DB_SIZE) {
+        console.warn('清理后仍会超过限制，跳过此图片')
+        return false
+      }
     }
-  })
+
+    if (currentImageCount >= MAX_TOTAL_IMAGES) {
+      console.warn('图片数量已达上限，执行清理')
+      await performAutomaticCleanup()
+
+      // 清理后再次检查
+      if (currentImageCount >= MAX_TOTAL_IMAGES) {
+        console.warn('清理后仍达上限，跳过此图片')
+        return false
+      }
+    }
+
+    return new Promise((resolve) => {
+      const transaction = imageDB!.transaction([STORE_NAME], 'readwrite')
+      const store = transaction.objectStore(STORE_NAME)
+      const request = store.put(item)
+
+      request.onsuccess = () => {
+        // 更新统计
+        currentDbSize += item.size
+        currentImageCount += 1
+        resolve(true)
+      }
+
+      request.onerror = () => {
+        console.error('保存图片到IndexedDB失败:', request.error)
+        resolve(false)
+      }
+    })
+  } catch (error) {
+    console.error('保存图片时出错:', error)
+    return false
+  }
 }
 
 // 从IndexedDB删除图片
@@ -2118,22 +2458,10 @@ async function cacheImage(channelKey: string, originalUrl: string): Promise<stri
     const byteArray = new Uint8Array(byteNumbers)
     const blob = new Blob([byteArray], { type: contentType })
 
-    // 检查频道缓存数量限制
-    const channelImages = await getChannelImagesFromDB(channelKey)
-
-    if (channelImages.length >= maxImagesPerChannel) {
-      // 清理最旧的图片缓存
-      const sortedImages = channelImages.sort((a, b) => a.timestamp - b.timestamp)
-      const toDelete = sortedImages.slice(0, channelImages.length - maxImagesPerChannel + 1)
-
-      for (const item of toDelete) {
-        await deleteImageFromDB(item.url)
-        // 清理内存中的blob URL
-        if (imageBlobUrls.value[item.url]) {
-          URL.revokeObjectURL(imageBlobUrls.value[item.url])
-          delete imageBlobUrls.value[item.url]
-        }
-      }
+    // 检查blob大小
+    if (blob.size > MAX_IMAGE_SIZE) {
+      console.warn(`图片过大，跳过缓存: ${(blob.size / 1024 / 1024).toFixed(2)}MB`)
+      return null
     }
 
     // 创建缓存项
@@ -2369,7 +2697,7 @@ function handleMessageEvent(messageEvent: any) {
   chatData.value = { ...chatData.value }
 }
 
-// 处理机器人发送消息成功事件（通过前端发送消息API触发）
+// 处理机器人发送消息成功事件
 function handleBotMessageSentEvent(sentEvent: any) {
   const channelKey = `${sentEvent.selfId}:${sentEvent.channelId}`
   if (!chatData.value.messages[channelKey]) {
@@ -2436,7 +2764,7 @@ function handleBotMessageSentEvent(sentEvent: any) {
   chatData.value = { ...chatData.value }
 }
 
-// 处理机器人消息事件（通过before-send事件监听触发）
+// 处理机器人消息事件
 function handleBotMessageEvent(botMessageEvent: any) {
   // 更新机器人信息
   if (!chatData.value.bots[botMessageEvent.selfId]) {
@@ -2562,7 +2890,7 @@ function handleBotMessageEvent(botMessageEvent: any) {
   chatData.value = { ...chatData.value }
 }
 
-// 监听消息变化，只在切换频道时自动滚动到底部
+// 监听消息变化
 watch(currentMessages, (newMessages, oldMessages) => {
   // 只有在切换频道时（消息数组完全不同）才自动滚动
   if (oldMessages.length === 0 && newMessages.length > 0) {
@@ -2830,6 +3158,18 @@ onMounted(async () => {
   const dbInitialized = await initImageDB()
   if (!dbInitialized) {
     console.warn('IndexedDB初始化失败，图片缓存功能将不可用')
+  } else {
+    console.log('IndexedDB初始化成功')
+
+    // 启动时进行健康检查
+    setTimeout(async () => {
+      await checkDatabaseHealth()
+    }, 2000) // 延迟2秒，避免影响页面加载
+
+    // 设置定期健康检查（每5分钟）
+    setInterval(async () => {
+      await checkDatabaseHealth()
+    }, 5 * 60 * 1000)
   }
 
   // 首先加载插件配置
