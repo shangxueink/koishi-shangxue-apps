@@ -698,16 +698,6 @@ const MessageElement = defineComponent({
         case 'img':
         case 'image':
           const imageUrl = element.attrs.src || element.attrs.url || element.attrs.file
-
-          // 调试信息：记录图片 URL 类型
-          if (imageUrl && isFileUrl(imageUrl)) {
-            console.log('检测到本地文件路径:', imageUrl)
-          } else if (imageUrl?.startsWith('http')) {
-            console.log('检测到网络图片:', imageUrl)
-          } else {
-            console.log('检测到其他类型图片URL:', imageUrl)
-          }
-
           return h('div', { class: 'message-image-container' }, [
             h(ImageComponent, {
               src: imageUrl,
@@ -719,12 +709,6 @@ const MessageElement = defineComponent({
 
         case 'mface':
           const mfaceimageUrl = element.attrs.src || element.attrs.url || element.attrs.file
-
-          // 调试信息：记录表情图片 URL 类型
-          if (mfaceimageUrl && isFileUrl(mfaceimageUrl)) {
-            console.log('检测到本地表情文件路径:', mfaceimageUrl)
-          }
-
           return h('div', { class: 'message-image-container' }, [
             h(ImageComponent, {
               src: mfaceimageUrl,
