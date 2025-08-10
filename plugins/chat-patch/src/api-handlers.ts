@@ -1,6 +1,7 @@
+import { FileManager } from './file-manager'
 import { Context, h, Logger } from 'koishi'
 import { Config } from './config'
-import { FileManager } from './file-manager'
+
 import { URL, pathToFileURL } from 'node:url'
 
 export class ApiHandlers {

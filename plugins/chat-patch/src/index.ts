@@ -1,17 +1,17 @@
-import { Context } from 'koishi'
-import { } from '@koishijs/plugin-console'
-import path from 'node:path'
-import fs from 'node:fs'
 
-import { Config } from './config'
-import { FileManager } from './file-manager'
+import { } from '@koishijs/plugin-console'
+import { Context } from 'koishi'
+import path from 'node:path'
+
 import { MessageHandler } from './message-handler'
+import { FileManager } from './file-manager'
 import { ApiHandlers } from './api-handlers'
+import { Config } from './config'
 import { Utils } from './utils'
 
 export const name = 'chat-patch'
 export const reusable = false
-export const filter = false
+export const filter = true
 export const inject = {
   required: ['console']
 }
