@@ -164,7 +164,7 @@
             </div>
 
             <input v-model="inputMessage" type="text" :placeholder="inputPlaceholder" @keyup.enter="sendMessage"
-              :disabled="!canInputMessage" ref="messageInput" @paste="handlePaste" />
+              :disabled="!canInputMessage" ref="messageInput" @paste="handlePaste" @focus="handleInputFocus" />
             <button @click="sendMessage" :disabled="!canSendMessage" :class="{ 'is-sending': isSending }">
               {{ isSending ? '发送中...' : '发送' }}
             </button>
@@ -445,7 +445,7 @@ const ImageComponent = defineComponent({
             ref: imgRef,
             draggable: false,
             style: {
-              'max-width': '400px',
+              'max-width': 'min(400px, 66.67vw)',
               'max-height': '200px',
               'width': 'auto',
               'height': 'auto',
@@ -1102,15 +1102,9 @@ const inputPlaceholder = computed(() => {
   }
 })
 
+// 简化的容器样式，现在主要由CSS处理
 const chatContainerStyle = computed(() => {
-  if (isMobile.value) {
-    const height = pluginConfig.value.chatContainerHeight || 80; // 默认80
-    const marginTop = 100 - height - 19; // 19vh 是输入框高度，100是总高度
-    return {
-      height: `${height}vh`,
-      marginTop: `${marginTop}vh`
-    };
-  }
+  // 移除复杂的高度计算，让CSS的dvh单位自动处理
   return {};
 });
 
@@ -1546,11 +1540,11 @@ function checkScrollPosition() {
 
     showScrollButton.value = shouldShowButton
 
-    // 检测用户是否在主动滚动（向上滚动查看历史消息）
+    // 检测是否在主动滚动（向上滚动查看历史消息）
     if (!isAtBottom) {
       isUserScrolling.value = true
     } else {
-      // 用户滚动到底部时，重置滚动状态
+      // 滚动到底部时，重置滚动状态
       isUserScrolling.value = false
     }
   }
@@ -2646,10 +2640,10 @@ function handleMessageEvent(messageEvent: any) {
       // 更新频道消息数量缓存
       channelMessageCounts.value[channelKey] = messages.length
 
-      // 在添加新消息前检查用户是否在底部附近
+      // 在添加新消息前检查是否在底部附近
       const wasNearBottom = isNearBottom()
 
-      // 智能滚动：基于添加消息前的位置状态来决定是否滚动
+      // 基于添加消息前的位置状态来决定是否滚动
       nextTick(() => {
         // 再次等待，确保新消息的DOM已经渲染
         setTimeout(() => {
@@ -2730,7 +2724,7 @@ function handleBotMessageSentEvent(sentEvent: any) {
     // 更新频道消息数量缓存
     channelMessageCounts.value[channelKey] = messages.length
 
-    // 在添加新消息前检查用户是否在底部附近
+    // 在添加新消息前检查是否在底部附近
     const wasNearBottom = isNearBottom()
 
     // 智能滚动：基于添加消息前的位置状态来决定是否滚动
@@ -2839,10 +2833,9 @@ function handleBotMessageEvent(botMessageEvent: any) {
       // 更新频道消息数量缓存
       channelMessageCounts.value[channelKey] = messages.length
 
-      // 在添加新消息前检查用户是否在底部附近
+      // 在添加新消息前检查是否在底部附近
       const wasNearBottom = isNearBottom()
 
-      // 智能滚动：基于添加消息前的位置状态来决定是否滚动
       nextTick(() => {
         // 再次等待，确保新消息的DOM已经渲染
         setTimeout(() => {
@@ -3129,11 +3122,46 @@ function checkMobile() {
   isMobile.value = window.innerWidth <= 768
 }
 
+// 判断是否应该自动滚动
+function shouldAutoScroll(): boolean {
+  // 如果没有主动滚动，或者已经在底部附近，则应该自动滚动
+  return !isUserScrolling.value || isNearBottom()
+}
+
+// 简单的视口高度管理
+const handleViewportChange = () => {
+  if (isMobile.value && messageHistory.value) {
+    // 当视口变化时，确保消息区域滚动到底部
+    nextTick(() => {
+      if (shouldAutoScroll()) {
+        scrollToBottom()
+      }
+    })
+  }
+}
+
+// 输入框焦点处理
+const handleInputFocus = () => {
+  if (isMobile.value) {
+    // 延迟滚动，等待键盘完全出现
+    setTimeout(() => {
+      if (messageHistory.value && shouldAutoScroll()) {
+        scrollToBottom()
+      }
+    }, 300)
+  }
+}
+
 // 生命周期
 onMounted(async () => {
   // 检测手机端
   checkMobile()
   window.addEventListener('resize', checkMobile)
+
+  // 添加视口变化监听（处理键盘弹出）
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', handleViewportChange)
+  }
 
   // 添加点击外部关闭菜单的监听器
   document.addEventListener('click', handleClickOutside)
@@ -3192,6 +3220,9 @@ onMounted(async () => {
   // 在组件卸载时清理监听器
   onUnmounted(() => {
     window.removeEventListener('resize', checkMobile)
+    if (window.visualViewport) {
+      window.visualViewport.removeEventListener('resize', handleViewportChange)
+    }
     document.removeEventListener('click', handleClickOutside)
 
     if (dispose1 && typeof dispose1 === 'function') {

@@ -14,7 +14,7 @@ export interface Config {
 
 export const Config: Schema<Config> = Schema.intersect([
     Schema.object({
-        maxMessagesPerChannel: Schema.number().default(1000).description('每个群组最大保存消息数量').min(50).max(5000),
+        maxMessagesPerChannel: Schema.number().default(500).description('每个群组最大保存消息数量').min(50).max(1500),
         keepMessagesOnClear: Schema.number().default(50).description('手动清理历史记录时保留的消息数量').min(0).max(1000),
         keepTempImages: Schema.number().default(50).description('发送消息保留的临时图片数量（最新的N张）').min(10).max(200),
         blockedPlatforms: Schema.array(Schema.object({
