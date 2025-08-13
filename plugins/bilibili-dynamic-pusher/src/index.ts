@@ -1,7 +1,6 @@
 import { Context, h, Schema, Universal } from 'koishi'
 
-import { DynamicEventData, LiveEventData } from 'koishi-plugin-adapter-bilibili-dm/src/bilibiliAPI/apis/types'
-import { } from 'koishi-plugin-adapter-bilibili-dm'
+import { DynamicEventData, LiveEventData } from 'koishi-plugin-adapter-bilibili-dm'
 
 import path from 'node:path'
 import fs from 'node:fs'
