@@ -8,6 +8,37 @@ export const name = 'steam-friend-status'
 
 export const inject = ['puppeteer', "database"]
 
+export const usage = `
+---
+
+<h3>📝 指令列表</h3>
+
+<h4>🔗 账号管理</h4>
+<ul>
+  <li><code>绑定steam &lt;steamid&gt;</code> - 绑定自己的 Steam 账号</li>
+  <li><code>绑定steam &lt;steamid&gt; @用户</code> - 为其他用户绑定 Steam 账号</li>
+  <li><code>解绑steam</code> - 解绑自己的 Steam 账号</li>
+  <li><code>解绑steam @用户</code> - 为其他用户解绑 Steam 账号</li>
+  <li><code>解绑全部steam</code> - 解绑在所有群的 Steam 账号</li>
+</ul>
+
+<h4>📊 状态查看</h4>
+<ul>
+  <li><code>看看steam</code> - 查看当前群所有绑定用户的游戏状态</li>
+  <li><code>steam信息</code> - 查看自己的好友码和 Steam ID</li>
+  <li><code>更新steam</code> - 更新所有用户的头像信息</li>
+</ul>
+
+<h4>⚙️ 群组设置</h4>
+<ul>
+  <li><code>steam群报 on</code> - 开启群内游戏状态播报</li>
+  <li><code>steam群报 off</code> - 关闭群内游戏状态播报</li>
+</ul>
+
+---
+
+`;
+
 declare module 'koishi' {
   interface Tables {
     SteamUser: SteamUser
@@ -43,6 +74,7 @@ export const Config = Schema.intersect([
       Schema.const('2').description('展示 当前群组的名称与头像'),
     ]).role('radio').description("替换Bot头像与ID为群头像").default("2"),
     showuserIdorsteamId: Schema.boolean().default(false).description('开启后展示用户的steamID，关闭后展示用户的userId'),
+    showOfflineFriends: Schema.boolean().default(true).description('显示离线好友，关闭后在【看看steam】指令中不显示离线好友'),
   }).description('fork扩展设置'),
   Schema.union([
     Schema.object({
@@ -100,33 +132,64 @@ export function apply(ctx: Context, config) {
   initBotsHeadshots(ctx);
   ctx.setInterval(function () { steamInterval(ctx, config) }, config.interval * 1000)
   ctx.command('steam-friend-status', "查询群友steam状态")
-  ctx.command('steam-friend-status/绑定steam <steamid:string>', "绑定steam账号")
-    .option('id', '-i <id:string> 指定userid')
-    .option('name', '-n <name:string> 指定usename')
+  ctx.command('steam-friend-status/绑定steam <steamid:string> [user]', "绑定steam账号")
     .usage('steamid参数 可以是好友码 也可以是steamID')
     .example("绑定steam 123456789")
     .example("绑定steam 76561197960265728")
-    .example("绑定steam 123456789 -i 114514 -n 上学大人")
-    .example("绑定steam 76561197960265728 -i 114514 -n 上学大人")
-    .action(async ({ session, options }, steamid) => {
+    .example("绑定steam 123456789 @用户")
+    .example("绑定steam 76561197960265728 @用户")
+    .action(async ({ session }, steamid, user) => {
       if (steamid == undefined) {
         await session.execute("绑定steam -h")
         return '缺少参数'
       }
+
       let result
-      if (!options.id || !options.name) {
+      if (!user) {
+        // 没有指定用户，绑定自己
         result = await bindPlayer(ctx, steamid, session, config.SteamApiKey)
       } else {
-        result = await bindPlayer(ctx, steamid, session, config.SteamApiKey, options.id || options.name, options.name || options.id)
+        // 解析@用户
+        const parsedUser = h.parse(user)[0];
+        if (!parsedUser || parsedUser.type !== 'at' || !parsedUser.attrs.id) {
+          return '无效的用户输入，请使用@用户的格式';
+        }
+
+        const targetUserId = parsedUser.attrs.id;
+        let targetUsername = parsedUser.attrs.name ||
+          (typeof session.bot.getUser === 'function' ?
+            ((await session.bot.getUser(targetUserId))?.name || targetUserId) :
+            targetUserId);
+
+        result = await bindPlayer(ctx, steamid, session, config.SteamApiKey, targetUserId, targetUsername)
       }
+
       await session.send(result)
       await session.execute("更新steam")
       return
     })
 
-  ctx.command('steam-friend-status/解绑steam', "解绑steam账号")
-    .action(async ({ session }) => {
-      const result = await unbindPlayer(ctx, session)
+  ctx.command('steam-friend-status/解绑steam [user]', "解绑steam账号")
+    .example("解绑steam")
+    .example("解绑steam @用户")
+    .action(async ({ session }, user) => {
+      let result
+      if (!user) {
+        // 没有指定用户，解绑自己
+        const userid = session.event.user?.id
+        const channelid = session.event.channel.id
+        result = await unbindPlayer(ctx, userid, channelid)
+      } else {
+        // 解析@用户
+        const parsedUser = h.parse(user)[0];
+        if (!parsedUser || parsedUser.type !== 'at' || !parsedUser.attrs.id) {
+          return '无效的用户输入，请使用@用户的格式';
+        }
+
+        const targetUserId = parsedUser.attrs.id;
+        const channelid = session.event.channel.id
+        result = await unbindPlayer(ctx, targetUserId, channelid)
+      }
       return result
     })
 
@@ -367,9 +430,7 @@ export function apply(ctx: Context, config) {
   }
 
   //解绑玩家
-  async function unbindPlayer(ctx: Context, session: Session): Promise<string> {
-    const userid = session.event.user?.id
-    const channelid = session.event.channel.id
+  async function unbindPlayer(ctx: Context, userid: string, channelid: string): Promise<string> {
     if (!userid || !channelid) {
       return '未获取到用户ID或者群ID，解绑失败'
     }
@@ -377,7 +438,11 @@ export function apply(ctx: Context, config) {
     if (userData && userData.effectGroups.includes(channelid)) {
       if (userData.effectGroups.length == 1) {
         const filepath = path.join(sourcepath, `img/steamuser${userData.steamId}.jpg`)
-        fs.unlink(filepath, (err) => { ctx.logger.error('删除头像出错', err) })
+        fs.unlink(filepath, (err) => {
+          if (err) {
+            ctx.logger.error('删除头像出错', err)
+          }
+        })
         ctx.database.remove('SteamUser', { userId: userid })
       }
       const effectGroups = userData.effectGroups
@@ -401,7 +466,11 @@ export function apply(ctx: Context, config) {
       return '用户未曾绑定，无法解绑'
     }
     const filepath = path.join(sourcepath, `img/steamuser${userData[0].steamId}.jpg`)
-    fs.unlink(filepath, (err) => { ctx.logger.error('删除头像出错', err) })
+    fs.unlink(filepath, (err) => {
+      if (err) {
+        ctx.logger.error('删除头像出错', err)
+      }
+    })
     await ctx.database.remove('SteamUser', { userId: userid })
     return '解绑成功'
   }
@@ -477,7 +546,7 @@ export function apply(ctx: Context, config) {
     const gamingUsers = userData.response.players.filter(player => player.gameextrainfo); // 筛选出游戏中的好友
     const onlineUsers = userData.response.players.filter(player => player.personastate != 0 && !player.gameextrainfo); // 筛选出在线但未游戏的好友
     onlineUsers.sort((a, b) => a.personastate - b.personastate); // 根据在线状态排序
-    const offlineUsers = userData.response.players.filter(player => player.personastate == 0); // 筛选出离线好友
+    const offlineUsers = config.showOfflineFriends ? userData.response.players.filter(player => player.personastate == 0) : []; // 根据配置决定是否筛选离线好友
     const url = URL.pathToFileURL(path.join(__dirname, './../data/html/steamFriendList.html')).href; // 模板文件路径
 
     // 图片转 Base64 函数
@@ -518,7 +587,16 @@ export function apply(ctx: Context, config) {
 
     // 创建 puppeteer 页面
     const page = await ctx.puppeteer.page();
-    await page.setViewport({ width: 227, height: 224 + userData.response.players.length * 46, deviceScaleFactor: 2 });
+    // 计算实际显示的用户数量，如果不显示离线好友则不计算离线用户
+    const displayedUsers = gamingUsers.length + onlineUsers.length + (config.showOfflineFriends ? offlineUsers.length : 0);
+    // 计算需要显示的分组数量：游戏中、在线好友，以及可能的离线好友
+    const displayedGroups = 2 + (config.showOfflineFriends && offlineUsers.length > 0 ? 1 : 0);
+    // 基础高度：头部75px + 好友标题30px + 底部padding15px + 每个分组标题28px + 每个用户46px
+    const baseHeight = 75 + 30 + 15;
+    const groupTitleHeight = displayedGroups * 28;
+    const userHeight = displayedUsers * 46;
+    const totalHeight = baseHeight + groupTitleHeight + userHeight;
+    await page.setViewport({ width: 227, height: totalHeight, deviceScaleFactor: 2 });
     await page.goto(url);
 
     // 转换好友头像为 Base64
@@ -528,9 +606,9 @@ export function apply(ctx: Context, config) {
     const onlineUsersBase64 = await Promise.all(
       onlineUsers.map(user => convertImageToBase64(path.join(rootpath, `data/steam-friend-status/img/steamuser${user.steamid}.jpg`)))
     );
-    const offlineUsersBase64 = await Promise.all(
+    const offlineUsersBase64 = offlineUsers.length > 0 ? await Promise.all(
       offlineUsers.map(user => convertImageToBase64(path.join(rootpath, `data/steam-friend-status/img/steamuser${user.steamid}.jpg`)))
-    );
+    ) : [];
 
     const findUserId = (steamId) => {
       const user = allUserData.find(u => u.steamId === steamId);
@@ -555,7 +633,7 @@ export function apply(ctx: Context, config) {
 
     // 渲染页面
     await page.evaluate(
-      (GroupHeadshotBase64, botname, gamingUsersBase64, onlineUsersBase64, offlineUsersBase64, steamstatus, processedGamingUsers, processedOnlineUsers, processedOfflineUsers) => {
+      (GroupHeadshotBase64, botname, gamingUsersBase64, onlineUsersBase64, offlineUsersBase64, steamstatus, processedGamingUsers, processedOnlineUsers, processedOfflineUsers, showOfflineFriends) => {
         var bot = document.getElementsByClassName('bot')[0];
         var botHeadshot = bot.querySelector('img');
         var botName = bot.querySelector('p');
@@ -571,7 +649,16 @@ export function apply(ctx: Context, config) {
         // 更新标题
         titles[0].innerHTML = `游戏中(${processedGamingUsers.length})`;
         titles[1].innerHTML = `在线好友(${processedOnlineUsers.length})`;
-        titles[2].innerHTML = `离线好友(${processedOfflineUsers.length})`;
+        if (showOfflineFriends) {
+          titles[2].innerHTML = `离线好友(${processedOfflineUsers.length})`;
+        } else {
+          // 完全隐藏离线好友分组，包括标题和列表
+          const offlineGroup = titles[2].parentElement;
+          (offlineGroup as HTMLElement).style.display = 'none';
+          // 移除在线好友分组的底部边框，因为它现在是最后一个可见分组
+          const onlineGroup = titles[1].parentElement;
+          (onlineGroup as HTMLElement).style.borderBottom = 'none';
+        }
 
         // 渲染游戏中的好友列表
         processedGamingUsers.forEach((user, i) => {
@@ -600,19 +687,22 @@ export function apply(ctx: Context, config) {
         });
 
         // 渲染离线的好友列表
-        processedOfflineUsers.forEach((user, i) => {
-          const li = document.createElement('li');
-          li.setAttribute('class', 'friend');
-          li.innerHTML = `
-              <img src="${offlineUsersBase64[i]}" class="headshot-offline">
-              <div class="name-and-status">
-                  <p class="name-offline">${user.personaname}(${user.displayName})</p>
-                  <p class="status-offline">${steamstatus[user.personastate]}</p>
-              </div>`;
-          offlineList.appendChild(li);
-        });
+        if (showOfflineFriends) {
+          processedOfflineUsers.forEach((user, i) => {
+            const li = document.createElement('li');
+            li.setAttribute('class', 'friend');
+            li.innerHTML = `
+                <img src="${offlineUsersBase64[i]}" class="headshot-offline">
+                <div class="name-and-status">
+                    <p class="name-offline">${user.personaname}(${user.displayName})</p>
+                    <p class="status-offline">${steamstatus[user.personastate]}</p>
+                </div>`;
+            offlineList.appendChild(li);
+          });
+        }
+        // 在这里不需要隐藏offlineList，已经在上面隐藏了整个分组
       },
-      GroupHeadshotBase64, botname, gamingUsersBase64, onlineUsersBase64, offlineUsersBase64, steamstatus, processedGamingUsers, processedOnlineUsers, processedOfflineUsers
+      GroupHeadshotBase64, botname, gamingUsersBase64, onlineUsersBase64, offlineUsersBase64, steamstatus, processedGamingUsers, processedOnlineUsers, processedOfflineUsers, config.showOfflineFriends
     );
 
 
