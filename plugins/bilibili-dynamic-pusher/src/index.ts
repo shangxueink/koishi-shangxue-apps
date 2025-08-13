@@ -1,6 +1,6 @@
 import { Context, h, Schema, Universal } from 'koishi'
 
-import { } from 'koishi-plugin-adapter-bilibili-dm/src/bilibiliAPI/apis/types'
+import { DynamicEventData, LiveEventData } from 'koishi-plugin-adapter-bilibili-dm/src/bilibiliAPI/apis/types'
 import { } from 'koishi-plugin-adapter-bilibili-dm'
 
 import path from 'node:path'
@@ -18,15 +18,21 @@ export const usage = `
 
 ---
 
-开启插件后，可以在其他平台（例如onebot）等支持主动消息的平台 使用指令订阅动态推送。
+开启插件后，可以在其他平台（例如onebot）等支持主动消息的平台 使用指令订阅动态和直播推送。
 
-具体操作步骤：
+## 功能特性
+
+- 🔄 **动态推送**: 监听关注UP主的动态更新（视频、图片、专栏等）
+- 🔴 **直播推送**: 监听关注UP主的直播状态变化（开播、下播、信息更新）
+- 📋 **订阅管理**: 支持按频道订阅特定UP主
+
+## 操作步骤
 
 1. 使用【bili-push.测试】指令，测试能否正常推送。
 
 2. 确保bot已经关注了对应的up主。
 
-3. 触发【bili-push.订阅 123456789】以在某一频道订阅一个指定UID用户的动态推送（可多次）。
+3. 触发【bili-push.订阅 123456789】以在某一频道订阅一个指定UID用户的动态和直播推送（可多次）。
 
 4. 触发【bili-push.查看订阅】确定订阅列表
 
@@ -91,9 +97,12 @@ export const Config: Schema<Config> = Schema.object({
     Schema.const('番剧动态 (DYNAMIC_TYPE_PGC)' as const),
     Schema.const('合集动态 (DYNAMIC_TYPE_UGC_SEASON)' as const)
   ])).role('checkbox').default([
-    '视频动态 (DYNAMIC_TYPE_AV)',
-    '图片动态 (DYNAMIC_TYPE_DRAW)',
-    '专栏动态 (DYNAMIC_TYPE_ARTICLE)'
+    "视频动态 (DYNAMIC_TYPE_AV)",
+    "图片动态 (DYNAMIC_TYPE_DRAW)",
+    "文字动态 (DYNAMIC_TYPE_WORD)",
+    "专栏动态 (DYNAMIC_TYPE_ARTICLE)",
+    "直播动态 (DYNAMIC_TYPE_LIVE_RCMD)",
+    "转发动态 (DYNAMIC_TYPE_FORWARD)"
   ] as DynamicType[]).description('推送的动态类型'),
   messageTemplate: Schema.object({
     showCover: Schema.boolean().default(true).description('显示封面图'),
@@ -334,9 +343,49 @@ export function apply(ctx: Context, config: Config) {
     }
   }
 
+  /**
+   * 格式化直播消息
+   */
+  function formatLiveMessage(data: any): string {
+    const { user, room, type } = data
+    let message = ''
+
+    switch (type) {
+      case 'live_start':
+        message += `🔴 ${user.uname} 开始直播了！\n`
+        message += `📺 ${room.title}\n`
+        message += `🔗 ${room.jump_url}\n`
+        message += `⏰ ${new Date(data.timestamp).toLocaleString()}`
+        break
+
+      case 'live_end':
+        message += `⚫ ${user.uname} 结束了直播\n`
+        message += `📺 ${room.title}\n`
+        message += `⏰ ${new Date(data.timestamp).toLocaleString()}`
+        break
+
+      case 'live_update':
+        message += `🔄 ${user.uname} 更新了直播信息\n`
+        message += `📺 ${room.title}\n`
+        message += `🔗 ${room.jump_url}\n`
+        message += `⏰ ${new Date(data.timestamp).toLocaleString()}`
+        break
+
+      default:
+        message += `📡 ${user.uname} 的直播状态发生变化\n`
+        message += `📺 ${room.title}\n`
+        message += `🔗 ${room.jump_url}\n`
+        message += `⏰ ${new Date(data.timestamp).toLocaleString()}`
+        break
+    }
+
+    return message.trim()
+  }
+
   // 监听动态更新事件
   if (config.enableAutoPush) {
-    ctx.on('bilibili/dynamic-update', async (data) => {
+    ctx.on('bilibili/dynamic-update', async (data: DynamicEventData) => {
+      ctx.logger.info(`[动态事件] 检测到动态事件: ${data.type} - ${data.author.name} (${data.author.uid})`)
       try {
         // 检查动态类型是否在推送列表中
         if (!actualPushTypes.includes(data.type)) {
@@ -377,6 +426,33 @@ export function apply(ctx: Context, config: Config) {
 
       } catch (error) {
         ctx.logger.error('[动态推送] 处理动态更新时发生错误:', error)
+      }
+    })
+
+    // 监听通用直播事件
+    ctx.on('bilibili/live-update', async (data: LiveEventData) => {
+      try {
+        ctx.logger.info(`[直播事件] 检测到直播事件: ${data.type} - ${data.user.uname} (${data.user.mid})`)
+
+        const message = formatLiveMessage(data)
+        const coverUrl = data.user.face // 使用UP主头像作为封面
+
+        // 推送到所有匹配的订阅
+        for (const subscription of subscriptions) {
+          // 检查UP主是否在订阅列表中
+          if (subscription.subscribedUids.length > 0 && !subscription.subscribedUids.includes(data.user.mid)) {
+            continue
+          }
+
+          ctx.logger.info(`[直播推送] 推送直播通知到 ${subscription.channelId}: ${data.user.uname} - ${data.type}`)
+          await sendToChannel(subscription.selfId, subscription.channelId, message, coverUrl)
+
+          // 添加延迟避免发送过快
+          await new Promise(resolve => setTimeout(resolve, 1000))
+        }
+
+      } catch (error) {
+        ctx.logger.error('[直播推送] 处理直播事件时发生错误:', error)
       }
     })
   }
@@ -449,128 +525,13 @@ export function apply(ctx: Context, config: Config) {
     })
 
   // 删除当前频道的所有订阅
-  ctx.command('bili-push.删除所有订阅', '删除当前频道的所有订阅')
+  ctx.command('bili-push.删除所有订阅', '删除当前频道的所有订阅', { authority: 4 })
     .action(async ({ session }) => {
       if (!session) return '无法获取会话信息'
 
       const success = removeSubscription(session.selfId, session.channelId)
 
       return success ? '已删除当前频道的所有订阅' : '当前频道没有任何订阅'
-    })
-
-  // 设置推送类型
-  ctx.command('bili-push.设置推送类型 <types:text>', '设置当前频道的推送类型')
-    .action(async ({ session }, types) => {
-      if (!session) return '无法获取会话信息'
-      if (!types) return '请提供推送类型，用逗号分隔'
-
-      const typeList = types.split(',').map(t => t.trim())
-      const validTypes = extractDynamicTypes(typeList)
-
-      const subscription = addOrUpdateSubscription(
-        session.selfId,
-        session.channelId,
-        session.platform,
-        session.guildId
-      )
-
-      subscription.pushTypes = validTypes
-      saveSubscriptions(subscriptions)
-
-      return `已设置推送类型: ${validTypes.join(', ')}`
-    })
-
-  // 手动推送最新动态
-  ctx.command('bili-push.最新动态 [uid:string]', '手动推送最新动态')
-    .action(async ({ session }, uid) => {
-      if (!session) return '无法获取会话信息'
-
-      try {
-        const bilibiliBot = ctx.bots.find(bot => bot.platform === 'bilibili')
-        if (!bilibiliBot) {
-          return '未找到 Bilibili 机器人实例'
-        }
-
-        await session.send('正在获取最新动态...')
-
-        let dynamics
-        if (uid) {
-          dynamics = await bilibiliBot.internal.getPersonalDynamics(uid)
-        } else {
-          dynamics = await bilibiliBot.internal.getAllFollowedDynamics()
-        }
-
-        if (dynamics.length === 0) {
-          return '未获取到任何动态'
-        }
-
-        const latestDynamic = dynamics[0]
-        const author = latestDynamic.modules.module_author
-        const content = latestDynamic.modules.module_dynamic
-
-        // 构建事件数据格式
-        const eventData = {
-          dynamicId: latestDynamic.id_str,
-          type: latestDynamic.type,
-          author: {
-            uid: author.mid,
-            name: author.name,
-            face: author.face,
-            action: author.pub_action,
-            timestamp: author.pub_ts
-          },
-          content: {
-            text: content.desc?.text || '',
-            type: content.major?.type || 'unknown',
-            video: content.major?.archive ? {
-              aid: content.major.archive.aid,
-              bvid: content.major.archive.bvid,
-              title: content.major.archive.title,
-              desc: content.major.archive.desc,
-              cover: content.major.archive.cover,
-              url: content.major.archive.jump_url
-            } : undefined,
-            images: content.major?.draw?.items.map(item => item.src),
-            article: content.major?.article ? {
-              id: content.major.article.id,
-              title: content.major.article.title,
-              desc: content.major.article.desc,
-              covers: content.major.article.covers,
-              url: content.major.article.jump_url
-            } : undefined,
-            live: content.major?.live ? {
-              id: content.major.live.id,
-              title: content.major.live.title,
-              cover: content.major.live.cover,
-              url: content.major.live.jump_url,
-              isLive: content.major.live.live_state === 1
-            } : undefined
-          },
-          rawData: latestDynamic
-        }
-
-        const message = formatDynamicMessage(eventData)
-        let coverUrl: string | undefined
-
-        // 获取封面图
-        if (eventData.content.video?.cover) {
-          coverUrl = eventData.content.video.cover
-        } else if (eventData.content.article?.covers?.[0]) {
-          coverUrl = eventData.content.article.covers[0]
-        } else if (eventData.content.images?.[0]) {
-          coverUrl = eventData.content.images[0]
-        } else if (eventData.content.live?.cover) {
-          coverUrl = eventData.content.live.cover
-        }
-
-        const success = await sendToChannel(session.selfId, session.channelId, message, coverUrl)
-
-        return success ? '动态推送成功' : '动态推送失败，请查看日志'
-
-      } catch (error) {
-        ctx.logger.error('手动推送动态失败:', error)
-        return `推送失败: ${error.message}`
-      }
     })
 
   // 测试推送功能
@@ -583,80 +544,6 @@ export function apply(ctx: Context, config: Config) {
       const success = await sendToChannel(session.selfId, session.channelId, testMessage)
 
       return success ? '测试推送成功' : '测试推送失败，请查看日志'
-    })
-
-  // 查看所有订阅统计
-  ctx.command('bili-push.查看订阅统计', '查看订阅统计信息')
-    .action(async ({ session }) => {
-      if (!session) return '无法获取会话信息'
-
-      const totalSubs = subscriptions.length
-      const totalUids = subscriptions.reduce((sum, sub) => sum + sub.subscribedUids.length, 0)
-
-      let result = `📊 订阅统计信息:\n`
-      result += `总订阅数: ${totalSubs}\n`
-      result += `总UP主数: ${totalUids}\n`
-      result += `数据文件: ${dataFilePath}\n`
-
-      if (totalSubs > 0) {
-        result += `\n最近更新: ${new Date(Math.max(...subscriptions.map(s => s.updateTime))).toLocaleString()}`
-      }
-
-      return result
-    })
-
-  // 搜索用户
-  ctx.command('bili-push.搜索 <username:text>', '搜索用户信息')
-    .action(async ({ session }, username) => {
-      if (!session) return '无法获取会话信息'
-      if (!username) return '请提供要搜索的用户名'
-
-      try {
-        const bilibiliBot = ctx.bots.find(bot => bot.platform === 'bilibili')
-        if (!bilibiliBot) {
-          return '未找到 Bilibili 机器人实例'
-        }
-
-        await session.send(`正在搜索用户: ${username}...`)
-
-        const users = await bilibiliBot.internal.searchUsersByName(username)
-
-        if (users.length === 0) {
-          return `未找到用户名包含 "${username}" 的用户`
-        }
-
-        let result = `找到如下用户:\n`
-
-        // 最多显示前10个结果
-        const displayUsers = users.slice(0, 10)
-
-        for (let i = 0; i < displayUsers.length; i++) {
-          const user = displayUsers[i]
-          result += `${i + 1}. 用户名：${user.uname}\n`
-          result += `   UID：${user.mid}\n`
-          result += `   签名：${user.usign || '无'}\n`
-          result += `   粉丝数：${user.fans}\n`
-          result += `   视频数：${user.videos}\n`
-
-          if (user.official_verify && user.official_verify.desc) {
-            result += `   认证：${user.official_verify.desc}\n`
-          }
-
-          result += `\n`
-        }
-
-        if (users.length > 10) {
-          result += `... 还有 ${users.length - 10} 个结果未显示\n`
-        }
-
-        result += `\n使用 "关注 <UID>" 来关注指定用户`
-
-        return result
-
-      } catch (error) {
-        ctx.logger.error('搜索用户失败:', error)
-        return `搜索失败: ${error.message}`
-      }
     })
 
   // 关注UP主
@@ -755,7 +642,251 @@ export function apply(ctx: Context, config: Config) {
       }
     })
 
+  // 查看直播监听状态
+  ctx.command('bili-push.监听状态', '查看动态和直播监听状态')
+    .action(async ({ session }) => {
+      if (!session) return '无法获取会话信息'
+
+      try {
+        const bilibiliBot = ctx.bots.find(bot => bot.platform === 'bilibili')
+        if (!bilibiliBot) {
+          return '未找到 Bilibili 机器人实例'
+        }
+
+        let result = `📊 监听状态信息:\n\n`
+
+        // 动态监听状态
+        const isDynamicPolling = bilibiliBot.internal.isPollingActive()
+        result += `🔄 动态监听: ${isDynamicPolling ? '✅ 运行中' : '❌ 已停止'}\n`
+
+        // 直播监听状态
+        const isLivePolling = bilibiliBot.internal.isLivePollingActive()
+        result += `🔴 直播监听: ${isLivePolling ? '✅ 运行中' : '❌ 已停止'}\n`
+
+        // 当前直播摘要
+        if (isLivePolling) {
+          const liveSummary = bilibiliBot.internal.getCurrentLiveUsersSummary()
+          result += `\n📺 当前直播数量: ${liveSummary.length}个\n`
+          if (liveSummary.length > 0) {
+            result += `最近更新: ${new Date(Math.max(...liveSummary.map(s => s.timestamp))).toLocaleString()}\n`
+          }
+        }
+
+        // 订阅统计
+        const totalSubs = subscriptions.length
+        const totalUids = subscriptions.reduce((sum, sub) => sum + sub.subscribedUids.length, 0)
+        result += `\n📋 订阅统计:\n`
+        result += `  总订阅数: ${totalSubs}\n`
+        result += `  总UP主数: ${totalUids}\n`
+
+        return result
+
+      } catch (error) {
+        ctx.logger.error('获取监听状态失败:', error)
+        return `获取状态失败: ${error.message}`
+      }
+    })
+
+  ctx.logger.info(`[动态推送] 插件初始化完成，已加载 ${subscriptions.length} 个订阅`)
+
+  // 设置推送类型
+  /*
+  ctx.command('bili-push.设置推送类型 <types:text>', '设置当前频道的推送类型')
+    .action(async ({ session }, types) => {
+      if (!session) return '无法获取会话信息'
+      if (!types) return '请提供推送类型，用逗号分隔'
+
+      const typeList = types.split(',').map(t => t.trim())
+      const validTypes = extractDynamicTypes(typeList)
+
+      const subscription = addOrUpdateSubscription(
+        session.selfId,
+        session.channelId,
+        session.platform,
+        session.guildId
+      )
+
+      subscription.pushTypes = validTypes
+      saveSubscriptions(subscriptions)
+
+      return `已设置推送类型: ${validTypes.join(', ')}`
+    })
+    */
+
+  // 手动推送最新动态
+  /*
+  ctx.command('bili-push.最新动态 [uid:string]', '手动推送最新动态')
+    .action(async ({ session }, uid) => {
+      if (!session) return '无法获取会话信息'
+
+      try {
+        const bilibiliBot = ctx.bots.find(bot => bot.platform === 'bilibili')
+        if (!bilibiliBot) {
+          return '未找到 Bilibili 机器人实例'
+        }
+
+        await session.send('正在获取最新动态...')
+
+        let dynamics
+        if (uid) {
+          dynamics = await bilibiliBot.internal.getPersonalDynamics(uid)
+        } else {
+          dynamics = await bilibiliBot.internal.getAllFollowedDynamics()
+        }
+
+        if (dynamics.length === 0) {
+          return '未获取到任何动态'
+        }
+
+        const latestDynamic = dynamics[0]
+        const author = latestDynamic.modules.module_author
+        const content = latestDynamic.modules.module_dynamic
+
+        // 构建事件数据格式
+        const eventData = {
+          dynamicId: latestDynamic.id_str,
+          type: latestDynamic.type,
+          author: {
+            uid: author.mid,
+            name: author.name,
+            face: author.face,
+            action: author.pub_action,
+            timestamp: author.pub_ts
+          },
+          content: {
+            text: content.desc?.text || '',
+            type: content.major?.type || 'unknown',
+            video: content.major?.archive ? {
+              aid: content.major.archive.aid,
+              bvid: content.major.archive.bvid,
+              title: content.major.archive.title,
+              desc: content.major.archive.desc,
+              cover: content.major.archive.cover,
+              url: content.major.archive.jump_url
+            } : undefined,
+            images: content.major?.draw?.items.map(item => item.src),
+            article: content.major?.article ? {
+              id: content.major.article.id,
+              title: content.major.article.title,
+              desc: content.major.article.desc,
+              covers: content.major.article.covers,
+              url: content.major.article.jump_url
+            } : undefined,
+            live: content.major?.live ? {
+              id: content.major.live.id,
+              title: content.major.live.title,
+              cover: content.major.live.cover,
+              url: content.major.live.jump_url,
+              isLive: content.major.live.live_state === 1
+            } : undefined
+          },
+          rawData: latestDynamic
+        }
+
+        const message = formatDynamicMessage(eventData)
+        let coverUrl: string | undefined
+
+        // 获取封面图
+        if (eventData.content.video?.cover) {
+          coverUrl = eventData.content.video.cover
+        } else if (eventData.content.article?.covers?.[0]) {
+          coverUrl = eventData.content.article.covers[0]
+        } else if (eventData.content.images?.[0]) {
+          coverUrl = eventData.content.images[0]
+        } else if (eventData.content.live?.cover) {
+          coverUrl = eventData.content.live.cover
+        }
+
+        const success = await sendToChannel(session.selfId, session.channelId, message, coverUrl)
+
+        return success ? '动态推送成功' : '动态推送失败，请查看日志'
+
+      } catch (error) {
+        ctx.logger.error('手动推送动态失败:', error)
+        return `推送失败: ${error.message}`
+      }
+    })
+*/
+
+
+  // 查看所有订阅统计
+  /*
+  ctx.command('bili-push.查看订阅统计', '查看订阅统计信息')
+    .action(async ({ session }) => {
+      if (!session) return '无法获取会话信息'
+
+      const totalSubs = subscriptions.length
+      const totalUids = subscriptions.reduce((sum, sub) => sum + sub.subscribedUids.length, 0)
+
+      let result = `📊 订阅统计信息:\n`
+      result += `总订阅数: ${totalSubs}\n`
+      result += `总UP主数: ${totalUids}\n`
+      result += `数据文件: ${dataFilePath}\n`
+
+      if (totalSubs > 0) {
+        result += `\n最近更新: ${new Date(Math.max(...subscriptions.map(s => s.updateTime))).toLocaleString()}`
+      }
+
+      return result
+    })
+*/
+
+  // 搜索用户
+  /*ctx.command('bili-push.搜索 <username:text>', '搜索用户信息')
+    .action(async ({ session }, username) => {
+      if (!session) return '无法获取会话信息'
+      if (!username) return '请提供要搜索的用户名'
+
+      try {
+        const bilibiliBot = ctx.bots.find(bot => bot.platform === 'bilibili')
+        if (!bilibiliBot) {
+          return '未找到 Bilibili 机器人实例'
+        }
+
+        await session.send(`正在搜索用户: ${username}...`)
+
+        const users = await bilibiliBot.internal.searchUsersByName(username)
+
+        if (users.length === 0) {
+          return `未找到用户名包含 "${username}" 的用户`
+        }
+
+        let result = `找到如下用户:\n`
+
+        // 最多显示前10个结果
+        const displayUsers = users.slice(0, 10)
+
+        for (let i = 0; i < displayUsers.length; i++) {
+          const user = displayUsers[i]
+          result += `${i + 1}. 用户名：${user.uname}\n`
+          result += `   UID：${user.mid}\n`
+          result += `   签名：${user.usign || '无'}\n`
+          result += `   粉丝数：${user.fans}\n`
+          result += `   视频数：${user.videos}\n`
+
+          if (user.official_verify && user.official_verify.desc) {
+            result += `   认证：${user.official_verify.desc}\n`
+          }
+
+          result += `\n`
+        }
+
+        if (users.length > 10) {
+          result += `... 还有 ${users.length - 10} 个结果未显示\n`
+        }
+
+        result += `\n使用 "关注 <UID>" 来关注指定用户`
+
+        return result
+
+      } catch (error) {
+        ctx.logger.error('搜索用户失败:', error)
+        return `搜索失败: ${error.message}`
+      }
+    })*/
+
   // 获取用户信息
+  /*
   ctx.command('bili-push.用户信息 <uid:string>', '获取指定UID的用户详细信息')
     .alias('bili-push.userinfo')
     .example('bili-push.用户信息 299913678')
@@ -878,47 +1009,7 @@ export function apply(ctx: Context, config: Config) {
           }
         }
 
-        // 直播间信息
-        if (userInfo.live_room && userInfo.live_room.roomid) {
-          result += `\n📺 直播间信息:\n`
-          result += `  房间号：${userInfo.live_room.roomid}\n`
-          result += `  房间标题：${userInfo.live_room.title || '未设置'}\n`
-          result += `  直播状态：${userInfo.live_room.liveStatus === 1 ? '🔴 正在直播' : '⚫ 未开播'}\n`
-          if (userInfo.live_room.watched_show && userInfo.live_room.watched_show.text_large) {
-            result += `  观看记录：${userInfo.live_room.watched_show.text_large}\n`
-          }
-        }
-
-        // 职业信息
-        if (userInfo.profession && userInfo.profession.is_show && userInfo.profession.name) {
-          result += `\n💼 职业信息:\n`
-          result += `  职业：${userInfo.profession.name}\n`
-          if (userInfo.profession.department) {
-            result += `  部门：${userInfo.profession.department}\n`
-          }
-          if (userInfo.profession.title) {
-            result += `  职位：${userInfo.profession.title}\n`
-          }
-        }
-
-        // 学校信息
-        if (userInfo.school && userInfo.school.name) {
-          result += `\n🎓 学校信息:\n`
-          result += `  学校：${userInfo.school.name}\n`
-        }
-
-        // 生日信息
-        if (userInfo.birthday) {
-          result += `\n🎂 生日：${userInfo.birthday}\n`
-        }
-
-        // 高级会员信息
-        if (userInfo.is_senior_member === 1) {
-          result += `\n⭐ 硬核会员\n`
-        }
-
-        result += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`
-        result += `🔗 个人空间：https://space.bilibili.com/${uid}`
+        result += `\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`
 
         return result
 
@@ -927,9 +1018,86 @@ export function apply(ctx: Context, config: Config) {
         return `获取用户信息失败: ${error.message}`
       }
     })
+    */
+
+  // 查看当前直播状态
+  /**ctx.command('bili-push.直播状态 [uid:string]', '查看指定UP主或所有关注UP主的直播状态')
+    .action(async ({ session }, uid) => {
+      if (!session) return '无法获取会话信息'
+
+      try {
+        const bilibiliBot = ctx.bots.find(bot => bot.platform === 'bilibili')
+        if (!bilibiliBot) {
+          return '未找到 Bilibili 机器人实例'
+        }
+
+        await session.send('正在获取直播状态...')
+
+        if (uid) {
+          // 查看指定UP主的直播状态
+          const isLive = await bilibiliBot.internal.isUserLive(Number(uid))
+          if (isLive) {
+            const liveStatus = await bilibiliBot.internal.getUserLiveStatus(Number(uid))
+            if (liveStatus) {
+              let result = `🔴 UP主 ${liveStatus.uname} 正在直播\n`
+              result += `📺 ${liveStatus.title}\n`
+              result += `🏠 房间号：${liveStatus.room_id}\n`
+              result += `🔗 ${liveStatus.jump_url}`
+              return result
+            }
+          } else {
+            return `⚫ UP主 ${uid} 当前未在直播`
+          }
+        } else {
+          // 查看所有正在直播的UP主
+          const liveUsers = await bilibiliBot.internal.getLiveUsers()
+          if (liveUsers.length === 0) {
+            return '当前没有关注的UP主在直播'
+          }
+
+          let result = `🔴 当前正在直播的UP主 (${liveUsers.length}个):\n\n`
+          liveUsers.forEach((user, index) => {
+            result += `${index + 1}. ${user.uname} (${user.mid})\n`
+            result += `   📺 ${user.title}\n`
+            result += `   🏠 房间号：${user.room_id}\n`
+            result += `   🔗 ${user.jump_url}\n\n`
+          })
+
+          return result.trim()
+        }
+
+      } catch (error) {
+        ctx.logger.error('获取直播状态失败:', error)
+        return `获取直播状态失败: ${error.message}`
+      }
+    })
+    */
+
+  // 手动检查直播状态
+  /*ctx.command('bili-push.检查直播', '手动触发一次直播状态检查')
+    .action(async ({ session }) => {
+      if (!session) return '无法获取会话信息'
+
+      try {
+        const bilibiliBot = ctx.bots.find(bot => bot.platform === 'bilibili')
+        if (!bilibiliBot) {
+          return '未找到 Bilibili 机器人实例'
+        }
+
+        await session.send('正在手动检查直播状态变化...')
+
+        await bilibiliBot.internal.manualLiveCheck()
+
+        return '✅ 直播状态检查完成，如有变化将自动推送'
+
+      } catch (error) {
+        ctx.logger.error('手动检查直播状态失败:', error)
+        return `检查失败: ${error.message}`
+      }
+    })*/
 
   // 查看关注状态
-  ctx.command('bili-push.关注状态 <uid:string>', '查看指定UID的关注状态')
+  /*ctx.command('bili-push.关注状态 <uid:string>', '查看指定UID的关注状态')
     .action(async ({ session }, uid) => {
       if (!session) return '无法获取会话信息'
       if (!uid) return '请提供要查看的UP主UID'
@@ -996,6 +1164,6 @@ export function apply(ctx: Context, config: Config) {
         return `查看关注状态失败: ${error instanceof Error ? error.message : String(error)}`
       }
     })
+    */
 
-  ctx.logger.info(`[动态推送] 插件初始化完成，已加载 ${subscriptions.length} 个订阅`)
 }
