@@ -100,8 +100,7 @@ export const Config: Schema<Config> = Schema.object({
     "图片动态 (DYNAMIC_TYPE_DRAW)",
     "文字动态 (DYNAMIC_TYPE_WORD)",
     "专栏动态 (DYNAMIC_TYPE_ARTICLE)",
-    "直播动态 (DYNAMIC_TYPE_LIVE_RCMD)",
-    "转发动态 (DYNAMIC_TYPE_FORWARD)"
+    "直播动态 (DYNAMIC_TYPE_LIVE_RCMD)"
   ] as DynamicType[]).description('推送的动态类型'),
   messageTemplate: Schema.object({
     showCover: Schema.boolean().default(true).description('显示封面图'),
@@ -383,7 +382,7 @@ export function apply(ctx: Context, config: Config) {
 
   // 监听动态更新事件
   if (config.enableAutoPush) {
-    ctx.on('bilibili/dynamic-update', async (data: DynamicEventData) => {
+    ctx.on('bilibili/dynamic-update' as any, async (data: DynamicEventData) => {
       ctx.logger.info(`[动态事件] 检测到动态事件: ${data.type} - ${data.author.name} (${data.author.uid})`)
       try {
         // 检查动态类型是否在推送列表中
@@ -429,7 +428,7 @@ export function apply(ctx: Context, config: Config) {
     })
 
     // 监听通用直播事件
-    ctx.on('bilibili/live-update', async (data: LiveEventData) => {
+    ctx.on('bilibili/live-update' as any, async (data: LiveEventData) => {
       try {
         ctx.logger.info(`[直播事件] 检测到直播事件: ${data.type} - ${data.user.uname} (${data.user.mid})`)
 
@@ -477,7 +476,7 @@ export function apply(ctx: Context, config: Config) {
         saveSubscriptions(subscriptions)
       }
 
-      return `已订阅UP主 ${uid} 的动态到当前频道`
+      return `已订阅UP主 ${uid} 到当前频道`
     })
 
   // 取消订阅UP主动态
