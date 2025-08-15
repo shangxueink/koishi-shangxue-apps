@@ -307,6 +307,13 @@ export function useChatLogic() {
                                 'width': 'auto',
                                 'height': 'auto',
                                 'object-fit': 'contain'
+                            },
+                            // 确保GIF动画能正常播放
+                            onLoad: () => {
+                                // 对于GIF图片，确保动画开始播放
+                                if (imgRef.value && props.src.toLowerCase().includes('.gif')) {
+                                    imgRef.value.style.imageRendering = 'auto'
+                                }
                             }
                         })
 
@@ -905,6 +912,9 @@ export function useChatLogic() {
         selectedBot.value = botId
         selectedChannel.value = ''
 
+        // 保存选择状态
+        saveSelectionState()
+
         // 手机端：选择机器人后切换到频道视图
         if (isMobile.value) {
             mobileView.value = 'channels'
@@ -1095,6 +1105,9 @@ export function useChatLogic() {
         selectedChannel.value = channelId
         isUserScrolling.value = false
 
+        // 保存选择状态
+        saveSelectionState()
+
         // 手机端：选择频道后切换到消息视图
         if (isMobile.value) {
             mobileView.value = 'messages'
@@ -1208,7 +1221,19 @@ export function useChatLogic() {
                 event.preventDefault()
                 const file = item.getAsFile()
                 if (file) {
-                    await uploadImage(file)
+                    // 为粘贴的文件创建一个带有正确扩展名的新File对象
+                    const extension = item.type === 'image/gif' ? '.gif' :
+                        item.type === 'image/png' ? '.png' :
+                            item.type === 'image/jpeg' ? '.jpg' : '.jpg'
+                    const filename = `pasted-image-${Date.now()}${extension}`
+
+                    // 创建新的File对象，确保有正确的文件名和类型
+                    const newFile = new File([file], filename, {
+                        type: item.type,
+                        lastModified: Date.now()
+                    })
+
+                    await uploadImage(newFile)
                 }
             }
         }
@@ -1238,7 +1263,8 @@ export function useChatLogic() {
             const result = await (send as any)('upload-image', {
                 file: base64,
                 filename: file.name,
-                mimeType: file.type
+                mimeType: file.type,
+                isGif: file.type === 'image/gif' // 标记是否为GIF
             })
 
             if (result.success) {
@@ -2225,6 +2251,8 @@ export function useChatLogic() {
                 byteNumbers[i] = byteCharacters.charCodeAt(i)
             }
             const byteArray = new Uint8Array(byteNumbers)
+
+            // 保持原始MIME类型，特别是对于GIF
             const blob = new Blob([byteArray], { type: contentType })
 
             // 检查blob大小
@@ -2338,6 +2366,31 @@ export function useChatLogic() {
                 resolve({ totalImages: 0, totalSize: 0, channels: 0 })
             }
         })
+    }
+
+    // 保存和恢复选择状态
+    function saveSelectionState() {
+        if (selectedBot.value && selectedChannel.value) {
+            localStorage.setItem('chat-selected-bot', selectedBot.value)
+            localStorage.setItem('chat-selected-channel', selectedChannel.value)
+        }
+    }
+
+    function restoreSelectionState() {
+        const savedBot = localStorage.getItem('chat-selected-bot')
+        const savedChannel = localStorage.getItem('chat-selected-channel')
+
+        if (savedBot && savedChannel) {
+            // 验证保存的状态是否仍然有效
+            if (chatData.value.bots[savedBot] &&
+                chatData.value.channels[savedBot] &&
+                chatData.value.channels[savedBot][savedChannel]) {
+                selectedBot.value = savedBot
+                selectedChannel.value = savedChannel
+                return true
+            }
+        }
+        return false
     }
 
     // 处理消息事件
@@ -2983,6 +3036,14 @@ export function useChatLogic() {
         // 然后加载历史数据
         await loadChatData()
 
+        // 尝试恢复之前的选择状态
+        nextTick(() => {
+            if (!restoreSelectionState()) {
+                // 如果没有保存的状态或状态无效，则使用默认逻辑
+                // 不自动选择任何频道，让用户手动选择
+            }
+        })
+
         // 然后开始监听消息事件
         const dispose1 = receive('chat-message-event', handleMessageEvent) as (() => void) | undefined
         const dispose2 = receive('bot-message-sent-event', handleBotMessageSentEvent) as (() => void) | undefined
@@ -3154,6 +3215,8 @@ export function useChatLogic() {
         // 其他工具函数
         isFileUrl,
         loadHistoryMessages,
-        handleMessageEvent
+        handleMessageEvent,
+        saveSelectionState,
+        restoreSelectionState
     }
 }

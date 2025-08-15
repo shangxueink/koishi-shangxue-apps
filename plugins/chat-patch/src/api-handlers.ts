@@ -371,17 +371,18 @@ export class ApiHandlers {
             file: string // base64 encoded image
             filename: string
             mimeType: string
+            isGif?: boolean // 是否为GIF图片
         }) => {
             try {
-                this.logInfo('收到图片上传请求:', { filename: data.filename, mimeType: data.mimeType })
+                this.logInfo('收到图片上传请求:', { filename: data.filename, mimeType: data.mimeType, isGif: data.isGif })
 
                 // 将base64转换为Buffer
                 const base64Data = data.file.replace(/^data:image\/\w+;base64,/, '')
                 const buffer = Buffer.from(base64Data, 'base64')
 
-                // 生成临时文件路径
+                // 生成临时文件路径，保持原始扩展名以保持GIF格式
                 const tempId = Date.now() + '_' + Math.random().toString(36).substring(2, 11)
-                const extension = data.filename.split('.').pop() || 'jpg'
+                const extension = data.filename.split('.').pop()?.toLowerCase() || (data.isGif ? 'gif' : 'jpg')
                 const tempFilename = `temp_${tempId}.${extension}`
 
                 // 保存到临时目录
@@ -391,16 +392,19 @@ export class ApiHandlers {
                 }
 
                 const tempPath = `${tempDir}/${tempFilename}`
+
+                // 对于GIF文件，直接保存原始数据以保持动画
                 require('fs').writeFileSync(tempPath, buffer)
 
-                this.logInfo('图片上传成功:', { tempPath, size: buffer.length })
+                this.logInfo('图片上传成功:', { tempPath, size: buffer.length, isGif: data.isGif })
 
                 return {
                     success: true,
                     tempId: tempId,
                     tempPath: tempPath,
                     filename: data.filename,
-                    size: buffer.length
+                    size: buffer.length,
+                    isGif: data.isGif
                 }
             } catch (error: any) {
                 this.logger.error('图片上传失败:', error)

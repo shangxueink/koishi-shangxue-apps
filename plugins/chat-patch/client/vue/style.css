@@ -624,11 +624,25 @@
     max-width: min(400px, 66.67vw);
     max-height: 200px;
     width: auto;
-    height: auto
+    height: auto;
+    /* 确保GIF动画正常播放 */
+    image-rendering: auto;
+    -webkit-image-rendering: auto;
+    -moz-image-rendering: auto;
+    -o-image-rendering: auto;
 }
 
 .message-image:hover {
     transform: scale(1.02)
+}
+
+/* 专门针对GIF图片的样式 */
+.message-image[src*=".gif"],
+.message-image[src*="image/gif"] {
+    /* 确保GIF动画不被优化掉 */
+    image-rendering: auto !important;
+    -webkit-image-rendering: auto !important;
+    animation-play-state: running !important;
 }
 
 .message-image-loading {
