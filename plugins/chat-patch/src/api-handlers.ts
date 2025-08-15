@@ -1,4 +1,5 @@
 import { FileManager } from './file-manager'
+import { MessageHandler } from './message-handler'
 import { Context, h, Logger } from 'koishi'
 import { Config } from './config'
 
@@ -10,7 +11,8 @@ export class ApiHandlers {
     constructor(
         private ctx: Context,
         private config: Config,
-        private fileManager: FileManager
+        private fileManager: FileManager,
+        private messageHandler: MessageHandler
     ) {
         this.logger = ctx.logger('chat-patch')
     }
@@ -217,6 +219,9 @@ export class ApiHandlers {
                         }
                     }
                 }
+
+                // 在发送消息前，通知 MessageHandler 正确的 channelId
+                this.messageHandler.setCorrectChannelId(data.selfId, data.channelId)
 
                 const result = await bot.sendMessage(data.channelId, messageContent)
                 this.logInfo('消息发送成功:', result)

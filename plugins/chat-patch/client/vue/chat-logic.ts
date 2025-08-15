@@ -23,8 +23,9 @@ export function useChatLogic() {
         id: string
         name: string
         type: number | string
-        guildId?: string
+        channelId?: string
         guildName?: string
+        isDirect?: boolean
     }
 
     interface MessageElement {
@@ -2368,16 +2369,17 @@ export function useChatLogic() {
         }
 
         if (messageEvent.channelId && !chatData.value.channels[messageEvent.selfId][messageEvent.channelId]) {
-            const channelName = messageEvent.guildId
-                ? `${messageEvent.guildName || messageEvent.guildId} (${messageEvent.channelId})`
-                : `私信 ${messageEvent.channelId}`
+            const channelName = messageEvent.isDirect
+                ? `私信 ${messageEvent.channelId}`
+                : `${messageEvent.guildName || messageEvent.channelId} (${messageEvent.channelId})`
 
             chatData.value.channels[messageEvent.selfId][messageEvent.channelId] = {
                 id: messageEvent.channelId,
                 name: channelName,
                 type: messageEvent.channelType || 0,
-                guildId: messageEvent.guildId,
-                guildName: messageEvent.guildName || messageEvent.guildId || '私聊'
+                channelId: messageEvent.channelId,
+                guildName: messageEvent.guildName || '群聊',
+                isDirect: messageEvent.isDirect
             }
         }
 
@@ -2561,16 +2563,17 @@ export function useChatLogic() {
         }
 
         if (botMessageEvent.channelId && !chatData.value.channels[botMessageEvent.selfId][botMessageEvent.channelId]) {
-            const channelName = botMessageEvent.guildId
-                ? `${botMessageEvent.guildName || botMessageEvent.guildId} (${botMessageEvent.channelId})`
-                : `私信 ${botMessageEvent.channelId}`
+            const channelName = botMessageEvent.isDirect
+                ? `私信 ${botMessageEvent.channelId}`
+                : `${botMessageEvent.guildName || botMessageEvent.channelId} (${botMessageEvent.channelId})`
 
             chatData.value.channels[botMessageEvent.selfId][botMessageEvent.channelId] = {
                 id: botMessageEvent.channelId,
                 name: channelName,
                 type: botMessageEvent.channelType || 0,
-                guildId: botMessageEvent.guildId,
-                guildName: botMessageEvent.guildName || botMessageEvent.guildId || '私聊'
+                channelId: botMessageEvent.channelId,
+                guildName: botMessageEvent.guildName || '群聊',
+                isDirect: botMessageEvent.isDirect
             }
         }
 

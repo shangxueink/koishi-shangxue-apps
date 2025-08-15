@@ -35,7 +35,7 @@ export async function apply(ctx: Context, config: Config) {
   // 初始化各个模块
   const fileManager = new FileManager(ctx, config)
   const messageHandler = new MessageHandler(ctx, config, fileManager)
-  const apiHandlers = new ApiHandlers(ctx, config, fileManager)
+  const apiHandlers = new ApiHandlers(ctx, config, fileManager, messageHandler)
   const utils = new Utils(config)
 
   // 初始化数据

@@ -12,8 +12,9 @@ export interface ChannelInfo {
     id: string
     name: string
     type: number | string
-    guildId?: string
+    channelId?: string
     guildName?: string
+    isDirect?: boolean
 }
 
 export interface QuoteInfo {
@@ -46,6 +47,7 @@ export interface MessageInfo {
     guildName?: string
     platform: string
     quote?: QuoteInfo
+    isDirect?: boolean
 }
 
 export interface ChatData {

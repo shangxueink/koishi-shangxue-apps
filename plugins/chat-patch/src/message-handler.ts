@@ -7,6 +7,8 @@ import { Utils } from './utils'
 export class MessageHandler {
     private logger: Logger
     private utils: Utils
+    // 存储正确的 channelId 映射，key 是 selfId，value 是正确的 channelId
+    private correctChannelIds: Map<string, string> = new Map()
 
     constructor(
         private ctx: Context,
@@ -15,6 +17,17 @@ export class MessageHandler {
     ) {
         this.logger = ctx.logger('chat-patch')
         this.utils = new Utils(config)
+    }
+
+    // 设置正确的 channelId
+    setCorrectChannelId(selfId: string, channelId: string) {
+        this.correctChannelIds.set(selfId, channelId)
+        this.logInfo('设置正确的 channelId:', { selfId, channelId })
+    }
+
+    // 获取正确的 channelId
+    getCorrectChannelId(selfId: string): string | undefined {
+        return this.correctChannelIds.get(selfId)
     }
 
     // 更新机器人信息到JSON文件
@@ -56,12 +69,13 @@ export class MessageHandler {
 
         const channelInfo: ChannelInfo = {
             id: session.channelId,
-            name: session.guildId
-                ? `${guildName} (${session.channelId})`
-                : `私信 ${session.channelId}`,
+            name: session.isDirect
+                ? `私信 ${session.channelId}`
+                : `${guildName} (${session.channelId})`,
             type: session.type || 0,
-            guildId: session.guildId,
-            guildName: guildName
+            channelId: session.channelId,
+            guildName: guildName,
+            isDirect: session.isDirect
         }
 
         data.channels[session.selfId][session.channelId] = channelInfo
@@ -129,10 +143,10 @@ export class MessageHandler {
                 selfId: session.selfId,
                 elements: this.utils.cleanBase64Content(elements),
                 type: 'user',
-                guildId: session.guildId,
                 guildName: guildName,
                 platform: session.platform || 'unknown',
-                quote: quoteInfo ? this.utils.cleanBase64Content(quoteInfo) : undefined
+                quote: quoteInfo ? this.utils.cleanBase64Content(quoteInfo) : undefined,
+                isDirect: session.isDirect
             }
 
             await this.fileManager.addMessageToFile(messageInfo)
@@ -148,11 +162,11 @@ export class MessageHandler {
                 username: session.username || session.event?.user?.name || session.userId || 'unknown',
                 avatar: session.event?.user?.avatar,
                 timestamp: timestamp,
-                guildId: session.guildId,
                 guildName: guildName,
                 channelType: session.type || 0,
                 elements: this.utils.cleanBase64Content(elements),
                 quote: quoteInfo ? this.utils.cleanBase64Content(quoteInfo) : undefined,
+                isDirect: session.isDirect,
                 bot: {
                     avatar: session.bot.user?.avatar,
                     name: session.bot.user?.name,
@@ -168,6 +182,22 @@ export class MessageHandler {
     // 处理机器人发送的消息
     async broadcastBotMessageEvent(session: Session) {
         try {
+            // 获取正确的 channelId
+            const correctChannelId = this.getCorrectChannelId(session.selfId)
+
+            // 调试日志：检查 channelId 的来源
+            this.logInfo('机器人发送消息调试信息:', {
+                'session.channelId': session.channelId,
+                'session.event?.channel?.id': session.event?.channel?.id,
+                'correctChannelId': correctChannelId,
+                'session.guildId': session.guildId,
+                'session.isDirect': session.isDirect,
+                'session.platform': session.platform
+            })
+
+            // 使用正确的 channelId，如果没有则使用 session.channelId
+            const finalChannelId = correctChannelId || session.channelId
+
             await this.updateBotInfoToFile(session)
             const guildName = await this.updateChannelInfoToFile(session)
 
@@ -187,13 +217,13 @@ export class MessageHandler {
                 username: session.bot.user?.name || `Bot-${session.selfId}`,
                 avatar: session.bot.user?.avatar,
                 timestamp: timestamp,
-                channelId: session.event?.channel?.id || session.channelId,
+                channelId: finalChannelId,
                 selfId: session.selfId,
                 elements: this.utils.cleanBase64Content(session.event?.message?.elements),
                 type: 'bot',
-                guildId: session.event?.guild?.id || session.guildId,
                 guildName: guildName,
-                platform: session.platform || 'unknown'
+                platform: session.platform || 'unknown',
+                isDirect: session.isDirect
             }
 
             await this.fileManager.addMessageToFile(messageInfo)
@@ -202,17 +232,17 @@ export class MessageHandler {
                 type: 'bot-message',
                 selfId: session.selfId,
                 platform: session.platform || 'unknown',
-                channelId: session.event?.channel?.id || session.channelId,
+                channelId: finalChannelId,
                 messageId: `bot-msg-${timestamp}`,
                 content: content,
                 userId: session.selfId,
                 username: session.bot.user?.name || `Bot-${session.selfId}`,
                 avatar: session.bot.user?.avatar,
                 timestamp: timestamp,
-                guildId: session.event?.guild?.id || session.guildId,
                 guildName: guildName,
                 channelType: session.event?.channel?.type || session.type || 0,
                 elements: this.utils.cleanBase64Content(session.event?.message?.elements),
+                isDirect: session.isDirect,
                 bot: {
                     avatar: session.bot.user?.avatar,
                     name: session.bot.user?.name,
@@ -227,11 +257,16 @@ export class MessageHandler {
             this.logInfo('机器人发送消息 (before-send):', {
                 selfId: session.selfId,
                 channelId: messageEvent.channelId,
+                originalChannelId: session.channelId,
+                correctedChannelId: finalChannelId,
                 content: content,
                 platform: session.platform,
                 imageCount: imageElements.length,
                 imageUrls: imageElements.map((el: any) => el.attrs?.src || el.attrs?.url || el.attrs?.file)
             })
+
+            // 清理已使用的 channelId 映射
+            this.correctChannelIds.delete(session.selfId)
 
             this.ctx.console.broadcast('chat-bot-message-event', messageEvent)
         } catch (error) {
