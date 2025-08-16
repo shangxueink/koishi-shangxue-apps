@@ -698,7 +698,7 @@ export function useChatLogic() {
     const MAX_DB_SIZE = 50 * 1024 * 1024 // 50MB 最大数据库大小
     const MAX_IMAGES_PER_CHANNEL = 100 // 每个频道最多缓存100张图片
     const MAX_TOTAL_IMAGES = 500 // 总共最多缓存500张图片
-    const MAX_IMAGE_SIZE = 2 * 1024 * 1024 // 单张图片最大2MB
+    const MAX_IMAGE_SIZE = 12 * 1024 * 1024 // 单张图片最大12MB
     const CLEANUP_THRESHOLD = 0.8 // 当达到80%限制时开始清理
     const DB_HEALTH_CHECK_INTERVAL = 60 * 1000 // 每分钟检查一次数据库健康状态
 
