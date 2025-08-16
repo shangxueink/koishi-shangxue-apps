@@ -5,11 +5,13 @@ import { command1Config, applyCommand1 } from "./commands/command1";
 import { command2Config, applyCommand2 } from "./commands/command2";
 import { command3Config, applyCommand3 } from "./commands/command3";
 import { command4Config, applyCommand4 } from "./commands/command4";
+import { command5Config, applyCommand5 } from "./commands/command5";
 
 export const name = "patina";
 
 export const inject = {
-  required: ["http", "logger", "puppeteer"]
+  required: ["http", "logger", "puppeteer"],
+  optional: ['ffmpeg', 'canvas'],
 };
 
 export const usage = `
@@ -107,6 +109,30 @@ export const usage = `
 <p>如果不指定参数，将使用默认配置。</p>
 </details>
 
+<details>
+<summary>点击此处查看——原图坦克</summary>
+<h2>功能示例</h2>
+<ul>
+<li><code>原图坦克</code>：指令触发后，系统会提示上传两张图片。</li>
+<li><code>原图坦克 [图片]</code>：上传一张图片作为第一帧，系统会提示上传第二帧。</li>
+<li><code>原图坦克 [图片] [图片]</code>：上传两张图片，分别作为第一帧和第二帧。</li>
+<li><code>原图坦克 QQ号 QQ号</code>：使用两个 QQ 号的头像作为第一帧和第二帧。</li>
+<li><code>原图坦克 @用户 @用户</code>：使用两个用户的头像作为第一帧和第二帧。</li>
+</ul>
+<pre>
+原图坦克  [图片] [图片] -w 500 -h 500 -d 800 -q 95
+</pre>
+<p>触发指令后会返回生成的两帧GIF图片，GIF不会自动连续播放。</p>
+<h3>参数说明</h3>
+<ul>
+<li><code>-w &lt;width&gt;</code>：设置输出宽度，默认值为 400。</li>
+<li><code>-h &lt;height&gt;</code>：设置输出高度，默认值为 400。</li>
+<li><code>-d &lt;delay&gt;</code>：设置帧延迟（毫秒），默认值为 1000。</li>
+<li><code>-q &lt;quality&gt;</code>：设置图片质量（1-100），默认值为 90。</li>
+</ul>
+<p>如果不指定参数，将使用默认配置。</p>
+</details>
+
 
 ---
 
@@ -119,24 +145,29 @@ export const usage = `
 
 export const Config = Schema.intersect([
   Schema.object({
-    enablecommand1: Schema.boolean().description("是否启用此功能").default(true),
+    enablecommand1: Schema.boolean().description("是否启用此功能<br>`此指令需要puppeteer服务`").default(true),
   }).description('幻影坦克生成器'),
   command1Config,
 
   Schema.object({
-    enablecommand2: Schema.boolean().description("是否启用此功能").default(true),
+    enablecommand2: Schema.boolean().description("是否启用此功能<br>`此指令需要puppeteer服务`").default(true),
   }).description('像素化'),
   command2Config,
 
   Schema.object({
-    enablecommand3: Schema.boolean().description("是否启用此功能").default(true),
+    enablecommand3: Schema.boolean().description("是否启用此功能<br>`此指令需要puppeteer服务`").default(true),
   }).description('相机镜框滤镜'),
   command3Config,
 
   Schema.object({
-    enablecommand4: Schema.boolean().description("是否启用此功能").default(true),
+    enablecommand4: Schema.boolean().description("是否启用此功能<br>`此指令需要puppeteer服务`").default(true),
   }).description('光棱坦克生成器'),
   command4Config,
+
+  Schema.object({
+    enablecommand5: Schema.boolean().description("是否启用此功能<br>`此指令需要ffmpeg、canvas服务`<br>此指令仅限onebot平台使用，且受限于手机qq显示。").default(true),
+  }).description('原图坦克生成器'),
+  command5Config,
 
   Schema.object({
     loggerinfo: Schema.boolean().default(false).description("日志调试模式"),
@@ -151,6 +182,7 @@ export function apply(ctx: Context, config: any) {
   applyCommand2(ctx, config, loggerinfo, extractImageUrl);
   applyCommand3(ctx, config, loggerinfo, extractImageUrl);
   applyCommand4(ctx, config, loggerinfo, extractImageUrl);
+  applyCommand5(ctx, config, loggerinfo, extractImageUrl);
 
   function loggerinfo(...args: any[]) {
     if (config.loggerinfo) {
