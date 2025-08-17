@@ -169,7 +169,14 @@
 .channel-items {
     flex: 1;
     overflow-y: auto;
-    max-height: calc(100vh - 60px)
+    overflow-x: hidden;
+    max-height: calc(100vh - 140px);
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(144, 147, 153, .4) rgba(0, 0, 0, .05);
+    scroll-behavior: smooth;
+    overscroll-behavior: contain;
+    padding-bottom: 8px
 }
 
 .bot-item,
@@ -1484,6 +1491,21 @@ body.dragging-bubble-global {
     .channel-type {
         font-size: 13px
     }
+
+.bot-items,
+.channel-items {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    max-height: calc(100vh - 140px);
+    max-height: calc(100dvh - 140px);
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(144, 147, 153, .4) rgba(0, 0, 0, .05);
+    scroll-behavior: smooth;
+    overscroll-behavior: contain;
+    padding-bottom: 8px
+}
 }
 
 @media (min-width:769px) and (max-width:1024px) {
@@ -1800,40 +1822,35 @@ body.dragging-bubble-global {
     background-color: rgba(144, 147, 153, .5)
 }
 
-.bot-items::-webkit-scrollbar {
-    width: 6px
-}
-
-.bot-items::-webkit-scrollbar-track {
-    background: 0 0
-}
-
-.bot-items::-webkit-scrollbar-thumb {
-    background-color: rgba(144, 147, 153, .3);
-    border-radius: 4px;
-    transition: background-color .3s
-}
-
-.bot-items::-webkit-scrollbar-thumb:hover {
-    background-color: rgba(144, 147, 153, .5)
-}
-
+.bot-items::-webkit-scrollbar,
 .channel-items::-webkit-scrollbar {
-    width: 6px
+    width: 8px
 }
 
+.bot-items::-webkit-scrollbar-track,
 .channel-items::-webkit-scrollbar-track {
-    background: 0 0
+    background: rgba(0, 0, 0, .05);
+    border-radius: 4px
 }
 
+.bot-items::-webkit-scrollbar-thumb,
 .channel-items::-webkit-scrollbar-thumb {
-    background-color: rgba(144, 147, 153, .3);
+    background-color: rgba(144, 147, 153, .4);
     border-radius: 4px;
-    transition: background-color .3s
+    transition: all .3s ease;
+    border: 1px solid rgba(255, 255, 255, .1);
+    background-clip: padding-box
 }
 
+.bot-items::-webkit-scrollbar-thumb:hover,
 .channel-items::-webkit-scrollbar-thumb:hover {
-    background-color: rgba(144, 147, 153, .5)
+    background-color: rgba(144, 147, 153, .6);
+    transform: scaleX(1.2)
+}
+
+.bot-items::-webkit-scrollbar-thumb:active,
+.channel-items::-webkit-scrollbar-thumb:active {
+    background-color: rgba(144, 147, 153, .8)
 }
 
 .forward-message-expanded::-webkit-scrollbar {
@@ -1874,12 +1891,18 @@ body.dragging-bubble-global {
 
 @media (prefers-color-scheme:dark) {
 
+    .bot-items::-webkit-scrollbar-track,
+    .channel-items::-webkit-scrollbar-track {
+        background: rgba(255, 255, 255, .05)
+    }
+
     .bot-items::-webkit-scrollbar-thumb,
     .channel-items::-webkit-scrollbar-thumb,
     .forward-message-expanded::-webkit-scrollbar-thumb,
     .json-raw-content::-webkit-scrollbar-thumb,
     .message-history::-webkit-scrollbar-thumb {
-        background-color: rgba(255, 255, 255, .2)
+        background-color: rgba(255, 255, 255, .3);
+        border-color: rgba(0, 0, 0, .1)
     }
 
     .bot-items::-webkit-scrollbar-thumb:hover,
@@ -1887,6 +1910,11 @@ body.dragging-bubble-global {
     .forward-message-expanded::-webkit-scrollbar-thumb:hover,
     .json-raw-content::-webkit-scrollbar-thumb:hover,
     .message-history::-webkit-scrollbar-thumb:hover {
-        background-color: rgba(255, 255, 255, .4)
+        background-color: rgba(255, 255, 255, .5)
+    }
+
+    .bot-items::-webkit-scrollbar-thumb:active,
+    .channel-items::-webkit-scrollbar-thumb:active {
+        background-color: rgba(255, 255, 255, .7)
     }
 }
