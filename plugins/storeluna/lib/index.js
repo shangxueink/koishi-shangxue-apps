@@ -353,7 +353,7 @@ async function apply(ctx, config) {
       }
 
       const koishiManifest = versionInfo.koishi || pkgData.koishi || {};
-      if (koishiManifest.hidden === true) {
+      if (koishiManifest.hidden === true || koishiManifest.description?.hidden !== undefined) {
         return null;
       }
 
