@@ -2,13 +2,15 @@ import { Context, Schema } from 'koishi'
 import { OneBotServer } from './server'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
+import { } from '@koishijs/plugin-notifier'
 
 export const name = 'server-onebot'
 export const reusable = false
 export const filter = false
 
 export const inject = {
-  required: ['server', 'database', 'logger']
+  required: ['server', 'database', 'logger'],
+  optional: ['notifier']
 }
 
 export const usage = readFileSync(resolve(__dirname, './../data/usage.md'), 'utf-8');
@@ -91,6 +93,15 @@ export function apply(ctx: Context, config: Config) {
     ctx.logger.error(message, ...args);
   };
 
+  // 检查配置是否有效
+  const hasValidConfig = checkConfiguration(config)
+
+  if (!hasValidConfig && ctx.notifier) {
+    // 如果配置无效且有 notifier，启动自动关闭流程
+    startAutoShutdown(ctx)
+    return
+  }
+
   const server = new OneBotServer(ctx, config)
 
   ctx.on('ready', async () => {
@@ -130,6 +141,67 @@ Reverse WebSocket Clients: ${status.wsClients.enabled ? `${status.wsClients.conn
       })
   }
 
+}
+
+/**
+ * 检查配置是否有效
+ */
+function checkConfiguration(config: Config): boolean {
+  if (config.protocol === 'ws') {
+    // WebSocket 服务器模式总是有效的
+    return true
+  }
+
+  if (config.protocol === 'ws-reverse') {
+    // 检查反向连接配置
+    if (!config.reverseConnections || config.reverseConnections.length === 0) {
+      return false
+    }
+
+    // 检查是否有启用的连接
+    const enabledConnections = config.reverseConnections.filter(conn =>
+      conn && conn.enabled && conn.url && conn.url.trim() !== ''
+    )
+
+    return enabledConnections.length > 0
+  }
+
+  return false
+}
+
+/**
+ * 启动自动关闭流程
+ */
+async function startAutoShutdown(ctx: Context): Promise<void> {
+  const notifier = ctx.notifier?.create()
+
+  if (!notifier) {
+    ctx.logger.warn('OneBot Server: 配置无效且 notifier 不可用，插件将立即关闭')
+    ctx.scope.dispose()
+    return
+  }
+
+  let countdown = 5
+
+  const updateNotification = () => {
+    notifier.update(`检测到反向连接配置无效，插件将在 ${countdown} 秒后自动关闭...`)
+  }
+
+  // 开始倒计时
+  while (countdown > 0) {
+    updateNotification()
+    try {
+      await ctx.sleep(1000)
+      countdown--
+    } catch {
+      // 如果插件被手动停止，直接返回
+      return
+    }
+  }
+
+  // 倒计时结束，关闭插件
+  ctx.logger.info('OneBot Server: 配置地址无效，自动关闭...')
+  ctx.scope.dispose()
 }
 
 export * from './types'

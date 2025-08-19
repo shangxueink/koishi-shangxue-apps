@@ -6,7 +6,7 @@ import { Context, Universal } from 'koishi'
 export function createUserHandlers(ctx: Context, config?: { selfId: string, selfname?: string }): Record<string, ActionHandler> {
     const botFinder = new BotFinder(ctx)
     const defaultUserId = config?.selfId || parseInt(config.selfId)
-    const defaultNickname = config?.selfname 
+    const defaultNickname = config?.selfname
 
     return {
         // 获取登录号信息

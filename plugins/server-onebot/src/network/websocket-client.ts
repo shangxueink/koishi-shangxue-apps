@@ -25,7 +25,7 @@ export class WebSocketClient {
             selfname?: string
         }
     ) {
-        this.actionRouter = new ActionRouter(ctx, { 
+        this.actionRouter = new ActionRouter(ctx, {
             selfId: this.config.selfId,
             selfname: this.config.selfname
         })

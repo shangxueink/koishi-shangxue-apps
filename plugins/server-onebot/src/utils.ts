@@ -497,8 +497,30 @@ async function sendActiveMessage(
 
     let targetBot = null
 
-    // 如果提供了 selfId，优先使用对应的 bot
-    if (selfId) {
+    // 首先根据 targetChannelId 从数据库查找对应的 bot
+    if (targetChannelId && ctx.database) {
+        try {
+            // 查询 channel 表获取 assignee
+            const channels = await ctx.database.get('channel', {
+                id: targetChannelId
+            })
+
+            if (channels.length > 0) {
+                const assignee = channels[0].assignee
+                if (assignee) {
+                    targetBot = Object.values(ctx.bots).find((b: any) => b.selfId === assignee)
+                    if (targetBot) {
+                        logInfo(`Found bot by channel assignee: ${targetBot.selfId}(${targetBot.platform})`)
+                    }
+                }
+            }
+        } catch (error) {
+            loggerError(`Error querying channel database: ${error.message}`)
+        }
+    }
+
+    // 如果通过 channel 没找到，且提供了 selfId，尝试使用指定的 bot
+    if (!targetBot && selfId) {
         targetBot = Object.values(ctx.bots).find((b: any) => b.selfId === selfId || b.user?.id === selfId)
         logInfo(`Found bot by selfId: ${targetBot ? `${targetBot.selfId}(${targetBot.platform})` : 'null'}`)
         if (targetBot) {

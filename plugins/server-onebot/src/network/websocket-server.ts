@@ -15,7 +15,7 @@ export class WebSocketServer {
         private ctx: Context,
         private config: { path: string; token?: string; selfId?: string; selfname?: string }
     ) {
-        this.actionRouter = new ActionRouter(ctx, { 
+        this.actionRouter = new ActionRouter(ctx, {
             selfId: this.config.selfId || '114514',
             selfname: this.config.selfname
         })

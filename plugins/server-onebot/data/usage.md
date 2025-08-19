@@ -6,6 +6,7 @@
       <b>OneBot客户端</b><br><br>
       • Nonebot2<br>
       • Yunzai<br>
+      • AstrBot<br>
       • ...
     </td>
     <td align="center" width="12%">
@@ -33,6 +34,7 @@
       <b>目标平台</b><br><br>
       • iirose<br>
       • bilibili<br>
+      • qq<br>
       • ...
     </td>
   </tr>
