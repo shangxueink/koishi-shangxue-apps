@@ -11,7 +11,7 @@ export const inject = {
   required: ['server', 'database', 'logger']
 }
 
-export const usage = readFileSync(resolve(__dirname, './../usage.md'), 'utf-8');
+export const usage = readFileSync(resolve(__dirname, './../data/usage.md'), 'utf-8');
 
 export let loggerError: (message: any, ...args: any[]) => void;
 export let loggerInfo: (message: any, ...args: any[]) => void;
