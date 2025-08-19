@@ -37,6 +37,7 @@ export class OneBotServer {
                 path: this.config.path || '/onebotserver',
                 token: this.config.token,
                 selfId: this.config.selfId,
+                selfname: this.config.selfname,
             })
             logInfo('WebSocket server started at: %s', this.config.path || '/onebotserver')
         } else if (this.config.protocol === 'ws-reverse') {
@@ -51,6 +52,7 @@ export class OneBotServer {
                         reconnectInterval: this.config.reconnectInterval || 3000,
                         maxReconnectAttempts: this.config.maxReconnectAttempts || 5,
                         selfId: this.config.selfId,
+                        selfname: this.config.selfname,
                     })
                     this.wsClients.push(wsClient)
                     wsClient.start()

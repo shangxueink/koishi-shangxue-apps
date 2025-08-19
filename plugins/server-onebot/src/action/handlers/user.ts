@@ -3,9 +3,10 @@ import { logInfo, loggerError, loggerInfo } from '../../../src/index'
 import { BotFinder } from '../../bot-finder'
 import { Context, Universal } from 'koishi'
 
-export function createUserHandlers(ctx: Context, config?: { selfId: string }): Record<string, ActionHandler> {
+export function createUserHandlers(ctx: Context, config?: { selfId: string, selfname?: string }): Record<string, ActionHandler> {
     const botFinder = new BotFinder(ctx)
     const defaultUserId = config?.selfId || parseInt(config.selfId)
+    const defaultNickname = config?.selfname 
 
     return {
         // 获取登录号信息
@@ -15,7 +16,7 @@ export function createUserHandlers(ctx: Context, config?: { selfId: string }): R
                 // 如果没有找到 bot，返回默认信息
                 return {
                     user_id: defaultUserId,
-                    nickname: 'koishi-bot',
+                    nickname: defaultNickname,
                 }
             }
 
@@ -23,13 +24,13 @@ export function createUserHandlers(ctx: Context, config?: { selfId: string }): R
                 const self = await bot.getSelf()
                 return {
                     user_id: parseInt(self.userId) || defaultUserId,
-                    nickname: self.nick || self.name || 'koishi-bot',
+                    nickname: defaultNickname, // 使用配置的名称，而不是bot的名称
                 }
             } catch (error) {
                 // 如果获取失败，返回默认信息
                 return {
                     user_id: parseInt(bot.selfId) || defaultUserId,
-                    nickname: 'koishi-bot',
+                    nickname: defaultNickname,
                 }
             }
         },

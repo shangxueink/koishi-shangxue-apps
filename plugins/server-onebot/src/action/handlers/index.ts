@@ -5,7 +5,7 @@ import { createUserHandlers } from './user'
 import { createGroupHandlers } from './group'
 import { createSystemHandlers } from './system'
 
-export function createActionHandlers(ctx: Context, config?: { selfId: string }): Record<string, ActionHandler> {
+export function createActionHandlers(ctx: Context, config?: { selfId: string, selfname?: string }): Record<string, ActionHandler> {
     return {
         ...createMessageHandlers(ctx, config),
         ...createUserHandlers(ctx, config),

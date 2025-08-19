@@ -1,12 +1,12 @@
 import { OneBotActionRequest, OneBotActionResponse, ClientState, ActionHandler } from '../types'
-import { logInfo, loggerError, loggerInfo } from '../../src/index'
+import { logInfo, loggerError, loggerInfo } from '../index'
 import { createActionHandlers } from './handlers'
 import { Context } from 'koishi'
 
 export class ActionRouter {
     private handlers: Map<string, ActionHandler> = new Map()
 
-    constructor(private ctx: Context, private config?: { selfId: string }) {
+    constructor(private ctx: Context, private config?: { selfId: string, selfname?: string }) {
         this.setupHandlers()
     }
 

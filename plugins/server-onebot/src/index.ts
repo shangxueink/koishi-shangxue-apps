@@ -19,6 +19,7 @@ export let logInfo: (message: any, ...args: any[]) => void;
 
 export interface Config {
   selfId: string
+  selfname?: string
   token?: string
   protocol: 'ws' | 'ws-reverse'
   path?: string
@@ -41,6 +42,7 @@ export interface Config {
 export const Config: Schema<Config> = Schema.intersect([
   Schema.object({
     selfId: Schema.string().description('机器人的账号 （`QQ号`）。').required(),
+    selfname: Schema.string().description('机器人的名称，用于转发给其他 OneBot 后端时显示。').default('Bot of Koishi Server'),
     token: Schema.string().role('secret').description('发送信息时用于验证的字段。<br>应与 `onebot客户端` 配置文件中的 `token` 保持一致。'),
   }).description('基础配置'),
 
@@ -109,8 +111,8 @@ export function apply(ctx: Context, config: Config) {
       .action(() => {
         const status = server.getStatus()
         let result = `OneBot Server Status:
-  WebSocket Server: ${status.wsServer.enabled ? `Enabled (${status.wsServer.clientCount} clients)` : 'Disabled'}
-  Reverse WebSocket Clients: ${status.wsClients.enabled ? `${status.wsClients.connected}/${status.wsClients.total} Connected` : 'Disabled'}`
+WebSocket Server: ${status.wsServer.enabled ? `Enabled (${status.wsServer.clientCount} clients)` : 'Disabled'}
+Reverse WebSocket Clients: ${status.wsClients.enabled ? `${status.wsClients.connected}/${status.wsClients.total} Connected` : 'Disabled'}`
 
         if (status.wsClients.enabled && status.wsClients.details.length > 0) {
           result += '\n  Client Details:'

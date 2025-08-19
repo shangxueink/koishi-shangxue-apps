@@ -1,5 +1,5 @@
 import { OneBotActionRequest, OneBotActionResponse, ClientState } from '../types'
-import { logInfo, loggerError, loggerInfo } from '../../src/index'
+import { logInfo, loggerError, loggerInfo } from '../index'
 import { ActionRouter } from '../action'
 import { Context, } from 'koishi'
 import { WebSocket } from 'ws'
@@ -13,9 +13,12 @@ export class WebSocketServer {
 
     constructor(
         private ctx: Context,
-        private config: { path: string; token?: string; selfId?: string }
+        private config: { path: string; token?: string; selfId?: string; selfname?: string }
     ) {
-        this.actionRouter = new ActionRouter(ctx, { selfId: this.config.selfId || '114514' })
+        this.actionRouter = new ActionRouter(ctx, { 
+            selfId: this.config.selfId || '114514',
+            selfname: this.config.selfname
+        })
         this.setupWebSocketServer()
 
         // 定期清理过期的请求记录
