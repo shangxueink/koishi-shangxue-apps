@@ -1,7 +1,18 @@
-
 import { OneBotMessage, OneBotNoticeEvent, OneBotRequestEvent, CQCode } from './types'
-import { h, Session } from 'koishi'
 import { logInfo, loggerError, loggerInfo } from './index'
+import { h, Session } from 'koishi'
+
+// 存储最近的 session 的全局变量
+const recentSessionsMap = new Map<string, {
+    session: any,
+    timestamp: number,
+    channelId: string,
+    userId: string | null,
+    isPrivate: boolean,
+    platform: string,
+    selfId: string
+}>()
+
 
 /**
  * 生成唯一 ID
@@ -13,7 +24,7 @@ export function generateId(): string {
 /**
  * 将 Koishi Session 转换为 OneBot 事件
  */
-export function sessionToOneBotEvent(session: Session, configSelfId?: string): any | null {
+export async function sessionToOneBotEvent(session: Session, ctx: any, configSelfId?: string): Promise<any | null> {
     const baseEvent = {
         time: Math.floor((session.timestamp || Date.now()) / 1000),
         self_id: configSelfId ? (parseInt(configSelfId) || configSelfId) : (parseInt(session.selfId) || session.selfId),
@@ -22,7 +33,7 @@ export function sessionToOneBotEvent(session: Session, configSelfId?: string): a
     switch (session.type) {
         case 'message':
         case 'message-created':
-            return createMessageEvent(session, baseEvent, configSelfId)
+            return await createMessageEvent(session, baseEvent, ctx, configSelfId)
 
         case 'friend-request':
             return createFriendRequestEvent(session, baseEvent, configSelfId)
@@ -45,21 +56,23 @@ export function sessionToOneBotEvent(session: Session, configSelfId?: string): a
 /**
  * 创建消息事件
  */
-function createMessageEvent(session: Session, baseEvent: any, configSelfId?: string): any {
+async function createMessageEvent(session: Session, baseEvent: any, ctx: any, configSelfId?: string): Promise<any> {
     // 确定消息类型
     const isGroupMessage = !session.isDirect && (session.guildId || session.channelId)
+
+    const userId = await encodeStringId(session.userId, ctx)
 
     const event: any = {
         post_type: 'message',
         message_type: isGroupMessage ? 'group' : 'private',
         sub_type: 'normal',
         message_id: parseInt(session.messageId) || session.messageId || generateId(),
-        user_id: convertUserId(session.userId), // 转换为数字类型
-        message: elementsToOneBotMessage(session.elements || []),
+        user_id: userId, // 转换为数字类型
+        message: await elementsToOneBotMessage(session.elements || [], ctx),
         raw_message: session.content || '',
         font: 0,
         sender: {
-            user_id: convertUserId(session.userId), // 转换为数字类型
+            user_id: userId, // 转换为数字类型
             nickname: session.author?.nick || session.author?.name || session.userId,
             card: session.author?.nick || '',
             sex: 'unknown',
@@ -76,7 +89,7 @@ function createMessageEvent(session: Session, baseEvent: any, configSelfId?: str
     // 如果是群消息，添加群组信息
     if (isGroupMessage) {
         const groupId = session.guildId || session.channelId
-        event.group_id = convertUserId(groupId) // 使用相同的转换逻辑
+        event.group_id = await encodeChannelId(groupId, ctx) // 使用频道ID编码逻辑
     }
 
     return event
@@ -158,11 +171,11 @@ function getMemberRole(session: Session): 'owner' | 'admin' | 'member' {
 /**
  * 将 Koishi 元素转换为 OneBot 消息段
  */
-export function elementsToOneBotMessage(elements: h[]): OneBotMessage[] {
+export async function elementsToOneBotMessage(elements: h[], ctx: any): Promise<OneBotMessage[]> {
     const result: OneBotMessage[] = []
 
     for (const element of elements) {
-        const segment = elementToSegment(element)
+        const segment = await elementToSegment(element, ctx)
         if (segment) {
             result.push(segment)
         }
@@ -174,7 +187,7 @@ export function elementsToOneBotMessage(elements: h[]): OneBotMessage[] {
 /**
  * 将单个 Koishi 元素转换为 OneBot 消息段
  */
-function elementToSegment(element: h): OneBotMessage | null {
+async function elementToSegment(element: h, ctx: any): Promise<OneBotMessage | null> {
     switch (element.type) {
         case 'text':
             return {
@@ -186,10 +199,11 @@ function elementToSegment(element: h): OneBotMessage | null {
             if (element.attrs.type === 'all') {
                 return { type: 'at', data: { qq: 'all' } }
             } else {
+                const encodedId = await encodeStringId(element.attrs.id, ctx)
                 return {
                     type: 'at',
                     data: {
-                        qq: element.attrs.id,
+                        qq: encodedId || element.attrs.id,
                         name: element.attrs.name || ''
                     }
                 }
@@ -247,7 +261,7 @@ function elementToSegment(element: h): OneBotMessage | null {
 /**
  * 将 OneBot 消息段转换为 Koishi 元素
  */
-export function oneBotMessageToElements(message: string | OneBotMessage[]): h[] {
+export async function oneBotMessageToElements(message: string | OneBotMessage[], ctx: any): Promise<h[]> {
     if (typeof message === 'string') {
         return [h.text(message)]
     }
@@ -255,7 +269,7 @@ export function oneBotMessageToElements(message: string | OneBotMessage[]): h[] 
     const elements: h[] = []
 
     for (const segment of message) {
-        const element = segmentToElement(segment)
+        const element = await segmentToElement(segment, ctx)
         if (element) {
             elements.push(element)
         }
@@ -275,87 +289,150 @@ function convertBase64Url(url: string, mimeType: string): string {
     return url
 }
 
-// 全局映射表，用于ID转换
-const stringToNumericMap = new Map<string, number>()
-const numericToStringMap = new Map<number, string>()
-let nextNumericId = 2000000000 //  避免与真实ID冲突
-
 /**
- * 将字符串ID编码为数字ID（可逆）
+ * 将字符串ID编码为数字ID（binding表 - 用于用户ID）
  */
-function encodeStringId(stringId: string): number {
-    // 如果已经是数字，直接返回
-    const parsed = parseInt(stringId)
-    if (!isNaN(parsed) && parsed.toString() === stringId) {
-        return parsed
+export async function encodeStringId(stringId: string, ctx: any): Promise<number> {
+    try {
+        // 在binding表中查找对应的记录
+        const bindings = await ctx.database.get('binding', {
+            pid: stringId,
+        })
+
+        if (bindings.length > 0) {
+            // 找到了对应的记录，返回aid作为数字ID
+            return bindings[0].aid
+        } else {
+            return null
+        }
+    } catch (error) {
+        loggerError('Error in encodeStringId:', error)
+        return null
     }
-
-    // 检查是否已经编码过
-    if (stringToNumericMap.has(stringId)) {
-        return stringToNumericMap.get(stringId)!
-    }
-
-    // 生成新的数字ID
-    const numericId = nextNumericId++
-
-    // 建立双向映射
-    stringToNumericMap.set(stringId, numericId)
-    numericToStringMap.set(numericId, stringId)
-
-    return numericId
 }
 
 /**
- * 将ID解码为字符串ID 
- * 支持数字和字符串参数
+ * 将数字ID解码为字符串ID（binding表 - 用于用户ID）
  */
-function decodeStringId(id: number | string): string {
-    let numericId: number
+export async function decodeStringId(id: number | string, ctx: any): Promise<string> {
+    let aid: number
 
     // 统一转换为数字进行处理
     if (typeof id === 'string') {
         // 尝试将字符串转换为数字
-        numericId = parseInt(id, 10)
+        aid = parseInt(id, 10)
         // 如果转换失败或不是纯数字字符串，直接返回原字符串
-        if (isNaN(numericId) || numericId.toString() !== id) {
+        if (isNaN(aid) || aid.toString() !== id) {
             return id
         }
     } else {
-        numericId = id
+        aid = id
         // 处理 NaN 的情况
-        if (isNaN(numericId)) {
+        if (isNaN(aid)) {
             return 'unknown'
         }
     }
 
-    // 检查是否在映射表中
-    if (numericToStringMap.has(numericId)) {
-        return numericToStringMap.get(numericId)!
-    }
+    try {
+        // 在binding表中查找对应的记录
+        const bindings = await ctx.database.get('binding', {
+            aid: aid
+        })
 
-    // 如果不在映射表中，可能是原始的数字ID
-    if (numericId < 2000000000) {
-        return numericId.toString()
+        if (bindings.length > 0) {
+            // 找到了对应的记录，返回pid作为字符串ID
+            return bindings[0].pid
+        } else {
+            return null
+        }
+    } catch (error) {
+        loggerError('Error in decodeStringId:', error)
+        // 如果数据库操作失败，返回数字字符串作为fallback
+        return aid.toString()
     }
-
-    // 对于 >= 2000000000 的ID，如果不在映射表中，可能是：
-    // 1. 映射表丢失了（重启后）
-    // 2. 这是一个真实的大数字ID（虽然不太可能）
-    // 为了避免发送失败，直接返回数字字符串
-    return numericId.toString()
 }
 
 /**
- * 将用户ID转换为数字
+ * 将频道字符串ID编码为数字ID（bindingchannel表 - 用于频道ID）
  */
-function convertUserId(userId: string): number {
-    return encodeStringId(userId)
+export async function encodeChannelId(channelId: string, ctx: any): Promise<number> {
+    try {
+        // 在bindingchannel表中查找对应的记录
+        const bindings = await ctx.database.get('bindingchannel', {
+            channelId: channelId,
+        })
+
+        if (bindings.length > 0) {
+            // 找到了对应的记录，返回aid作为数字ID
+            return bindings[0].aid
+        } else {
+            // 如果没有找到，创建新的映射
+            const existingChannels = await ctx.database.get('bindingchannel', {})
+            const maxId = existingChannels.length > 0
+                ? Math.max(...existingChannels.map(row => row.aid || 0))
+                : 0
+            const newaid = maxId + 1
+
+            await ctx.database.create('bindingchannel', {
+                channelId: channelId,
+                aid: newaid,
+                createdAt: new Date(),
+                updatedAt: new Date(),
+            })
+
+            return newaid
+        }
+    } catch (error) {
+        loggerError('Error in encodeChannelId:', error)
+        return null
+    }
+}
+
+/**
+ * 将数字ID解码为频道字符串ID（bindingchannel表 - 用于频道ID）
+ */
+export async function decodeChannelId(id: number | string, ctx: any): Promise<string> {
+    let aid: number
+
+    // 统一转换为数字进行处理
+    if (typeof id === 'string') {
+        // 尝试将字符串转换为数字
+        aid = parseInt(id, 10)
+        // 如果转换失败或不是纯数字字符串，直接返回原字符串
+        if (isNaN(aid) || aid.toString() !== id) {
+            return id
+        }
+    } else {
+        aid = id
+        // 处理 NaN 的情况
+        if (isNaN(aid)) {
+            return 'unknown'
+        }
+    }
+
+    try {
+        // 在bindingchannel表中查找对应的记录
+        const bindings = await ctx.database.get('bindingchannel', {
+            aid: aid
+        })
+
+        if (bindings.length > 0) {
+            // 找到了对应的记录，返回channelId作为字符串ID
+            return bindings[0].channelId
+        } else {
+            return null
+        }
+    } catch (error) {
+        loggerError('Error in decodeChannelId:', error)
+        // 如果数据库操作失败，返回数字字符串作为fallback
+        return aid.toString()
+    }
 }
 
 /**
  * 将单个 OneBot 消息段转换为 Koishi 元素
  */
-function segmentToElement(segment: OneBotMessage): h | null {
+async function segmentToElement(segment: OneBotMessage, ctx: any): Promise<h | null> {
     switch (segment.type) {
         case 'text':
             return h.text(segment.data.text || '')
@@ -365,8 +442,8 @@ function segmentToElement(segment: OneBotMessage): h | null {
                 return h('at', { type: 'all' })
             } else {
                 // 解码加密的用户 ID
-                const originalUserId = decodeStringId(segment.data.qq as number)
-                return h.at(originalUserId, { name: segment.data.name })
+                const originalUserId = await decodeStringId(segment.data.qq as number, ctx)
+                return h.at(originalUserId || segment.data.qq, { name: segment.data.name })
             }
 
         case 'image':
@@ -414,14 +491,6 @@ export function createHeartbeatEvent(selfId: string, platform: string, interval:
 }
 
 /**
- * 创建生命周期事件
- */
-/**
- * 导出编码解码函数供其他模块使用
- */
-export { decodeStringId, encodeStringId }
-
-/**
  * 使用 session 发送消息的智能函数
  * 优先使用 session.send（被动消息），失败时回退到主动消息发送
  */
@@ -450,7 +519,7 @@ export async function sendWithSession(
         try {
             // 检查 session 是否还在有效期内
             const sessionAge = Date.now() - matchingSession.timestamp
-            const maxAge = matchingSession.platform === 'qq' ? 5 * 60 * 1000 - 2000 : 60000 // QQ: 5分钟-2秒, 其他: 1分钟
+            const maxAge = 2 * 60 * 1000  //  120秒
 
             if (sessionAge < maxAge) {
                 // 尝试使用 session.send 发送被动消息
@@ -514,25 +583,24 @@ async function sendActiveMessage(
                     }
                 }
             }
+
+            // 如果 channel 表没找到，查询 channelprivate 表
+            if (!targetBot) {
+                const channelprivates = await ctx.database.get('channelprivate', {
+                    channelId: targetChannelId
+                })
+
+                if (channelprivates.length > 0) {
+                    const botSelfId = channelprivates[0].botSelfId
+                    targetBot = Object.values(ctx.bots).find((b: any) => b.selfId === botSelfId)
+                    if (targetBot) {
+                        logInfo(`Found bot by channelprivate: ${targetBot.selfId}(${targetBot.platform})`)
+                    }
+                }
+            }
         } catch (error) {
-            loggerError(`Error querying channel database: ${error.message}`)
+            loggerError(`Error querying database: ${error.message}`)
         }
-    }
-
-    // 如果通过 channel 没找到，且提供了 selfId，尝试使用指定的 bot
-    if (!targetBot && selfId) {
-        targetBot = Object.values(ctx.bots).find((b: any) => b.selfId === selfId || b.user?.id === selfId)
-        logInfo(`Found bot by selfId: ${targetBot ? `${targetBot.selfId}(${targetBot.platform})` : 'null'}`)
-        if (targetBot) {
-            logInfo(`Found specific bot by selfId: ${targetBot.selfId} (platform: ${targetBot.platform})`)
-        } else {
-            loggerError(`No bot found with selfId: ${selfId}, falling back to general selection`)
-        }
-    }
-
-    // 如果没有找到指定的 bot，使用通用选择策略
-    if (!targetBot) {
-        targetBot = await findBestAvailableBot(ctx.bots, isPrivate)
     }
 
     if (!targetBot) {
@@ -575,8 +643,7 @@ async function sendPrivateMessageWithPlatformAdaptation(
     const channelFormats = [
         `private:${userId}`,
         userId,
-        `user:${userId}`,
-        `dm:${userId}`
+        `user:${userId}`
     ]
 
     for (const channelId of channelFormats) {
@@ -605,7 +672,7 @@ async function sendGroupMessageWithPlatformAdaptation(
     // QQ 官方平台特殊处理
     if (bot.platform === 'qq') {
         try {
-            // 对于 QQ 平台，直接使用 sendMessage，QQ 适配器内部会处理 msg_id
+            // 对于 QQ 平台，直接使用 sendMessage
             if (bot.sendMessage) {
                 return await bot.sendMessage(channelId, elements)
             }
@@ -640,17 +707,6 @@ async function sendGroupMessageWithPlatformAdaptation(
     throw new Error('Failed to send group message with all channel formats')
 }
 
-// 存储最近的 session 的全局变量
-const recentSessionsMap = new Map<string, {
-    session: any,
-    timestamp: number,
-    channelId: string,
-    userId: string | null,
-    isPrivate: boolean,
-    platform: string,
-    selfId: string
-}>()
-
 /**
  * 存储最近的 session
  */
@@ -668,8 +724,8 @@ export function storeRecentSession(session: any) {
 
     recentSessionsMap.set(key, sessionData)
 
-    // 清理超过5分钟的 session（适应 QQ 平台的超时时间）
-    const fiveMinutesAgo = Date.now() - (5 * 60 * 1000)
+    // 清理超过3分钟的 session
+    const fiveMinutesAgo = Date.now() - (3 * 60 * 1000)
     for (const [k, v] of recentSessionsMap.entries()) {
         if (v.timestamp < fiveMinutesAgo) {
             recentSessionsMap.delete(k)
@@ -681,7 +737,7 @@ export function storeRecentSession(session: any) {
  * 获取最近的 sessions
  */
 function getRecentSessions() {
-    const fiveMinutesAgo = Date.now() - (5 * 60 * 1000)
+    const fiveMinutesAgo = Date.now() - (3 * 60 * 1000)
     const recentSessions = []
 
     for (const [key, sessionData] of recentSessionsMap.entries()) {
@@ -785,33 +841,4 @@ export function cqCodeToOneBotMessage(cqCodes: CQCode[]): OneBotMessage[] {
         type: cq.type,
         data: cq.data
     }))
-}
-/**
- 
-* 查找最佳可用的 bot（当没有指定 selfId 时使用）
- */
-async function findBestAvailableBot(bots: any[], isPrivate: boolean): Promise<any | null> {
-    // 优先查找非 QQ 平台的 bot（因为 QQ 平台对主动消息有限制）
-    const nonQQBots = bots.filter((bot: any) => bot.platform !== 'qq')
-    const qqBots = bots.filter((bot: any) => bot.platform === 'qq')
-
-    // 先尝试非 QQ 平台的 bot
-    for (const bot of nonQQBots) {
-        if (isPrivate && (bot.sendPrivateMessage || bot.sendMessage)) {
-            return bot
-        } else if (!isPrivate && bot.sendMessage) {
-            return bot
-        }
-    }
-
-    // 如果没有找到非 QQ 平台的 bot，再尝试 QQ 平台的 bot
-    for (const bot of qqBots) {
-        if (isPrivate && (bot.sendPrivateMessage || bot.sendMessage)) {
-            return bot
-        } else if (!isPrivate && bot.sendMessage) {
-            return bot
-        }
-    }
-
-    return null
 }

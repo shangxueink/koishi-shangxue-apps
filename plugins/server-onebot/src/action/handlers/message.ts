@@ -1,4 +1,4 @@
-import { oneBotMessageToElements, decodeStringId, sendWithSession } from '../../utils'
+import { oneBotMessageToElements, decodeStringId, decodeChannelId, sendWithSession } from '../../utils'
 import { logInfo, loggerError, loggerInfo } from '../../../src/index'
 import { ActionHandler, ClientState } from '../../types'
 import { BotFinder } from '../../bot-finder'
@@ -22,35 +22,44 @@ async function sendMessage(
     logInfo(`clientState.lastMessageId: ${clientState.lastMessageId}`)
     logInfo(`params: ${JSON.stringify(params)}`)
 
-    const elements = oneBotMessageToElements(params.message)
+    const elements = await oneBotMessageToElements(params.message, ctx)
 
     // 确定消息类型和目标
     let isPrivate = false
     let targetChannelId: string
     let targetUserId: string | null = null
 
-    if (params.group_id) {
-        // 群消息
+    // 优先检查 message_type 参数
+    if (params.message_type === 'group') {
+        // 明确指定为群消息
         isPrivate = false
-        targetChannelId = decodeStringId(params.group_id)
+        if (params.group_id) {
+            targetChannelId = await decodeChannelId(params.group_id, ctx)
+        } else {
+            throw new Error('group_id is required for group message')
+        }
+        targetUserId = null
+    } else if (params.message_type === 'private') {
+        // 明确指定为私聊消息
+        isPrivate = true
+        if (params.user_id) {
+            targetUserId = await decodeStringId(params.user_id, ctx)
+            targetChannelId = `private:${targetUserId}`
+        } else {
+            throw new Error('user_id is required for private message')
+        }
+    } else if (params.group_id) {
+        // 没有指定 message_type，但有 group_id，推断为群消息
+        isPrivate = false
+        targetChannelId = await decodeChannelId(params.group_id, ctx)
         targetUserId = null
     } else if (params.user_id) {
-        // 私聊消息
+        // 没有指定 message_type，但有 user_id，推断为私聊消息
         isPrivate = true
-        targetUserId = decodeStringId(params.user_id)
+        targetUserId = await decodeStringId(params.user_id, ctx)
         targetChannelId = `private:${targetUserId}`
-    } else if (params.message_type === 'private' && params.user_id) {
-        // 明确指定私聊类型
-        isPrivate = true
-        targetUserId = decodeStringId(params.user_id)
-        targetChannelId = `private:${targetUserId}`
-    } else if (params.message_type === 'group' && params.group_id) {
-        // 明确指定群聊类型
-        isPrivate = false
-        targetChannelId = decodeStringId(params.group_id)
-        targetUserId = null
     } else {
-        throw new Error('Invalid parameters: must specify either user_id or group_id')
+        throw new Error('Invalid parameters: must specify message_type or provide user_id/group_id')
     }
 
     // 使用统一的发送逻辑

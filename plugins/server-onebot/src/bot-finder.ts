@@ -1,20 +1,36 @@
 import { Context, Bot, Session } from 'koishi'
 import { logInfo, loggerError, loggerInfo } from './index'
-import { decodeStringId } from './utils'
+import { decodeStringId, decodeChannelId } from './utils'
 
 // 私聊频道表结构
 declare module 'koishi' {
     interface Tables {
-        privatechannel: PrivateChannel
+        channelprivate: channelprivate
+        bindingchannel: BindingChannel
     }
 }
 
-export interface PrivateChannel {
+// 扩展 Binding 接口
+declare module 'koishi' {
+    interface Binding {
+        botselfid?: string
+    }
+}
+
+export interface channelprivate {
     id: number
     userId: string
     channelId: string
     botSelfId: string
     platform: string
+    createdAt: Date
+    updatedAt: Date
+}
+
+export interface BindingChannel {
+    id: number
+    channelId: string
+    aid: number
     createdAt: Date
     updatedAt: Date
 }
@@ -39,7 +55,7 @@ export class BotFinder {
      * 初始化数据库表
      */
     private initializeDatabase() {
-        this.ctx.model.extend('privatechannel', {
+        this.ctx.model.extend('channelprivate', {
             id: 'unsigned',
             userId: 'string',
             channelId: 'string',
@@ -52,6 +68,18 @@ export class BotFinder {
             autoInc: true,
             unique: [['userId', 'channelId']],
         })
+
+        this.ctx.model.extend('bindingchannel', {
+            id: 'unsigned',
+            channelId: 'string',
+            aid: 'unsigned',
+            createdAt: 'timestamp',
+            updatedAt: 'timestamp',
+        }, {
+            primary: 'id',
+            autoInc: true,
+            unique: [['channelId'], ['aid']],
+        })
     }
 
     /**
@@ -61,7 +89,8 @@ export class BotFinder {
         this.ctx.on('ready', () => {
             // 只监听 message-created 事件，避免重复
             this.ctx.on('message-created', (session: Session) => {
-                this.handleMessageForPrivateChannel(session)
+                this.updateBindingBotSelfId(session)
+                this.handleMessageForchannelprivate(session)
             })
 
             logInfo('Private channel event listeners set up')
@@ -71,7 +100,7 @@ export class BotFinder {
     /**
      * 处理消息事件，记录私聊频道信息
      */
-    private async handleMessageForPrivateChannel(session: Session) {
+    private async handleMessageForchannelprivate(session: Session) {
         // // 不处理有【at别人的前缀】消息
         // if (session.stripped.hasAt && !session.stripped.atSelf) return
         // 只处理私聊消息
@@ -92,7 +121,7 @@ export class BotFinder {
             }
 
             // 记录私聊频道信息
-            await this.recordPrivateChannel(
+            await this.recordchannelprivate(
                 session.userId,
                 session.channelId || `private:${session.userId}`,
                 bot.selfId,
@@ -104,10 +133,46 @@ export class BotFinder {
     }
 
     /**
+     * 更新 binding 表中的 botselfid 字段
+     */
+    private async updateBindingBotSelfId(session: Session) {
+        if (!this.isDatabaseAvailable()) {
+            return
+        }
+
+        try {
+            // 查找对应的 binding 记录
+            const bindings = await this.ctx.database.get('binding', {
+                pid: `${session.userId}`,
+                platform: session.platform
+            })
+
+            if (bindings.length > 0) {
+                const binding = bindings[0]
+                // 如果 botselfid 不存在或者与当前 session 的 selfId 不同，则更新
+                if (!binding.botselfid || binding.botselfid !== `${session.userId}`) {
+                    await this.ctx.database.set('binding', {
+                        pid: `${session.userId}`,
+                        platform: session.platform
+                    }, {
+                        botselfid: session.selfId
+                    })
+
+                    logInfo('Updated binding botselfid for user %s: %s', session.userId, session.selfId)
+                }
+            }
+        } catch (error) {
+            loggerError('Error updating binding botselfid: %s', error.message)
+        }
+    }
+
+    /**
      * 记录私聊频道信息到数据库 
      */
-    private recordPrivateChannel(userId: string, channelId: string, botSelfId: string, platform: string) {
-        const key = `${userId}|${channelId}`
+    private recordchannelprivate(userId: string, channelId: string, botSelfId: string, platform: string) {
+        // 确保 userId 作为字符串处理
+        const userIdStr = String(userId)
+        const key = `${userIdStr}|${channelId}`
 
         // 清除之前的防抖定时器
         const existingTimer = this.recordingDebounce.get(key)
@@ -117,7 +182,7 @@ export class BotFinder {
 
         // 设置新的防抖定时器
         const timer = setTimeout(async () => {
-            await this.doRecordPrivateChannel(userId, channelId, botSelfId, platform)
+            await this.doRecordchannelprivate(userIdStr, channelId, botSelfId, platform)
             this.recordingDebounce.delete(key)
         }, 100) // 100ms 防抖
 
@@ -127,7 +192,7 @@ export class BotFinder {
     /**
      * 实际执行数据库记录操作
      */
-    private async doRecordPrivateChannel(userId: string, channelId: string, botSelfId: string, platform: string) {
+    private async doRecordchannelprivate(userId: string, channelId: string, botSelfId: string, platform: string) {
         if (!this.isDatabaseAvailable()) {
             logInfo('Database not available, skipping private channel record')
             return
@@ -145,16 +210,19 @@ export class BotFinder {
         this.recordingLocks.add(key)
 
         try {
+            // 确保 userId 作为字符串处理
+            const userIdStr = String(userId)
+
             // 使用 upsert 操作，如果存在就更新，不存在就创建
-            const existing = await this.ctx.database.get('privatechannel', {
-                userId,
+            const existing = await this.ctx.database.get('channelprivate', {
+                userId: userIdStr,
                 channelId,
             })
 
             if (existing.length > 0) {
                 // 更新现有记录
-                await this.ctx.database.set('privatechannel', {
-                    userId,
+                await this.ctx.database.set('channelprivate', {
+                    userId: userIdStr,
                     channelId,
                 }, {
                     botSelfId,
@@ -165,8 +233,8 @@ export class BotFinder {
                 logInfo('Updated private channel record: %s -> %s', channelId, botSelfId)
             } else {
                 // 创建新记录
-                await this.ctx.database.create('privatechannel', {
-                    userId,
+                await this.ctx.database.create('channelprivate', {
+                    userId: userIdStr,
                     channelId,
                     botSelfId,
                     platform,
@@ -201,7 +269,7 @@ export class BotFinder {
 
         try {
             // 获取所有记录
-            const allRecords = await this.ctx.database.get('privatechannel', {})
+            const allRecords = await this.ctx.database.get('channelprivate', {})
 
             // 按 userId + channelId 分组
             const groups = new Map<string, typeof allRecords>()
@@ -226,7 +294,7 @@ export class BotFinder {
                     const toDelete = records.filter(r => r.id !== latest.id)
 
                     for (const record of toDelete) {
-                        await this.ctx.database.remove('privatechannel', { id: record.id })
+                        await this.ctx.database.remove('channelprivate', { id: record.id })
                         cleanedCount++
                     }
                 }
@@ -240,23 +308,6 @@ export class BotFinder {
         }
     }
 
-    /**
-     * 获取回退 bot
-     */
-    private getFallbackBot(): Bot | null {
-        // 优先选择非 onebot 平台的 bot
-        const nonOneBotBots = this.ctx.bots.filter(bot => bot.platform !== 'onebot')
-        if (nonOneBotBots.length > 0) {
-            return nonOneBotBots[0]
-        }
-
-        // 如果只有 onebot 平台的 bot，返回第一个
-        if (this.ctx.bots.length > 0) {
-            return this.ctx.bots[0]
-        }
-
-        return null
-    }
 
     /**
      * 根据频道 ID 查找对应的 bot
@@ -267,22 +318,22 @@ export class BotFinder {
         try {
             // 检查数据库是否可用
             if (!this.isDatabaseAvailable()) {
-                return this.getFallbackBot()
+                throw new Error('Database not available')
             }
 
-            // 查询 privatechannel 表
-            const privateChannels = await this.ctx.database.get('privatechannel', {
+            // 查询 channelprivate 表
+            const channelprivates = await this.ctx.database.get('channelprivate', {
                 channelId: channelId
             })
 
-            if (privateChannels.length > 0) {
-                const privateChannel = privateChannels[0]
-                const bot = this.ctx.bots.find(bot => bot.selfId === privateChannel.botSelfId)
+            if (channelprivates.length > 0) {
+                const channelprivate = channelprivates[0]
+                const bot = this.ctx.bots.find(bot => bot.selfId === channelprivate.botSelfId)
 
                 if (bot) {
                     return bot
                 } else {
-                    logInfo('Bot with selfId %s not found for private channel, trying fallback', privateChannel.botSelfId)
+                    logInfo('Bot with selfId %s not found for private channel, trying fallback', channelprivate.botSelfId)
                 }
             }
 
@@ -292,7 +343,7 @@ export class BotFinder {
             })
 
             if (channels.length === 0) {
-                return this.getFallbackBot()
+                throw new Error(`No channel found for channelId: ${channelId}`)
             }
 
             // 取第一个匹配的频道
@@ -322,39 +373,36 @@ export class BotFinder {
     /**
      * 根据用户 ID 查找对应的 bot
      * @param userId 用户 ID
-     * @returns 对应的 bot 实例，如果没找到返回第一个可用的 bot
+     * @returns 对应的 bot 实例，如果没找到返回 null
      */
     async findBotByUserId(userId: string): Promise<Bot | null> {
         try {
             if (!this.isDatabaseAvailable()) {
-                return this.getFallbackBot()
+                throw new Error('Database not available')
             }
 
-            // 查询 privatechannel 表，寻找匹配的 userId
-            const privateChannels = await this.ctx.database.get('privatechannel', {
-                userId: userId
+            // 查询 binding 表，寻找匹配的 pid（用户ID）
+            const bindings = await this.ctx.database.get('binding', {
+                pid: String(userId)
             })
 
-            if (privateChannels.length > 0) {
-                const privateChannel = privateChannels[0]
-                const bot = this.ctx.bots.find(bot => bot.selfId === privateChannel.botSelfId)
-
-                if (bot) {
-                    return bot
-                } else {
-                    logInfo('Bot with selfId %s not found for user, using fallback', privateChannel.botSelfId)
+            if (bindings.length > 0) {
+                const binding = bindings[0]
+                if (binding.botselfid) {
+                    const bot = this.ctx.bots.find(bot => bot.selfId === binding.botselfid)
+                    if (bot) {
+                        return bot
+                    } else {
+                        logInfo('Bot with selfId %s not found for user, bot may be offline', binding.botselfid)
+                    }
                 }
             }
 
-            // 如果没有找到私聊记录，使用回退机制
-            const bot = this.getFallbackBot()
-            if (bot) {
-                logInfo('Using fallback bot %s for user %s', bot.selfId, userId)
-            }
-            return bot
+            // 如果没有找到对应的 bot，抛出错误
+            throw new Error(`No bot found for user: ${userId}`)
         } catch (error) {
             loggerError('Error finding bot for user %s: %s', userId, error.message)
-            return this.getFallbackBot()
+            throw new Error(`Failed to find bot for user ${userId}: ${error.message}`)
         }
     }
 
@@ -365,32 +413,10 @@ export class BotFinder {
      * @returns 对应的 bot 实例
      */
     async findBot(params: any, clientState: any): Promise<Bot | null> {
-        // 如果请求中指定了 self，使用指定的 bot
-        if (params.self) {
-            const bot = this.ctx.bots.find(bot =>
-                bot.platform === params.self.platform &&
-                bot.selfId === params.self.user_id
-            )
-            if (bot) {
-                return bot
-            }
-        }
-
-        // 如果客户端状态中有平台和 selfId 信息，使用它们
-        if (clientState.platform && clientState.selfId) {
-            const bot = this.ctx.bots.find(bot =>
-                bot.platform === clientState.platform &&
-                bot.selfId === clientState.selfId
-            )
-            if (bot) {
-                return bot
-            }
-        }
-
         // 如果是群组相关操作，根据群组 ID 查找
         if (params.group_id) {
-            // 解码数字ID为原始字符串ID
-            const originalGroupId = decodeStringId(params.group_id)
+            // 解码数字ID为原始频道字符串ID
+            const originalGroupId = await decodeChannelId(params.group_id, this.ctx)
             logInfo('Decoded group_id %s to %s', params.group_id, originalGroupId)
             const bot = await this.findBotByChannelId(originalGroupId)
             if (bot) {
@@ -401,7 +427,7 @@ export class BotFinder {
         // 如果是用户相关操作，根据用户 ID 查找
         if (params.user_id) {
             // 解码数字ID为原始字符串ID
-            const originalUserId = decodeStringId(params.user_id)
+            const originalUserId = await decodeStringId(params.user_id, this.ctx)
             logInfo('Decoded user_id %s to %s', params.user_id, originalUserId)
             const bot = await this.findBotByUserId(originalUserId)
             if (bot) {
@@ -409,21 +435,8 @@ export class BotFinder {
             }
         }
 
-        // 优先选择非 onebot 平台的 bot，避免循环
-        const nonOneBotBots = this.ctx.bots.filter(bot => bot.platform !== 'onebot')
-        if (nonOneBotBots.length > 0) {
-            logInfo('Using first non-onebot bot: %s', nonOneBotBots[0].selfId)
-            return nonOneBotBots[0]
-        }
-
-        // 如果只有 onebot 平台的 bot，返回第一个
-        if (this.ctx.bots.length > 0) {
-            logInfo('Using first available bot: %s', this.ctx.bots[0].selfId)
-            return this.ctx.bots[0]
-        }
-
-        logInfo('No bots available')
-        return null
+        // 没有找到合适的bot，抛出错误
+        throw new Error('No suitable bot found for the request')
     }
 
     /**
@@ -436,18 +449,18 @@ export class BotFinder {
     /**
      * 根据用户ID获取私聊channel ID
      */
-    async getPrivateChannelId(userId: string): Promise<string | null> {
+    async getchannelprivateId(userId: string): Promise<string | null> {
         try {
             if (!this.isDatabaseAvailable()) {
                 return null
             }
 
-            const privateChannels = await this.ctx.database.get('privatechannel', {
-                userId: userId
+            const channelprivates = await this.ctx.database.get('channelprivate', {
+                userId: String(userId)
             })
 
-            if (privateChannels.length > 0) {
-                const channelId = privateChannels[0].channelId
+            if (channelprivates.length > 0) {
+                const channelId = channelprivates[0].channelId
                 logInfo('Found private channel %s for user %s', channelId, userId)
                 return channelId
             }

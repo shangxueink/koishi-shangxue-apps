@@ -2,7 +2,7 @@ import { Context } from 'koishi'
 import { ActionHandler, ClientState, GroupInfo, UserInfo } from '../../types'
 import { BotFinder } from '../../bot-finder'
 import { loggerError, logInfo } from '../../../src/index'
-import { encodeStringId } from '../../utils'
+import { encodeChannelId } from '../../utils'
 
 export function createGroupHandlers(ctx: Context, config?: { selfId: string }): Record<string, ActionHandler> {
     const botFinder = new BotFinder(ctx)
@@ -19,7 +19,7 @@ export function createGroupHandlers(ctx: Context, config?: { selfId: string }): 
             if (typeof bot.getGuild === 'function') {
                 const guild = await bot.getGuild(groupId.toString())
                 return {
-                    id: encodeStringId(guild.id),
+                    id: await encodeChannelId(guild.id, ctx),
                     name: guild.name || guild.id,
                     member_count: (guild as any).memberCount || 0,
                     max_member_count: (guild as any).maxMemberCount || 0,
@@ -28,7 +28,7 @@ export function createGroupHandlers(ctx: Context, config?: { selfId: string }): 
                 // 如果没有 getGuild 方法，返回基本信息
                 loggerError('Bot %s (platform: %s) does not have getGuild method', bot.selfId, bot.platform)
                 return {
-                    id: encodeStringId(groupId.toString()),
+                    id: await encodeChannelId(groupId.toString(), ctx),
                     name: `群组${groupId}`,
                     member_count: 0,
                     max_member_count: 0,
@@ -39,7 +39,7 @@ export function createGroupHandlers(ctx: Context, config?: { selfId: string }): 
 
             // 如果无法获取群信息，返回基本信息而不是抛出错误
             return {
-                id: encodeStringId(groupId.toString()),
+                id: await encodeChannelId(groupId.toString(), ctx),
                 name: `群组${groupId}`,
                 member_count: 0,
                 max_member_count: 0,
@@ -55,12 +55,16 @@ export function createGroupHandlers(ctx: Context, config?: { selfId: string }): 
             if (bot && typeof bot.getGuildList === 'function') {
                 try {
                     const guilds = await bot.getGuildList()
-                    return (guilds.data || []).map(guild => ({
-                        id: encodeStringId(guild.id),
-                        name: guild.name || guild.id,
-                        member_count: (guild as any).memberCount || 0,
-                        max_member_count: (guild as any).maxMemberCount || 0,
-                    }))
+                    const guildList = []
+                    for (const guild of guilds.data || []) {
+                        guildList.push({
+                            id: await encodeChannelId(guild.id, ctx),
+                            name: guild.name || guild.id,
+                            member_count: (guild as any).memberCount || 0,
+                            max_member_count: (guild as any).maxMemberCount || 0,
+                        })
+                    }
+                    return guildList
                 } catch (error) {
                     // 如果通过 bot 获取失败，继续尝试数据库方式
                     loggerError('Failed to get guild list from bot: %s', error.message)
@@ -88,7 +92,7 @@ export function createGroupHandlers(ctx: Context, config?: { selfId: string }): 
                 }
                 uniqueGuildIds.add(guildId)
 
-                const encodedId = encodeStringId(guildId)
+                const encodedId = await encodeChannelId(guildId, ctx)
 
                 // 尝试通过 bot 获取群组名称
                 let guildName = guildId // 默认使用 ID 作为名称
@@ -159,7 +163,7 @@ export function createGroupHandlers(ctx: Context, config?: { selfId: string }): 
                     }
                     uniqueGuildIds.add(guildId)
 
-                    const encodedId = encodeStringId(guildId)
+                    const encodedId = await encodeChannelId(guildId, ctx)
 
                     groups.push({
                         group_id: encodedId,
@@ -215,7 +219,7 @@ export function createGroupHandlers(ctx: Context, config?: { selfId: string }): 
                     }
                     uniqueGuildIds.add(guildId)
 
-                    const encodedId = encodeStringId(guildId)
+                    const encodedId = await encodeChannelId(guildId, ctx)
 
                     guilds.push({
                         guild_id: encodedId,
@@ -257,7 +261,7 @@ export function createGroupHandlers(ctx: Context, config?: { selfId: string }): 
                     }
                     uniqueGuildIds.add(guildId)
 
-                    const encodedId = encodeStringId(guildId)
+                    const encodedId = await encodeChannelId(guildId, ctx)
 
                     guilds.push({
                         guild_id: encodedId,

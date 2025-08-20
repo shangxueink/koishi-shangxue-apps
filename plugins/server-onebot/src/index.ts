@@ -2,6 +2,7 @@ import { Context, Schema } from 'koishi'
 import { OneBotServer } from './server'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
+
 import { } from '@koishijs/plugin-notifier'
 
 export const name = 'server-onebot'
@@ -92,6 +93,11 @@ export function apply(ctx: Context, config: Config) {
   loggerError = (message: any, ...args: any[]) => {
     ctx.logger.error(message, ...args);
   };
+
+  // 扩展 binding 表，添加 botselfid 字段
+  ctx.model.extend('binding', {
+    botselfid: 'string'
+  })
 
   // 检查配置是否有效
   const hasValidConfig = checkConfiguration(config)
@@ -207,5 +213,5 @@ async function startAutoShutdown(ctx: Context): Promise<void> {
 export * from './types'
 export * from './server'
 export * from './utils'
-export * from './network'
 export * from './action'
+export * from './network'
