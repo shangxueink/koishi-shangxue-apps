@@ -62,14 +62,21 @@ async function createMessageEvent(session: Session, baseEvent: any, ctx: any, co
 
     const userId = await encodeStringId(session.userId, ctx)
 
+    // 根据平台决定使用哪个内容和元素
+    // 对于 qq 和 qqguild 平台，使用 stripped 版本避免 at 标签问题
+    const useStripped = session.platform === 'qq' || session.platform === 'qqguild'
+    const rawMessage = useStripped
+        ? (session.stripped?.content || session.content || '')
+        : (session.content || '')
+
     const event: any = {
         post_type: 'message',
         message_type: isGroupMessage ? 'group' : 'private',
         sub_type: 'normal',
         message_id: parseInt(session.messageId) || session.messageId || generateId(),
         user_id: userId, // 转换为数字类型
-        message: await elementsToOneBotMessage(session.elements || [], ctx),
-        raw_message: session.content || '',
+        message: await elementsToOneBotMessage(session.elements || [], ctx, session.platform),
+        raw_message: rawMessage,
         font: 0,
         sender: {
             user_id: userId, // 转换为数字类型
@@ -171,10 +178,15 @@ function getMemberRole(session: Session): 'owner' | 'admin' | 'member' {
 /**
  * 将 Koishi 元素转换为 OneBot 消息段
  */
-export async function elementsToOneBotMessage(elements: h[], ctx: any): Promise<OneBotMessage[]> {
+export async function elementsToOneBotMessage(elements: h[], ctx: any, platform?: string): Promise<OneBotMessage[]> {
     const result: OneBotMessage[] = []
 
     for (const element of elements) {
+        // 对于 qq 和 qqguild 平台，过滤掉 at 元素（除了 @all）
+        if ((platform === 'qq' || platform === 'qqguild') && element.type === 'at' && element.attrs.type !== 'all') {
+            continue // 跳过这个 at 元素
+        }
+
         const segment = await elementToSegment(element, ctx)
         if (segment) {
             result.push(segment)

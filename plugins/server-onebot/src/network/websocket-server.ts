@@ -42,17 +42,15 @@ export class WebSocketServer {
             }
             socket[kClient] = client
 
-            // 检查必要的头信息
-            if (headers['x-client-role'] !== 'Universal') {
-                logInfo('Invalid x-client-role:', headers['x-client-role'])
+            // 检查必要的头信息（宽松验证）
+            const clientRole = headers['x-client-role']
+            if (clientRole && clientRole !== 'Universal') {
+                logInfo('Invalid x-client-role:', clientRole)
                 return socket.close(1008, 'invalid x-client-role')
             }
 
-            const selfId = headers['x-self-id']?.toString()
-            if (!selfId) {
-                logInfo('Missing x-self-id header')
-                return socket.close(1008, 'missing x-self-id')
-            }
+            // 获取 selfId，如果没有提供则使用配置的默认值
+            const selfId = headers['x-self-id']?.toString() || this.config.selfId || '114514'
 
             // 鉴权检查
             if (!this.checkAuth(headers)) {
@@ -62,6 +60,8 @@ export class WebSocketServer {
 
             client.authorized = true
             client.selfId = selfId
+
+            logInfo('WebSocket client accepted with selfId: %s', selfId)
 
             // 获取客户端地址信息
             const clientAddress = socket.remoteAddress || 'unknown'
@@ -95,7 +95,13 @@ export class WebSocketServer {
                 const clientInfo = `${clientAddress}:${clientPort}`
 
                 loggerInfo('OneBot WebSocket client disconnected: %s', clientInfo)
-                loggerInfo('Remaining WebSocket connections: %d', this.route.clients.size - 1)
+
+                // 检查 route 是否还存在
+                if (this.route && this.route.clients) {
+                    loggerInfo('Remaining WebSocket connections: %d', this.route.clients.size - 1)
+                } else {
+                    loggerInfo('WebSocket server has been closed')
+                }
             })
 
             // 监听错误
@@ -185,14 +191,15 @@ export class WebSocketServer {
 
     /**
      * 广播事件到所有已连接的客户端
+     * 返回实际发送的客户端数量
      */
-    broadcast(event: any) {
-        if (!this.route) return
+    broadcast(event: any): number {
+        if (!this.route) return 0
 
         const clientCount = this.route.clients.size
         if (clientCount === 0) {
-            logInfo('No WebSocket clients connected, event will not be sent')
-            return
+            // 不在这里输出日志，让调用方处理
+            return 0
         }
 
         let sentCount = 0
@@ -212,6 +219,7 @@ export class WebSocketServer {
             }
         }
 
+        return sentCount
     }
 
     /**

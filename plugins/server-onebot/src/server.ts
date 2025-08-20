@@ -4,7 +4,6 @@ import { logInfo, loggerError, loggerInfo } from './index'
 import { WebSocketServer } from './network/websocket-server'
 import { WebSocketClient } from './network/websocket-client'
 import { Context, Logger, Session } from 'koishi'
-import { BotFinder } from './bot-finder'
 import { Config } from './index'
 
 export class OneBotServer {
@@ -12,14 +11,12 @@ export class OneBotServer {
     private wsClients: WebSocketClient[] = []
     private heartbeatTimer?: NodeJS.Timeout
     private pendingMessages: Map<string, NodeJS.Timeout> = new Map()
-    private botFinder: BotFinder
     private isDisposed = false
 
     constructor(
         private ctx: Context,
         private config: Config
     ) {
-        this.botFinder = new BotFinder(ctx)
     }
 
     async start() {
@@ -30,9 +27,8 @@ export class OneBotServer {
 
         logInfo('Starting OneBot server with config: %o', this.config)
 
-        // 根据协议类型启动相应的服务
-        if (this.config.protocol === 'ws') {
-            // 启动正向 WebSocket 服务器
+        // 启动 WebSocket 服务器（如果启用）
+        if (this.config.enabledWs) {
             this.wsServer = new WebSocketServer(this.ctx, {
                 path: this.config.path || '/onebotserver',
                 token: this.config.token,
@@ -40,9 +36,11 @@ export class OneBotServer {
                 selfname: this.config.selfname,
             })
             logInfo('WebSocket server started at: %s', this.config.path || '/onebotserver')
-        } else if (this.config.protocol === 'ws-reverse') {
-            // 启动反向 WebSocket 客户端
-            const connections = this.config.reverseConnections?.filter(conn => conn.enabled && conn.url) || []
+        }
+
+        // 启动反向 WebSocket 客户端（如果启用）
+        if (this.config.enabledWsReverse) {
+            const connections = this.config.connections?.filter(conn => conn.enabled && conn.url) || []
             if (connections.length > 0) {
                 for (const connection of connections) {
                     const wsClient = new WebSocketClient(this.ctx, {
@@ -213,29 +211,33 @@ export class OneBotServer {
             return
         }
 
-        if (this.config.protocol === 'ws') {
-            // 正向 WebSocket 模式：发送到连接的客户端
-            if (this.wsServer) {
-                this.wsServer.broadcast(event)
-            }
-        } else if (this.config.protocol === 'ws-reverse') {
-            // 反向 WebSocket 模式：发送到所有连接的服务端
-            let sentCount = 0
+        let totalSent = 0
+
+        // 向 WebSocket 服务器的客户端广播（如果启用）
+        if (this.wsServer && this.config.enabledWs) {
+            const wsServerClientCount = this.wsServer.broadcast(event)
+            totalSent += wsServerClientCount
+        }
+
+        // 向反向 WebSocket 客户端广播（如果启用）
+        if (this.config.enabledWsReverse && this.wsClients.length > 0) {
+            let reverseSentCount = 0
             for (const wsClient of this.wsClients) {
                 if (wsClient.isConnected()) {
                     try {
                         wsClient.send(event)
-                        sentCount++
+                        reverseSentCount++
                     } catch (error) {
                         loggerError('Error sending event to WebSocket client:', error)
                     }
                 }
             }
-            if (sentCount === 0) {
-                // logInfo('No reverse WebSocket clients connected, event will not be sent')
-            } else {
-                // logInfo('Event broadcasted to %d reverse WebSocket clients', sentCount)
-            }
+            totalSent += reverseSentCount
+        }
+
+        // 如果没有任何连接，记录日志
+        if (totalSent === 0) {
+            logInfo('No WebSocket clients connected, event will not be sent')
         }
     }
 

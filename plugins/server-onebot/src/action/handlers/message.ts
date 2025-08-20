@@ -77,8 +77,9 @@ async function sendMessage(
     }
 }
 
-export function createMessageHandlers(ctx: Context, config?: { selfId: string }): Record<string, ActionHandler> {
-    const botFinder = new BotFinder(ctx)
+export function createMessageHandlers(ctx: Context, config?: { selfId: string }, botFinder?: BotFinder): Record<string, ActionHandler> {
+    // 如果没有传入 botFinder，则创建一个新的（向后兼容）
+    const finder = botFinder || new BotFinder(ctx)
 
     return {
 
@@ -115,7 +116,7 @@ export function createMessageHandlers(ctx: Context, config?: { selfId: string })
         delete_msg: async (params: {
             message_id: string | number
         }, clientState: ClientState) => {
-            const bot = await botFinder.findBot(params, clientState)
+            const bot = await finder.findBot(params, clientState)
             if (!bot) {
                 throw new Error('Bot not found')
             }
@@ -133,7 +134,7 @@ export function createMessageHandlers(ctx: Context, config?: { selfId: string })
         get_msg: async (params: {
             message_id: string | number
         }, clientState: ClientState) => {
-            const bot = await botFinder.findBot(params, clientState)
+            const bot = await finder.findBot(params, clientState)
             if (!bot) {
                 throw new Error('Bot not found')
             }

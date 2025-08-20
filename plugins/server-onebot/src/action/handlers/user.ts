@@ -3,15 +3,16 @@ import { logInfo, loggerError, loggerInfo } from '../../../src/index'
 import { BotFinder } from '../../bot-finder'
 import { Context, Universal } from 'koishi'
 
-export function createUserHandlers(ctx: Context, config?: { selfId: string, selfname?: string }): Record<string, ActionHandler> {
-    const botFinder = new BotFinder(ctx)
+export function createUserHandlers(ctx: Context, config?: { selfId: string, selfname?: string }, botFinder?: BotFinder): Record<string, ActionHandler> {
+    // 如果没有传入 botFinder，则创建一个新的（向后兼容）
+    const finder = botFinder || new BotFinder(ctx)
     const defaultUserId = config?.selfId || parseInt(config.selfId)
     const defaultNickname = config?.selfname
 
     return {
         // 获取登录号信息
         get_login_info: async (params: {}, clientState: ClientState) => {
-            const bot = await botFinder.findBot(params, clientState)
+            const bot = await finder.findBot(params, clientState)
             if (!bot) {
                 // 如果没有找到 bot，返回默认信息
                 return {
@@ -24,7 +25,7 @@ export function createUserHandlers(ctx: Context, config?: { selfId: string, self
                 const self = await bot.getSelf()
                 return {
                     user_id: parseInt(self.userId) || defaultUserId,
-                    nickname: defaultNickname, // 使用配置的名称，而不是bot的名称
+                    nickname: defaultNickname,
                 }
             } catch (error) {
                 // 如果获取失败，返回默认信息
@@ -40,7 +41,7 @@ export function createUserHandlers(ctx: Context, config?: { selfId: string, self
             user_id: string | number
             no_cache?: boolean
         }, clientState: ClientState) => {
-            const bot = await botFinder.findBot(params, clientState)
+            const bot = await finder.findBot(params, clientState)
             if (!bot) {
                 throw new Error('Bot not found')
             }
@@ -60,7 +61,7 @@ export function createUserHandlers(ctx: Context, config?: { selfId: string, self
 
         // 获取好友列表
         get_friend_list: async (params: {}, clientState: ClientState) => {
-            const bot = await botFinder.findBot(params, clientState)
+            const bot = await finder.findBot(params, clientState)
             if (!bot) {
                 throw new Error('Bot not found')
             }
@@ -81,7 +82,7 @@ export function createUserHandlers(ctx: Context, config?: { selfId: string, self
         delete_friend: async (params: {
             user_id: string | number
         }, clientState: ClientState) => {
-            const bot = await botFinder.findBot(params, clientState)
+            const bot = await finder.findBot(params, clientState)
             if (!bot) {
                 throw new Error('Bot not found')
             }
@@ -95,7 +96,7 @@ export function createUserHandlers(ctx: Context, config?: { selfId: string, self
             approve: boolean
             remark?: string
         }, clientState: ClientState) => {
-            const bot = await botFinder.findBot(params, clientState)
+            const bot = await finder.findBot(params, clientState)
             if (!bot) {
                 throw new Error('Bot not found')
             }
@@ -108,7 +109,7 @@ export function createUserHandlers(ctx: Context, config?: { selfId: string, self
             user_id: string | number
             times?: number
         }, clientState: ClientState) => {
-            const bot = await botFinder.findBot(params, clientState)
+            const bot = await finder.findBot(params, clientState)
             if (!bot) {
                 throw new Error('Bot not found')
             }
@@ -118,7 +119,7 @@ export function createUserHandlers(ctx: Context, config?: { selfId: string, self
 
         // 获取单向好友列表
         get_unidirectional_friend_list: async (params: {}, clientState: ClientState) => {
-            const bot = await botFinder.findBot(params, clientState)
+            const bot = await finder.findBot(params, clientState)
             if (!bot) {
                 throw new Error('Bot not found')
             }
@@ -130,7 +131,7 @@ export function createUserHandlers(ctx: Context, config?: { selfId: string, self
         delete_unidirectional_friend: async (params: {
             user_id: string | number
         }, clientState: ClientState) => {
-            const bot = await botFinder.findBot(params, clientState)
+            const bot = await finder.findBot(params, clientState)
             if (!bot) {
                 throw new Error('Bot not found')
             }

@@ -24,10 +24,13 @@ export interface Config {
   selfId: string
   selfname?: string
   token?: string
-  protocol: 'ws' | 'ws-reverse'
+  // 扁平化的启用开关
+  enabledWs: boolean
+  enabledWsReverse: boolean
+  // WebSocket 服务器配置
   path?: string
-  url?: string[]
-  reverseConnections?: Array<{
+  // 反向 WebSocket 客户端配置
+  connections?: Array<{
     enabled: boolean
     url: string
     name?: string
@@ -45,29 +48,37 @@ export interface Config {
 export const Config: Schema<Config> = Schema.intersect([
   Schema.object({
     selfId: Schema.string().description('机器人的账号 （`QQ号`）。').required(),
-    selfname: Schema.string().description('机器人的名称，用于转发给其他 OneBot 后端时显示。').default('Bot of Koishi Server'),
+    selfname: Schema.string().description('机器人的名称，用于转发给其他 OneBot 后端时显示。').default('Bot of Koishi'),
     token: Schema.string().role('secret').description('发送信息时用于验证的字段。<br>应与 `onebot客户端` 配置文件中的 `token` 保持一致。'),
   }).description('基础配置'),
 
   Schema.object({
-    protocol: Schema.union(['ws', 'ws-reverse']).description('选择要使用的协议。').default('ws'),
+    enabledWs: Schema.boolean().default(false).description('启用 `WebSocket 服务器`'),
+    enabledWsReverse: Schema.boolean().default(false).description('启用 `反向 WebSocket 客户端`'),
   }).description('连接设置'),
-
   Schema.union([
     Schema.object({
-      protocol: Schema.const('ws'),
+      enabledWs: Schema.const(true).required(),
       path: Schema.string().default('/onebotserver').description('WebSocket 服务路径。<br>默认地址: `ws://localhost:5140/onebotserver`'),
-    }),
+    }).description('WebSocket 服务器设置'),
     Schema.object({
-      protocol: Schema.const('ws-reverse').required(),
-      reverseConnections: Schema.array(Schema.object({
+      enabledWs: Schema.const(false),
+    }).description(''),
+  ]),
+  Schema.union([
+    Schema.object({
+      enabledWsReverse: Schema.const(true).required(),
+      connections: Schema.array(Schema.object({
         enabled: Schema.boolean().default(true).description('启用'),
-        url: Schema.string().description('反向 WebSocket 连接地址').required(),
+        url: Schema.string().description('反向 WebSocket 连接地址'),
         name: Schema.string().description('连接名称（仅标识）'),
-      })).role('table').description('反向 WebSocket 连接配置<br>例如：`ws://localhost:2536/OneBotv11`').default([null]),
+      })).role('table').description('反向 WebSocket 连接配置<br>例如：`ws://localhost:2536/OneBotv11`').default([]),
       reconnectInterval: Schema.number().default(3000).description('重连间隔 (毫秒)'),
       maxReconnectAttempts: Schema.number().default(5).description('最大重连尝试次数，超过后将放弃连接<br>重启插件以重新连接'),
-    }),
+    }).description('反向 WebSocket 客户端设置'),
+    Schema.object({
+      enabledWsReverse: Schema.const(false),
+    }).description(''),
   ]),
 
   Schema.object({
@@ -76,7 +87,7 @@ export const Config: Schema<Config> = Schema.intersect([
       interval: Schema.number().default(5000).description('心跳间隔 (毫秒)'),
     }).description('心跳设置'),
     statuscommand: Schema.boolean().default(false).description("注册状态指令"),
-    loggerinfo: Schema.boolean().default(false).description("日志调试模式 `提issue时请开启此项 并付上完整日志`").experimental(),
+    loggerinfo: Schema.boolean().default(false).description("日志调试模式 `提issue时请开启此项，并付上完整日志`").experimental(),
   })
 ])
 
@@ -153,26 +164,31 @@ Reverse WebSocket Clients: ${status.wsClients.enabled ? `${status.wsClients.conn
  * 检查配置是否有效
  */
 function checkConfiguration(config: Config): boolean {
-  if (config.protocol === 'ws') {
-    // WebSocket 服务器模式总是有效的
-    return true
+  // 检查是否至少启用了一种连接方式
+  const wsServerEnabled = config.enabledWs === true
+  const wsReverseEnabled = config.enabledWsReverse === true
+
+  if (!wsServerEnabled && !wsReverseEnabled) {
+    return false
   }
 
-  if (config.protocol === 'ws-reverse') {
-    // 检查反向连接配置
-    if (!config.reverseConnections || config.reverseConnections.length === 0) {
+  // 如果启用了反向连接，检查是否有有效的连接配置
+  if (wsReverseEnabled) {
+    if (!config.connections || config.connections.length === 0) {
       return false
     }
 
     // 检查是否有启用的连接
-    const enabledConnections = config.reverseConnections.filter(conn =>
+    const enabledConnections = config.connections.filter(conn =>
       conn && conn.enabled && conn.url && conn.url.trim() !== ''
     )
 
-    return enabledConnections.length > 0
+    if (enabledConnections.length === 0) {
+      return false
+    }
   }
 
-  return false
+  return true
 }
 
 /**
@@ -187,10 +203,10 @@ async function startAutoShutdown(ctx: Context): Promise<void> {
     return
   }
 
-  let countdown = 5
+  let countdown = 4 // 秒
 
   const updateNotification = () => {
-    notifier.update(`检测到反向连接配置无效，插件将在 ${countdown} 秒后自动关闭...`)
+    notifier.update(`检测到连接配置无效，插件将在 ${countdown} 秒后自动关闭...`)
   }
 
   // 开始倒计时
@@ -206,7 +222,7 @@ async function startAutoShutdown(ctx: Context): Promise<void> {
   }
 
   // 倒计时结束，关闭插件
-  ctx.logger.info('OneBot Server: 配置地址无效，自动关闭...')
+  ctx.logger.info('OneBot Server: 连接配置无效，自动关闭...')
   ctx.scope.dispose()
 }
 

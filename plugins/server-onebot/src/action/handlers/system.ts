@@ -3,8 +3,9 @@ import { logInfo, loggerError, loggerInfo } from '../../../src/index'
 import { BotFinder } from '../../bot-finder'
 import { Context, Universal } from 'koishi'
 
-export function createSystemHandlers(ctx: Context, config?: { selfId: string }): Record<string, ActionHandler> {
-    const botFinder = new BotFinder(ctx)
+export function createSystemHandlers(ctx: Context, config?: { selfId: string }, botFinder?: BotFinder): Record<string, ActionHandler> {
+    // 如果没有传入 botFinder，则创建一个新的（向后兼容）
+    const finder = botFinder || new BotFinder(ctx)
 
     return {
         // 获取版本信息
@@ -20,7 +21,7 @@ export function createSystemHandlers(ctx: Context, config?: { selfId: string }):
 
         // 获取状态
         get_status: async (params: {}, clientState: ClientState) => {
-            const bot = await botFinder.findBot(params, clientState)
+            const bot = await finder.findBot(params, clientState)
 
             return {
                 online: bot ? bot.status === Universal.Status.ONLINE : false,
@@ -187,7 +188,7 @@ export function createSystemHandlers(ctx: Context, config?: { selfId: string }):
         mark_msg_as_read: async (params: {
             message_id: string | number
         }, clientState: ClientState) => {
-            const bot = await botFinder.findBot(params, clientState)
+            const bot = await finder.findBot(params, clientState)
             if (!bot) {
                 throw new Error('Bot not found')
             }

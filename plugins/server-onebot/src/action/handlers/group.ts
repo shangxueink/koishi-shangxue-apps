@@ -4,13 +4,14 @@ import { BotFinder } from '../../bot-finder'
 import { loggerError, logInfo } from '../../../src/index'
 import { encodeChannelId } from '../../utils'
 
-export function createGroupHandlers(ctx: Context, config?: { selfId: string }): Record<string, ActionHandler> {
-    const botFinder = new BotFinder(ctx)
+export function createGroupHandlers(ctx: Context, config?: { selfId: string }, botFinder?: BotFinder): Record<string, ActionHandler> {
+    // 如果没有传入 botFinder，则创建一个新的（向后兼容）
+    const finder = botFinder || new BotFinder(ctx)
 
     // 群组信息获取
     const getGroupInfoLogic = async (groupId: string | number, params: any, clientState: ClientState) => {
         try {
-            const bot = await botFinder.findBot(params, clientState)
+            const bot = await finder.findBot(params, clientState)
             if (!bot) {
                 throw new Error('Bot not found')
             }
@@ -51,7 +52,7 @@ export function createGroupHandlers(ctx: Context, config?: { selfId: string }): 
     const getGroupListLogic = async (params: { no_cache?: boolean }, clientState: ClientState) => {
         try {
             // 首先尝试通过 bot 获取群组列表
-            const bot = await botFinder.findBot(params, clientState)
+            const bot = await finder.findBot(params, clientState)
             if (bot && typeof bot.getGuildList === 'function') {
                 try {
                     const guilds = await bot.getGuildList()
@@ -99,7 +100,7 @@ export function createGroupHandlers(ctx: Context, config?: { selfId: string }): 
 
                 try {
                     // 尝试找到对应的 bot
-                    const bot = await botFinder.findBotByChannelId(guildId)
+                    const bot = await finder.findBotByChannelId(guildId)
                     if (bot && typeof bot.getGuild === 'function') {
                         const guildInfo = await bot.getGuild(guildId)
                         guildName = guildInfo.name || guildId
@@ -283,7 +284,7 @@ export function createGroupHandlers(ctx: Context, config?: { selfId: string }): 
             user_id: string | number
             no_cache?: boolean
         }, clientState: ClientState) => {
-            const bot = await botFinder.findBot(params, clientState)
+            const bot = await finder.findBot(params, clientState)
             if (!bot) {
                 throw new Error('Bot not found')
             }
@@ -337,7 +338,7 @@ export function createGroupHandlers(ctx: Context, config?: { selfId: string }): 
         }, clientState: ClientState) => {
             logInfo('Decoded group_id %s to %s', params.group_id, params.group_id.toString())
 
-            const bot = await botFinder.findBot(params, clientState)
+            const bot = await finder.findBot(params, clientState)
             if (!bot) {
                 throw new Error('Bot not found')
             }
@@ -376,7 +377,7 @@ export function createGroupHandlers(ctx: Context, config?: { selfId: string }): 
             user_id: string | number
             reject_add_request?: boolean
         }, clientState: ClientState) => {
-            const bot = await botFinder.findBot(params, clientState)
+            const bot = await finder.findBot(params, clientState)
             if (!bot) {
                 throw new Error('Bot not found')
             }
@@ -395,7 +396,7 @@ export function createGroupHandlers(ctx: Context, config?: { selfId: string }): 
             user_id: string | number
             duration?: number
         }, clientState: ClientState) => {
-            const bot = await botFinder.findBot(params, clientState)
+            const bot = await finder.findBot(params, clientState)
             if (!bot) {
                 throw new Error('Bot not found')
             }
@@ -413,7 +414,7 @@ export function createGroupHandlers(ctx: Context, config?: { selfId: string }): 
             group_id: string | number
             enable?: boolean
         }, clientState: ClientState) => {
-            const bot = await botFinder.findBot(params, clientState)
+            const bot = await finder.findBot(params, clientState)
             if (!bot) {
                 throw new Error('Bot not found')
             }
@@ -428,7 +429,7 @@ export function createGroupHandlers(ctx: Context, config?: { selfId: string }): 
             user_id: string | number
             enable?: boolean
         }, clientState: ClientState) => {
-            const bot = await botFinder.findBot(params, clientState)
+            const bot = await finder.findBot(params, clientState)
             if (!bot) {
                 throw new Error('Bot not found')
             }
@@ -443,7 +444,7 @@ export function createGroupHandlers(ctx: Context, config?: { selfId: string }): 
             user_id: string | number
             card?: string
         }, clientState: ClientState) => {
-            const bot = await botFinder.findBot(params, clientState)
+            const bot = await finder.findBot(params, clientState)
             if (!bot) {
                 throw new Error('Bot not found')
             }
@@ -457,7 +458,7 @@ export function createGroupHandlers(ctx: Context, config?: { selfId: string }): 
             group_id: string | number
             is_dismiss?: boolean
         }, clientState: ClientState) => {
-            const bot = await botFinder.findBot(params, clientState)
+            const bot = await finder.findBot(params, clientState)
             if (!bot) {
                 throw new Error('Bot not found')
             }
@@ -477,7 +478,7 @@ export function createGroupHandlers(ctx: Context, config?: { selfId: string }): 
             special_title?: string
             duration?: number
         }, clientState: ClientState) => {
-            const bot = await botFinder.findBot(params, clientState)
+            const bot = await finder.findBot(params, clientState)
             if (!bot) {
                 throw new Error('Bot not found')
             }
@@ -493,7 +494,7 @@ export function createGroupHandlers(ctx: Context, config?: { selfId: string }): 
             approve: boolean
             reason?: string
         }, clientState: ClientState) => {
-            const bot = await botFinder.findBot(params, clientState)
+            const bot = await finder.findBot(params, clientState)
             if (!bot) {
                 throw new Error('Bot not found')
             }
@@ -507,7 +508,7 @@ export function createGroupHandlers(ctx: Context, config?: { selfId: string }): 
             group_id: string | number
             type: string
         }, clientState: ClientState) => {
-            const bot = await botFinder.findBot(params, clientState)
+            const bot = await finder.findBot(params, clientState)
             if (!bot) {
                 throw new Error('Bot not found')
             }
@@ -526,7 +527,7 @@ export function createGroupHandlers(ctx: Context, config?: { selfId: string }): 
 
         // 获取群系统消息
         get_group_system_msg: async (params: {}, clientState: ClientState) => {
-            const bot = await botFinder.findBot(params, clientState)
+            const bot = await finder.findBot(params, clientState)
             if (!bot) {
                 throw new Error('Bot not found')
             }
@@ -542,7 +543,7 @@ export function createGroupHandlers(ctx: Context, config?: { selfId: string }): 
         get_group_at_all_remain: async (params: {
             group_id: string | number
         }, clientState: ClientState) => {
-            const bot = await botFinder.findBot(params, clientState)
+            const bot = await finder.findBot(params, clientState)
             if (!bot) {
                 throw new Error('Bot not found')
             }

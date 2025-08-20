@@ -41,6 +41,7 @@ export interface BindingChannel {
 export class BotFinder {
     private recordingLocks: Set<string> = new Set() // 防止并发写入
     private recordingDebounce: Map<string, NodeJS.Timeout> = new Map() // 防抖
+    private bindingUpdateLocks: Set<string> = new Set() // 防止并发更新 binding
 
     constructor(private ctx: Context) {
         this.initializeDatabase()
@@ -140,6 +141,16 @@ export class BotFinder {
             return
         }
 
+        const lockKey = `${session.userId}:${session.platform}`
+
+        // 检查是否已经在处理中
+        if (this.bindingUpdateLocks.has(lockKey)) {
+            return
+        }
+
+        // 加锁
+        this.bindingUpdateLocks.add(lockKey)
+
         try {
             // 查找对应的 binding 记录
             const bindings = await this.ctx.database.get('binding', {
@@ -150,7 +161,7 @@ export class BotFinder {
             if (bindings.length > 0) {
                 const binding = bindings[0]
                 // 如果 botselfid 不存在或者与当前 session 的 selfId 不同，则更新
-                if (!binding.botselfid || binding.botselfid !== `${session.userId}`) {
+                if (!binding.botselfid || binding.botselfid !== session.selfId) {
                     await this.ctx.database.set('binding', {
                         pid: `${session.userId}`,
                         platform: session.platform
@@ -163,6 +174,9 @@ export class BotFinder {
             }
         } catch (error) {
             loggerError('Error updating binding botselfid: %s', error.message)
+        } finally {
+            // 释放锁
+            this.bindingUpdateLocks.delete(lockKey)
         }
     }
 
@@ -433,6 +447,22 @@ export class BotFinder {
             if (bot) {
                 return bot
             }
+        }
+
+        // 如果没有特定的参数，尝试根据 clientState.selfId 查找
+        if (clientState?.selfId) {
+            const bot = this.ctx.bots.find(bot => bot.selfId === clientState.selfId)
+            if (bot) {
+                logInfo('Found bot by clientState.selfId: %s', clientState.selfId)
+                return bot
+            }
+        }
+
+        // 如果还是没有找到，返回第一个可用的 bot（作为后备方案）
+        const availableBots = this.ctx.bots
+        if (availableBots.length > 0) {
+            logInfo('Using first available bot as fallback: %s', availableBots[0].selfId)
+            return availableBots[0]
         }
 
         // 没有找到合适的bot，抛出错误
