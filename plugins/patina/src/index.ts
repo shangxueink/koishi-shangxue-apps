@@ -1,11 +1,11 @@
 import { Schema, h, Context, Session } from "koishi";
 import { } from "koishi-plugin-puppeteer";
 
-import { command1Config, applyCommand1 } from "./commands/command1";
-import { command2Config, applyCommand2 } from "./commands/command2";
-import { command3Config, applyCommand3 } from "./commands/command3";
-import { command4Config, applyCommand4 } from "./commands/command4";
-import { command5Config, applyCommand5 } from "./commands/command5";
+import { command1Config, applyCommand1 } from "./command1";
+import { command2Config, applyCommand2 } from "./command2";
+import { command3Config, applyCommand3 } from "./command3";
+import { command4Config, applyCommand4 } from "./command4";
+import { command5Config, applyCommand5 } from "./command5";
 
 export const name = "patina";
 
