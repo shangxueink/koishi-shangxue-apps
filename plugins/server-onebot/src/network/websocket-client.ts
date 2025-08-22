@@ -95,7 +95,7 @@ export class WebSocketClient {
                 'user-agent': 'Koishi-OneBot-Server'
             }
 
-            if (this.config.token) {
+            if (this.config.token && this.config.token.trim() !== '') {
                 headers.Authorization = `Bearer ${this.config.token}`
             }
 

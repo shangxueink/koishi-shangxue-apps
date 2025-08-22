@@ -112,7 +112,8 @@ export class WebSocketServer {
     }
 
     private checkAuth(headers: any): boolean {
-        if (!this.config.token) return true
+        // 如果token为空字符串或null，则不需要验证
+        if (!this.config.token || this.config.token.trim() === '') return true
         const auth = headers.authorization || headers['Authorization']
         return auth === `Bearer ${this.config.token}`
     }

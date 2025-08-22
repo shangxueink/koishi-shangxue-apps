@@ -46,7 +46,7 @@ export class OneBotServer {
                     const wsClient = new WebSocketClient(this.ctx, {
                         url: connection.url,
                         name: connection.name,
-                        token: this.config.token,
+                        token: connection.token,
                         reconnectInterval: this.config.reconnectInterval || 3000,
                         maxReconnectAttempts: this.config.maxReconnectAttempts || 5,
                         selfId: this.config.selfId,

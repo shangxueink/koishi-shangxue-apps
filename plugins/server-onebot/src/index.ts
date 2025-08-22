@@ -23,17 +23,18 @@ export let logInfo: (message: any, ...args: any[]) => void;
 export interface Config {
   selfId: string
   selfname?: string
-  token?: string
   // 扁平化的启用开关
   enabledWs: boolean
   enabledWsReverse: boolean
   // WebSocket 服务器配置
   path?: string
+  token?: string
   // 反向 WebSocket 客户端配置
   connections?: Array<{
     enabled: boolean
     url: string
     name?: string
+    token?: string
   }>
   reconnectInterval?: number
   maxReconnectAttempts?: number
@@ -49,7 +50,6 @@ export const Config: Schema<Config> = Schema.intersect([
   Schema.object({
     selfId: Schema.string().description('机器人的账号 （`QQ号`）。').required(),
     selfname: Schema.string().description('机器人的名称，用于转发给其他 OneBot 后端时显示。').default('Bot of Koishi'),
-    token: Schema.string().role('secret').description('发送信息时用于验证的字段。<br>应与 `onebot客户端` 配置文件中的 `token` 保持一致。'),
   }).description('基础配置'),
 
   Schema.object({
@@ -60,6 +60,7 @@ export const Config: Schema<Config> = Schema.intersect([
     Schema.object({
       enabledWs: Schema.const(true).required(),
       path: Schema.string().default('/onebotserver').description('WebSocket 服务路径。<br>默认地址: `ws://localhost:5140/onebotserver`'),
+      token: Schema.string().role('secret').description('用于验证的字段。'),
     }).description('WebSocket 服务器设置'),
     Schema.object({
       enabledWs: Schema.const(false),
@@ -70,9 +71,10 @@ export const Config: Schema<Config> = Schema.intersect([
       enabledWsReverse: Schema.const(true).required(),
       connections: Schema.array(Schema.object({
         enabled: Schema.boolean().default(true).description('启用'),
-        url: Schema.string().description('反向 WebSocket 连接地址'),
-        name: Schema.string().description('连接名称（仅标识）'),
-      })).role('table').description('反向 WebSocket 连接配置<br>例如：`ws://localhost:2536/OneBotv11`').default([]),
+        name: Schema.string().description('名称（仅标识）'),
+        url: Schema.string().description('反向 WebSocket 地址'),
+        token: Schema.string().role('secret').description('用于验证的字段。'),
+      })).role('table').description('反向 WebSocket 配置<br>例如：`ws://localhost:2536/OneBotv11`').default([]),
       reconnectInterval: Schema.number().default(3000).description('重连间隔 (毫秒)'),
       maxReconnectAttempts: Schema.number().default(5).description('最大重连尝试次数，超过后将放弃连接<br>重启插件以重新连接'),
     }).description('反向 WebSocket 客户端设置'),
