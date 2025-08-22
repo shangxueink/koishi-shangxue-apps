@@ -222,21 +222,38 @@ export class OneBotServer {
         // 向反向 WebSocket 客户端广播（如果启用）
         if (this.config.enabledWsReverse && this.wsClients.length > 0) {
             let reverseSentCount = 0
+            let hasActiveClients = false
+            
             for (const wsClient of this.wsClients) {
-                if (wsClient.isConnected()) {
-                    try {
-                        wsClient.send(event)
-                        reverseSentCount++
-                    } catch (error) {
-                        loggerError('Error sending event to WebSocket client:', error)
+                const connectionInfo = wsClient.getConnectionInfo()
+                
+                // 检查客户端是否仍然活跃（未放弃重连）
+                if (connectionInfo.canReconnect || connectionInfo.connected) {
+                    hasActiveClients = true
+                    
+                    if (wsClient.isConnected()) {
+                        try {
+                            wsClient.send(event)
+                            reverseSentCount++
+                        } catch (error) {
+                            loggerError('Error sending event to WebSocket client:', error)
+                        }
                     }
                 }
             }
+            
             totalSent += reverseSentCount
+            
+            // 如果没有活跃的反向WebSocket客户端，禁用反向WebSocket功能
+            if (!hasActiveClients) {
+                logInfo('All reverse WebSocket clients have given up reconnecting, disabling reverse WebSocket functionality')
+                this.config.enabledWsReverse = false
+            }
         }
 
-        // 如果没有任何连接，记录日志
-        if (totalSent === 0) {
+        // 只有在有启用的功能但没有连接时才记录日志
+        const hasEnabledFeatures = this.config.enabledWs || this.config.enabledWsReverse
+        if (totalSent === 0 && hasEnabledFeatures) {
             logInfo('No WebSocket clients connected, event will not be sent')
         }
     }

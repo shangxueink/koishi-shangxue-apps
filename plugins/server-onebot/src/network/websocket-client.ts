@@ -296,6 +296,19 @@ export class WebSocketClient {
     }
 
     /**
+     * 重置重连状态，允许重新开始连接
+     */
+    resetReconnectState() {
+        this.reconnectAttempts = 0
+        this.isStopped = false
+        if (this.reconnectTimer) {
+            clearTimeout(this.reconnectTimer)
+            this.reconnectTimer = null
+        }
+        logInfo('Reset reconnect state for: %s', this.getDisplayName())
+    }
+
+    /**
      * 发送生命周期事件
      */
     private sendLifecycleEvent(subType: 'connect' | 'enable' | 'disable') {
