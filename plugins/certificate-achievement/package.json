@@ -1,13 +1,18 @@
 {
   "name": "koishi-plugin-certificate-achievement",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "/*奖状生成*/生成一张奖状的图片！可指定获奖者、奖项名称、授权单位！开箱即食。",
   "main": "lib/index.js",
   "typings": "lib/index.d.ts",
   "files": [
     "lib",
-    "dist"
+    "data",
+    "src"
   ],
+  "homepage": "https://github.com/shangxueink/koishi-shangxue-apps/tree/main/",
+  "bugs": {
+    "url": "https://github.com/shangxueink/koishi-shangxue-apps/issues"
+  },
   "keywords": [
     "koishi",
     "plugin",
