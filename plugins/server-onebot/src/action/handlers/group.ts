@@ -1,11 +1,11 @@
 import { Context } from 'koishi'
-import { ActionHandler, ClientState, GroupInfo, UserInfo } from '../../types'
 import { BotFinder } from '../../bot-finder'
+import { encodeChannelId, encodeStringId, decodeChannelId } from '../../utils'
 import { loggerError, logInfo } from '../../../src/index'
-import { encodeChannelId } from '../../utils'
+import { ActionHandler, ClientState, GroupInfo, UserInfo } from '../../types'
 
-export function createGroupHandlers(ctx: Context, config?: { selfId: string }, botFinder?: BotFinder): Record<string, ActionHandler> {
-    // 如果没有传入 botFinder，则创建一个新的（向后兼容）
+export function createGroupHandlers(ctx: Context, config?: { selfId: string; groupname?: string }, botFinder?: BotFinder): Record<string, ActionHandler> {
+    // 如果没有传入 botFinder，则创建一个新的
     const finder = botFinder || new BotFinder(ctx)
 
     // 群组信息获取
@@ -16,20 +16,32 @@ export function createGroupHandlers(ctx: Context, config?: { selfId: string }, b
                 throw new Error('Bot not found')
             }
 
+            // 先将映射的数字ID转换回真实的频道ID
+            const realChannelId = await decodeChannelId(groupId, ctx)
+            if (!realChannelId) {
+                loggerError('Failed to decode channel ID %s', groupId)
+                return {
+                    id: groupId,
+                    name: `群组${groupId}`,
+                    member_count: 0,
+                    max_member_count: 0,
+                }
+            }
+
             // 检查 bot 是否有 getGuild 方法
             if (typeof bot.getGuild === 'function') {
-                const guild = await bot.getGuild(groupId.toString())
+                const guild = await bot.getGuild(realChannelId)
                 return {
-                    id: await encodeChannelId(guild.id, ctx),
+                    id: groupId, // 返回原始的映射ID
                     name: guild.name || guild.id,
                     member_count: (guild as any).memberCount || 0,
                     max_member_count: (guild as any).maxMemberCount || 0,
                 }
             } else {
                 // 如果没有 getGuild 方法，返回基本信息
-                loggerError('Bot %s (platform: %s) does not have getGuild method', bot.selfId, bot.platform)
+                logInfo('Bot %s (platform: %s) does not have getGuild method', bot.selfId, bot.platform)
                 return {
-                    id: await encodeChannelId(groupId.toString(), ctx),
+                    id: groupId, // 返回原始的映射ID
                     name: `群组${groupId}`,
                     member_count: 0,
                     max_member_count: 0,
@@ -38,88 +50,13 @@ export function createGroupHandlers(ctx: Context, config?: { selfId: string }, b
         } catch (error) {
             loggerError('Failed to get group/guild info for %s: %s', groupId, error.message)
 
-            // 如果无法获取群信息，返回基本信息而不是抛出错误
+            // 如果无法获取群信息，返回基本信息
             return {
-                id: await encodeChannelId(groupId.toString(), ctx),
+                id: groupId, // 返回原始的映射ID
                 name: `群组${groupId}`,
                 member_count: 0,
                 max_member_count: 0,
             }
-        }
-    }
-
-    // 群组列表获取
-    const getGroupListLogic = async (params: { no_cache?: boolean }, clientState: ClientState) => {
-        try {
-            // 首先尝试通过 bot 获取群组列表
-            const bot = await finder.findBot(params, clientState)
-            if (bot && typeof bot.getGuildList === 'function') {
-                try {
-                    const guilds = await bot.getGuildList()
-                    const guildList = []
-                    for (const guild of guilds.data || []) {
-                        guildList.push({
-                            id: await encodeChannelId(guild.id, ctx),
-                            name: guild.name || guild.id,
-                            member_count: (guild as any).memberCount || 0,
-                            max_member_count: (guild as any).maxMemberCount || 0,
-                        })
-                    }
-                    return guildList
-                } catch (error) {
-                    // 如果通过 bot 获取失败，继续尝试数据库方式
-                    loggerError('Failed to get guild list from bot: %s', error.message)
-                }
-            }
-
-            // 检查数据库是否可用
-            if (!ctx.database || typeof ctx.database.get !== 'function') {
-                return []
-            }
-
-            // 查询 channel 表获取所有群组/频道信息
-            const channels = await ctx.database.get('channel', {})
-
-            // 去重 guildId，因为一个群可能有多个频道
-            const uniqueGuildIds = new Set<string>()
-            const guilds: Array<{ id: string | number, name: string, member_count?: number, max_member_count?: number }> = []
-
-            for (const channel of channels) {
-                const guildId = channel.guildId || channel.id
-
-                // 跳过已处理的 guildId
-                if (uniqueGuildIds.has(guildId)) {
-                    continue
-                }
-                uniqueGuildIds.add(guildId)
-
-                const encodedId = await encodeChannelId(guildId, ctx)
-
-                // 尝试通过 bot 获取群组名称
-                let guildName = guildId // 默认使用 ID 作为名称
-
-                try {
-                    // 尝试找到对应的 bot
-                    const bot = await finder.findBotByChannelId(guildId)
-                    if (bot && typeof bot.getGuild === 'function') {
-                        const guildInfo = await bot.getGuild(guildId)
-                        guildName = guildInfo.name || guildId
-                    }
-                } catch (error) {
-                    // 忽略错误，使用默认名称
-                }
-
-                guilds.push({
-                    id: encodedId,
-                    name: guildName,
-                    member_count: 0,
-                    max_member_count: 0,
-                })
-            }
-            return guilds
-        } catch (error) {
-            loggerError('Failed to get group/guild list: %s', error.message)
-            return []
         }
     }
 
@@ -143,7 +80,7 @@ export function createGroupHandlers(ctx: Context, config?: { selfId: string }, b
             no_cache?: boolean
         }, clientState: ClientState) => {
             try {
-                // 直接从数据库查询 channel 表，避免依赖 bot
+                // 直接从数据库查询 channel 表
                 if (!ctx.database || typeof ctx.database.get !== 'function') {
                     return []
                 }
@@ -168,7 +105,7 @@ export function createGroupHandlers(ctx: Context, config?: { selfId: string }, b
 
                     groups.push({
                         group_id: encodedId,
-                        group_name: 'koishi-server-onebot', // 固定名称
+                        group_name: config?.groupname || 'koishi-server-onebot',
                         member_count: 0,
                         max_member_count: 0,
                     } as GroupInfo)
@@ -224,7 +161,7 @@ export function createGroupHandlers(ctx: Context, config?: { selfId: string }, b
 
                     guilds.push({
                         guild_id: encodedId,
-                        guild_name: 'koishi-server-onebot', // 固定名称
+                        guild_name: config?.groupname || 'koishi-server-onebot',
                     })
                 }
 
@@ -266,7 +203,7 @@ export function createGroupHandlers(ctx: Context, config?: { selfId: string }, b
 
                     guilds.push({
                         guild_id: encodedId,
-                        guild_name: 'koishi-server-onebot', // 固定名称
+                        guild_name: config?.groupname || 'koishi-server-onebot',
                     })
                 }
 
@@ -289,10 +226,57 @@ export function createGroupHandlers(ctx: Context, config?: { selfId: string }, b
                 throw new Error('Bot not found')
             }
 
-            try {
-                const member = await bot.getGuildMember(params.group_id.toString(), params.user_id.toString())
+            // 检查 bot 是否有 getGuildMember 方法
+            if (typeof bot.getGuildMember !== 'function') {
+                logInfo('Bot %s (platform: %s) does not have getGuildMember method, returning default member info for user %s', bot.selfId, bot.platform, params.user_id)
+
+                const encodedUserId = await encodeStringId(params.user_id.toString(), ctx)
                 return {
-                    user_id: parseInt(member.user?.id) || member.user?.id,
+                    user_id: encodedUserId || params.user_id,
+                    nickname: `用户${params.user_id}`,
+                    card: '',
+                    sex: 'unknown',
+                    age: 0,
+                    area: '',
+                    level: '0',
+                    role: 'member',
+                    title: '',
+                    join_time: 0,
+                    last_sent_time: 0,
+                    unfriendly: false,
+                    card_changeable: true,
+                    shut_up_timestamp: 0,
+                } as UserInfo
+            }
+
+            // 先将映射的数字ID转换回真实的频道ID
+            const realChannelId = await decodeChannelId(params.group_id, ctx)
+            if (!realChannelId) {
+                loggerError('Failed to decode channel ID %s for get_group_member_info', params.group_id)
+                const encodedUserId = await encodeStringId(params.user_id.toString(), ctx)
+                return {
+                    user_id: encodedUserId || params.user_id,
+                    nickname: `用户${params.user_id}`,
+                    card: '',
+                    sex: 'unknown',
+                    age: 0,
+                    area: '',
+                    level: '0',
+                    role: 'member',
+                    title: '',
+                    join_time: 0,
+                    last_sent_time: 0,
+                    unfriendly: false,
+                    card_changeable: true,
+                    shut_up_timestamp: 0,
+                } as UserInfo
+            }
+
+            try {
+                const member = await bot.getGuildMember(realChannelId, params.user_id.toString())
+                const encodedUserId = await encodeStringId(member.user?.id, ctx)
+                return {
+                    user_id: encodedUserId || member.user?.id,
                     nickname: member.user?.name || '',
                     card: member.nick || '',
                     sex: 'unknown',
@@ -309,11 +293,12 @@ export function createGroupHandlers(ctx: Context, config?: { selfId: string }, b
                     shut_up_timestamp: 0,
                 } as UserInfo
             } catch (error) {
-                // loggerError('Failed to get member info for %s in %s: %s', params.user_id, params.group_id, error.message)
+                loggerError('Failed to get member info for user %s in group %s (bot: %s): %s', params.user_id, params.group_id, bot.selfId, error.message)
 
                 // 返回基本的成员信息
+                const encodedUserId = await encodeStringId(params.user_id.toString(), ctx)
                 return {
-                    user_id: parseInt(params.user_id.toString()) || params.user_id,
+                    user_id: encodedUserId || params.user_id,
                     nickname: `用户${params.user_id}`,
                     card: '',
                     sex: 'unknown',
@@ -336,15 +321,58 @@ export function createGroupHandlers(ctx: Context, config?: { selfId: string }, b
             group_id: string | number
             no_cache?: boolean
         }, clientState: ClientState) => {
-            logInfo('Decoded group_id %s to %s', params.group_id, params.group_id.toString())
-
             const bot = await finder.findBot(params, clientState)
             if (!bot) {
                 throw new Error('Bot not found')
             }
 
+            if (typeof bot.getGuildMemberList !== 'function') {
+                logInfo('Bot %s (platform: %s) does not have getGuildMemberList method, returning default member data', bot.selfId, bot.platform)
+
+                // 返回默认的群成员数据 
+                return [{
+                    user_id: bot.sn,
+                    nickname: bot.user?.name || `Bot${bot.selfId}`,
+                    card: '',
+                    sex: 'unknown',
+                    age: 0,
+                    area: '',
+                    level: '0',
+                    role: 'member',
+                    title: '',
+                    join_time: 0,
+                    last_sent_time: 0,
+                    unfriendly: false,
+                    card_changeable: true,
+                    shut_up_timestamp: 0,
+                } as UserInfo]
+            }
+
+            // 先将映射的数字ID转换回真实的频道ID
+            const realChannelId = await decodeChannelId(params.group_id, ctx)
+            if (!realChannelId) {
+                loggerError('Failed to decode channel ID %s for get_group_member_list', params.group_id)
+                const encodedUserId = await encodeStringId(bot.selfId, ctx)
+                return [{
+                    user_id: encodedUserId || bot.selfId,
+                    nickname: bot.user?.name || `Bot${bot.selfId}`,
+                    card: '',
+                    sex: 'unknown',
+                    age: 0,
+                    area: '',
+                    level: '0',
+                    role: 'member',
+                    title: '',
+                    join_time: 0,
+                    last_sent_time: 0,
+                    unfriendly: false,
+                    card_changeable: true,
+                    shut_up_timestamp: 0,
+                } as UserInfo]
+            }
+
             try {
-                const members = await bot.getGuildMemberList(params.group_id.toString())
+                const members = await bot.getGuildMemberList(realChannelId)
                 const memberList = (members.data || []).map(member => ({
                     user_id: parseInt(member.user?.id) || member.user?.id,
                     nickname: member.user?.name || '',
@@ -366,8 +394,25 @@ export function createGroupHandlers(ctx: Context, config?: { selfId: string }, b
                 logInfo('Retrieved %d members for group %s', memberList.length, params.group_id)
                 return memberList
             } catch (error) {
-                loggerError('Failed to get member list for %s: %s', params.group_id, error.message)
-                return []
+                loggerError('Failed to get member list for %s (bot: %s): %s', params.group_id, bot.selfId, error.message)
+
+                // 如果获取失败，也返回默认的群成员数据
+                return [{
+                    user_id: parseInt(bot.selfId) || bot.selfId,
+                    nickname: bot.user?.name || `Bot${bot.selfId}`,
+                    card: '',
+                    sex: 'unknown',
+                    age: 0,
+                    area: '',
+                    level: '0',
+                    role: 'member',
+                    title: '',
+                    join_time: 0,
+                    last_sent_time: 0,
+                    unfriendly: false,
+                    card_changeable: true,
+                    shut_up_timestamp: 0,
+                } as UserInfo]
             }
         },
 

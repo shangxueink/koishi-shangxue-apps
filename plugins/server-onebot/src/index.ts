@@ -7,7 +7,7 @@ import { } from '@koishijs/plugin-notifier'
 
 export const name = 'server-onebot'
 export const reusable = false
-export const filter = false
+export const filter = true
 
 export const inject = {
   required: ['server', 'database', 'logger'],
@@ -23,6 +23,7 @@ export let logInfo: (message: any, ...args: any[]) => void;
 export interface Config {
   selfId: string
   selfname?: string
+  groupname?: string
   // 扁平化的启用开关
   enabledWs: boolean
   enabledWsReverse: boolean
@@ -50,6 +51,7 @@ export const Config: Schema<Config> = Schema.intersect([
   Schema.object({
     selfId: Schema.string().description('机器人的账号 （`QQ号`）。').required(),
     selfname: Schema.string().description('机器人的名称，用于转发给其他 OneBot 后端时显示。').default('Bot of Koishi'),
+    groupname: Schema.string().description('默认的群组名称').default('koishi-channel'),
   }).description('基础配置'),
 
   Schema.object({
@@ -60,7 +62,7 @@ export const Config: Schema<Config> = Schema.intersect([
     Schema.object({
       enabledWs: Schema.const(true).required(),
       path: Schema.string().default('/onebotserver').description('WebSocket 服务路径。<br>默认地址: `ws://localhost:5140/onebotserver`'),
-      token: Schema.string().role('secret').description('用于验证的字段。'),
+      token: Schema.string().role('secret').description('用于验证的字段。`不包含空格`'),
     }).description('WebSocket 服务器设置'),
     Schema.object({
       enabledWs: Schema.const(false),
@@ -73,10 +75,10 @@ export const Config: Schema<Config> = Schema.intersect([
         enabled: Schema.boolean().default(true).description('启用'),
         name: Schema.string().description('名称（仅标识）'),
         url: Schema.string().description('反向 WebSocket 地址'),
-        token: Schema.string().role('secret').description('用于验证的字段。'),
-      })).role('table').description('反向 WebSocket 配置<br>例如：`ws://localhost:2536/OneBotv11`').default([]),
+        token: Schema.string().role('secret'),
+      })).role('table').description('反向 WebSocket 配置<br>例如：`ws://localhost:2536/OneBotv11`、`ws://localhost:6199/ws`等<br>token应避免空格').default([]),
       reconnectInterval: Schema.number().default(3000).description('重连间隔 (毫秒)'),
-      maxReconnectAttempts: Schema.number().default(5).description('最大重连尝试次数，超过后将放弃连接<br>重启插件以重新连接'),
+      maxReconnectAttempts: Schema.number().default(10).description('最大重连尝试次数，超过后将放弃连接<br>重启插件以重新连接'),
     }).description('反向 WebSocket 客户端设置'),
     Schema.object({
       enabledWsReverse: Schema.const(false),
@@ -200,7 +202,7 @@ async function startAutoShutdown(ctx: Context): Promise<void> {
   const notifier = ctx.notifier?.create()
 
   if (!notifier) {
-    ctx.logger.warn('OneBot Server: 配置无效且 notifier 不可用，插件将立即关闭')
+    logInfo('OneBot Server: 配置无效且 notifier 不可用，插件将立即关闭')
     ctx.scope.dispose()
     return
   }
@@ -224,7 +226,7 @@ async function startAutoShutdown(ctx: Context): Promise<void> {
   }
 
   // 倒计时结束，关闭插件
-  ctx.logger.info('OneBot Server: 连接配置无效，自动关闭...')
+  loggerInfo('OneBot Server: 连接配置无效，自动关闭...')
   ctx.scope.dispose()
 }
 

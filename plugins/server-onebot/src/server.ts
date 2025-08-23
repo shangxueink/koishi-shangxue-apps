@@ -34,6 +34,7 @@ export class OneBotServer {
                 token: this.config.token,
                 selfId: this.config.selfId,
                 selfname: this.config.selfname,
+                groupname: this.config.groupname,
             })
             logInfo('WebSocket server started at: %s', this.config.path || '/onebotserver')
         }
@@ -51,6 +52,7 @@ export class OneBotServer {
                         maxReconnectAttempts: this.config.maxReconnectAttempts || 5,
                         selfId: this.config.selfId,
                         selfname: this.config.selfname,
+                        groupname: this.config.groupname,
                     })
                     this.wsClients.push(wsClient)
                     wsClient.start()
@@ -223,14 +225,14 @@ export class OneBotServer {
         if (this.config.enabledWsReverse && this.wsClients.length > 0) {
             let reverseSentCount = 0
             let hasActiveClients = false
-            
+
             for (const wsClient of this.wsClients) {
                 const connectionInfo = wsClient.getConnectionInfo()
-                
+
                 // 检查客户端是否仍然活跃（未放弃重连）
                 if (connectionInfo.canReconnect || connectionInfo.connected) {
                     hasActiveClients = true
-                    
+
                     if (wsClient.isConnected()) {
                         try {
                             wsClient.send(event)
@@ -241,9 +243,9 @@ export class OneBotServer {
                     }
                 }
             }
-            
+
             totalSent += reverseSentCount
-            
+
             // 如果没有活跃的反向WebSocket客户端，禁用反向WebSocket功能
             if (!hasActiveClients) {
                 logInfo('All reverse WebSocket clients have given up reconnecting, disabling reverse WebSocket functionality')

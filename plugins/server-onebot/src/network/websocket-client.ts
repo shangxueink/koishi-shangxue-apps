@@ -23,11 +23,13 @@ export class WebSocketClient {
             maxReconnectAttempts?: number
             selfId: string
             selfname?: string
+            groupname?: string
         }
     ) {
         this.actionRouter = new ActionRouter(ctx, {
             selfId: this.config.selfId,
-            selfname: this.config.selfname
+            selfname: this.config.selfname,
+            groupname: this.config.groupname
         })
 
         // 定期清理过期的请求记录

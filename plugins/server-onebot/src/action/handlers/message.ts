@@ -78,7 +78,7 @@ async function sendMessage(
 }
 
 export function createMessageHandlers(ctx: Context, config?: { selfId: string }, botFinder?: BotFinder): Record<string, ActionHandler> {
-    // 如果没有传入 botFinder，则创建一个新的（向后兼容）
+    // 如果没有传入 botFinder，则创建一个新的
     const finder = botFinder || new BotFinder(ctx)
 
     return {

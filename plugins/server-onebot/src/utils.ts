@@ -503,8 +503,8 @@ export function createHeartbeatEvent(selfId: string, platform: string, interval:
 }
 
 /**
- * 使用 session 发送消息的智能函数
- * 优先使用 session.send（被动消息），失败时回退到主动消息发送
+ * 使用 session 发送消息
+ * 优先使用 session.send ，失败时回退到主动消息发送
  */
 export async function sendWithSession(
     ctx: any,

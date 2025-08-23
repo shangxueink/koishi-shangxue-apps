@@ -6,7 +6,7 @@ import { Context } from 'koishi'
 export class ActionRouter {
     private handlers: Map<string, ActionHandler> = new Map()
 
-    constructor(private ctx: Context, private config?: { selfId: string, selfname?: string }) {
+    constructor(private ctx: Context, private config?: { selfId: string, selfname?: string, groupname?: string }) {
         this.setupHandlers()
     }
 

@@ -3,16 +3,29 @@ import { logInfo, loggerError, loggerInfo } from '../../../src/index'
 import { BotFinder } from '../../bot-finder'
 import { Context, Universal } from 'koishi'
 
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
+
 export function createSystemHandlers(ctx: Context, config?: { selfId: string }, botFinder?: BotFinder): Record<string, ActionHandler> {
-    // 如果没有传入 botFinder，则创建一个新的（向后兼容）
+    // 如果没有传入 botFinder，则创建一个新的
     const finder = botFinder || new BotFinder(ctx)
+
+    // 读取 package.json 获取版本信息
+    let packageInfo: { name?: string; version?: string } = {}
+    try {
+        const packagePath = resolve(__dirname, '../../../package.json')
+        const packageContent = readFileSync(packagePath, 'utf-8')
+        packageInfo = JSON.parse(packageContent)
+    } catch (error) {
+        loggerError('Failed to read package.json:', error)
+    }
 
     return {
         // 获取版本信息
         get_version_info: async (params: {}, clientState: ClientState) => {
             return {
-                app_name: 'koishi-plugin-server-onebot',
-                app_version: '1.0.0',
+                app_name: packageInfo.name || 'koishi-plugin-server-onebot',
+                app_version: packageInfo.version || '1.0.0',
                 protocol_version: 'v11',
                 runtime_version: process.version,
                 runtime_os: process.platform,

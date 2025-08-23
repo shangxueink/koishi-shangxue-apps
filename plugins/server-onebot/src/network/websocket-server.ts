@@ -13,11 +13,12 @@ export class WebSocketServer {
 
     constructor(
         private ctx: Context,
-        private config: { path: string; token?: string; selfId?: string; selfname?: string }
+        private config: { path: string; token?: string; selfId?: string; selfname?: string; groupname?: string }
     ) {
         this.actionRouter = new ActionRouter(ctx, {
             selfId: this.config.selfId || '114514',
-            selfname: this.config.selfname
+            selfname: this.config.selfname,
+            groupname: this.config.groupname
         })
         this.setupWebSocketServer()
 
