@@ -24,13 +24,10 @@ export interface Config {
   selfId: string
   selfname?: string
   groupname?: string
-  // 扁平化的启用开关
   enabledWs: boolean
   enabledWsReverse: boolean
-  // WebSocket 服务器配置
   path?: string
   token?: string
-  // 反向 WebSocket 客户端配置
   connections?: Array<{
     enabled: boolean
     url: string
@@ -49,9 +46,9 @@ export interface Config {
 
 export const Config: Schema<Config> = Schema.intersect([
   Schema.object({
-    selfId: Schema.string().description('机器人的账号 （`QQ号`）。').required(),
-    selfname: Schema.string().description('机器人的名称，用于转发给其他 OneBot 后端时显示。').default('Bot of Koishi'),
-    groupname: Schema.string().description('默认的群组名称').default('koishi-channel'),
+    selfId: Schema.string().description('机器人的账号 （`QQ号`）<br>用于转发给其他 OneBot 后端时显示。').pattern(/^(?:[1-9]\d{4,13})$/).required(),
+    selfname: Schema.string().description('机器人的名称<br>用于转发给其他 OneBot 后端时显示。').default('Bot of Koishi'),
+    groupname: Schema.string().description('默认的群组名称<br>用于转发给其他 OneBot 后端时显示。').default('koishi-channel'),
   }).description('基础配置'),
 
   Schema.object({
@@ -62,7 +59,7 @@ export const Config: Schema<Config> = Schema.intersect([
     Schema.object({
       enabledWs: Schema.const(true).required(),
       path: Schema.string().default('/onebotserver').description('WebSocket 服务路径。<br>默认地址: `ws://localhost:5140/onebotserver`'),
-      token: Schema.string().role('secret').description('用于验证的字段。`不包含空格`'),
+      token: Schema.string().role('secret').pattern(/^\S*$/).description('用于验证的字段。`不包含空格`'),
     }).description('WebSocket 服务器设置'),
     Schema.object({
       enabledWs: Schema.const(false),
@@ -75,7 +72,7 @@ export const Config: Schema<Config> = Schema.intersect([
         enabled: Schema.boolean().default(true).description('启用'),
         name: Schema.string().description('名称（仅标识）'),
         url: Schema.string().description('反向 WebSocket 地址'),
-        token: Schema.string().role('secret'),
+        token: Schema.string().role('secret').pattern(/^\S*$/),
       })).role('table').description('反向 WebSocket 配置<br>例如：`ws://localhost:2536/OneBotv11`、`ws://localhost:6199/ws`等<br>token应避免空格').default([]),
       reconnectInterval: Schema.number().default(3000).description('重连间隔 (毫秒)'),
       maxReconnectAttempts: Schema.number().default(10).description('最大重连尝试次数，超过后将放弃连接<br>重启插件以重新连接'),
@@ -109,7 +106,7 @@ export function apply(ctx: Context, config: Config) {
     ctx.logger.error(message, ...args);
   };
 
-  // 扩展 binding 表，添加 botselfid 字段
+  // 扩展 binding 表 - botselfid 字段
   ctx.model.extend('binding', {
     botselfid: 'string'
   })

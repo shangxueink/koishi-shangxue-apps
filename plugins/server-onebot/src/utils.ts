@@ -13,7 +13,6 @@ const recentSessionsMap = new Map<string, {
     selfId: string
 }>()
 
-
 /**
  * 生成唯一 ID
  */
@@ -63,7 +62,6 @@ async function createMessageEvent(session: Session, baseEvent: any, ctx: any, co
     const userId = await encodeStringId(session.userId, ctx)
 
     // 根据平台决定使用哪个内容和元素
-    // 对于 qq 和 qqguild 平台，使用 stripped 版本避免 at 标签问题
     const useStripped = session.platform === 'qq' || session.platform === 'qqguild'
     const rawMessage = useStripped
         ? (session.stripped?.content || session.content || '')
@@ -72,7 +70,7 @@ async function createMessageEvent(session: Session, baseEvent: any, ctx: any, co
     const event: any = {
         post_type: 'message',
         message_type: isGroupMessage ? 'group' : 'private',
-        sub_type: 'normal',
+        sub_type: isGroupMessage ? 'normal' : 'friend',
         message_id: parseInt(session.messageId) || session.messageId || generateId(),
         user_id: userId, // 转换为数字类型
         message: await elementsToOneBotMessage(session.elements || [], ctx, session.platform),
@@ -691,7 +689,6 @@ async function sendGroupMessageWithPlatformAdaptation(
         } catch (error) {
             loggerError('QQ platform group message failed:', error.message)
             // 对于 QQ 平台，如果直接发送失败，可能是因为缺少 msg_id
-            // 这种情况下应该抛出更明确的错误信息
             throw new Error(`QQ platform active messaging failed (may require msg_id from recent session): ${error.message}`)
         }
     }

@@ -24,7 +24,7 @@ export function createSystemHandlers(ctx: Context, config?: { selfId: string }, 
         // 获取版本信息
         get_version_info: async (params: {}, clientState: ClientState) => {
             return {
-                app_name: packageInfo.name || 'koishi-plugin-server-onebot',
+                app_name: packageInfo.name.replace('koishi-plugin-', '') || 'server-onebot',
                 app_version: packageInfo.version || '1.0.0',
                 protocol_version: 'v11',
                 runtime_version: process.version,
@@ -64,8 +64,6 @@ export function createSystemHandlers(ctx: Context, config?: { selfId: string }, 
             // 成功
             return {}
         },
-
-
 
         // 检查是否可以发送图片
         can_send_image: async (params: {}, clientState: ClientState) => {

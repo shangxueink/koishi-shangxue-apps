@@ -128,7 +128,7 @@ export class WebSocketClient {
                 // 简化错误输出
                 let errorMessage = 'Unknown error'
                 if (error && typeof error === 'object') {
-                    const errorObj = error as any
+                    const errorObj = error
                     if (errorObj.error) {
                         const innerError = errorObj.error
                         if (innerError.code === 'ECONNREFUSED') {
@@ -153,7 +153,7 @@ export class WebSocketClient {
             // 简化错误输出
             let errorMessage = 'Unknown error'
             if (error && typeof error === 'object') {
-                const errorObj = error as any
+                const errorObj = error
                 if (errorObj.code === 'ECONNREFUSED') {
                     errorMessage = `Connection refused`
                 } else if (errorObj.message) {

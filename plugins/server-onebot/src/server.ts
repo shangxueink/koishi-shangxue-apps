@@ -27,7 +27,7 @@ export class OneBotServer {
 
         logInfo('Starting OneBot server with config: %o', this.config)
 
-        // 启动 WebSocket 服务器（如果启用）
+        // 启动 WebSocket 服务器
         if (this.config.enabledWs) {
             this.wsServer = new WebSocketServer(this.ctx, {
                 path: this.config.path || '/onebotserver',
@@ -39,7 +39,7 @@ export class OneBotServer {
             logInfo('WebSocket server started at: %s', this.config.path || '/onebotserver')
         }
 
-        // 启动反向 WebSocket 客户端（如果启用）
+        // 启动反向 WebSocket 客户端
         if (this.config.enabledWsReverse) {
             const connections = this.config.connections?.filter(conn => conn.enabled && conn.url) || []
             if (connections.length > 0) {
@@ -72,12 +72,6 @@ export class OneBotServer {
         if (this.config.heartbeat?.enabled !== false) {
             this.startHeartbeat()
         }
-
-        // 显示所有已实现的 API
-        const availableActions = this.wsServer ?
-            Array.from((this.wsServer as any).actionRouter.getActions()).sort() : []
-        logInfo('OneBot server started successfully with %d implemented APIs: %o',
-            availableActions.length, availableActions)
 
         logInfo('OneBot server ready to accept connections')
 
@@ -168,7 +162,7 @@ export class OneBotServer {
         ]
 
         for (const eventType of eventTypes) {
-            this.ctx.on(eventType as any, (session: Session) => {
+            this.ctx.on(eventType as keyof import('koishi').Events, (session: Session) => {
                 this.handleSessionEvent(session)
             })
         }
@@ -215,13 +209,13 @@ export class OneBotServer {
 
         let totalSent = 0
 
-        // 向 WebSocket 服务器的客户端广播（如果启用）
+        // 向 WebSocket 服务器的客户端广播
         if (this.wsServer && this.config.enabledWs) {
             const wsServerClientCount = this.wsServer.broadcast(event)
             totalSent += wsServerClientCount
         }
 
-        // 向反向 WebSocket 客户端广播（如果启用）
+        // 向反向 WebSocket 客户端广播
         if (this.config.enabledWsReverse && this.wsClients.length > 0) {
             let reverseSentCount = 0
             let hasActiveClients = false

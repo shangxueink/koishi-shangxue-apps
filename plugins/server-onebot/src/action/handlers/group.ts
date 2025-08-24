@@ -34,8 +34,8 @@ export function createGroupHandlers(ctx: Context, config?: { selfId: string; gro
                 return {
                     id: groupId, // 返回原始的映射ID
                     name: guild.name || guild.id,
-                    member_count: (guild as any).memberCount || 0,
-                    max_member_count: (guild as any).maxMemberCount || 0,
+                    member_count: ('memberCount' in guild) ? guild.memberCount : 0,
+                    max_member_count: ('maxMemberCount' in guild) ? guild.maxMemberCount : 0,
                 }
             } else {
                 // 如果没有 getGuild 方法，返回基本信息
@@ -509,7 +509,11 @@ export function createGroupHandlers(ctx: Context, config?: { selfId: string; gro
             }
 
             try { // TODO
-                await (bot as any).leaveGuild(params.group_id.toString())
+                if ('leaveGuild' in bot && typeof bot.leaveGuild === 'function') {
+                    await bot.leaveGuild(params.group_id.toString())
+                } else {
+                    throw new Error('leaveGuild method not available')
+                }
                 return {}
             } catch (error) {
                 throw new Error('Failed to leave group')

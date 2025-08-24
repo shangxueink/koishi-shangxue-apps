@@ -34,7 +34,7 @@ export class WebSocketServer {
     }
 
     private setupWebSocketServer() {
-        this.route = (this.ctx as any).server.ws(this.config.path, async (socket, { headers }) => {
+        this.route = this.ctx.server.ws(this.config.path, async (socket, { headers }) => {
             logInfo('OneBot client connected with headers:', headers)
 
             const client: ClientState = {
@@ -65,8 +65,8 @@ export class WebSocketServer {
             logInfo('WebSocket client accepted with selfId: %s', selfId)
 
             // 获取客户端地址信息
-            const clientAddress = socket.remoteAddress || 'unknown'
-            const clientPort = socket.remotePort || 'unknown'
+            const clientAddress = ('remoteAddress' in socket) ? socket.remoteAddress : 'unknown'
+            const clientPort = ('remotePort' in socket) ? socket.remotePort : 'unknown'
             const clientInfo = `${clientAddress}:${clientPort}`
 
             loggerInfo('OneBot WebSocket client connected: %s (selfId: %s)', clientInfo, selfId)
@@ -91,8 +91,8 @@ export class WebSocketServer {
 
             // 监听断开连接
             socket.addEventListener('close', () => {
-                const clientAddress = socket.remoteAddress || 'unknown'
-                const clientPort = socket.remotePort || 'unknown'
+                const clientAddress = ('remoteAddress' in socket) ? socket.remoteAddress : 'unknown'
+                const clientPort = ('remotePort' in socket) ? socket.remotePort : 'unknown'
                 const clientInfo = `${clientAddress}:${clientPort}`
 
                 loggerInfo('OneBot WebSocket client disconnected: %s', clientInfo)
