@@ -11,11 +11,13 @@ export const name = "certificate-achievement";
 export const inject = ['puppeteer'];
 
 export interface Config {
+  commandname: string
   customText: string
   defaultClassname: string
 }
 
 export const Config: Schema<Config> = S.object({
+  commandname: S.string().default('生成奖状').description('指令名称'),
   customText: S.string().default("   在本学年第一学期中表现优秀，被本群决定\n评为").role('textarea', { rows: [2, 4] }).description('奖状中间的自定义文字'),
   defaultClassname: S.string().default('本群指定授奖处').description('默认的授奖单位')
 });
@@ -37,24 +39,39 @@ async function getImageDataURL(filePath: string): Promise<string> {
 }
 
 export async function apply(ctx: Context, config: Config) {
-  ctx.command("生成奖状 <name> <title> <classname?>")
-    .example("生成奖状  李四  优秀学生  本群授奖处")
+
+  ctx.i18n.define("zh-CN", {
+    commands: {
+      [config.commandname]: {
+        description: "生成奖状",
+        messages: {
+          "invalidinput": "输入的参数不足\~请至少输入姓名和标题~指令示例【{0} 姓名 标题 单位】",
+          "waitforme": "生成奖状中......",
+          "error": "获取奖状失败",
+        }
+      },
+    }
+  });
+
+  ctx.command(`${config.commandname} <name> <title> <classname?>`)
+    .example(`${config.commandname}  张三  galgame糕手`)
+    .example(`${config.commandname}  李四  游戏苦手  本群授奖处`)
     .action(async ({ session }: { session: Session }, name?: string, title?: string, classname?: string) => {
       if (!name || !title) {
-        await session.send(h.text('输入的参数不足\~请至少输入姓名和标题~指令示例【指令名 姓名 标题 单位】'))
+        await session.send(h.text(session.text(".invalidinput", [config.commandname])))
         return;
       }
       if (!classname) {
         classname = config.defaultClassname;
       }
-      await session.send('生成奖状中......');
+      await session.send(h.text(session.text(".waitforme")))
       try {
         const imageBuffer = await renderImage(name, title, classname);
         await session.send(h.image(imageBuffer, `image/png`))
         return;
       } catch (error) {
         logger.error(error);
-        await session.send('获取奖状失败');
+        await session.send(h.text(session.text(".error")))
       }
     });
 
