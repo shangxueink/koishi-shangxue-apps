@@ -371,7 +371,7 @@ export function apply(ctx: Context, config) {
                 const dJson = await getJrys(session)
                 if (options.split) {
                     // 如果开启了分离模式，那就只返回图文消息内容。即文字运势内容与背景图片
-                    if (config.Checkin_HintText) {
+                    if (config.Checkin_HintText && config.Checkin_HintText !== 'unset') {
                         Checkin_HintText_messageid = await session.send(config.Checkin_HintText)
                     }
 
@@ -409,7 +409,7 @@ ${dJson.unsignText}\n
                     return
                 }
 
-                if (config.Checkin_HintText) {
+                if (config.Checkin_HintText && config.Checkin_HintText !== 'unset') {
                     Checkin_HintText_messageid = await session.send(config.Checkin_HintText)
                 }
 
