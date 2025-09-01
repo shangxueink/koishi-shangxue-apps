@@ -624,10 +624,10 @@ export function apply(ctx: Context, config: Config) {
         });
       }
 
-      // 获取用户记录
+      // 获取目标用户记录
       let [userRecord] = await ctx.database.get('impartpro', { userid: userId });
 
-      // 如果用户记录不存在，初始化用户数据
+      // 如果目标用户记录不存在，初始化用户数据
       if (!userRecord) {
         const initialLength = randomLength(config.defaultLength);
         const growthFactor = Math.random();
@@ -647,18 +647,56 @@ export function apply(ctx: Context, config: Config) {
         return;
       }
 
-      // 检查冷却时间
-      const lastGrowthTime = new Date(userRecord.lastGrowthTime).getTime();
+      // 获取发起者记录（用于检查冷却时间）
+      let [initiatorRecord] = await ctx.database.get('impartpro', { userid: session.userId });
+
+      // 如果发起者记录不存在，初始化发起者数据
+      if (!initiatorRecord) {
+        const initialLength = randomLength(config.defaultLength);
+        const growthFactor = Math.random();
+        initiatorRecord = {
+          userid: session.userId,
+          username: session.user.name || session.username,
+          channelId: await updateChannelId(session.userId, session.channelId),
+          length: initialLength,
+          injectml: "0-0",
+          growthFactor: growthFactor,
+          lastGrowthTime: new Date().toISOString(),
+          lastDuelTime: new Date().toISOString(),
+          locked: false
+        };
+        await ctx.database.create('impartpro', initiatorRecord);
+        await session.send(`${h.at(session.userId)} 自动初始化成功！你的牛牛初始长度为 ${initialLength.toFixed(2)} cm。初始生长系数为：${growthFactor.toFixed(2)}`);
+        return;
+      }
+
+      // 检查发起者的冷却时间（无论开导自己还是别人，发起者都必须受到冷却限制）
+      const lastInitiatorGrowthTime = new Date(initiatorRecord.lastGrowthTime).getTime();
       const cooldownTime = config.exerciseCooldownTime * 1000;
-      if (isNaN(lastGrowthTime)) {
+      if (isNaN(lastInitiatorGrowthTime)) {
         await session.send('用户数据有误，无法解析最后锻炼时间。');
         return;
       }
 
-      if (currentTime - lastGrowthTime < cooldownTime) {
-        const remainingTime = Math.ceil((cooldownTime - (currentTime - lastGrowthTime)) / 1000);
-        await session.send(`${h.at(userId)} 处于冷却中，无法进行锻炼。冷却还剩 ${remainingTime} 秒。`);
+      if (currentTime - lastInitiatorGrowthTime < cooldownTime) {
+        const remainingTime = Math.ceil((cooldownTime - (currentTime - lastInitiatorGrowthTime)) / 1000);
+        await session.send(`${h.at(session.userId)} 处于冷却中，无法进行锻炼。冷却还剩 ${remainingTime} 秒。`);
         return;
+      }
+
+      // 检查目标用户的冷却时间（如果开导别人）
+      if (user) {
+        const lastTargetGrowthTime = new Date(userRecord.lastGrowthTime).getTime();
+        if (isNaN(lastTargetGrowthTime)) {
+          await session.send('目标用户数据有误，无法解析最后锻炼时间。');
+          return;
+        }
+
+        if (currentTime - lastTargetGrowthTime < cooldownTime) {
+          const remainingTime = Math.ceil((cooldownTime - (currentTime - lastTargetGrowthTime)) / 1000);
+          await session.send(`${h.at(userId)} 处于冷却中，无法被开导。冷却还剩 ${remainingTime} 秒。`);
+          return;
+        }
       }
 
       // 获取原有长度
@@ -697,6 +735,9 @@ export function apply(ctx: Context, config: Config) {
       userRecord.length = enhancedLength;
       userRecord.lastGrowthTime = new Date().toISOString(); // 使用 ISO 字符串
 
+      // 更新发起者的lastGrowthTime（无论开导自己还是别人，发起者都更新时间戳）
+      initiatorRecord.lastGrowthTime = new Date().toISOString();
+
       // 记录详细信息
       loggerinfo(`用户ID: ${userId}`);
       loggerinfo(`原有长度: ${originalLength.toFixed(2)} cm`);
@@ -713,6 +754,14 @@ export function apply(ctx: Context, config: Config) {
         lastGrowthTime: userRecord.lastGrowthTime,
         channelId: await updateChannelId(userId, session.channelId),
       });
+
+      // 如果开导的是别人，也需要更新发起者的时间戳
+      if (user) {
+        await ctx.database.set('impartpro', { userid: session.userId }, {
+          lastGrowthTime: initiatorRecord.lastGrowthTime,
+          channelId: await updateChannelId(session.userId, session.channelId),
+        });
+      }
 
       await session.send(`${h.at(userId)} 锻炼${isSuccess ? '成功' : '失败'}！牛牛强化后长度为 ${enhancedLength.toFixed(2)} cm。`);
       return;
