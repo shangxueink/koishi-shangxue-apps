@@ -79,7 +79,7 @@ exports.Config = Schema.intersect([
                 enablebilianalysis: Schema.const(true),
                 waitTip_Switch: Schema.union([
                     Schema.const().description('不返回文字提示'),
-                    Schema.string().description('返回文字提示（请在右侧填写文字内容）'),
+                    Schema.string().description('返回文字提示（请在右侧填写文字内容）').default('正在解析B站链接...'),
                 ]).description("是否返回等待提示。开启后，会发送`等待提示语`"),
                 linktextParsing: Schema.boolean().default(true).description("是否返回 视频图文数据 `开启后，才发送视频数据的图文解析。`"),
                 VideoParsing_ToLink: Schema.union([
@@ -472,9 +472,10 @@ display: none !important;
     async function processVideoFromLink(session, config, ctx, lastProcessedUrls, logger, ret, options = { video: true }) {
         const lastretUrl = extractLastUrl(ret);
 
+        let waitTipMsgId = null;
         // 等待提示语单独发送
         if (config.waitTip_Switch) {
-            await session.send(config.waitTip_Switch);
+            waitTipMsgId = await session.send(`${h.quote(session.messageId)}${config.waitTip_Switch}`);
         }
 
         let videoElements = []; // 用于存储视频相关元素
@@ -689,6 +690,13 @@ display: none !important;
         }
 
         logInfo(`机器人已发送完整消息。`);
+
+        try{
+            await session.bot.deleteMessage(session.channelId, waitTipMsgId);
+        } catch(error) {
+            logger.error(`撤回消息失败，可能是超过onebot的120s限制。error = ${error}`);
+        }
+
         return;
     }
 
@@ -836,6 +844,7 @@ display: none !important;
                 '${转发}': `${(0, numeral)(info["data"]["stat"]["share"], this.config)}`,
                 '${观看}': `${(0, numeral)(info["data"]["stat"]["view"], this.config)}`,
                 '${弹幕}': `${(0, numeral)(info["data"]["stat"]["danmaku"], this.config)}`,
+                '${tab}': `\t`
             };
 
             // 根据配置项中的格式替换占位符
