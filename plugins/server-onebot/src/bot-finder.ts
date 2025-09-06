@@ -88,10 +88,10 @@ export class BotFinder {
      */
     private setupEventListeners() {
         this.ctx.on('ready', () => {
-            // 只监听 message-created 事件，避免重复
-            this.ctx.on('message-created', (session: Session) => {
+            this.ctx.middleware(async (session, next) => {
                 this.updateBindingBotSelfId(session)
                 this.handleMessageForchannelprivate(session)
+                return next()
             })
 
             logInfo('Private channel event listeners set up')

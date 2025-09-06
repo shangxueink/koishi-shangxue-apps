@@ -142,15 +142,10 @@ export class OneBotServer {
         logInfo('Setting up event listeners')
 
         // 监听消息事件
-        this.ctx.on('message', (session: Session) => {
+        this.ctx.middleware(async (session, next) => {
             this.handleSessionEvent(session)
+            return next()
         })
-
-        // // 监听消息创建事件（adapter-onebot 会触发这个事件）
-        // 在这里不处理，防止重复下发
-        // this.ctx.on('message-created', (session: Session) => {
-        //     this.handleSessionEvent(session)
-        // })
 
         // 监听其他事件
         const eventTypes = [

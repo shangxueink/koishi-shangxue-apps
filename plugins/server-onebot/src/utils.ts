@@ -523,7 +523,22 @@ export async function sendWithSession(
     const recentSessions = getRecentSessions()
 
     // 查找匹配的 session（1分钟内的消息）
-    const matchingSession = findMatchingSession(recentSessions, targetChannelId, targetUserId, isPrivate)
+    const matchingSessions = findAllMatchingSessions(recentSessions, targetChannelId, targetUserId, isPrivate)
+
+    let matchingSession = null
+    if (matchingSessions.length > 0) {
+        // 优先选择被 @ 的消息
+        const atSelfSessions = matchingSessions.filter(session => session.isAtSelf)
+        if (atSelfSessions.length > 0) {
+            // 按时间倒序排列，最新的在前面
+            atSelfSessions.sort((a, b) => b.timestamp - a.timestamp)
+            matchingSession = atSelfSessions[0]
+        } else {
+            // 如果没有被 @ 的消息，选择最新的消息
+            matchingSessions.sort((a, b) => b.timestamp - a.timestamp)
+            matchingSession = matchingSessions[0]
+        }
+    }
 
     if (matchingSession) {
         try {
@@ -547,10 +562,8 @@ export async function sendWithSession(
         }
 
         // 如果被动消息发送失败，使用匹配 session 的 selfId 进行主动发送
-        if (!selfId) {
-            selfId = matchingSession.selfId
-            logInfo(`Using selfId from matching session: ${selfId}`)
-        }
+        selfId = matchingSession.selfId
+        logInfo(`Using selfId from matching session: ${selfId}`)
     } else {
         logInfo('No matching session found, using active message sending')
     }
@@ -576,8 +589,13 @@ async function sendActiveMessage(
 
     let targetBot = null
 
-    // 首先根据 targetChannelId 从数据库查找对应的 bot
-    if (targetChannelId && ctx.database) {
+    // 如果提供了 selfId，优先使用这个 selfId 查找 bot
+    if (selfId) {
+        targetBot = Object.values(ctx.bots).find((b: any) => b.selfId === selfId)
+    }
+
+    // 如果没有提供 selfId 或者 根据 selfId 没有找到 bot
+    if (!targetBot && targetChannelId && ctx.database) {
         try {
             // 查询 channel 表获取 assignee
             const channels = await ctx.database.get('channel', {
@@ -653,7 +671,7 @@ async function sendPrivateMessageWithPlatformAdaptation(
     const channelFormats = [
         `private:${userId}`,
         userId,
-        `user:${userId}`
+        // `user:${userId}`
     ]
 
     for (const channelId of channelFormats) {
@@ -699,7 +717,7 @@ async function sendGroupMessageWithPlatformAdaptation(
         `public:${channelId}`,
         `group:${channelId}`,
         `channel:${channelId}`,
-        `guild:${channelId}`
+        //  `guild:${channelId}`
     ]
 
     for (const format of channelFormats) {
@@ -728,13 +746,14 @@ export function storeRecentSession(session: any) {
         userId: session.userId,
         isPrivate: session.isDirect || false,
         platform: session.platform,
-        selfId: session.selfId
+        selfId: session.selfId,
+        isAtSelf: session.stripped?.atSelf || false
     }
 
     recentSessionsMap.set(key, sessionData)
 
-    // 清理超过3分钟的 session
-    const fiveMinutesAgo = Date.now() - (3 * 60 * 1000)
+    // 清理超过2分钟的 session
+    const fiveMinutesAgo = Date.now() - (2 * 60 * 1000)
     for (const [k, v] of recentSessionsMap.entries()) {
         if (v.timestamp < fiveMinutesAgo) {
             recentSessionsMap.delete(k)
@@ -746,7 +765,7 @@ export function storeRecentSession(session: any) {
  * 获取最近的 sessions
  */
 function getRecentSessions() {
-    const fiveMinutesAgo = Date.now() - (3 * 60 * 1000)
+    const fiveMinutesAgo = Date.now() - (2 * 60 * 1000)
     const recentSessions = []
 
     for (const [key, sessionData] of recentSessionsMap.entries()) {
@@ -759,29 +778,31 @@ function getRecentSessions() {
 }
 
 /**
- * 查找匹配的 session
+ * 查找所有匹配的 sessions
  */
-function findMatchingSession(
+function findAllMatchingSessions(
     recentSessions: any[],
     targetChannelId: string,
     targetUserId: string | null,
     isPrivate: boolean
 ) {
+    const matchingSessions = []
+
     for (const sessionData of recentSessions) {
         if (isPrivate) {
             // 私聊消息匹配
             if (sessionData.isPrivate && sessionData.userId === targetUserId) {
-                return sessionData
+                matchingSessions.push(sessionData)
             }
         } else {
             // 群消息匹配
             if (!sessionData.isPrivate && sessionData.channelId === targetChannelId) {
-                return sessionData
+                matchingSessions.push(sessionData)
             }
         }
     }
 
-    return null
+    return matchingSessions
 }
 
 export function createLifecycleEvent(selfId: string, platform: string, subType: 'enable' | 'disable' | 'connect'): any {
