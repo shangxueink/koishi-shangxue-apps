@@ -351,7 +351,13 @@ export class BotFinder {
                 }
             }
 
-            // 私聊表中没有找到 // 查询 channel 表
+            // 私聊频道只在 channelprivate 表中查找，找不到直接返回 null
+            if (channelId.startsWith('private:')) {
+                return null
+            }
+
+            // 私聊表中没有找到 
+            // 查询 channel 表
             const channels = await this.ctx.database.get('channel', {
                 guildId: channelId
             })
