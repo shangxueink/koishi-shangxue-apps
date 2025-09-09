@@ -690,13 +690,7 @@ display: none !important;
         }
 
         logInfo(`机器人已发送完整消息。`);
-
-        try{
-            await session.bot.deleteMessage(session.channelId, waitTipMsgId);
-        } catch(error) {
-            logger.error(`撤回消息失败，可能是超过onebot的120s限制。error = ${error}`);
-        }
-
+        await session.bot.deleteMessage(session.channelId, waitTipMsgId);
         return;
     }
 
@@ -973,5 +967,6 @@ display: none !important;
     }
 }
 exports.apply = apply;
+
 
 
