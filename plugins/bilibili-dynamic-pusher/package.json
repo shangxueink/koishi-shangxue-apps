@@ -1,7 +1,7 @@
 {
   "name": "koishi-plugin-bilibili-dynamic-pusher",
   "description": "Bilibili动态推送，灵感来自[bilibili-notify](https://www.npmjs.com/package/koishi-plugin-bilibili-notify)插件。需要搭配对应的适配器使用哦~",
-  "version": "1.1.2",
+  "version": "2.0.0",
   "main": "lib/index.js",
   "typings": "lib/index.d.ts",
   "files": [
