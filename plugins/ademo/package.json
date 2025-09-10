@@ -1,0 +1,29 @@
+{
+  "name": "koishi-plugin-ademo",
+  "description": "ademo",
+  "version": "0.0.1",
+  "main": "lib/index.js",
+  "typings": "lib/index.d.ts",
+  "files": [
+    "lib",
+    "dist",
+    "src",
+    "client"
+  ],
+  "license": "MIT",
+  "scripts": {},
+  "keywords": [
+    "chatbot",
+    "koishi",
+    "plugin",
+    "ademo"
+  ],
+  "homepage": "https://github.com/shangxueink/koishi-shangxue-apps/tree/main/",
+  "bugs": {
+    "url": "https://github.com/shangxueink/koishi-shangxue-apps/issues"
+  },
+  "devDependencies": {},
+  "peerDependencies": {
+    "koishi": "4.18.9"
+  }
+}
