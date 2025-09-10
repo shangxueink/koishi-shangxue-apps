@@ -1,13 +1,18 @@
 {
   "name": "koishi-plugin-chouxianghua",
-  "version": "1.0.0",
-  "description": "/*抽象话生成*/把中文输入转换为emoji抽象话。比如：💉💦太🤡🐘🌶！（真的太抽象啦！）。是个很普通的字符转换插件而已",
+  "version": "2.0.0",
+  "description": "/*抽象话生成*/把中文输入转换为emoji抽象话。比如：💉💦太🤡🐘🌶！（真的太抽象啦！）。是个很单纯的字符转换插件而已",
   "main": "lib/index.js",
   "typings": "lib/index.d.ts",
   "files": [
     "lib",
-    "dist"
+    "src",
+    "data"
   ],
+  "homepage": "https://github.com/shangxueink/koishi-shangxue-apps/tree/main/",
+  "bugs": {
+    "url": "https://github.com/shangxueink/koishi-shangxue-apps/issues"
+  },
   "keywords": [
     "koishi",
     "plugin"
