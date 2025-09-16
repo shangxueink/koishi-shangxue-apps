@@ -13,12 +13,13 @@ export class WebSocketServer {
 
     constructor(
         private ctx: Context,
-        private config: { path: string; token?: string; selfId?: string; selfname?: string; groupname?: string }
+        private config: { path: string; token?: string; selfId?: string; selfname?: string; groupname?: string, appName?: string }
     ) {
         this.actionRouter = new ActionRouter(ctx, {
             selfId: this.config.selfId || '114514',
             selfname: this.config.selfname,
-            groupname: this.config.groupname
+            groupname: this.config.groupname,
+            appName: this.config.appName
         })
         this.setupWebSocketServer()
 
@@ -81,9 +82,6 @@ export class WebSocketServer {
             }
             loggerInfo('Active WebSocket clients: [%s]', connections.join(', '))
 
-            // 连接建立后立即发送初始化请求
-            this.sendInitializationRequests(socket, selfId)
-
             // 监听消息
             socket.addEventListener('message', async (event) => {
                 await this.handleMessage(socket, client, event.data.toString())
@@ -128,6 +126,19 @@ export class WebSocketServer {
             return socket.close(4000, 'invalid message')
         }
 
+        // 检查请求是否包含 action 字段
+        if (!request.action) {
+            logInfo('Invalid request: missing action field')
+            const errorResponse: OneBotActionResponse = {
+                status: 'failed',
+                retcode: 1400,
+                message: 'Missing action field',
+                echo: request.echo,
+            }
+            socket.send(JSON.stringify(errorResponse))
+            return
+        }
+
         // 请求去重检查
         const requestKey = `${request.action}-${JSON.stringify(request.params)}-${request.echo || 'no-echo'}`
         const now = Date.now()
@@ -141,7 +152,7 @@ export class WebSocketServer {
         this.recentRequests.set(requestKey, now)
 
         // 更新客户端状态，记录最后的消息ID（如果是发送消息的请求）
-        if (request.action.includes('send_') && request.params) {
+        if (request.action?.includes('send_') && request.params) {
             // 从参数中提取可能的消息ID信息，用于后续的被动消息发送
             if (request.params.message_id) {
                 client.lastMessageId = request.params.message_id.toString()
@@ -229,38 +240,6 @@ export class WebSocketServer {
      */
     getClientCount(): number {
         return this.route?.clients.size || 0
-    }
-
-    /**
-     * 发送初始化请求
-     */
-    private sendInitializationRequests(socket: WebSocket, selfId: string) {
-        // 发送 get_login_info 请求
-        const loginInfoRequest = {
-            action: 'get_login_info',
-            params: {},
-            echo: this.generateEcho()
-        }
-
-        socket.send(JSON.stringify(loginInfoRequest))
-        logInfo('[onebot:init-request] get_login_info sent')
-
-        // 发送 get_guild_service_profile 请求
-        const guildServiceRequest = {
-            action: 'get_guild_service_profile',
-            params: {},
-            echo: this.generateEcho()
-        }
-
-        socket.send(JSON.stringify(guildServiceRequest))
-        logInfo('[onebot:init-request] get_guild_service_profile sent')
-    }
-
-    /**
-     * 生成请求 echo
-     */
-    private generateEcho(): number {
-        return Math.floor(Math.random() * 1000000)
     }
 
     /**

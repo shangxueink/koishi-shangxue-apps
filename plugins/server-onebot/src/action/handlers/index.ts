@@ -6,7 +6,7 @@ import { createUserHandlers } from './user'
 import { ActionHandler } from '../../types'
 import { Context } from 'koishi'
 
-export function createActionHandlers(ctx: Context, config?: { selfId: string, selfname?: string, groupname?: string }): Record<string, ActionHandler> {
+export function createActionHandlers(ctx: Context, config?: { selfId: string, selfname?: string, groupname?: string, appName?: string }): Record<string, ActionHandler> {
     // 创建一个共享的 BotFinder 实例
     const sharedBotFinder = new BotFinder(ctx)
 

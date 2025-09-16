@@ -738,7 +738,7 @@ async function sendGroupMessageWithPlatformAdaptation(
  * 存储最近的 session
  */
 export function storeRecentSession(session: any) {
-    const key = `${session.platform}-${session.selfId}-${session.channelId || session.userId}`
+    const key = `${session.platform}-${session.selfId}-${session.channelId || session.userId}-${session.messageId || Date.now()}-${Math.random()}`
     const sessionData = {
         session,
         timestamp: Date.now(),
@@ -764,7 +764,7 @@ export function storeRecentSession(session: any) {
 /**
  * 获取最近的 sessions
  */
-function getRecentSessions() {
+export function getRecentSessions() {
     const fiveMinutesAgo = Date.now() - (2 * 60 * 1000)
     const recentSessions = []
 

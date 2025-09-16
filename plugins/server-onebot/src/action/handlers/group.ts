@@ -4,7 +4,7 @@ import { encodeChannelId, encodeStringId, decodeChannelId } from '../../utils'
 import { loggerError, logInfo } from '../../../src/index'
 import { ActionHandler, ClientState, GroupInfo, UserInfo } from '../../types'
 
-export function createGroupHandlers(ctx: Context, config?: { selfId: string; groupname?: string }, botFinder?: BotFinder): Record<string, ActionHandler> {
+export function createGroupHandlers(ctx: Context, config?: { selfId: string; groupname?: string; appName?: string }, botFinder?: BotFinder): Record<string, ActionHandler> {
     // 如果没有传入 botFinder，则创建一个新的
     const finder = botFinder || new BotFinder(ctx)
 
@@ -394,8 +394,6 @@ export function createGroupHandlers(ctx: Context, config?: { selfId: string; gro
                 logInfo('Retrieved %d members for group %s', memberList.length, params.group_id)
                 return memberList
             } catch (error) {
-                loggerError('Failed to get member list for %s (bot: %s): %s', params.group_id, bot.selfId, error.message)
-
                 // 如果获取失败，也返回默认的群成员数据
                 return [{
                     user_id: parseInt(bot.selfId) || bot.selfId,

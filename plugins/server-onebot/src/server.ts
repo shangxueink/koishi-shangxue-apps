@@ -35,6 +35,7 @@ export class OneBotServer {
                 selfId: this.config.selfId,
                 selfname: this.config.selfname,
                 groupname: this.config.groupname,
+                appName: this.config.appName,
             })
             logInfo('WebSocket server started at: %s', this.config.path || '/onebotserver')
         }
@@ -53,6 +54,7 @@ export class OneBotServer {
                         selfId: this.config.selfId,
                         selfname: this.config.selfname,
                         groupname: this.config.groupname,
+                        appName: this.config.appName,
                     })
                     this.wsClients.push(wsClient)
                     wsClient.start()

@@ -5,8 +5,9 @@ import { Context, Universal } from 'koishi'
 
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
+import { getRecentSessions, sessionToOneBotEvent, encodeChannelId, encodeStringId } from '../../utils'
 
-export function createSystemHandlers(ctx: Context, config?: { selfId: string }, botFinder?: BotFinder): Record<string, ActionHandler> {
+export function createSystemHandlers(ctx: Context, config?: { selfId: string, appName?: string, groupname?: string }, botFinder?: BotFinder): Record<string, ActionHandler> {
     // 如果没有传入 botFinder，则创建一个新的
     const finder = botFinder || new BotFinder(ctx)
 
@@ -24,7 +25,7 @@ export function createSystemHandlers(ctx: Context, config?: { selfId: string }, 
         // 获取版本信息
         get_version_info: async (params: {}, clientState: ClientState) => {
             return {
-                app_name: packageInfo.name.replace('koishi-plugin-', '') || 'server-onebot',
+                app_name: config?.appName || packageInfo.name.replace('koishi-plugin-', '') || 'server-onebot',
                 app_version: packageInfo.version || '1.0.0',
                 protocol_version: 'v11',
                 runtime_version: process.version,
@@ -373,8 +374,58 @@ export function createSystemHandlers(ctx: Context, config?: { selfId: string }, 
             message_seq?: number
             group_id: string | number
         }, clientState: ClientState) => {
+            const recentSessions = getRecentSessions()
+            const messages = []
+            
+            // 获取要匹配的群组ID的编码值
+            let targetEncodedGroupId = null
+            try {
+                // 如果传入的是数字，直接使用；如果是字符串，需要编码
+                if (typeof params.group_id === 'number') {
+                    targetEncodedGroupId = params.group_id
+                } else {
+                    // 尝试将字符串ID编码为数字ID进行匹配
+                    targetEncodedGroupId = await encodeChannelId(params.group_id.toString(), ctx)
+                }
+            } catch (error) {
+                loggerError('Error encoding group_id:', error)
+            }
+            
+            // 过滤出群消息
+            for (const sessionData of recentSessions) {
+                const session = sessionData.session
+                // 检查是否为群消息
+                if (!session.isDirect && (session.guildId || session.channelId)) {
+                    const groupId = session.guildId || session.channelId
+                    try {
+                        // 编码当前session的群组ID
+                        const encodedGroupId = await encodeChannelId(groupId, ctx)
+                        
+                        // 检查是否匹配目标群组
+                        if (encodedGroupId && targetEncodedGroupId && encodedGroupId === targetEncodedGroupId) {
+                            const oneBotEvent = await sessionToOneBotEvent(session, ctx, config?.selfId)
+                            if (oneBotEvent) {
+                                // 确保是群消息类型并添加群组信息
+                                if (oneBotEvent.message_type === 'group') {
+                                    // 添加群组名称（如果需要）
+                                    if (!oneBotEvent.group_name && config?.groupname) {
+                                        oneBotEvent.group_name = config.groupname
+                                    }
+                                    messages.push(oneBotEvent)
+                                }
+                            }
+                        }
+                    } catch (error) {
+                        loggerError('Error processing group session:', error)
+                    }
+                }
+            }
+            
+            // 按时间排序，最新的在前面
+            messages.sort((a, b) => b.time - a.time)
+            
             return {
-                messages: []
+                messages
             }
         },
 
@@ -383,8 +434,53 @@ export function createSystemHandlers(ctx: Context, config?: { selfId: string }, 
             user_id: string | number
             message_seq?: number
         }, clientState: ClientState) => {
+            const recentSessions = getRecentSessions()
+            const messages = []
+            
+            // 获取要匹配的用户ID的编码值
+            let targetEncodedUserId = null
+            try {
+                // 如果传入的是数字，直接使用；如果是字符串，需要编码
+                if (typeof params.user_id === 'number') {
+                    targetEncodedUserId = params.user_id
+                } else {
+                    // 尝试将字符串ID编码为数字ID进行匹配
+                    targetEncodedUserId = await encodeStringId(params.user_id.toString(), ctx)
+                }
+            } catch (error) {
+                loggerError('Error encoding user_id:', error)
+            }
+            
+            // 过滤出私聊消息
+            for (const sessionData of recentSessions) {
+                const session = sessionData.session
+                // 检查是否为私聊消息
+                if (session.isDirect && session.userId) {
+                    try {
+                        // 编码当前session的用户ID
+                        const encodedUserId = await encodeStringId(session.userId, ctx)
+                        
+                        // 检查是否匹配目标用户
+                        if (encodedUserId && targetEncodedUserId && encodedUserId === targetEncodedUserId) {
+                            const oneBotEvent = await sessionToOneBotEvent(session, ctx, config?.selfId)
+                            if (oneBotEvent) {
+                                // 确保是私聊消息类型
+                                if (oneBotEvent.message_type === 'private') {
+                                    messages.push(oneBotEvent)
+                                }
+                            }
+                        }
+                    } catch (error) {
+                        loggerError('Error processing private session:', error)
+                    }
+                }
+            }
+            
+            // 按时间排序，最新的在前面
+            messages.sort((a, b) => b.time - a.time)
+            
             return {
-                messages: []
+                messages
             }
         },
 

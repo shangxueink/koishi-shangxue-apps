@@ -3,7 +3,7 @@ import { logInfo, loggerError, loggerInfo } from '../../../src/index'
 import { BotFinder } from '../../bot-finder'
 import { Context, Universal } from 'koishi'
 
-export function createUserHandlers(ctx: Context, config?: { selfId: string, selfname?: string }, botFinder?: BotFinder): Record<string, ActionHandler> {
+export function createUserHandlers(ctx: Context, config?: { selfId: string, selfname?: string, appName?: string }, botFinder?: BotFinder): Record<string, ActionHandler> {
     // 如果没有传入 botFinder，则创建一个新的
     const finder = botFinder || new BotFinder(ctx)
     const defaultUserId = config?.selfId || parseInt(config.selfId)

@@ -24,12 +24,14 @@ export class WebSocketClient {
             selfId: string
             selfname?: string
             groupname?: string
+            appName?: string
         }
     ) {
         this.actionRouter = new ActionRouter(ctx, {
             selfId: this.config.selfId,
             selfname: this.config.selfname,
-            groupname: this.config.groupname
+            groupname: this.config.groupname,
+            appName: this.config.appName
         })
 
         // 定期清理过期的请求记录
@@ -199,6 +201,21 @@ export class WebSocketClient {
             request = JSON.parse(data)
         } catch (error) {
             logInfo('Invalid JSON message received:', data)
+            return
+        }
+
+        // 检查请求是否包含 action 字段
+        if (!request.action) {
+            logInfo('Invalid request: missing action field')
+            const errorResponse: OneBotActionResponse = {
+                status: 'failed',
+                retcode: 1400,
+                message: 'Missing action field',
+                echo: request.echo,
+            }
+            if (this.socket?.readyState === WebSocket.OPEN) {
+                this.socket.send(JSON.stringify(errorResponse))
+            }
             return
         }
 

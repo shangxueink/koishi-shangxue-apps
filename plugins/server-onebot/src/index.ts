@@ -24,6 +24,7 @@ export interface Config {
   selfId: string
   selfname?: string
   groupname?: string
+  appName?: string
   enabledWs: boolean
   enabledWsReverse: boolean
   path?: string
@@ -49,6 +50,7 @@ export const Config: Schema<Config> = Schema.intersect([
     selfId: Schema.string().description('机器人的账号 （`QQ号`）<br>用于转发给其他 OneBot 后端时显示。').pattern(/^(?:[1-9]\d{4,13})$/).required(),
     selfname: Schema.string().description('机器人的名称<br>用于转发给其他 OneBot 后端时显示。').default('Bot of Koishi'),
     groupname: Schema.string().description('默认的群组名称<br>用于转发给其他 OneBot 后端时显示。').default('koishi-channel'),
+    appName: Schema.string().description('OneBot 客户端名称<br>用于标识此 OneBot 实现的名称。<br>（部分后端会以此判断连接，请保持默认的伪造标识。）').default('Lagrange.OneBot'),
   }).description('基础配置'),
 
   Schema.object({

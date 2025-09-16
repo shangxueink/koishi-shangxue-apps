@@ -6,7 +6,7 @@ import { Context } from 'koishi'
 export class ActionRouter {
     private handlers: Map<string, ActionHandler> = new Map()
 
-    constructor(private ctx: Context, private config?: { selfId: string, selfname?: string, groupname?: string }) {
+    constructor(private ctx: Context, private config?: { selfId: string, selfname?: string, groupname?: string, appName?: string }) {
         this.setupHandlers()
     }
 
@@ -21,13 +21,24 @@ export class ActionRouter {
     async handle(request: OneBotActionRequest, clientState: ClientState): Promise<OneBotActionResponse> {
         const { action, params, echo } = request
 
+        // 检查 action 是否存在
+        if (!action) {
+            loggerError('[onebot:unimplemented-api] Action is missing or undefined in request: %o', request)
+            return {
+                status: 'failed',
+                retcode: 1400,
+                message: 'Missing action field',
+                echo,
+            }
+        }
+
         // 查找处理器
         const handler = this.handlers.get(action)
         if (!handler) {
             // 记录未实现的 API
             // loggerError('[onebot:unimplemented-api] Action: %s not implemented. Available actions: %o',
             //     action, Array.from(this.handlers.keys()).sort())
-            loggerError('[onebot:unimplemented-api] Action: %s not implemented.')
+            loggerError('[onebot:unimplemented-api] Action: %s not implemented.', action)
             return {
                 status: 'failed',
                 retcode: 1404,
