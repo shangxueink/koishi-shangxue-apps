@@ -682,6 +682,8 @@ export function useChatLogic() {
 
     // 内存中的URL缓存
     const imageBlobUrls = ref<Record<string, string>>({})
+    // 正在加载的图片URL锁，防止并发请求
+    const loadingImages = new Map<string, Promise<string | null>>()
 
     // 内存管理配置
     const MAX_MEMORY_USAGE = 100 * 1024 * 1024 // 100MB 最大内存使用量
@@ -2197,102 +2199,177 @@ export function useChatLogic() {
 
     // 图片缓存管理函数
     async function getCachedImageUrl(channelKey: string, originalUrl: string): Promise<string | null> {
+        // 检查是否正在加载中，如果是则等待加载完成
+        if (loadingImages.has(originalUrl)) {
+            return loadingImages.get(originalUrl) || null
+        }
+
         // 首先检查内存中的blob URL
         const existingBlobUrl = imageBlobUrls.value[originalUrl]
         if (existingBlobUrl) {
             return existingBlobUrl
         }
 
-        // 从IndexedDB获取
-        const cacheItem = await getImageFromDB(originalUrl)
-        if (!cacheItem) return null
+        // 使用立即执行的异步函数来处理加载过程
+        const loadingPromise = (async () => {
+            try {
+                // 再次检查内存中的blob URL（防止在创建Promise期间其他地方已经缓存了）
+                const cachedBlobUrl = imageBlobUrls.value[originalUrl]
+                if (cachedBlobUrl) {
+                    return cachedBlobUrl
+                }
 
-        // 检查内存使用情况
-        checkAndCleanupMemory()
+                // 从IndexedDB获取
+                const cacheItem = await getImageFromDB(originalUrl)
+                if (!cacheItem) {
+                    return null
+                }
 
-        // 创建blob URL并缓存到内存
-        const blobUrl = URL.createObjectURL(cacheItem.blob)
-        imageBlobUrls.value[originalUrl] = blobUrl
+                // 检查内存使用情况
+                checkAndCleanupMemory()
 
-        // 更新内存使用量
-        updateMemoryUsage(estimateBlobSize(cacheItem.blob))
+                // 创建blob URL并缓存到内存
+                const blobUrl = URL.createObjectURL(cacheItem.blob)
+                imageBlobUrls.value[originalUrl] = blobUrl
 
-        // 更新访问时间
-        cacheItem.timestamp = Date.now()
-        await saveImageToDB(cacheItem)
+                // 更新内存使用量
+                updateMemoryUsage(estimateBlobSize(cacheItem.blob))
 
-        return blobUrl
+                // 更新访问时间
+                cacheItem.timestamp = Date.now()
+                await saveImageToDB(cacheItem)
+
+                return blobUrl
+            } catch (error) {
+                console.error('获取缓存图片失败:', error)
+                return null
+            } finally {
+                // 加载完成后从loadingImages中移除
+                loadingImages.delete(originalUrl)
+            }
+        })()
+
+        // 立即添加到loadingImages中，防止并发请求
+        loadingImages.set(originalUrl, loadingPromise)
+
+        // 等待加载完成并返回结果
+        return loadingPromise
     }
 
     async function cacheImage(channelKey: string, originalUrl: string): Promise<string | null> {
-        try {
-            // 检查是否已经缓存
-            const cached = await getCachedImageUrl(channelKey, originalUrl)
-            if (cached) {
-                return cached
-            }
-
-            // 获取图片数据
-            const result = await (send as any)('fetch-image', { url: originalUrl })
-
-            if (!result.success) {
-                console.error('获取图片失败:', result.error)
-                return null
-            }
-
-            // 将base64转换为blob
-            const base64Data = result.base64
-            const contentType = result.contentType || 'image/jpeg'
-
-            // 解码base64
-            const byteCharacters = atob(base64Data)
-            const byteNumbers = new Array(byteCharacters.length)
-            for (let i = 0; i < byteCharacters.length; i++) {
-                byteNumbers[i] = byteCharacters.charCodeAt(i)
-            }
-            const byteArray = new Uint8Array(byteNumbers)
-
-            // 保持原始MIME类型，特别是对于GIF
-            const blob = new Blob([byteArray], { type: contentType })
-
-            // 检查blob大小
-            if (blob.size > MAX_IMAGE_SIZE) {
-                console.warn(`图片过大，跳过缓存: ${(blob.size / 1024 / 1024).toFixed(2)}MB`)
-                return null
-            }
-
-            // 创建缓存项
-            const cacheItem: ImageCacheItem = {
-                url: originalUrl,
-                blob: blob,
-                timestamp: Date.now(),
-                size: blob.size,
-                channelKey: channelKey
-            }
-
-            // 保存到IndexedDB
-            const saved = await saveImageToDB(cacheItem)
-            if (!saved) {
-                console.error('保存图片到IndexedDB失败')
-                return null
-            }
-
-            // 检查内存使用情况
-            checkAndCleanupMemory()
-
-            // 创建blob URL并缓存到内存
-            const blobUrl = URL.createObjectURL(blob)
-            imageBlobUrls.value[originalUrl] = blobUrl
-
-            // 更新内存使用量
-            updateMemoryUsage(estimateBlobSize(blob))
-
-            return blobUrl
-
-        } catch (error) {
-            console.error('缓存图片失败:', error)
-            return null
+        // 检查是否正在加载中，如果是则等待加载完成
+        if (loadingImages.has(originalUrl)) {
+            return loadingImages.get(originalUrl) || null
         }
+
+        // 首先检查内存中的blob URL
+        const existingBlobUrl = imageBlobUrls.value[originalUrl]
+        if (existingBlobUrl) {
+            return existingBlobUrl
+        }
+
+        // 使用立即执行的异步函数来处理加载过程
+        const loadingPromise = (async () => {
+            try {
+                // 再次检查内存中的blob URL（防止在创建Promise期间其他地方已经缓存了）
+                const cachedBlobUrl = imageBlobUrls.value[originalUrl]
+                if (cachedBlobUrl) {
+                    return cachedBlobUrl
+                }
+
+                // 从IndexedDB获取
+                const cachedItem = await getImageFromDB(originalUrl)
+                if (cachedItem) {
+                    // 检查内存使用情况
+                    checkAndCleanupMemory()
+
+                    // 创建blob URL并缓存到内存
+                    const blobUrl = URL.createObjectURL(cachedItem.blob)
+                    imageBlobUrls.value[originalUrl] = blobUrl
+
+                    // 更新内存使用量
+                    updateMemoryUsage(estimateBlobSize(cachedItem.blob))
+
+                    // 更新访问时间
+                    cachedItem.timestamp = Date.now()
+                    await saveImageToDB(cachedItem)
+
+                    return blobUrl
+                }
+
+                // 获取图片数据
+                const result = await (send as any)('fetch-image', { url: originalUrl })
+
+                if (!result.success) {
+                    return null
+                }
+
+                // 将base64转换为blob
+                const base64Data = result.base64
+                const contentType = result.contentType || 'image/jpeg'
+
+                // 解码base64
+                const byteCharacters = atob(base64Data)
+                const byteNumbers = new Array(byteCharacters.length)
+                for (let i = 0; i < byteCharacters.length; i++) {
+                    byteNumbers[i] = byteCharacters.charCodeAt(i)
+                }
+                const byteArray = new Uint8Array(byteNumbers)
+
+                // 保持原始MIME类型，特别是对于GIF
+                const blob = new Blob([byteArray], { type: contentType })
+
+                // 检查blob大小
+                if (blob.size > MAX_IMAGE_SIZE) {
+                    return null
+                }
+
+                // 再次检查内存中是否已经存在（防止并发请求）
+                const concurrentBlobUrl = imageBlobUrls.value[originalUrl]
+                if (concurrentBlobUrl) {
+                    return concurrentBlobUrl
+                }
+
+                // 创建缓存项
+                const cacheItem: ImageCacheItem = {
+                    url: originalUrl,
+                    blob: blob,
+                    timestamp: Date.now(),
+                    size: blob.size,
+                    channelKey: channelKey
+                }
+
+                // 保存到IndexedDB
+                const saved = await saveImageToDB(cacheItem)
+                if (!saved) {
+                    return null
+                }
+
+                // 检查内存使用情况
+                checkAndCleanupMemory()
+
+                // 创建blob URL并缓存到内存
+                const blobUrl = URL.createObjectURL(blob)
+                imageBlobUrls.value[originalUrl] = blobUrl
+
+                // 更新内存使用量
+                updateMemoryUsage(estimateBlobSize(blob))
+
+                return blobUrl
+            } catch (error) {
+                console.error('缓存图片失败:', error)
+                return null
+            } finally {
+                // 加载完成后从loadingImages中移除
+                loadingImages.delete(originalUrl)
+            }
+        })()
+
+        // 立即添加到loadingImages中，防止并发请求
+        loadingImages.set(originalUrl, loadingPromise)
+
+        // 等待加载完成并返回结果
+        return loadingPromise
     }
 
     // 清理频道的所有图片缓存
