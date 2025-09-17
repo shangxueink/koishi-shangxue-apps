@@ -2,6 +2,7 @@ import { Schema } from 'koishi'
 
 export interface Config {
     loggerinfo: boolean
+    clearIndexedDBOnStart: boolean
     maxMessagesPerChannel: number
     keepMessagesOnClear: number
     keepTempImages: number
@@ -40,6 +41,10 @@ export const Config: Schema<Config> = Schema.intersect([
 
     Schema.object({
         chatContainerHeight: Schema.number().default(80).description('手机端使用的视口高度（防止文本输入框被挡住）').min(50).max(100),
-        loggerinfo: Schema.boolean().default(false).description('日志调试模式').experimental(),
     }).description('进阶设置'),
+
+    Schema.object({
+        clearIndexedDBOnStart: Schema.boolean().default(true).description('启动时强制清空IndexedDB缓存（适用于紧急情况，防止浏览器卡死）'),
+        loggerinfo: Schema.boolean().default(false).description('日志调试模式').experimental(),
+    }).description('开发者选项'),
 ])

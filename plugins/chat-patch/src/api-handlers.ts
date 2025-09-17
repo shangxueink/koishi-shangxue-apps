@@ -18,6 +18,17 @@ export class ApiHandlers {
     }
 
     registerApiHandlers() {
+        this.ctx.console.addListener('clear-all-indexeddb-data' as any, async () => {
+            try {
+                this.logInfo('收到清空 IndexedDB 数据请求')
+                // 这个 API 主要用于前端调用，后端不直接操作 IndexedDB
+                return { success: true, message: '可以清空 IndexedDB' }
+            } catch (error: any) {
+                this.logger.error('清空 IndexedDB 数据失败:', error)
+                return { success: false, error: error?.message || String(error) }
+            }
+        })
+
         // 获取所有聊天数据的 API
         this.ctx.console.addListener('get-chat-data' as any, async () => {
             try {
@@ -467,7 +478,8 @@ export class ApiHandlers {
                         keepTempImages: this.config.keepTempImages,
                         loggerinfo: this.config.loggerinfo,
                         blockedPlatforms: this.config.blockedPlatforms || [],
-                        chatContainerHeight: this.config.chatContainerHeight
+                        chatContainerHeight: this.config.chatContainerHeight,
+                        clearIndexedDBOnStart: this.config.clearIndexedDBOnStart
                     }
                 }
             } catch (error: any) {

@@ -661,6 +661,7 @@ export function useChatLogic() {
         loading: boolean
     }>>({})
 
+    // Config默认值，实际值将从后端获取
     const pluginConfig = ref<{
         maxMessagesPerChannel: number
         keepMessagesOnClear: number
@@ -670,12 +671,14 @@ export function useChatLogic() {
             exactMatch: boolean
         }>
         chatContainerHeight: number
+        clearIndexedDBOnStart: boolean
     }>({
         maxMessagesPerChannel: 1000,
         keepMessagesOnClear: 50,
         loggerinfo: false,
         blockedPlatforms: [],
-        chatContainerHeight: 80
+        chatContainerHeight: 80,
+        clearIndexedDBOnStart: true
     })
 
     // 图片缓存 - IndexedDB
@@ -745,7 +748,7 @@ export function useChatLogic() {
     const showScrollButton = ref<boolean>(false)
     const isUserScrolling = ref<boolean>(false)
     const isSending = ref<boolean>(false)
-    const isLoadingMore = ref<boolean>(false) 
+    const isLoadingMore = ref<boolean>(false)
 
     // 拖拽相关状态
     const draggingChannel = ref<string>('')
@@ -1380,7 +1383,7 @@ export function useChatLogic() {
                 // 滚动到底部时，重置滚动状态
                 isUserScrolling.value = false
             }
-            
+
             // 检查是否滚动到顶部，如果是则加载更多消息
             if (scrollTop <= 10 && selectedBot.value && selectedChannel.value) {
                 loadMoreMessages()
@@ -1391,13 +1394,13 @@ export function useChatLogic() {
     // 加载更多消息的函数
     async function loadMoreMessages() {
         if (!selectedBot.value || !selectedChannel.value) return
-        
+
         const channelKey = `${selectedBot.value}:${selectedChannel.value}`
-        
+
         // 检查是否正在加载或没有更多消息
         const pagination = channelPagination.value[channelKey]
         if (isLoadingMore.value || (pagination && !pagination.hasMore)) return
-        
+
         // 更新加载状态
         if (!channelPagination.value[channelKey]) {
             channelPagination.value[channelKey] = {
@@ -1406,18 +1409,18 @@ export function useChatLogic() {
                 loading: false
             }
         }
-        
+
         // 设置为加载中状态
         isLoadingMore.value = true
         channelPagination.value[channelKey].loading = true
-        
+
         try {
             // 获取当前offset
             const currentOffset = pagination?.offset || 0
-            
+
             // 加载下一批消息（50条）
             const result = await loadHistoryMessages(selectedBot.value, selectedChannel.value, 50, currentOffset)
-            
+
             if (result) {
                 // 更新分页状态已在loadHistoryMessages中处理
             } else {
@@ -2957,7 +2960,7 @@ export function useChatLogic() {
                 selfId: botId,
                 channelId: channelId
             }
-            
+
             // 如果提供了分页参数，则添加到请求中
             if (limit !== undefined) {
                 requestData.limit = limit
@@ -2991,7 +2994,7 @@ export function useChatLogic() {
                 if (limit !== undefined) {
                     // 按时间戳排序
                     messages.sort((a, b) => a.timestamp - b.timestamp)
-                    
+
                     // 如果是第一页（offset为0），则替换现有消息
                     if (offset === 0) {
                         chatData.value.messages[channelKey] = messages
@@ -3016,7 +3019,7 @@ export function useChatLogic() {
                 } else {
                     // 按时间戳排序
                     messages.sort((a, b) => a.timestamp - b.timestamp)
-                    
+
                     // 设置历史消息
                     chatData.value.messages[channelKey] = messages
                     // 初始化分页状态
@@ -3199,6 +3202,20 @@ export function useChatLogic() {
         // 添加点击外部关闭菜单的监听器
         document.addEventListener('click', handleClickOutside)
 
+        // 首先加载插件配置
+        await loadPluginConfig()
+
+        // 检查是否需要清空 IndexedDB
+        if (pluginConfig.value.clearIndexedDBOnStart) {
+            console.log('启动时清空 IndexedDB 缓存...')
+            const clearResult = await clearAllIndexedDBData()
+            if (clearResult) {
+                console.log('IndexedDB 缓存已清空')
+            } else {
+                console.warn('清空 IndexedDB 缓存失败')
+            }
+        }
+
         // 初始化IndexedDB
         const dbInitialized = await initImageDB()
         if (!dbInitialized) {
@@ -3216,9 +3233,6 @@ export function useChatLogic() {
                 await checkDatabaseHealth()
             }, 5 * 60 * 1000)
         }
-
-        // 首先加载插件配置
-        await loadPluginConfig()
 
         // 然后加载历史数据
         await loadChatData()
@@ -3307,7 +3321,7 @@ export function useChatLogic() {
         // 响应式数据
         chatData,
         channelMessageCounts,
-        channelPagination, 
+        channelPagination,
         pluginConfig,
         selectedBot,
         selectedChannel,
@@ -3399,6 +3413,7 @@ export function useChatLogic() {
         getCachedImageUrl,
         cacheImage,
         clearChannelImageCache,
+        clearAllIndexedDBData,
         getMemoryStats,
         getCacheStats,
 
