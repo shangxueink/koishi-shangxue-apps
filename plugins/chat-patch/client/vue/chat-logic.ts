@@ -449,7 +449,7 @@ export function useChatLogic() {
                 isExpanded.value = !isExpanded.value
             }
 
-            const getPreviewText = () => {
+            const getPreviewText = (): { previews: string[]; messageCount: number } => {
                 if (!props.element.children || props.element.children.length === 0) {
                     return {
                         previews: [],
@@ -488,7 +488,7 @@ export function useChatLogic() {
                 }
             }
 
-            const renderForwardedMessage = (message: any, index: number) => {
+            const renderForwardedMessage = (message: any, index: number): any => {
                 const nickname = message.attrs?.nickname || '用户'
                 const userId = message.attrs?.userId || 'unknown'
 
@@ -551,7 +551,7 @@ export function useChatLogic() {
             }
         },
         setup(props) {
-            const renderElement = (element: MessageElement) => {
+            const renderElement = (element: MessageElement): any => {
                 switch (element.type) {
                     case 'text':
                         return h('span', { class: 'message-text-content' }, element.attrs.content || '')
@@ -614,7 +614,7 @@ export function useChatLogic() {
                     case 'p':
                         // 处理段落元素，递归渲染子元素
                         if (element.children && element.children.length > 0) {
-                            const childElements = element.children.map((child, index) =>
+                            const childElements: any[] = element.children.map((child, index) =>
                                 h(MessageElement, {
                                     key: index,
                                     element: child,
