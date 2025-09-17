@@ -3,6 +3,7 @@ import { Context, Session, h, Logger } from 'koishi'
 import { FileManager } from './file-manager'
 import { Config } from './config'
 import { Utils } from './utils'
+import { } from '@koishijs/plugin-console'
 
 export class MessageHandler {
     private logger: Logger

@@ -1,5 +1,5 @@
 
-import { } from '@koishijs/plugin-console'
+import { Console } from '@koishijs/console'
 import { Context } from 'koishi'
 import path from 'node:path'
 
@@ -14,6 +14,12 @@ export const reusable = false
 export const filter = true
 export const inject = {
   required: ['console']
+}
+
+declare module 'koishi' {
+  interface Context {
+    console: Console
+  }
 }
 
 export const usage = `

@@ -654,6 +654,13 @@ export function useChatLogic() {
     // 存储每个频道的真实消息数量
     const channelMessageCounts = ref<Record<string, number>>({})
 
+    // 存储每个频道的分页状态
+    const channelPagination = ref<Record<string, {
+        offset: number
+        hasMore: boolean
+        loading: boolean
+    }>>({})
+
     const pluginConfig = ref<{
         maxMessagesPerChannel: number
         keepMessagesOnClear: number
@@ -738,6 +745,7 @@ export function useChatLogic() {
     const showScrollButton = ref<boolean>(false)
     const isUserScrolling = ref<boolean>(false)
     const isSending = ref<boolean>(false)
+    const isLoadingMore = ref<boolean>(false) 
 
     // 拖拽相关状态
     const draggingChannel = ref<string>('')
@@ -1115,9 +1123,13 @@ export function useChatLogic() {
             mobileView.value = 'messages'
         }
 
-        // 先获取历史消息，然后再滚动到底部
+        // 清除该频道的分页状态
+        const channelKey = `${selectedBot.value}:${channelId}`
+        delete channelPagination.value[channelKey]
+
+        // 先获取历史消息（只加载最新的50条）
         if (selectedBot.value) {
-            await loadHistoryMessages(selectedBot.value, channelId)
+            await loadHistoryMessages(selectedBot.value, channelId, 50, 0)
         }
 
         nextTick(() => {
@@ -1368,6 +1380,59 @@ export function useChatLogic() {
                 // 滚动到底部时，重置滚动状态
                 isUserScrolling.value = false
             }
+            
+            // 检查是否滚动到顶部，如果是则加载更多消息
+            if (scrollTop <= 10 && selectedBot.value && selectedChannel.value) {
+                loadMoreMessages()
+            }
+        }
+    }
+
+    // 加载更多消息的函数
+    async function loadMoreMessages() {
+        if (!selectedBot.value || !selectedChannel.value) return
+        
+        const channelKey = `${selectedBot.value}:${selectedChannel.value}`
+        
+        // 检查是否正在加载或没有更多消息
+        const pagination = channelPagination.value[channelKey]
+        if (isLoadingMore.value || (pagination && !pagination.hasMore)) return
+        
+        // 更新加载状态
+        if (!channelPagination.value[channelKey]) {
+            channelPagination.value[channelKey] = {
+                offset: 0,
+                hasMore: true,
+                loading: false
+            }
+        }
+        
+        // 设置为加载中状态
+        isLoadingMore.value = true
+        channelPagination.value[channelKey].loading = true
+        
+        try {
+            // 获取当前offset
+            const currentOffset = pagination?.offset || 0
+            
+            // 加载下一批消息（50条）
+            const result = await loadHistoryMessages(selectedBot.value, selectedChannel.value, 50, currentOffset)
+            
+            if (result) {
+                // 更新分页状态已在loadHistoryMessages中处理
+            } else {
+                // 加载失败，重置加载状态
+                channelPagination.value[channelKey].loading = false
+            }
+        } catch (error) {
+            console.error('加载更多消息失败:', error)
+            // 加载失败，重置加载状态
+            if (channelPagination.value[channelKey]) {
+                channelPagination.value[channelKey].loading = false
+            }
+        } finally {
+            // 重置加载状态
+            isLoadingMore.value = false
         }
     }
 
@@ -2885,13 +2950,21 @@ export function useChatLogic() {
     }
 
     // 获取历史消息
-    async function loadHistoryMessages(botId: string, channelId: string) {
+    async function loadHistoryMessages(botId: string, channelId: string, limit?: number, offset?: number) {
         try {
 
-            const result = await (send as any)('get-history-messages', {
+            const requestData: any = {
                 selfId: botId,
                 channelId: channelId
-            })
+            }
+            
+            // 如果提供了分页参数，则添加到请求中
+            if (limit !== undefined) {
+                requestData.limit = limit
+                requestData.offset = offset || 0
+            }
+
+            const result = await (send as any)('get-history-messages', requestData)
 
             if (result.success && result.messages) {
                 const channelKey = `${botId}:${channelId}`
@@ -2911,14 +2984,51 @@ export function useChatLogic() {
                     quote: msg.quote
                 }))
 
-                // 按时间戳排序
-                messages.sort((a, b) => a.timestamp - b.timestamp)
+                // 确保offset有默认值
+                const actualOffset = offset || 0
 
-                // 设置历史消息
-                chatData.value.messages[channelKey] = messages
+                // 如果是分页加载，需要合并到现有消息中
+                if (limit !== undefined) {
+                    // 按时间戳排序
+                    messages.sort((a, b) => a.timestamp - b.timestamp)
+                    
+                    // 如果是第一页（offset为0），则替换现有消息
+                    if (offset === 0) {
+                        chatData.value.messages[channelKey] = messages
+                        // 初始化分页状态
+                        channelPagination.value[channelKey] = {
+                            offset: messages.length,
+                            hasMore: messages.length >= limit && result.total > messages.length,
+                            loading: false
+                        }
+                    } else {
+                        // 否则是加载更多，需要合并到现有消息的开头（因为是历史消息）
+                        const existingMessages = chatData.value.messages[channelKey] || []
+                        chatData.value.messages[channelKey] = [...messages, ...existingMessages]
+                        // 更新分页状态
+                        const actualOffset = offset || 0
+                        channelPagination.value[channelKey] = {
+                            offset: actualOffset + messages.length,
+                            hasMore: messages.length >= limit && result.total > (actualOffset + messages.length),
+                            loading: false
+                        }
+                    }
+                } else {
+                    // 按时间戳排序
+                    messages.sort((a, b) => a.timestamp - b.timestamp)
+                    
+                    // 设置历史消息
+                    chatData.value.messages[channelKey] = messages
+                    // 初始化分页状态
+                    channelPagination.value[channelKey] = {
+                        offset: messages.length,
+                        hasMore: false, // 不分页时没有更多消息
+                        loading: false
+                    }
+                }
 
                 // 更新频道消息数量缓存
-                channelMessageCounts.value[channelKey] = messages.length
+                channelMessageCounts.value[channelKey] = result.total || messages.length
 
                 // 触发响应式更新
                 chatData.value = { ...chatData.value }
@@ -3197,6 +3307,7 @@ export function useChatLogic() {
         // 响应式数据
         chatData,
         channelMessageCounts,
+        channelPagination, 
         pluginConfig,
         selectedBot,
         selectedChannel,
@@ -3217,6 +3328,7 @@ export function useChatLogic() {
         showScrollButton,
         isUserScrolling,
         isSending,
+        isLoadingMore,
         draggingChannel,
         dragStartPos,
         dragCurrentPos,
@@ -3281,6 +3393,7 @@ export function useChatLogic() {
         handleTouchMove,
         handleTouchEnd,
         handleInputFocus,
+        loadMoreMessages,
 
         // 图片缓存相关
         getCachedImageUrl,

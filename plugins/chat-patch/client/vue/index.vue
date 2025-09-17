@@ -66,6 +66,12 @@
       <div v-else class="message-content">
         <!-- 消息历史 -->
         <div class="message-history" ref="messageHistory">
+          <!-- 加载更多指示器 -->
+          <div v-if="isLoadingMore" class="loading-more-indicator">
+            <div class="loading-spinner"></div>
+            <span>加载更多消息中...</span>
+          </div>
+          
           <div v-for="message in currentMessages" :key="message.id"
             :class="['message-item', { 'bot-message': message.isBot }]">
             <div class="message-avatar">
@@ -245,6 +251,7 @@ const {
   showScrollButton,
   isUserScrolling,
   isSending,
+  isLoadingMore,
   draggingChannel,
   dragStartPos,
   dragCurrentPos,

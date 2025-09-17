@@ -2,7 +2,7 @@ import { FileManager } from './file-manager'
 import { MessageHandler } from './message-handler'
 import { Context, h, Logger } from 'koishi'
 import { Config } from './config'
-
+import { } from '@koishijs/plugin-console'
 import { URL, pathToFileURL } from 'node:url'
 
 export class ApiHandlers {
@@ -50,23 +50,39 @@ export class ApiHandlers {
         this.ctx.console.addListener('get-history-messages' as any, async (requestData: {
             selfId: string
             channelId: string
+            limit?: number
+            offset?: number
         }) => {
             try {
                 const data = this.fileManager.readChatDataFromFile()
                 const channelKey = `${requestData.selfId}:${requestData.channelId}`
-                const messages = data.messages[channelKey] || []
+                let messages = data.messages[channelKey] || []
 
-                const sortedMessages = messages.sort((a, b) => a.timestamp - b.timestamp)
+                // 按时间戳降序排列（最新的消息在前面）
+                const sortedMessages = messages.sort((a, b) => b.timestamp - a.timestamp)
 
-                this.logInfo('获取历史消息:', channelKey, '共', sortedMessages.length, '条消息')
+                // 如果提供了分页参数，则进行分页处理
+                if (requestData.limit !== undefined) {
+                    const limit = requestData.limit
+                    const offset = requestData.offset || 0
+                    messages = sortedMessages.slice(offset, offset + limit)
+                    // 重新按时间戳升序排列，以保持消息显示顺序
+                    messages = messages.sort((a, b) => a.timestamp - b.timestamp)
+                } else {
+                    // 默认返回所有消息，按时间戳升序排列
+                    messages = sortedMessages.sort((a, b) => a.timestamp - b.timestamp)
+                }
+
+                this.logInfo('获取历史消息:', channelKey, '共', messages.length, '条消息')
 
                 return {
                     success: true,
-                    messages: sortedMessages
+                    messages: messages,
+                    total: sortedMessages.length
                 }
             } catch (error: any) {
                 this.logger.error('获取历史消息失败:', error)
-                return { success: false, error: error?.message || String(error), messages: [] }
+                return { success: false, error: error?.message || String(error), messages: [], total: 0 }
             }
         })
 
