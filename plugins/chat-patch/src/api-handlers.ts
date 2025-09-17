@@ -247,15 +247,41 @@ export class ApiHandlers {
                     }
                 }
 
+                const parsedContent = h.parse(messageContent)
+
                 // 在发送消息前，通知 MessageHandler 正确的 channelId
                 this.messageHandler.setCorrectChannelId(data.selfId, data.channelId)
 
-                const result = await bot.sendMessage(data.channelId, messageContent)
+                const result = await bot.sendMessage(data.channelId, parsedContent)
                 this.logInfo('消息发送成功:', result)
+
+                // 广播机器人消息发送成功事件，包含真实的 messageId
+                const messageId = Array.isArray(result) ? result[0] : result;
+                if (messageId) {
+                    const bot = this.ctx.bots.find((b: any) => b.selfId === data.selfId);
+                    const botMessageEvent = {
+                        type: 'bot-message-sent',
+                        selfId: data.selfId,
+                        platform: bot?.platform || 'unknown',
+                        channelId: data.channelId,
+                        messageId: messageId,
+                        content: messageContent,
+                        userId: data.selfId,
+                        botUsername: bot?.user?.name || `Bot-${data.selfId}`,
+                        botAvatar: bot?.user?.avatar,
+                        timestamp: Date.now(),
+                        guildName: '', // 这个信息在前端会补充
+                        channelType: 0, // 这个信息在前端会补充
+                        elements: [], // 这个信息在前端会补充
+                        isDirect: false // 这个信息在前端会补充
+                    };
+
+                    this.ctx.console.broadcast('bot-message-sent-event', botMessageEvent);
+                }
 
                 return {
                     success: true,
-                    messageId: Array.isArray(result) ? result[0] : result,
+                    messageId: messageId,
                     tempImageIds: data.images?.map(img => img.tempId) || []
                 }
             } catch (error: any) {

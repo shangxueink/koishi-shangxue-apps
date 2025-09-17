@@ -601,7 +601,7 @@ export function useChatLogic() {
                         return h('span', {
                             class: 'message-at',
                             title: element.attrs.name
-                        }, `${element.attrs.name || element.attrs.id}`)
+                        }, `@${(element.attrs.name || element.attrs.id).replace("@", '')}`)
 
                     case 'json':
                         return h('div', { class: 'message-image-container' }, [
@@ -767,16 +767,18 @@ export function useChatLogic() {
         show: boolean
         x: number
         y: number
-        type: 'bot' | 'channel' | null
+        type: 'bot' | 'channel' | 'message'
         targetId: string
         isSecondClick: boolean
+        message?: MessageInfo
     }>({
         show: false,
         x: 0,
         y: 0,
-        type: null,
+        type: 'bot',
         targetId: '',
-        isSecondClick: false
+        isSecondClick: false,
+        message: undefined
     })
 
     // 置顶状态管理
@@ -934,6 +936,125 @@ export function useChatLogic() {
         }
     }
 
+    // 解析内联引用消息
+    function parseQuoteMessage(content: string, allMessages: MessageInfo[]): { quotedMessage: MessageInfo | null, restContent: string } {
+        // 匹配 <quote id="..."/> 格式
+        const quoteRegex = /^<quote\s+id="([^"]+)"\s*\/>(.*)/;
+        const match = content.match(quoteRegex);
+
+        if (match) {
+            const quotedMessageId = match[1];
+            const restContent = match[2];
+
+            // 在所有消息中查找被引用的消息
+            const quotedMessage = allMessages.find(msg => msg.id === quotedMessageId) || null;
+
+            return { quotedMessage, restContent };
+        }
+
+        return { quotedMessage: null, restContent: content };
+    }
+
+    // 在计算属性中添加解析内联引用消息的函数
+    function parseInlineQuote(content: string, allMessages: MessageInfo[]): { quotedMessage: MessageInfo | null, restContent: string } {
+        return parseQuoteMessage(content, allMessages);
+    }
+
+    // 获取内联引用消息
+    function getInlineQuoteMessage(message: MessageInfo, allMessages: MessageInfo[]): MessageInfo | null {
+        if (!message || !message.content) return null;
+
+        // 使用 parseInlineQuote 函数解析内联引用
+        const parsed = parseInlineQuote(message.content, allMessages);
+        return parsed.quotedMessage;
+    }
+
+    // 获取引用消息的用户信息
+    function getQuoteUser(message: MessageInfo, allMessages: MessageInfo[]): { avatar: string, username: string } {
+        // 如果有现成的引用消息，直接使用
+        if (message.quote && message.quote.user) {
+            return {
+                avatar: message.quote.user.avatar || '',
+                username: message.quote.user.username || ''
+            };
+        }
+
+        // 检查是否有内联引用消息
+        const inlineQuote = getInlineQuoteMessage(message, allMessages);
+        if (inlineQuote) {
+            return {
+                avatar: inlineQuote.avatar || '',
+                username: inlineQuote.username || ''
+            };
+        }
+
+        // 默认返回空对象
+        return {
+            avatar: '',
+            username: ''
+        };
+    }
+
+    // 获取引用消息的时间戳
+    function getQuoteTimestamp(message: MessageInfo, allMessages: MessageInfo[]): number {
+        // 如果有现成的引用消息，直接使用
+        if (message.quote && message.quote.timestamp) {
+            return message.quote.timestamp;
+        }
+
+        // 检查是否有内联引用消息
+        const inlineQuote = getInlineQuoteMessage(message, allMessages);
+        if (inlineQuote) {
+            return inlineQuote.timestamp;
+        }
+
+        // 默认返回当前时间
+        return Date.now();
+    }
+
+    // 获取引用消息的内容
+    function getQuoteContent(message: MessageInfo, allMessages: MessageInfo[]): string {
+        // 如果有现成的引用消息，直接使用
+        if (message.quote && message.quote.content) {
+            return message.quote.content;
+        }
+
+        // 检查是否有内联引用消息
+        const inlineQuote = getInlineQuoteMessage(message, allMessages);
+        if (inlineQuote) {
+            return inlineQuote.content;
+        }
+
+        // 默认返回空字符串
+        return '';
+    }
+
+    // 获取引用消息的元素
+    function getQuoteElements(message: MessageInfo, allMessages: MessageInfo[]): MessageElement[] {
+        // 如果有现成的引用消息，直接使用
+        if (message.quote && message.quote.elements) {
+            return message.quote.elements;
+        }
+
+        // 检查是否有内联引用消息
+        const inlineQuote = getInlineQuoteMessage(message, allMessages);
+        if (inlineQuote) {
+            return inlineQuote.elements || [];
+        }
+
+        // 默认返回空数组
+        return [];
+    }
+
+    // 获取不包含引用部分的消息内容
+    function getMessageContentWithoutQuote(message: MessageInfo, allMessages: MessageInfo[]): string {
+        if (!message || !message.content) return '';
+
+        // 使用 parseInlineQuote 函数解析内联引用
+        const parsed = parseInlineQuote(message.content, allMessages);
+        return parsed.restContent || message.content;
+    }
+
     // 右键菜单相关方法
     function handleBotRightClick(event: MouseEvent, botId: string) {
         event.preventDefault()
@@ -969,6 +1090,23 @@ export function useChatLogic() {
         showContextMenu(event, 'channel', channelId)
     }
 
+    function handleMessageRightClick(event: MouseEvent, message: MessageInfo) {
+        event.preventDefault()
+        event.stopPropagation()
+
+        // 检查是否是第二次右键点击同一个目标
+        const isSecondClick = contextMenu.value.show &&
+            contextMenu.value.type === 'message' &&
+            contextMenu.value.message?.id === message.id
+
+        if (isSecondClick) {
+            // 第二次右键，隐藏自定义菜单，让浏览器显示原生菜单
+            hideContextMenu()
+            return
+        }
+        showMessageContextMenu(event, message)
+    }
+
     function showContextMenu(event: MouseEvent, type: 'bot' | 'channel', targetId: string) {
         // 确保菜单不会超出屏幕边界
         const menuWidth = 180
@@ -990,6 +1128,35 @@ export function useChatLogic() {
             type,
             targetId,
             isSecondClick: false
+        }
+
+        // 添加全局事件监听器来隐藏菜单
+        document.addEventListener('click', hideContextMenu, { once: true })
+        document.addEventListener('keydown', handleKeyDown)
+    }
+
+    function showMessageContextMenu(event: MouseEvent, message: MessageInfo) {
+        // 确保菜单不会超出屏幕边界
+        const menuWidth = 180
+        const menuHeight = 120
+        let x = event.clientX
+        let y = event.clientY
+
+        if (x + menuWidth > window.innerWidth) {
+            x = window.innerWidth - menuWidth - 10
+        }
+        if (y + menuHeight > window.innerHeight) {
+            y = window.innerHeight - menuHeight - 10
+        }
+
+        contextMenu.value = {
+            show: true,
+            x,
+            y,
+            type: 'message',
+            targetId: message.id,
+            isSecondClick: false,
+            message: message
         }
 
         // 添加全局事件监听器来隐藏菜单
@@ -1150,6 +1317,9 @@ export function useChatLogic() {
         const messageContent = inputMessage.value.trim()
         if (!messageContent && uploadedImages.value.length === 0) return
 
+        // 保存当前频道信息，用于发送后重新加载
+        const currentChannelId = selectedChannel.value
+
         // 设置发送状态
         isSending.value = true
 
@@ -1178,6 +1348,15 @@ export function useChatLogic() {
                 })
                 uploadedImages.value = []
                 showActionMenu.value = false
+
+                // 消息发送成功后，重新选择当前频道以完全重新渲染
+                if (currentChannelId) {
+                    // 临时清空选择
+                    selectedChannel.value = ''
+                    await nextTick()
+                    // 重新选择当前频道，触发完整的重新渲染流程
+                    selectChannel(currentChannelId)
+                }
 
                 // 消息发送成功后，主动通知后端清理临时文件
                 if (result.tempImageIds && result.tempImageIds.length > 0) {
@@ -1215,7 +1394,6 @@ export function useChatLogic() {
         }
         showActionMenu.value = false
     }
-
     async function handleFileSelect(event: Event) {
         const target = event.target as HTMLInputElement
         const files = target.files
@@ -1345,6 +1523,155 @@ export function useChatLogic() {
             hour: '2-digit',
             minute: '2-digit'
         })
+    }
+
+    // 消息右键菜单处理函数
+    async function handlePlusOne(message: MessageInfo | undefined) {
+        if (!message) return;
+        hideContextMenu()
+
+        try {
+            // 构造要发送的内容，保持原始类型
+            let content = ''
+            const elements = message.elements || []
+
+            // 如果有elements，处理各种元素类型
+            if (elements.length > 0) {
+                for (const element of elements) {
+                    switch (element.type) {
+                        case 'img':
+                        case 'image':
+                            // 对于图片类型，转换为img标签
+                            const imageUrl = element.attrs.src || element.attrs.url || element.attrs.file
+                            if (imageUrl) {
+                                content += `<img src="${imageUrl}"/>`
+                            }
+                            break
+                        case 'mface':
+                            // 对于mface，转换为img标签
+                            const mfaceUrl = element.attrs.src || element.attrs.url || element.attrs.file
+                            if (mfaceUrl) {
+                                content += `<img src="${mfaceUrl}"/>`
+                            }
+                            break
+                        case 'face':
+                            if (element.children && element.children[0]?.attrs?.src) {
+                                const faceUrl = element.children[0].attrs.src
+                                content += `<img src="${faceUrl}"/>`
+                            } else {
+                                content += `[${element.attrs.name || element.attrs.id}]`
+                            }
+                            break
+                        case 'at':
+                            // 对于@消息，保持原始格式
+                            content += `<at id="${element.attrs.id}" name="${element.attrs.name}"/>`
+                            break
+                        case 'text':
+                            // 对于文本元素，直接添加文本内容
+                            content += element.attrs.content || ''
+                            break
+                        default:
+                            // 其他类型保持原始内容
+                            content += message.content
+                            break
+                    }
+                }
+            } else {
+                // 如果没有elements，使用原始内容
+                content = message.content
+            }
+
+            // 设置输入框内容
+            inputMessage.value = content
+
+            // 触发发送
+            await sendMessage()
+        } catch (error: any) {
+            console.error('+1操作失败:', error)
+            showNotification('操作失败: ' + (error?.message || String(error)), 'error')
+        }
+    }
+
+    async function handleCopyMessage(message: MessageInfo | undefined) {
+        if (!message) return;
+        hideContextMenu()
+
+        try {
+            // 复制消息内容到剪贴板
+            let content = ''
+            const elements = message.elements || []
+
+            // 如果有elements，处理各种元素类型
+            if (elements.length > 0) {
+                for (const element of elements) {
+                    switch (element.type) {
+                        case 'img':
+                        case 'image':
+                            const imageUrl = element.attrs.src || element.attrs.url || element.attrs.file
+                            if (imageUrl) {
+                                content += `<img src="${imageUrl}"/>`
+                            }
+                            break
+                        case 'mface':
+                            const mfaceUrl = element.attrs.src || element.attrs.url || element.attrs.file
+                            if (mfaceUrl) {
+                                content += `<img src="${mfaceUrl}"/>`
+                            }
+                            break
+                        case 'face':
+                            if (element.children && element.children[0]?.attrs?.src) {
+                                const faceUrl = element.children[0].attrs.src
+                                content += `<img src="${faceUrl}"/>`
+                            } else {
+                                content += `[${element.attrs.name || element.attrs.id}]`
+                            }
+                            break
+                        case 'at':
+                            // 对于@消息，保持原始格式
+                            content += `<at id="${element.attrs.id}" name="${element.attrs.name}"/>`
+                            break
+                        case 'text':
+                            // 对于文本元素，直接添加文本内容
+                            content += element.attrs.content || ''
+                            break
+                        default:
+                            // 其他类型保持原始内容
+                            content += message.content
+                            break
+                    }
+                }
+            } else {
+                // 如果没有elements，使用原始内容
+                content = message.content
+            }
+
+            await navigator.clipboard.writeText(content)
+            showNotification('已复制到剪贴板', 'success')
+        } catch (error: any) {
+            console.error('复制失败:', error)
+            showNotification('复制失败: ' + (error?.message || String(error)), 'error')
+        }
+    }
+
+    function handleReplyMessage(message: MessageInfo | undefined) {
+        if (!message) return;
+        hideContextMenu()
+
+        try {
+            // 在输入框中添加引用
+            const quote = `<quote id="${(message.id).replace("bot-msg-", "")}"/>`
+            inputMessage.value = quote + inputMessage.value
+
+            // 聚焦输入框
+            nextTick(() => {
+                if (messageInput.value) {
+                    messageInput.value.focus()
+                }
+            })
+        } catch (error: any) {
+            console.error('回复操作失败:', error)
+            showNotification('操作失败: ' + (error?.message || String(error)), 'error')
+        }
     }
 
     function getChannelTypeText(type: number | string): string {
@@ -2672,64 +2999,83 @@ export function useChatLogic() {
             chatData.value.messages[channelKey] = []
         }
 
-        // 检查消息是否已存在
-        const exists = chatData.value.messages[channelKey].find(m => m.id === sentEvent.messageId)
-        if (!exists) {
-            const botMessage: MessageInfo = {
-                id: sentEvent.messageId,
-                content: sentEvent.content,
-                userId: sentEvent.selfId,
-                username: sentEvent.botUsername,
-                avatar: sentEvent.botAvatar,
-                timestamp: sentEvent.timestamp,
-                channelId: sentEvent.channelId,
-                selfId: sentEvent.selfId,
-                elements: sentEvent.elements,
-                isBot: true, // 标记为机器人发送的消息
-                quote: sentEvent.quote
-            }
+        const messages = chatData.value.messages[channelKey];
 
-            // 按时间戳排序插入消息
-            const messages = chatData.value.messages[channelKey]
-            let insertIndex = messages.length
+        // 查找是否有使用临时ID的消息（以bot-msg-开头）
+        const tempMessageIndex = messages.findIndex(m => m.id.startsWith('bot-msg-') && Math.abs(m.timestamp - sentEvent.timestamp) < 5000);
 
-            // 找到正确的插入位置（按时间戳排序）
-            for (let i = messages.length - 1; i >= 0; i--) {
-                if (messages[i].timestamp <= sentEvent.timestamp) {
-                    insertIndex = i + 1
-                    break
-                }
-                if (i === 0) {
-                    insertIndex = 0
-                }
-            }
+        if (tempMessageIndex !== -1) {
+            // 找到了临时消息，更新它的ID和其他信息
+            const tempMessage = messages[tempMessageIndex];
+            tempMessage.id = sentEvent.messageId;  // 更新为真实ID
+            tempMessage.content = sentEvent.content;
+            tempMessage.userId = sentEvent.selfId;
+            tempMessage.username = sentEvent.botUsername;
+            tempMessage.avatar = sentEvent.botAvatar;
+            tempMessage.channelId = sentEvent.channelId;
+            tempMessage.selfId = sentEvent.selfId;
+            tempMessage.elements = sentEvent.elements;
+            tempMessage.isBot = true;
+            tempMessage.quote = sentEvent.quote;
+        } else {
+            // 没有找到临时消息，检查是否已存在真实ID的消息
+            const exists = messages.find(m => m.id === sentEvent.messageId);
+            if (!exists) {
+                const botMessage: MessageInfo = {
+                    id: sentEvent.messageId,
+                    content: sentEvent.content,
+                    userId: sentEvent.selfId,
+                    username: sentEvent.botUsername,
+                    avatar: sentEvent.botAvatar,
+                    timestamp: sentEvent.timestamp,
+                    channelId: sentEvent.channelId,
+                    selfId: sentEvent.selfId,
+                    elements: sentEvent.elements,
+                    isBot: true, // 标记为机器人发送的消息
+                    quote: sentEvent.quote
+                };
 
-            messages.splice(insertIndex, 0, botMessage)
+                // 按时间戳排序插入消息
+                let insertIndex = messages.length;
 
-            // 保持消息数量限制
-            if (messages.length > 100) {
-                chatData.value.messages[channelKey] = messages.slice(-100)
-            }
-
-            // 更新频道消息数量缓存
-            channelMessageCounts.value[channelKey] = messages.length
-
-            // 在添加新消息前检查是否在底部附近
-            const wasNearBottom = isNearBottom()
-
-            // 智能滚动：基于添加消息前的位置状态来决定是否滚动
-            nextTick(() => {
-                // 再次等待，确保新消息的DOM已经渲染
-                setTimeout(() => {
-                    if (wasNearBottom) {
-                        scrollToBottom()
+                // 找到正确的插入位置（按时间戳排序）
+                for (let i = messages.length - 1; i >= 0; i--) {
+                    if (messages[i].timestamp <= sentEvent.timestamp) {
+                        insertIndex = i + 1;
+                        break;
                     }
-                }, 10)
-            })
+                    if (i === 0) {
+                        insertIndex = 0;
+                    }
+                }
+
+                messages.splice(insertIndex, 0, botMessage);
+
+                // 保持消息数量限制
+                if (messages.length > 100) {
+                    chatData.value.messages[channelKey] = messages.slice(-100);
+                }
+
+                // 更新频道消息数量缓存
+                channelMessageCounts.value[channelKey] = messages.length;
+
+                // 在添加新消息前检查是否在底部附近
+                const wasNearBottom = isNearBottom();
+
+                // 智能滚动：基于添加消息前的位置状态来决定是否滚动
+                nextTick(() => {
+                    // 再次等待，确保新消息的DOM已经渲染
+                    setTimeout(() => {
+                        if (wasNearBottom) {
+                            scrollToBottom();
+                        }
+                    }, 10);
+                });
+            }
         }
 
         // 触发响应式更新
-        chatData.value = { ...chatData.value }
+        chatData.value = { ...chatData.value };
     }
 
     // 处理机器人消息事件
@@ -3371,6 +3717,7 @@ export function useChatLogic() {
         selectChannel,
         handleBotRightClick,
         handleChannelRightClick,
+        handleMessageRightClick,
         showContextMenu,
         hideContextMenu,
         handleKeyDown,
@@ -3408,6 +3755,16 @@ export function useChatLogic() {
         handleTouchEnd,
         handleInputFocus,
         loadMoreMessages,
+        handlePlusOne,
+        handleCopyMessage,
+        handleReplyMessage,
+        parseInlineQuote,
+        getInlineQuoteMessage,
+        getQuoteUser,
+        getQuoteTimestamp,
+        getQuoteContent,
+        getQuoteElements,
+        getMessageContentWithoutQuote,
 
         // 图片缓存相关
         getCachedImageUrl,
@@ -3421,6 +3778,7 @@ export function useChatLogic() {
         isFileUrl,
         loadHistoryMessages,
         handleMessageEvent,
+        handleBotMessageSentEvent,
         saveSelectionState,
         restoreSelectionState
     }

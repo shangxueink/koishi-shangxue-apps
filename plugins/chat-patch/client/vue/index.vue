@@ -71,9 +71,10 @@
             <div class="loading-spinner"></div>
             <span>加载更多消息中...</span>
           </div>
-          
+
           <div v-for="message in currentMessages" :key="message.id"
-            :class="['message-item', { 'bot-message': message.isBot }]">
+            :class="['message-item', { 'bot-message': message.isBot }]"
+            @contextmenu="message.isBot ? null : handleMessageRightClick($event, message)">
             <div class="message-avatar">
               <AvatarComponent v-if="message.avatar" :src="message.avatar" :alt="message.username"
                 :channel-key="currentChannelKey" />
@@ -86,25 +87,27 @@
               </div>
 
               <!-- 引用消息显示 -->
-              <div v-if="message.quote" class="message-quote">
+              <div v-if="message.quote || getInlineQuoteMessage(message, currentMessages)" class="message-quote">
                 <div class="quote-header">
                   <div class="quote-avatar">
-                    <AvatarComponent v-if="message.quote.user.avatar" :src="message.quote.user.avatar"
-                      :alt="message.quote.user.username" :channel-key="currentChannelKey" />
+                    <AvatarComponent v-if="getQuoteUser(message, currentMessages).avatar"
+                      :src="getQuoteUser(message, currentMessages).avatar"
+                      :alt="getQuoteUser(message, currentMessages).username" :channel-key="currentChannelKey" />
                     <div v-else class="avatar-placeholder">{{
-                      message.quote.user.username.charAt(0).toUpperCase() }}
+                      getQuoteUser(message, currentMessages).username.charAt(0).toUpperCase() }}
                     </div>
                   </div>
-                  <span class="quote-username">{{ message.quote.user.username }}</span>
-                  <span class="quote-time">{{ formatTime(message.quote.timestamp) }}</span>
+                  <span class="quote-username">{{ getQuoteUser(message, currentMessages).username }}</span>
+                  <span class="quote-time">{{ formatTime(getQuoteTimestamp(message, currentMessages)) }}</span>
                 </div>
                 <div class="quote-content">
-                  <template v-if="message.quote.elements && message.quote.elements.length > 0">
-                    <MessageElement v-for="(element, index) in message.quote.elements" :key="`quote-${index}`"
-                      :element="element" :channel-key="currentChannelKey" />
+                  <template
+                    v-if="getQuoteElements(message, currentMessages) && getQuoteElements(message, currentMessages).length > 0">
+                    <MessageElement v-for="(element, index) in getQuoteElements(message, currentMessages)"
+                      :key="`quote-${index}`" :element="element" :channel-key="currentChannelKey" />
                   </template>
                   <template v-else>
-                    {{ message.quote.content }}
+                    {{ getQuoteContent(message, currentMessages) }}
                   </template>
                 </div>
               </div>
@@ -115,7 +118,7 @@
                     :channel-key="currentChannelKey" />
                 </template>
                 <template v-else>
-                  {{ message.content }}
+                  {{ getMessageContentWithoutQuote(message, currentMessages) }}
                 </template>
               </div>
             </div>
@@ -203,6 +206,19 @@
         </div>
         <div class="context-menu-item danger" @click="deleteChannelMessages(contextMenu.targetId)">
           彻底删除此频道所有数据
+        </div>
+      </template>
+
+      <!-- 消息右键菜单 -->
+      <template v-if="contextMenu.type === 'message' && contextMenu.message">
+        <div class="context-menu-item" @click="handlePlusOne(contextMenu.message)">
+          +1
+        </div>
+        <div class="context-menu-item" @click="handleCopyMessage(contextMenu.message)">
+          复制
+        </div>
+        <div class="context-menu-item" @click="handleReplyMessage(contextMenu.message)">
+          回复
         </div>
       </template>
     </div>
@@ -317,6 +333,12 @@ const {
   handleTouchEnd,
   handleInputFocus,
 
+  // 消息右键菜单处理函数
+  handleMessageRightClick,
+  handlePlusOne,
+  handleCopyMessage,
+  handleReplyMessage,
+
   // 图片缓存相关
   getCachedImageUrl,
   cacheImage,
@@ -327,6 +349,14 @@ const {
   // 其他工具函数
   isFileUrl,
   loadHistoryMessages,
-  handleMessageEvent
+  handleMessageEvent,
+  handleBotMessageSentEvent,
+  parseInlineQuote,
+  getInlineQuoteMessage,
+  getQuoteUser,
+  getQuoteTimestamp,
+  getQuoteContent,
+  getQuoteElements,
+  getMessageContentWithoutQuote
 } = chatLogic
 </script>

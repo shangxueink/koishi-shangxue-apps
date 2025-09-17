@@ -1021,36 +1021,60 @@ body.dragging-bubble-global {
 
 .context-menu {
     position: fixed;
-    background: rgba(255, 255, 255, .65);
-    border: 1px solid rgba(0, 0, 0, .1);
-    border-radius: 8px;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, .15);
+    background: rgba(255, 255, 255, .98);
+    border: none;
+    border-radius: 16px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, .12), 0 2px 8px rgba(0, 0, 0, .08);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    overflow: hidden;
     z-index: 10000;
-    min-width: 180px;
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
-    overflow: hidden
+    min-width: 180px
 }
 
 .context-menu-item {
-    padding: 12px 16px;
-    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 18px;
+    background: 0 0;
+    border: none;
     color: #333;
     font-size: 14px;
     font-weight: 500;
-    transition: all .2s ease;
+    cursor: pointer;
+    transition: all .2s cubic-bezier(.4, 0, .2, 1);
+    width: 100%;
+    text-align: left;
+    position: relative;
     border-bottom: 1px solid rgba(0, 0, 0, .08);
-    position: relative
+    min-width: 140px
 }
 
 .context-menu-item:last-child {
     border-bottom: none
 }
 
+.context-menu-item::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 3px;
+    background: linear-gradient(135deg, #667eea 0, #764ba2 100%);
+    transform: scaleY(0);
+    transition: transform .2s cubic-bezier(.4, 0, .2, 1)
+}
+
 .context-menu-item:hover {
-    background: rgba(33, 150, 243, .1);
-    color: #1976d2;
-    transform: translateX(2px)
+    background: linear-gradient(90deg, rgba(102, 126, 234, .08) 0, rgba(118, 75, 162, .08) 100%);
+    color: #667eea;
+    transform: translateX(4px)
+}
+
+.context-menu-item:hover::before {
+    transform: scaleY(1)
 }
 
 .context-menu-item.danger {
@@ -1058,8 +1082,8 @@ body.dragging-bubble-global {
 }
 
 .context-menu-item.danger:hover {
-    background: rgba(244, 67, 54, .1);
-    color: #c62828
+    background: linear-gradient(90deg, rgba(244, 67, 54, .08) 0, rgba(211, 47, 47, .08) 100%);
+    color: #d32f2f
 }
 
 .bot-item.pinned,
@@ -1091,9 +1115,8 @@ body.dragging-bubble-global {
 
 @media (prefers-color-scheme:dark) {
     .context-menu {
-        background: rgba(255, 255, 255, .15);
-        border-color: rgba(255, 255, 255, .2);
-        box-shadow: 0 8px 32px rgba(0, 0, 0, .4)
+        background: rgba(30, 30, 30, .98);
+        box-shadow: 0 8px 32px rgba(0, 0, 0, .3), 0 2px 8px rgba(0, 0, 0, .2)
     }
 
     .context-menu-item {
@@ -1101,18 +1124,18 @@ body.dragging-bubble-global {
         border-bottom-color: rgba(255, 255, 255, .1)
     }
 
-    .context-menu-item:hover {
-        background: rgba(33, 150, 243, .2);
-        color: #64b5f6
+    .context-menu-item::before {
+        background: linear-gradient(135deg, #4facfe 0, #00f2fe 100%)
     }
 
-    .context-menu-item.danger {
-        color: #ff8a80
+    .context-menu-item:hover {
+        background: linear-gradient(90deg, rgba(79, 172, 254, .12) 0, rgba(0, 242, 254, .12) 100%);
+        color: #4facfe
     }
 
     .context-menu-item.danger:hover {
-        background: rgba(244, 67, 54, .2);
-        color: #ffab91
+        background: linear-gradient(90deg, rgba(244, 67, 54, .12) 0, rgba(255, 138, 128, .12) 100%);
+        color: #ff8a80
     }
 
     .bot-item.pinned,
@@ -1467,8 +1490,9 @@ body.dragging-bubble-global {
     }
 
     .context-menu-item {
-        padding: 14px 16px;
-        font-size: 16px
+        padding: 10px 12px;
+        font-size: 13px;
+        min-width: 100px
     }
 
     .bot-item,
@@ -1492,20 +1516,20 @@ body.dragging-bubble-global {
         font-size: 13px
     }
 
-.bot-items,
-.channel-items {
-    flex: 1;
-    overflow-y: auto;
-    overflow-x: hidden;
-    max-height: calc(100vh - 140px);
-    max-height: calc(100dvh - 140px);
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: thin;
-    scrollbar-color: rgba(144, 147, 153, .4) rgba(0, 0, 0, .05);
-    scroll-behavior: smooth;
-    overscroll-behavior: contain;
-    padding-bottom: 8px
-}
+    .bot-items,
+    .channel-items {
+        flex: 1;
+        overflow-y: auto;
+        overflow-x: hidden;
+        max-height: calc(100vh - 140px);
+        max-height: calc(100dvh - 140px);
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: thin;
+        scrollbar-color: rgba(144, 147, 153, .4) rgba(0, 0, 0, .05);
+        scroll-behavior: smooth;
+        overscroll-behavior: contain;
+        padding-bottom: 8px
+    }
 }
 
 @media (min-width:769px) and (max-width:1024px) {
@@ -1939,6 +1963,11 @@ body.dragging-bubble-global {
 }
 
 @keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
+    0% {
+        transform: rotate(0deg);
+    }
+
+    100% {
+        transform: rotate(360deg);
+    }
 }

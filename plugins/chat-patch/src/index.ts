@@ -1,6 +1,6 @@
 
 import { Console } from '@koishijs/console'
-import { Context } from 'koishi'
+import { Context, h } from 'koishi'
 import path from 'node:path'
 
 import { MessageHandler } from './message-handler'
@@ -78,7 +78,7 @@ export async function apply(ctx: Context, config: Config) {
       logInfo(`忽略来自被屏蔽平台的消息: ${session.platform}`)
       return
     }
-
+    // logInfo(session)
     // 广播消息事件给前端处理
     await messageHandler.broadcastMessageEvent(session)
   })
