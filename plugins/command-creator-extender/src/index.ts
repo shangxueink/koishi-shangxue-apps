@@ -1,5 +1,9 @@
 import { Schema, Universal, Bot, Context } from "koishi";
 
+interface ExtendedChannel extends Record<string, any> {
+  assignee?: string;
+}
+
 export const name = "command-creator-extender";
 
 export const usage = `
@@ -141,6 +145,22 @@ export async function apply(ctx: Context, config) {
       ctx.middleware(async (session, next) => {
         if (!config.reverse_order) {
           await next();
+        }
+
+        try {
+          await session.observeChannel(['assignee']);
+        } catch (error) {
+          // 如果无法获取频道信息，继续执行但记录错误
+          if (config.loggerinfo) {
+            ctx.logger(name).warn('无法获取频道信息:', error);
+          }
+        }
+
+        // 检查当前机器人是否为频道的 assign 机器人
+        const channel = session.channel as ExtendedChannel;
+        logInfo(channel?.assignee, session.selfId)
+        if (channel?.assignee && session.selfId !== channel.assignee) {
+          return next();
         }
 
         const { hasAt, content, atSelf } = session.stripped;
