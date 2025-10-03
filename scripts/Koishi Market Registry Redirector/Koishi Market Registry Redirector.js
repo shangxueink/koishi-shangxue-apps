@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Koishi Market Registry Redirector
 // @namespace    https://github.com/shangxueink
-// @version      3.3
-// @description  将 Koishi 市场注册表请求重定向到多个备用镜像源，支持自动重试，并修复时间显示问题。
+// @version      3.11
+// @description  将 Koishi 市场注册表请求重定向到多个备用镜像源，支持自动重试、单独配置每个镜像源的代理请求解决CORS问题，并修复时间显示问题。
 // @author       shangxueink
 // @license      MIT
 // @match        https://koishi.chat/zh-CN/market/*
@@ -13,6 +13,8 @@
 // @homepageURL  https://greasyfork.org/zh-CN/scripts/533105-koishi-market-registry-redirector
 // @icon         https://koishi.chat/logo.png
 // @supportURL   https://github.com/shangxueink/koishi-shangxue-apps/issues
+// @downloadURL https://update.greasyfork.org/scripts/533105/Koishi%20Market%20Registry%20Redirector.user.js
+// @updateURL https://update.greasyfork.org/scripts/533105/Koishi%20Market%20Registry%20Redirector.meta.js
 // ==/UserScript==
 
 (function () {
@@ -34,16 +36,20 @@
     const DEFAULT_CONFIG = {
         sourceUrl: normalizeUrl('registry.koishi.chat/index.json'),
         mirrorUrls: [
-            "https://shangxueink.github.io/koishi-registry-aggregator/market.json",
-            'https://koishi-registry.yumetsuki.moe/index.json',
-            'https://koishi-registry-cf.yumetsuki.moe/',
-            'https://registry.koishi.chat/index.json',
+            { url: "https://gitee.com/shangxueink/koishi-registry-aggregator/raw/gh-pages/market.json", useProxy: true },
+            { url: "https://shangxueink.github.io/koishi-registry-aggregator/market.json", useProxy: false },
+            { url: 'https://koishi-registry.yumetsuki.moe/index.json', useProxy: false },
+            { url: 'https://registry.koishi.t4wefan.pub/index.json', useProxy: true },
+            { url: 'https://registry.koishi.chat/index.json', useProxy: true },
         ],
         currentMirrorIndex: 0,
         debug: false,
         requestTimeout: 5000,
         maxRetries: 2,
-        currentRetries: 0
+        currentRetries: 0,
+        disableCache: true,
+        useProxy: true,
+        proxyUrl: 'https://web-proxy.apifox.cn/api/v1/request'
     };
 
     let savedConfig = JSON.parse(localStorage.getItem('koishiMarketConfig') || '{}');
@@ -124,8 +130,8 @@
         // 镜像源列表
         const mirrorSection = document.createElement('section');
         mirrorSection.innerHTML = `
-            <h2>镜像源列表（优先级从高到低）</h2>
-            <p>镜像源地址，请确保地址正确，否则会导致插件市场无法正常加载。</p>
+            <h2>镜像源列表</h2>
+            <p>请确保地址正确，否则会导致插件市场无法正常加载。</p>
             <div id="mirror-list" style="margin-bottom: 1rem;"></div>
             <button id="add-mirror" class="VPLink link button" style="margin-bottom: 2rem;">+ 添加镜像源</button>
     
@@ -145,6 +151,19 @@
                 <label for="retries">最大重试次数</label>
                 <input type="number" id="retries" value="${CONFIG.maxRetries}" min="1" style="border: 1px solid #ccc; padding: 0.5rem; width: 100%; box-sizing: border-box;">
                 <p>最大重试次数，当请求失败时，会自动重试。</p>
+            </div>
+            <div class="form-item">
+                <label for="disableCache"><input type="checkbox" id="disableCache" ${CONFIG.disableCache ? 'checked' : ''}> 禁用从磁盘缓存</label>
+                <p>启用后，请求镜像源时将禁用浏览器缓存，确保获取最新数据。</p>
+            </div>
+            <div class="form-item">
+                <label for="useProxy"><input type="checkbox" id="useProxy" ${CONFIG.useProxy ? 'checked' : ''}> 启用代理请求</label>
+                <p>启用代理请求可以解决CORS跨域问题，提高镜像源的兼容性。</p>
+            </div>
+            <div class="form-item">
+                <label for="proxyUrl">代理服务器地址</label>
+                <input type="text" id="proxyUrl" value="${CONFIG.proxyUrl}" style="border: 1px solid #ccc; padding: 0.5rem; width: 100%; box-sizing: border-box;">
+                <p>代理服务器的URL地址，用于转发请求以避免CORS问题。非开发人员请勿修改。</p>
             </div>
             <div class="form-item">
                 <label for="debug"><input type="checkbox" id="debug" ${CONFIG.debug ? 'checked' : ''}> 启用调试模式</label>
@@ -224,9 +243,19 @@
         // 初始化镜像源列表
         const mirrorList = document.getElementById('mirror-list');
         function renderMirrorList() {
-            mirrorList.innerHTML = CONFIG.mirrorUrls.map((url, index) => `
-                <div class="mirror-item" style="margin-bottom: 0.5rem; display: flex; flex-direction: column; align-items: stretch;">
-                    <input type="text" value="${url}" style="width: 100%; margin-bottom: 0.5rem; border: 1px solid #ccc; padding: 0.5rem; box-sizing: border-box;">
+            mirrorList.innerHTML = CONFIG.mirrorUrls.map((mirror, index) => `
+                <div class="mirror-item" style="margin-bottom: 1rem; display: flex; flex-direction: column; align-items: stretch; border: 1px solid var(--vp-c-divider); border-radius: 8px; padding: 1rem;">
+                    <div style="margin-bottom: 0.5rem;">
+                        <label style="display: block; margin-bottom: 0.25rem; font-weight: bold; color: var(--vp-c-text);"></label>
+                        <input type="text" value="${mirror.url}" data-field="url" style="width: 100%; border: 1px solid #ccc; padding: 0.5rem; box-sizing: border-box;">
+                    </div>
+                    <div style="margin-bottom: 0.5rem;">
+                        <label style="display: flex; align-items: center; color: var(--vp-c-text);">
+                            <input type="checkbox" ${mirror.useProxy ? 'checked' : ''} data-field="useProxy" style="margin-right: 0.5rem;">
+                            使用代理请求
+                        </label>
+                        <p style="margin: 0.25rem 0 0 1.5rem; font-size: 0.8rem; color: var(--vp-c-text-2);">非开发人员，请勿修改代理开关！</p>
+                    </div>
                     <div style="display: flex; width: 100%;">
                         <button class="move-up VPLink link button" data-index="${index}" style="width: 33.33%; margin-right: 0.25rem;">↑</button>
                         <button class="move-down VPLink link button" data-index="${index}" style="width: 33.33%; margin: 0 0.125rem;">↓</button>
@@ -239,7 +268,7 @@
 
         // 事件监听
         document.getElementById('add-mirror').addEventListener('click', () => {
-            CONFIG.mirrorUrls.push('');
+            CONFIG.mirrorUrls.push({ url: '', useProxy: false });
             renderMirrorList();
         });
 
@@ -250,6 +279,17 @@
             const toItem = items[toIndex];
 
             if (!fromItem || !toItem) return;
+
+            // 获取当前输入框的值，确保不会丢失用户输入
+            const mirrorItems = mirrorList.querySelectorAll('.mirror-item');
+            const currentValues = Array.from(mirrorItems).map(item => {
+                const urlInput = item.querySelector('input[data-field="url"]');
+                const proxyCheckbox = item.querySelector('input[data-field="useProxy"]');
+                return {
+                    url: urlInput.value,
+                    useProxy: proxyCheckbox.checked
+                };
+            });
 
             // 禁用所有按钮防止重复点击
             const buttons = mirrorList.querySelectorAll('button');
@@ -271,6 +311,9 @@
 
             // 动画完成后更新数据和重新渲染
             setTimeout(() => {
+                // 使用用户当前输入的值更新CONFIG
+                CONFIG.mirrorUrls = currentValues;
+
                 // 交换数据
                 const temp = CONFIG.mirrorUrls[fromIndex];
                 CONFIG.mirrorUrls[fromIndex] = CONFIG.mirrorUrls[toIndex];
@@ -324,8 +367,16 @@
         mirrorList.addEventListener('click', (e) => {
             const index = parseInt(e.target.dataset.index);
             if (e.target.classList.contains('remove-mirror')) {
-                CONFIG.mirrorUrls.splice(index, 1);
-                renderMirrorList();
+                // 检查是否尝试删除受保护的镜像源
+                const mirrorToDelete = CONFIG.mirrorUrls[index];
+                if (mirrorToDelete.url === 'https://registry.koishi.chat/index.json') {
+                    // 对受保护的镜像源执行摇晃动画
+                    const items = mirrorList.querySelectorAll('.mirror-item');
+                    shakeAnimation(items[index]);
+                } else {
+                    CONFIG.mirrorUrls.splice(index, 1);
+                    renderMirrorList();
+                }
             } else if (e.target.classList.contains('move-up')) {
                 if (index > 0) {
                     animateMove(index, index - 1, 'up');
@@ -437,6 +488,9 @@
                 CONFIG.requestTimeout = DEFAULT_CONFIG.requestTimeout;
                 CONFIG.maxRetries = DEFAULT_CONFIG.maxRetries;
                 CONFIG.debug = DEFAULT_CONFIG.debug;
+                CONFIG.disableCache = DEFAULT_CONFIG.disableCache;
+                CONFIG.useProxy = DEFAULT_CONFIG.useProxy;
+                CONFIG.proxyUrl = DEFAULT_CONFIG.proxyUrl;
                 CONFIG.currentMirrorIndex = DEFAULT_CONFIG.currentMirrorIndex;
                 CONFIG.currentRetries = DEFAULT_CONFIG.currentRetries;
 
@@ -447,6 +501,9 @@
                 renderMirrorList();
                 document.getElementById('timeout').value = CONFIG.requestTimeout;
                 document.getElementById('retries').value = CONFIG.maxRetries;
+                document.getElementById('disableCache').checked = CONFIG.disableCache;
+                document.getElementById('useProxy').checked = CONFIG.useProxy;
+                document.getElementById('proxyUrl').value = CONFIG.proxyUrl;
                 document.getElementById('debug').checked = CONFIG.debug;
 
                 // 关闭对话框
@@ -484,12 +541,21 @@
         }
 
         document.getElementById('save-btn').addEventListener('click', () => {
-            CONFIG.mirrorUrls = Array.from(mirrorList.querySelectorAll('input'))
-                .map(input => input.value.trim())
-                .filter(url => url);
+            const mirrorItems = mirrorList.querySelectorAll('.mirror-item');
+            CONFIG.mirrorUrls = Array.from(mirrorItems).map(item => {
+                const urlInput = item.querySelector('input[data-field="url"]');
+                const proxyCheckbox = item.querySelector('input[data-field="useProxy"]');
+                return {
+                    url: urlInput.value.trim(),
+                    useProxy: proxyCheckbox.checked
+                };
+            }).filter(mirror => mirror.url);
 
             CONFIG.requestTimeout = parseInt(document.getElementById('timeout').value) || 5000;
             CONFIG.maxRetries = parseInt(document.getElementById('retries').value) || 2;
+            CONFIG.disableCache = document.getElementById('disableCache').checked;
+            CONFIG.useProxy = document.getElementById('useProxy').checked;
+            CONFIG.proxyUrl = document.getElementById('proxyUrl').value.trim() || DEFAULT_CONFIG.proxyUrl;
             CONFIG.debug = document.getElementById('debug').checked;
 
             localStorage.setItem('koishiMarketConfig', JSON.stringify(CONFIG));
@@ -804,6 +870,418 @@
         waitForSearchBox();
     }
 
+    // NPM镜像站配置
+    const NPM_MIRRORS = [
+        { name: 'NPM 官方', url: 'https://www.npmjs.com/package/' },
+        { name: 'NPM Mirror (淘宝)', url: 'https://npmmirror.com/package/' }
+    ];
+
+    // 创建镜像选择器
+    function createMirrorSelector(packageName, originalLink) {
+        // 创建遮罩层
+        const overlay = document.createElement('div');
+        overlay.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 10000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transition: opacity 0.2s ease-out;
+        `;
+
+        // 创建选择器容器
+        const selector = document.createElement('div');
+        selector.style.cssText = `
+            background-color: var(--vp-c-bg);
+            color: var(--vp-c-text);
+            padding: 1.5rem;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--vp-c-divider);
+            max-width: 400px;
+            width: 90%;
+            transform: scale(0.9);
+            transition: transform 0.2s ease-out;
+        `;
+
+        // 创建标题
+        const title = document.createElement('h3');
+        title.textContent = '请选择要跳转的地址';
+        title.style.cssText = `
+            margin: 0 0 1rem 0;
+            color: var(--vp-c-text);
+            font-size: 1.1rem;
+            text-align: center;
+        `;
+
+        // 创建包名显示
+        const packageInfo = document.createElement('p');
+        packageInfo.textContent = packageName;
+        packageInfo.style.cssText = `
+            margin: 0 0 1.5rem 0;
+            color: var(--vp-c-text-2);
+            font-size: 0.9rem;
+            text-align: center;
+            word-break: break-all;
+        `;
+
+        // 创建镜像链接列表
+        const linkList = document.createElement('div');
+        linkList.style.cssText = `
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        `;
+
+        NPM_MIRRORS.forEach(mirror => {
+            const linkButton = document.createElement('button');
+            linkButton.textContent = mirror.name;
+            linkButton.style.cssText = `
+                padding: 0.75rem 1rem;
+                border: 1px solid var(--vp-c-divider);
+                background-color: var(--vp-c-bg-soft);
+                color: var(--vp-c-text);
+                border-radius: 4px;
+                cursor: pointer;
+                transition: all 0.2s;
+                text-align: left;
+                font-size: 0.9rem;
+            `;
+
+            linkButton.addEventListener('mouseenter', () => {
+                linkButton.style.backgroundColor = 'var(--vp-c-brand)';
+                linkButton.style.color = 'var(--vp-c-bg)';
+                linkButton.style.transform = 'translateY(-1px)';
+            });
+
+            linkButton.addEventListener('mouseleave', () => {
+                linkButton.style.backgroundColor = 'var(--vp-c-bg-soft)';
+                linkButton.style.color = 'var(--vp-c-text)';
+                linkButton.style.transform = 'translateY(0)';
+            });
+
+            linkButton.addEventListener('click', () => {
+                const fullUrl = mirror.url + packageName;
+                window.open(fullUrl, '_blank');
+                closeMirrorSelector();
+            });
+
+            linkList.appendChild(linkButton);
+        });
+
+        // 创建取消按钮
+        const cancelButton = document.createElement('button');
+        cancelButton.textContent = '取消';
+        cancelButton.style.cssText = `
+            margin-top: 1rem;
+            padding: 0.5rem 1rem;
+            border: 1px solid var(--vp-c-divider);
+            background-color: var(--vp-c-bg);
+            color: var(--vp-c-text-2);
+            border-radius: 4px;
+            cursor: pointer;
+            width: 100%;
+            transition: all 0.2s;
+        `;
+
+        cancelButton.addEventListener('mouseenter', () => {
+            cancelButton.style.backgroundColor = 'var(--vp-c-bg-soft)';
+            cancelButton.style.color = 'var(--vp-c-text)';
+            cancelButton.style.transform = 'translateY(-1px)';
+        });
+
+        cancelButton.addEventListener('mouseleave', () => {
+            cancelButton.style.backgroundColor = 'var(--vp-c-bg)';
+            cancelButton.style.color = 'var(--vp-c-text-2)';
+            cancelButton.style.transform = 'translateY(0)';
+        });
+
+        cancelButton.addEventListener('click', closeMirrorSelector);
+
+        // 组装选择器
+        selector.appendChild(title);
+        selector.appendChild(packageInfo);
+        selector.appendChild(linkList);
+        selector.appendChild(cancelButton);
+        overlay.appendChild(selector);
+
+        // 插入到页面
+        document.body.appendChild(overlay);
+
+        // 禁用背景滚动
+        document.body.style.overflow = 'hidden';
+
+        // 触发动画
+        setTimeout(() => {
+            overlay.style.opacity = '1';
+            selector.style.transform = 'scale(1)';
+        }, 10);
+
+        // 关闭选择器函数
+        function closeMirrorSelector() {
+            overlay.style.opacity = '0';
+            selector.style.transform = 'scale(0.9)';
+
+            setTimeout(() => {
+                overlay.remove();
+                document.body.style.overflow = '';
+            }, 200);
+        }
+
+        // 点击遮罩层关闭
+        overlay.addEventListener('click', (e) => {
+            if (e.target === overlay) {
+                closeMirrorSelector();
+            }
+        });
+
+        // ESC键关闭
+        const handleEscKey = (e) => {
+            if (e.key === 'Escape') {
+                closeMirrorSelector();
+                document.removeEventListener('keydown', handleEscKey);
+            }
+        };
+        document.addEventListener('keydown', handleEscKey);
+    }
+
+    // 检查是否为标准npm包地址
+    function isStandardNpmPackageUrl(url) {
+        try {
+            const urlObj = new URL(url);
+
+            // 检查域名是否为 www.npmjs.com
+            if (urlObj.hostname !== 'www.npmjs.com') {
+                return false;
+            }
+
+            // 1. /package/包名
+            // 2. /package/@scope/包名  
+            // 3. /@scope/包名 (直接的@scope格式)
+            const pathMatch = urlObj.pathname.match(/^(\/package\/(@[^\/]+\/[^\/]+|[^\/]+)|\/(@[^\/]+\/[^\/]+))$/);
+            if (!pathMatch) {
+                return false;
+            }
+
+            // 检查是否有查询参数或hash
+            if (urlObj.search || urlObj.hash) {
+                return false;
+            }
+
+            return true;
+        } catch (error) {
+            return false;
+        }
+    }
+
+    // 拦截版本号链接点击
+    function interceptVersionLinks() {
+        // 使用事件委托监听所有点击事件
+        document.addEventListener('click', (e) => {
+            // 首先检查点击的目标元素是否在头像区域内
+            const avatarContainer = e.target.closest('.avatars');
+            if (avatarContainer) {
+                // 如果点击的是头像区域，直接返回，不进行拦截
+                return;
+            }
+
+            // 检查点击的元素是否是版本号链接或其直接子元素
+            let target = e.target;
+
+            // 如果点击的是 SVG 或其子元素，向上查找到 <a> 标签
+            if (target.tagName === 'svg' || target.tagName === 'path' || target.closest('svg')) {
+                target = target.closest('a');
+            } else if (target.tagName === 'A') {
+                // 如果直接点击的就是 <a> 标签，使用它
+                target = target;
+            } else {
+                // 如果点击的是其他元素，检查是否是版本号链接的直接文本内容
+                const parentA = target.closest('a');
+                if (parentA && parentA.href && isStandardNpmPackageUrl(parentA.href)) {
+                    // 检查是否是版本号链接的文本部分（不是图标）
+                    const hasVersionIcon = parentA.querySelector('svg path[d*="M0 252.118V48C0 21.49"]');
+                    if (hasVersionIcon && target.nodeType === Node.TEXT_NODE ||
+                        (target.tagName && !target.closest('svg') && parentA.contains(target))) {
+                        target = parentA;
+                    } else {
+                        return; // 不是我们要拦截的元素
+                    }
+                } else {
+                    return; // 不是链接元素
+                }
+            }
+
+            // 检查是否是标准npm包链接
+            if (target && target.href && isStandardNpmPackageUrl(target.href)) {
+                // 检查是否是版本号链接（包含特定的版本图标）
+                const hasVersionIcon = target.querySelector('svg path[d*="M0 252.118V48C0 21.49"]');
+
+                if (hasVersionIcon) {
+                    e.preventDefault();
+                    e.stopPropagation();
+
+                    // 提取包名
+                    let packageName = target.href;
+                    if (packageName.includes('/package/')) {
+                        packageName = packageName.replace(/^https?:\/\/www\.npmjs\.com\/package\//, '');
+                    } else {
+                        // 处理直接的@scope格式：https://www.npmjs.com/@scope/package
+                        packageName = packageName.replace(/^https?:\/\/www\.npmjs\.com\//, '');
+                    }
+
+                    log('拦截版本号链接点击:', packageName);
+
+                    // 显示镜像选择器
+                    createMirrorSelector(packageName, target);
+                }
+            }
+        }, true); // 使用捕获阶段确保优先处理
+    }
+
+    // 显示当前使用的镜像源
+    function showCurrentMirror() {
+        const observer = new MutationObserver((mutations) => {
+            mutations.forEach((mutation) => {
+                if (mutation.addedNodes.length) {
+                    mutation.addedNodes.forEach((node) => {
+                        if (node.nodeType === 1 && node.classList && node.querySelector && node.querySelector('.info')) {
+                            const infoDiv = node.querySelector('.info');
+                            if (infoDiv && !document.querySelector('.mirror-info')) {
+                                const mirrorInfo = document.createElement('div');
+                                mirrorInfo.className = 'mirror-info';
+                                mirrorInfo.style.cssText = `
+                                    margin-top: 8px;
+                                    font-family: monospace;
+                                    font-size: 0.9em;
+                                    color: var(--vp-c-text-2);
+                                    text-align: center;
+                                    width: 100%;
+                                `;
+                                const currentMirror = CONFIG.mirrorUrls[CONFIG.currentMirrorIndex];
+                                const mirrorUrl = currentMirror ? currentMirror.url : '';
+                                const proxyStatus = currentMirror && currentMirror.useProxy ? ' (代理)' : '';
+                                mirrorInfo.innerHTML = `<code>${mirrorUrl}${proxyStatus}</code>`;
+                                infoDiv.parentNode.insertBefore(mirrorInfo, infoDiv.nextSibling);
+                                log('已添加镜像源信息');
+                                observer.disconnect();
+                            }
+                        }
+                    });
+                }
+            });
+        });
+
+        observer.observe(document.body, { childList: true, subtree: true });
+    }
+
+    // 添加返回顶部按钮
+    function addBackToTopButton() {
+        // 创建一个函数来检查并添加按钮
+        const checkAndAddButton = () => {
+            // 如果按钮已存在，不再添加
+            if (document.querySelector('.back-to-top-btn')) {
+                return;
+            }
+
+            // 查找所有分页控件
+            const paginationElements = document.querySelectorAll('.el-pagination');
+            if (paginationElements.length < 2) {
+                return; // 等待分页控件加载
+            }
+
+            // 获取底部的分页控件
+            const bottomPagination = paginationElements[paginationElements.length - 1];
+            const nextButton = bottomPagination.querySelector('.btn-next');
+
+            if (!nextButton) {
+                return; // 等待下一页按钮加载
+            }
+
+            // 创建返回顶部按钮
+            const backToTopBtn = document.createElement('button');
+            backToTopBtn.type = 'button';
+            backToTopBtn.className = 'back-to-top-btn';
+            backToTopBtn.setAttribute('aria-label', 'Back to top');
+            backToTopBtn.style.cssText = `
+                margin-left: 8px;
+                transform: rotate(-90deg);
+                display: none; /* 初始隐藏 */
+            `;
+
+            // 复制下一页按钮的样式
+            const computedStyle = window.getComputedStyle(nextButton);
+            backToTopBtn.style.backgroundColor = computedStyle.backgroundColor;
+            backToTopBtn.style.color = computedStyle.color;
+            backToTopBtn.style.border = computedStyle.border;
+            backToTopBtn.style.borderRadius = computedStyle.borderRadius;
+            backToTopBtn.style.padding = computedStyle.padding;
+            backToTopBtn.style.height = computedStyle.height;
+            backToTopBtn.style.width = computedStyle.width;
+
+            // 复制SVG图标
+            backToTopBtn.innerHTML = nextButton.innerHTML;
+
+            // 添加点击事件
+            backToTopBtn.addEventListener('click', () => {
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            });
+
+            // 添加到分页控件
+            nextButton.parentNode.insertBefore(backToTopBtn, nextButton.nextSibling);
+
+            // 添加滚动监听，只在滚动到一定位置时显示
+            const handleScroll = () => {
+                const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+                const bottomPaginationRect = bottomPagination.getBoundingClientRect();
+
+                // 当页面滚动超过一屏高度且底部分页控件在视口内时显示按钮
+                if (scrollTop > window.innerHeight / 2 &&
+                    bottomPaginationRect.top < window.innerHeight &&
+                    bottomPaginationRect.bottom > 0) {
+                    backToTopBtn.style.display = 'inline-block';
+                } else {
+                    backToTopBtn.style.display = 'none';
+                }
+            };
+
+            window.addEventListener('scroll', handleScroll);
+            handleScroll(); // 初始检查
+
+            log('已添加返回顶部按钮');
+            return true;
+        };
+
+        // 立即尝试添加按钮
+        if (checkAndAddButton()) {
+            return;
+        }
+
+        // 如果没有成功添加，设置一个定时器定期检查
+        const buttonCheckInterval = setInterval(() => {
+            if (checkAndAddButton()) {
+                clearInterval(buttonCheckInterval);
+            }
+        }, 1000);
+
+        // 同时使用MutationObserver监听DOM变化
+        const observer = new MutationObserver((mutations) => {
+            if (checkAndAddButton()) {
+                observer.disconnect();
+            }
+        });
+
+        observer.observe(document.body, { childList: true, subtree: true });
+
+        // 确保在页面完全加载后也尝试添加按钮
+        window.addEventListener('load', checkAndAddButton);
+    }
+
     // 在页面加载完成后初始化
     window.addEventListener('load', () => {
         log('页面加载完成，准备初始化时间修复功能');
@@ -818,7 +1296,155 @@
 
         // 处理URL搜索参数
         handleUrlSearch();
+
+        // 初始化版本号链接拦截
+        interceptVersionLinks();
+        log('已初始化版本号链接拦截功能');
+
+        // 显示当前使用的镜像源
+        showCurrentMirror();
+
+        // 添加返回顶部按钮
+        addBackToTopButton();
+
+        // 初始化头像悬停置顶功能
+        initAvatarHoverEffect();
     });
+
+    // 头像悬停置顶功能
+    function initAvatarHoverEffect() {
+        log('初始化头像悬停置顶功能');
+
+        // 添加CSS样式
+        const avatarStyle = document.createElement('style');
+        avatarStyle.textContent = `
+            /* 头像容器悬停效果 */
+            .avatars {
+                position: relative;
+                transition: all 0.2s ease;
+            }
+            
+            .avatars:hover {
+                z-index: 1000 !important;
+                position: relative !important;
+                overflow: visible !important;
+            }
+            
+            /* 当头像容器悬停时，允许其父容器溢出 */
+            .avatars:hover .avatar {
+                position: relative;
+                z-index: 1001;
+            }
+            
+            /* 确保头像在悬停时可以超出边界显示 */
+            .market-package:has(.avatars:hover) {
+                overflow: visible !important;
+                z-index: 999 !important;
+            }
+            
+            /* 为了兼容性，也添加JavaScript控制的类 */
+            .avatars.hover-active {
+                z-index: 1000 !important;
+                position: relative !important;
+                overflow: visible !important;
+            }
+            
+            .avatars.hover-active .avatar {
+                position: relative;
+                z-index: 1001;
+            }
+            
+            .market-package.avatar-hover-parent {
+                overflow: visible !important;
+                z-index: 999 !important;
+            }
+            
+            /* 确保头像容器的父级元素也支持溢出 */
+            .market-package .footer {
+                position: relative;
+            }
+            
+            .market-package .footer:has(.avatars:hover) {
+                overflow: visible !important;
+                z-index: 999 !important;
+            }
+            
+            .market-package .footer.avatar-hover-footer {
+                overflow: visible !important;
+                z-index: 999 !important;
+            }
+            
+            /* 确保Element UI的tooltip始终显示在头像区域之上 */
+            .el-popper[role="tooltip"] {
+                z-index: 10000 !important;
+            }
+            
+            /* 特别针对作者昵称tooltip的样式 */
+            .el-popper.is-dark[role="tooltip"] {
+                z-index: 10000 !important;
+            }
+        `;
+        document.head.appendChild(avatarStyle);
+
+        // 使用事件委托监听头像区域的鼠标事件
+        document.addEventListener('mouseenter', function (e) {
+            // 检查是否是头像容器
+            if (e.target.classList.contains('avatars') || e.target.closest('.avatars')) {
+                const avatarsContainer = e.target.classList.contains('avatars') ? e.target : e.target.closest('.avatars');
+                const marketPackage = avatarsContainer.closest('.market-package');
+                const footer = avatarsContainer.closest('.footer');
+
+                if (avatarsContainer && marketPackage) {
+                    log('鼠标进入头像区域，启用置顶显示');
+
+                    // 添加悬停状态类
+                    avatarsContainer.classList.add('hover-active');
+                    marketPackage.classList.add('avatar-hover-parent');
+                    if (footer) {
+                        footer.classList.add('avatar-hover-footer');
+                    }
+
+                    // 确保所有父级元素都支持溢出显示
+                    let parent = avatarsContainer.parentElement;
+                    while (parent && !parent.classList.contains('market-package')) {
+                        parent.style.overflow = 'visible';
+                        parent.style.position = 'relative';
+                        parent = parent.parentElement;
+                    }
+                }
+            }
+        }, true);
+
+        document.addEventListener('mouseleave', function (e) {
+            // 检查是否是头像容器
+            if (e.target.classList.contains('avatars') || e.target.closest('.avatars')) {
+                const avatarsContainer = e.target.classList.contains('avatars') ? e.target : e.target.closest('.avatars');
+                const marketPackage = avatarsContainer.closest('.market-package');
+                const footer = avatarsContainer.closest('.footer');
+
+                if (avatarsContainer && marketPackage) {
+                    log('鼠标离开头像区域，恢复正常显示');
+
+                    // 移除悬停状态类
+                    avatarsContainer.classList.remove('hover-active');
+                    marketPackage.classList.remove('avatar-hover-parent');
+                    if (footer) {
+                        footer.classList.remove('avatar-hover-footer');
+                    }
+
+                    // 恢复父级元素的原始样式
+                    let parent = avatarsContainer.parentElement;
+                    while (parent && !parent.classList.contains('market-package')) {
+                        parent.style.overflow = '';
+                        parent.style.position = '';
+                        parent = parent.parentElement;
+                    }
+                }
+            }
+        }, true);
+
+        log('头像悬停置顶功能初始化完成');
+    }
 
     const log = function (...args) {
         if (CONFIG.debug) {
@@ -832,7 +1458,8 @@
 
     // 获取当前使用的镜像源URL
     const getCurrentMirrorUrl = function () {
-        return CONFIG.mirrorUrls[CONFIG.currentMirrorIndex];
+        const currentMirror = CONFIG.mirrorUrls[CONFIG.currentMirrorIndex];
+        return currentMirror ? currentMirror.url : '';
     };
 
     // 切换到下一个镜像源
@@ -852,6 +1479,52 @@
     const getTargetUrl = function () {
         const baseUrl = getCurrentMirrorUrl();
         return baseUrl;
+    };
+
+    // 代理请求函数
+    const requestWithProxy = async function (targetUrl) {
+        const currentMirror = CONFIG.mirrorUrls[CONFIG.currentMirrorIndex];
+        if (!currentMirror || !currentMirror.useProxy) {
+            // 如果当前镜像源不使用代理，直接返回原始fetch
+            return originalFetch.call(window, targetUrl, {
+                cache: CONFIG.disableCache ? 'no-store' : 'default'
+            });
+        }
+
+        try {
+            log('使用代理请求:', targetUrl);
+            const response = await originalFetch.call(window, CONFIG.proxyUrl, {
+                method: 'POST',
+                headers: {
+                    'api-u': targetUrl,
+                    'api-o0': 'method=GET, timings=true, timeout=3000',
+                    'Content-Type': 'application/json'
+                },
+                cache: 'no-store'
+            });
+
+            if (!response.ok) {
+                throw new Error(`代理请求失败: ${response.status} ${response.statusText}`);
+            }
+
+            // 获取代理返回的数据
+            const proxyData = await response.text();
+
+            // 创建一个新的Response对象，模拟原始请求的响应
+            const mockResponse = new Response(proxyData, {
+                status: 200,
+                statusText: 'OK',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            log('代理请求成功');
+            return mockResponse;
+        } catch (error) {
+            error('代理请求失败:', error);
+            throw error;
+        }
     };
 
     // 处理请求失败和重试
@@ -893,6 +1566,9 @@
     // 带重试功能的fetch
     const fetchWithRetry = function (input, init) {
         const targetUrl = getTargetUrl(); // 每次请求都重新获取targetUrl，以保证时间戳更新
+        const currentMirror = CONFIG.mirrorUrls[CONFIG.currentMirrorIndex];
+        const shouldUseProxy = currentMirror ? currentMirror.useProxy : false;
+
         return new Promise((resolve, reject) => {
             // 设置超时
             const timeoutId = setTimeout(() => {
@@ -900,8 +1576,15 @@
                 resolve(handleRequestFailure(input, init));
             }, CONFIG.requestTimeout);
 
-            originalFetch.call(window, typeof input === 'string' ? targetUrl : new Request(targetUrl, { ...input, cache: 'no-store' }), init)
+            // 根据当前镜像源的代理设置决定是否使用代理
+            const requestPromise = shouldUseProxy
+                ? requestWithProxy(targetUrl)
+                : originalFetch.call(window, typeof input === 'string' ? targetUrl : new Request(targetUrl, {
+                    ...input,
+                    cache: CONFIG.disableCache ? 'no-store' : 'default'
+                }), CONFIG.disableCache ? { ...init, cache: 'no-store' } : init);
 
+            requestPromise
                 .then(response => {
                     clearTimeout(timeoutId);
                     if (!response.ok) {
@@ -958,11 +1641,11 @@
         if (input && typeof input === 'string' && normalizeUrl(input).includes(CONFIG.sourceUrl)) {
             log('拦截到 fetch 请求 (字符串):', input);
             // 使用带重试功能的fetch
-            return fetchWithRetry(input, init);
+            return fetchWithRetry(input, CONFIG.disableCache ? { ...init, cache: 'no-store' } : init);
         } else if (input && input instanceof Request && input.url.includes(CONFIG.sourceUrl)) {
             log('拦截到 fetch 请求 (Request):', input.url);
             // 使用带重试功能的fetch
-            return fetchWithRetry(input, init);
+            return fetchWithRetry(input, CONFIG.disableCache ? { ...init, cache: 'no-store' } : init);
         }
 
         // 调用原始 fetch 方法
@@ -1009,13 +1692,16 @@
         }
 
         // 从 URL 中提取包名
-        const shortPackageName = packageName.replace('https://www.npmjs.com/package/', '').replace('https://www.npmjs.com/', ''); // 移除两种可能的 URL 前缀
-        // log('查找插件:', shortPackageName);
+        let shortPackageName = packageName;
+        if (typeof packageName === 'string') {
+            shortPackageName = packageName
+                .replace('https://www.npmjs.com/package/', '')
+                .replace('https://www.npmjs.com/', '');
+        }
 
         // 在 objects 数组中查找匹配的插件
         for (const item of registryData.objects) {
             if (item && item.package && item.package.name === shortPackageName) {
-                //log('找到插件数据:', shortPackageName);
                 return item;
             }
         }
@@ -1025,7 +1711,6 @@
             if (item && item.package && item.package.name) {
                 // 检查是否是 scoped 包，并进行匹配
                 if (item.package.name === shortPackageName || item.package.name.endsWith('/' + shortPackageName)) {
-                    //log('通过灵活匹配找到插件数据:', item.package.name);
                     return item;
                 }
             }
