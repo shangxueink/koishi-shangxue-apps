@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Koishi Market Registry Redirector
 // @namespace    https://github.com/shangxueink
-// @version      3.11
+// @version      3.12
 // @description  将 Koishi 市场注册表请求重定向到多个备用镜像源，支持自动重试、单独配置每个镜像源的代理请求解决CORS问题，并修复时间显示问题。
 // @author       shangxueink
 // @license      MIT
@@ -1787,3 +1787,4 @@
 
     log('脚本已启动 —————— 将', CONFIG.sourceUrl, '重定向到多个备用镜像源，当前使用:', getCurrentMirrorUrl());
 })();
+
