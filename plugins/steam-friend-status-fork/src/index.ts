@@ -731,7 +731,8 @@ export function apply(ctx: Context, config) {
             groupMessage.push(changeMessage[allUserData[j].userId])
           }
         }
-        const userInGroup = selectApiUsersByGroup(userdata, allUserData, channel[i].id)
+        const usersInGroup = selectUsersByGroup(allUserData, channel[i].id)
+        const userInGroup = await getSteamUserInfoByDatabase(ctx, usersInGroup, config.SteamApiKey)
         if (groupMessage.length > 0) {
           if (config.broadcastWithImage) {
             let image
@@ -789,6 +790,7 @@ export function apply(ctx: Context, config) {
     return users
   }
 
+  /*
   //根据群号筛选从API中获取的用户数据
   function selectApiUsersByGroup(steamusers_api: SteamUserInfo, steamusers_database: SteamUser[], groupid: string): SteamUserInfo {
     let result: SteamUserInfo = {
@@ -805,6 +807,7 @@ export function apply(ctx: Context, config) {
     }
     return result
   }
+  */
 
   /*
   async function getAllUserFriendCodesInGroup(ctx: Context, groupid: string): Promise<string> {
