@@ -7,8 +7,6 @@ export default (ctx: Context) => {
         path: '/preview-help',
         desc: "",
         authority: 4,
-        // order:"",
-
         component: defineComponent({
             setup() {
                 const iframe = ref<HTMLIFrameElement>()
