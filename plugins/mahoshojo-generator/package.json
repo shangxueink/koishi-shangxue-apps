@@ -1,0 +1,27 @@
+{
+  "name": "koishi-plugin-mahoshojo-generator",
+  "description": "MahoShojo-Generator -- 魔女裁判人设生成器。在魔裁世界观里，你将会是一个什么样的魔女...通过回答一系列问题，生成更具深度的、包含魔力构装、奇境规则和繁开状态的详细角色设定。",
+  "version": "0.1.0",
+  "main": "lib/index.js",
+  "typings": "lib/index.d.ts",
+  "files": [
+    "lib",
+    "src",
+    "data"
+  ],
+  "license": "MIT",
+  "keywords": [
+    "chatbot",
+    "koishi",
+    "plugin",
+    "mahoshojo-generator",
+    "魔裁判审判"
+  ],
+  "homepage": "https://github.com/shangxueink/koishi-shangxue-apps/tree/main/",
+  "bugs": {
+    "url": "https://github.com/shangxueink/koishi-shangxue-apps/issues"
+  },
+  "peerDependencies": {
+    "koishi": "4.18.9"
+  }
+}
