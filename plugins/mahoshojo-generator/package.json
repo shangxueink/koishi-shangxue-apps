@@ -1,7 +1,7 @@
 {
   "name": "koishi-plugin-mahoshojo-generator",
-  "description": "[<ruby>**魔女裁判人设生成器**<rp>（</rp><rt>点我查看效果预览图</rt><rp>）</rp></ruby>](https://i0.hdslb.com/bfs/openplatform/3dd9032fb12218083573ef7819156b10086293d1.png) 在魔裁世界观里，你将会是一个什么样的魔女...通过回答一系列问题，生成更具深度的、包含魔力构装、奇境规则和繁开状态的详细角色设定。",
-  "version": "0.1.1",
+  "description": "[<ruby>**魔女审判人设生成**<rp>（</rp><rt>点我查看效果预览图</rt><rp>）</rp></ruby>](https://i0.hdslb.com/bfs/openplatform/3dd9032fb12218083573ef7819156b10086293d1.png) 在魔女审判的世界观里，你将会是一个什么样的魔女...通过回答一系列问题，生成包含魔力构装、奇境规则的详细角色设定。",
+  "version": "0.1.2",
   "main": "lib/index.js",
   "typings": "lib/index.d.ts",
   "files": [
@@ -15,7 +15,7 @@
     "koishi",
     "plugin",
     "mahoshojo-generator",
-    "魔裁判审判"
+    "魔女审判"
   ],
   "homepage": "https://github.com/shangxueink/koishi-shangxue-apps/tree/main/",
   "bugs": {
