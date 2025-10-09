@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Koishi Market Registry Redirector
 // @namespace    https://github.com/shangxueink
-// @version      3.12
+// @version      3.13
 // @description  将 Koishi 市场注册表请求重定向到多个备用镜像源，支持自动重试、单独配置每个镜像源的代理请求解决CORS问题，并修复时间显示问题。
 // @author       shangxueink
 // @license      MIT
@@ -1203,37 +1203,98 @@
                 return; // 等待下一页按钮加载
             }
 
-            // 创建返回顶部按钮
-            const backToTopBtn = document.createElement('button');
-            backToTopBtn.type = 'button';
-            backToTopBtn.className = 'back-to-top-btn';
-            backToTopBtn.setAttribute('aria-label', 'Back to top');
-            backToTopBtn.style.cssText = `
-                margin-left: 8px;
-                transform: rotate(-90deg);
+            // 创建返回顶部按钮容器
+            const backToTopContainer = document.createElement('div');
+            backToTopContainer.className = 'back-to-top-container';
+            backToTopContainer.style.cssText = `
+                width: 100%;
+                margin-top: 8px;
                 display: none; /* 初始隐藏 */
             `;
 
-            // 复制下一页按钮的样式
-            const computedStyle = window.getComputedStyle(nextButton);
-            backToTopBtn.style.backgroundColor = computedStyle.backgroundColor;
-            backToTopBtn.style.color = computedStyle.color;
-            backToTopBtn.style.border = computedStyle.border;
-            backToTopBtn.style.borderRadius = computedStyle.borderRadius;
-            backToTopBtn.style.padding = computedStyle.padding;
-            backToTopBtn.style.height = computedStyle.height;
-            backToTopBtn.style.width = computedStyle.width;
+            // 创建返回顶部按钮
+            const backToTopBtn = document.createElement('button');
+            backToTopBtn.type = 'button';
+            backToTopBtn.className = 'back-to-top-btn el-button el-button--default';
+            backToTopBtn.setAttribute('aria-label', 'Back to top');
+            backToTopBtn.textContent = '回到顶部';
 
-            // 复制SVG图标
-            backToTopBtn.innerHTML = nextButton.innerHTML;
+            // 使用CSS变量和类名来确保主题适应性
+            backToTopBtn.style.cssText = `
+                width: 100%;
+                height: 32px;
+                margin: 0;
+                padding: 0 15px;
+                font-size: 14px;
+                border-radius: 4px;
+                cursor: pointer;
+                transition: all 0.2s ease;
+                box-sizing: border-box;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                text-align: center;
+                white-space: nowrap;
+                outline: none;
+                user-select: none;
+                vertical-align: middle;
+                -webkit-appearance: none;
+                background-color: var(--el-button-bg-color, #ffffff);
+                border: 1px solid var(--el-button-border-color, #dcdfe6);
+                color: var(--el-button-text-color, #606266);
+            `;
+
+            // 添加悬停效果 - 使用CSS变量确保主题适应
+            backToTopBtn.addEventListener('mouseenter', () => {
+                backToTopBtn.style.backgroundColor = 'var(--el-button-hover-bg-color, #ecf5ff)';
+                backToTopBtn.style.borderColor = 'var(--el-button-hover-border-color, #c6e2ff)';
+                backToTopBtn.style.color = 'var(--el-button-hover-text-color, #409eff)';
+            });
+
+            backToTopBtn.addEventListener('mouseleave', () => {
+                backToTopBtn.style.backgroundColor = 'var(--el-button-bg-color, #ffffff)';
+                backToTopBtn.style.borderColor = 'var(--el-button-border-color, #dcdfe6)';
+                backToTopBtn.style.color = 'var(--el-button-text-color, #606266)';
+            });
+
+            // 添加主题变化监听器
+            const updateButtonTheme = () => {
+                // 强制重新应用样式以适应主题变化
+                backToTopBtn.style.backgroundColor = 'var(--el-button-bg-color, #ffffff)';
+                backToTopBtn.style.borderColor = 'var(--el-button-border-color, #dcdfe6)';
+                backToTopBtn.style.color = 'var(--el-button-text-color, #606266)';
+            };
+
+            // 监听主题变化
+            const themeObserver = new MutationObserver((mutations) => {
+                mutations.forEach((mutation) => {
+                    if (mutation.type === 'attributes' &&
+                        (mutation.attributeName === 'class' || mutation.attributeName === 'data-theme')) {
+                        setTimeout(updateButtonTheme, 100);
+                    }
+                });
+            });
+
+            // 监听document和html元素的主题变化
+            themeObserver.observe(document.documentElement, {
+                attributes: true,
+                attributeFilter: ['class', 'data-theme']
+            });
+            themeObserver.observe(document.body, {
+                attributes: true,
+                attributeFilter: ['class', 'data-theme']
+            });
 
             // 添加点击事件
             backToTopBtn.addEventListener('click', () => {
                 window.scrollTo({ top: 0, behavior: 'smooth' });
             });
 
-            // 添加到分页控件
-            nextButton.parentNode.insertBefore(backToTopBtn, nextButton.nextSibling);
+            // 将按钮添加到容器中
+            backToTopContainer.appendChild(backToTopBtn);
+
+            // 将容器添加到分页控件的父容器中
+            bottomPagination.parentNode.appendChild(backToTopContainer);
 
             // 添加滚动监听，只在滚动到一定位置时显示
             const handleScroll = () => {
@@ -1244,9 +1305,9 @@
                 if (scrollTop > window.innerHeight / 2 &&
                     bottomPaginationRect.top < window.innerHeight &&
                     bottomPaginationRect.bottom > 0) {
-                    backToTopBtn.style.display = 'inline-block';
+                    backToTopContainer.style.display = 'block';
                 } else {
-                    backToTopBtn.style.display = 'none';
+                    backToTopContainer.style.display = 'none';
                 }
             };
 
@@ -1388,13 +1449,17 @@
 
         // 使用事件委托监听头像区域的鼠标事件
         document.addEventListener('mouseenter', function (e) {
+            // 安全检查：确保 e.target 存在且有 classList 属性
+            if (!e.target || !e.target.classList) return;
+
             // 检查是否是头像容器
-            if (e.target.classList.contains('avatars') || e.target.closest('.avatars')) {
-                const avatarsContainer = e.target.classList.contains('avatars') ? e.target : e.target.closest('.avatars');
+            const avatarsContainer = e.target.classList.contains('avatars') ? e.target : e.target.closest('.avatars');
+
+            if (avatarsContainer) {
                 const marketPackage = avatarsContainer.closest('.market-package');
                 const footer = avatarsContainer.closest('.footer');
 
-                if (avatarsContainer && marketPackage) {
+                if (marketPackage) {
                     log('鼠标进入头像区域，启用置顶显示');
 
                     // 添加悬停状态类
@@ -1416,13 +1481,17 @@
         }, true);
 
         document.addEventListener('mouseleave', function (e) {
+            // 安全检查：确保 e.target 存在且有 classList 属性
+            if (!e.target || !e.target.classList) return;
+
             // 检查是否是头像容器
-            if (e.target.classList.contains('avatars') || e.target.closest('.avatars')) {
-                const avatarsContainer = e.target.classList.contains('avatars') ? e.target : e.target.closest('.avatars');
+            const avatarsContainer = e.target.classList.contains('avatars') ? e.target : e.target.closest('.avatars');
+
+            if (avatarsContainer) {
                 const marketPackage = avatarsContainer.closest('.market-package');
                 const footer = avatarsContainer.closest('.footer');
 
-                if (avatarsContainer && marketPackage) {
+                if (marketPackage) {
                     log('鼠标离开头像区域，恢复正常显示');
 
                     // 移除悬停状态类
