@@ -1,0 +1,27 @@
+{
+  "name": "koishi-plugin-lmarena-api",
+  "description": "lmarena-api。一个简单的手办化插件，修改自lmarena插件。通过配置 openai like 的 API 使用。",
+  "version": "0.0.1",
+  "main": "lib/index.js",
+  "typings": "lib/index.d.ts",
+  "files": [
+    "lib",
+    "dist",
+    "src",
+    "client"
+  ],
+  "license": "MIT",
+  "keywords": [
+    "chatbot",
+    "koishi",
+    "plugin",
+    "lmarena-api"
+  ],
+  "homepage": "https://github.com/shangxueink/koishi-shangxue-apps/tree/main/",
+  "bugs": {
+    "url": "https://github.com/shangxueink/koishi-shangxue-apps/issues"
+  },
+  "peerDependencies": {
+    "koishi": "4.18.9"
+  }
+}
