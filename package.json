@@ -8,20 +8,7 @@
     "plugins/*/external/*"
   ],
   "scripts": {
-    "build": "yakumo build",
-    "dev": "yakumo dev",
-    "lint": "eslint plugins --ext=ts --cache",
-    "test": "yakumo test --import tsx",
     "postinstall": "node scripts/patch-tsconfig.js"
   },
-  "license": "MIT",
-  "devDependencies": {
-    "@cordisjs/eslint-config": "^1.1.1",
-    "@types/node": "^22.0.0",
-    "esbuild": "^0.25.0",
-    "eslint": "^8.57.0",
-    "tsx": "^4.7.0",
-    "typescript": "^5.3.3",
-    "yakumo": "^1.3.0"
-  }
+  "license": "MIT"
 }
