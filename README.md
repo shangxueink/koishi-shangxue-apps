@@ -50,23 +50,7 @@
     yarn clone shangxueink/koishi-shangxue-apps
     ```
 
-4.  **修改 Koishi 根工作区的 `tsconfig.json`** 📝
-
-    如果你要开发本仓库的`.ts`项目，那么这一步是必须的：（`.js`项目可略过）
-    
-    在 `tsconfig.json` 中添加以下内容：
-
-    ```json
-    "koishi-plugin-*": [
-        "external/*/src",
-        "external/*/packages/core/src",
-        "packages/*/src",
-        "plugins/*/src",
-        "external/koishi-shangxue-apps/plugins/*/src" // 添加这一行
-    ],
-    ```
-
-6.  **以开发模式启动** 🚧
+4.  **以开发模式启动** 🚧
     
     ```shell
     yarn dev
