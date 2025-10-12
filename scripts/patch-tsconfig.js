@@ -3,6 +3,20 @@ const path = require('path');
 
 function patchTsConfig() {
     try {
+        // 检查当前脚本是否在开发环境中运行
+        // 如果路径包含 node_modules，说明是作为依赖安装的，应该跳过执行
+        if (__dirname.includes('node_modules')) {
+            console.log('🔍 检测到作为依赖安装，跳过 tsconfig 配置');
+            return;
+        }
+
+        // 如果路径不包含 external，也跳过执行（额外安全检查）
+        if (!__dirname.includes('external')) {
+            console.log('🔍 检测到非开发环境，跳过 tsconfig 配置');
+            return;
+        }
+
+        console.log('🚀 开发环境检测通过，开始配置 tsconfig');
         // 找到项目根目录的 tsconfig.json
         let currentDir = __dirname;
         let rootTsConfigPath = null;
