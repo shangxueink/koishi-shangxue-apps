@@ -31,7 +31,6 @@
         </div>
     </div>
 
-
     <div class="container">
         <div class="editor-container" style="width: 44%;">
             <div class="line-numbers" id="editorLineNumbers">1<br></div>
@@ -46,7 +45,6 @@
         </div>
     </div>
 
-
     <div class="options">
         <input type="checkbox" id="syncScroll" checked>
         <label for="syncScroll">同步滚动</label>
@@ -57,7 +55,6 @@
             <i class="fas fa-save file-save-icon"></i> 保存到文件
         </button>
     </div>
-
 
     <div class="page-footer">
         © 2025<br>
@@ -123,7 +120,6 @@
             document.querySelector('.output-container').style.width = `${outputWidth}%`;
         });
 
-
         const logEntryStartRegex = /^(?:\{.*\}|(\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}:\d{2})\s+\[([EDWIV])\])/;
         const stackTraceRegex = /^\s+at\s|^\s*$/;
 
@@ -146,7 +142,6 @@
         output.addEventListener('mouseout', handleMouseOut);
         output.addEventListener('dblclick', handleDoubleClick);
 
-
         logFileInput.addEventListener('change', handleFileSelect);
 
         fileUploadButton.addEventListener('dragover', (e) => {
@@ -160,7 +155,6 @@
 
         fileUploadButton.addEventListener('drop', handleFileDrop);
         saveFileButton.addEventListener('click', saveFormattedLogToFile);
-
 
         function handleFileSelect(event) {
             const file = event.target.files[0];
@@ -179,7 +173,6 @@
             }
         }
 
-
         function readFileContent(file) {
             if (!file.name.endsWith('.log')) {
                 alert("请选择 .log 文件");
@@ -197,7 +190,6 @@
             }
             reader.readAsText(file);
         }
-
 
         function processLogs() {
             const logData = input.value;
@@ -278,7 +270,6 @@
                 }
             }
 
-
             output.innerHTML = outputHtml;
 
             updateLineNumbers(editorLineNumbers, rawLines.length);
@@ -352,7 +343,6 @@
         }
 
 
-
         function removeAnsiCodes(str) {
             if (typeof str !== 'string') return '';
             return str.replace(/\u001b\[[0-9;]*m/g, '');
@@ -371,7 +361,6 @@
             return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
         }
 
-
         function highlightKeywords(str) {
             const keywords = ["reload plugin", "unload plugin", ' plugin', 'error', 'warning', 'success', 'failed', 'connect', 'disconnect', 'TypeError', "HTTPError", 'ReferenceError', 'SyntaxError', "undefined", "retcode:", "Error at ", "cannot", "ECONNRESET", "externa", "node_modules"];
             let highlightedStr = str;
@@ -383,7 +372,6 @@
             });
             return highlightedStr;
         }
-
 
         function setTheme(theme) {
             let bgColor, textColor, lineNumberBgColor, lineNumberTextColor, tooltipBg, tooltipText;
@@ -493,7 +481,6 @@
             } : null;
         }
 
-
         function updateLineNumbers(element, count) {
             let numbers = '';
             const displayCount = Math.max(1, count);
@@ -525,7 +512,6 @@
             updateLineNumbers(editorLineNumbers, input.value.split('\n').length);
             requestAnimationFrame(() => { isSyncing = false; });
         }
-
 
         function handleMouseOver(event) {
             const logLine = event.target.closest('.log-line');
@@ -607,7 +593,6 @@
             });
         }
 
-
         function escapeHtml(str) {
             if (typeof str !== 'string') return '';
             return str
@@ -648,7 +633,6 @@
             document.body.removeChild(downloadLink);
             URL.revokeObjectURL(url);
         }
-
 
         setTheme('pale-night-dark'); // 设置默认主题
         processLogs();

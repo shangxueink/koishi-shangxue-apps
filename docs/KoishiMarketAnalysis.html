@@ -494,7 +494,6 @@
             });
         }
 
-
         // 比较两个插件集合
         function comparePlugins(data1, data2) {
             // 创建插件名称到插件对象的映射
@@ -566,7 +565,6 @@
             };
         }
 
-
         // 确保插件名称有正确的前缀
         function getCorrectPackageName(name) {
             // 如果名称为空或不是字符串，返回原值
@@ -579,7 +577,6 @@
                 return `${name} (无效插件)`;
             }
         }
-
 
         // 检查包是否存在于npm (并行版本)
         async function checkPackagesExist(packageNames) {
@@ -670,7 +667,6 @@
             await Promise.all(promises);
             return results;
         }
-
 
         // 渲染插件列表
         async function renderPluginList(containerId, data, highlightPlugins) {
@@ -893,7 +889,6 @@
                     // 检查包状态
                     let buttonClass = 'add-button';
                     let buttonText = '查看';
-
 
                     if (diff.correctPackageName.includes("无效插件")) {
                         buttonClass = 'not-found-button';

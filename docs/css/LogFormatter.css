@@ -349,7 +349,6 @@ body {
     --k-color-primary: #1FA0D5;
 }
 
-
 .log-line .tooltiptext {
     visibility: hidden;
     width: auto;
@@ -400,7 +399,6 @@ body {
     margin-bottom: 10px;
     text-align: left;
 }
-
 
 .save-file-button {
     padding: 10px 15px;
