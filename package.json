@@ -12,7 +12,8 @@
     "build": "yakumo build",
     "dev": "yakumo dev",
     "lint": "eslint plugins --ext=ts --cache",
-    "test": "yakumo test --import tsx"
+    "test": "yakumo test --import tsx",
+    "postinstall": "node scripts/patch-tsconfig.js"
   },
   "license": "MIT",
   "devDependencies": {
