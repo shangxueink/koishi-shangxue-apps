@@ -8,7 +8,7 @@
             },
             {
                 "text": "开发者指南",
-                "link": "/markdown/PRrequest"
+                "link": "/markdown/docs/pr/PRrequest"
             }
         ]
     },
@@ -16,20 +16,20 @@
         "text": "插件与工具",
         "items": [
             {
-                "text": "插件效果展示",
-                "link": "/markdown/pluginsbeshowed"
+                "text": "插件效果",
+                "link": "/markdown/docs/showed/pluginsbeshowed"
             },
             {
-                "text": "脚本效果展示",
-                "link": "/markdown/scriptsbeshowed"
+                "text": "脚本效果",
+                "link": "/markdown/docs/showed/scriptsbeshowed"
             },
             {
                 "text": "仓库工具",
-                "link": "/markdown/scripts"
+                "link": "/markdown/docs/scripts/scripts"
             },
             {
-                "text": "webUI工具",
-                "link": "/markdown/webuiscripts"
+                "text": "网页工具",
+                "link": "/markdown/docs/scripts/webuiscripts"
             }
         ]
     },
@@ -38,19 +38,23 @@
         "items": [
             {
                 "text": "遇到问题",
-                "link": "/markdown/FAQ"
+                "link": "/markdown/docs/common/FAQ"
             },
             {
                 "text": "社区帮助",
-                "link": "/markdown/community"
+                "link": "/markdown/docs/common/community"
+            },
+            {
+                "text": "使用姿势",
+                "link": "/markdown/docs/pr/startdev"
             },
             {
                 "text": "编辑文档",
-                "link": "/markdown/gh-pages"
+                "link": "/markdown/docs/pr/gh-pages"
             },
             {
                 "text": "贡献鸣谢",
-                "link": "/markdown/contributors"
+                "link": "/markdown/docs/common/contributors"
             }
         ]
     },

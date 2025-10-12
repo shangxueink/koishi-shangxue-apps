@@ -30,3 +30,4 @@ tsconfig.tsbuildinfo
 *.njsproj
 *.sln
 yarn.lock
+docs/.vitepress/cache/*

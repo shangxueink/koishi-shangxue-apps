@@ -6,10 +6,8 @@
 
 这里集合了我在 Koishi 上独立开发的各种插件，旨在增强和扩展 Koishi 的功能。
 
-
 ## 重要提示
 ::: warning
-
 
 -   由于代码上传可能存在延迟，npm 上的版本可能更新。如果发现仓库代码与 npm 版本不一致，请以 npm 平台发布的版本为准。
 
@@ -18,7 +16,6 @@
 
 -   发现 Bug 或有任何问题？ 欢迎[提交 Issue](https://github.com/shangxueink/koishi-shangxue-apps/issues/new/choose)！
 -   部分插件的 `package.json` 内名称包含 `@shangxueink` 的插件是我的私用插件，我不会接受关于这些插件的功能增改请求，仅接受 issue 反馈 bug。
-
 
 ## 如何找到你需要的插件？
 ::: tip

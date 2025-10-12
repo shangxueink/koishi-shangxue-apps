@@ -6,7 +6,6 @@ body {
     box-sizing: border-box;
 }
 
-
 @media (max-width: 768px) {
     body {
         max-width: 100%;
@@ -135,7 +134,6 @@ h1 {
     border-color: #3700b3;
 }
 
-
 #actionBtn {
     background-color: #6200ea;
     border: none;
@@ -242,7 +240,6 @@ h1 {
     /* 停止按钮悬停背景色 */
 }
 
-
 .progress-container {
     position: fixed;
     bottom: 80px;
@@ -314,7 +311,6 @@ h1 {
 #selectAllBtn:hover {
     background-color: #3700b3;
 }
-
 
 #imageModal {
     position: fixed;
@@ -496,7 +492,6 @@ input:checked+.slider {
 input:checked+.slider:before {
     transform: translateX(26px);
 }
-
 
 .add-emoji {
     opacity: 0.5;
