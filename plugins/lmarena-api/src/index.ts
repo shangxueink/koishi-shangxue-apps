@@ -1,10 +1,15 @@
 import { Context, Schema, h, Logger, Session } from "koishi"
+import { } from 'koishi-plugin-monetary'
 
 import { readFileSync } from "node:fs"
 import { resolve } from "node:path"
 
-export const name = "image-edit"
-export const inject = ["http", "logger", "i18n"]
+export const name = "lmarena-api"
+
+export const inject = {
+  required: ["http", "logger", "i18n"],
+  optional: ['database', 'monetary']
+}
 
 export const usage = `
 ---
@@ -22,6 +27,13 @@ export const usage = `
 如果你使用的是happyapi，那么使用默认配置，直接开启插件就可以使用啦。
 
 如果你是其他API站点，请手动编辑配置项的请求参数，**尤其是模型！**
+
+---
+
+
+可选服务：monetary
+
+---
 `;
 
 const logger = new Logger(name)
@@ -40,6 +52,10 @@ interface Config {
   waitTimeout: number
   customCommands: Command[]
   loggerinfo: boolean
+  monetaryCommands: boolean
+  currency: string
+  monetaryCost: number
+  commandAuthority: number
 }
 
 export const Config: Schema<Config> = Schema.intersect([
@@ -51,12 +67,20 @@ export const Config: Schema<Config> = Schema.intersect([
   }).description("基础配置"),
 
   Schema.object({
+    commandAuthority: Schema.number().default(1).max(5).min(0).description("指令所需权限"),
+    monetaryCommands: Schema.boolean().default(false).description("引入货币服务"),
+    currency: Schema.string().default('default').description('monetary 数据库的 currency 字段名称（货币种类）'),
+    monetaryCost: Schema.number().default(-1000).max(0).description("每次调用指令的货币变化数量（负数）（-1000代表消耗1000个货币）"),
+  }).description("进阶指令功能配置"),
+
+  Schema.object({
     customCommands: Schema.array(
       Schema.object({
         name: Schema.string().required().description("<hr><hr><hr><hr><hr><br>指令名称"),
         enabled: Schema.boolean().default(true).description("是否启用该指令"),
         apiParams: Schema.dict(String).role('table').description("自定义API的POST请求body参数").default({
           "model": "",
+          "image": "{{inputimage}}",
           "prompt": "{{prompt}}",
           "size": "1024x1024",
           "n": "1",
@@ -65,7 +89,7 @@ export const Config: Schema<Config> = Schema.intersect([
         }),
         prompt: Schema.string().role("textarea", { rows: [6, 4] }).description("该指令对应的提示词"),
       })).description("可以折叠的指令配置<br>超级长的配置项，慎点").default(loadDefaultCommands()),
-  }).description("指令配置"),
+  }).description("完整指令配置"),
 
   Schema.object({
     loggerinfo: Schema.boolean().default(false).description("日志调试模式"),
@@ -84,7 +108,9 @@ export function apply(ctx: Context, config: Config) {
             processing: "正在处理图片，请稍候...",
             failed: "图片生成失败，请稍后重试。",
             error: "处理过程中发生错误: {0}",
-            needimages: "未检测到图片。请重新交互，提供至少一张图片。"
+            needimages: "未检测到图片。请重新交互，提供至少一张图片。",
+            insufficientCurrency: "余额不足！当前余额: {0} {1}，需要: {2} {1}",
+            currencyDeducted: "成功扣除 {0} {1}，当前余额: {2} {1}"
           },
         },
       }
@@ -95,13 +121,38 @@ export function apply(ctx: Context, config: Config) {
     for (const cmdConfig of config.customCommands) {
       if (!cmdConfig.enabled) continue;
 
-      ctx.command(`${config.basename}.${cmdConfig.name} [...args]`, `${cmdConfig.name} 风格绘画`)
+      ctx.command(`${config.basename}.${cmdConfig.name} [...args]`, `${cmdConfig.name} 风格绘画`, { authority: config.commandAuthority })
         .usage(`${cmdConfig.name} 处理图片`)
+        .userFields(["id"])
         .action(async ({ session }, ...args) => {
           if (!session) return
           const quote = h.quote(session.messageId)
           const promptText = cmdConfig.prompt
           let images: string[] = []
+
+          // 如果启用了货币服务，先检查用户余额
+          if (config.monetaryCommands && ctx.monetary) {
+            try {
+              const currentBalance = await getUserCurrency(session.user.id);
+              const requiredAmount = Math.abs(config.monetaryCost);
+
+              if (currentBalance < requiredAmount) {
+                await session.send([
+                  quote,
+                  h.text(session.text(`commands.${config.basename}.messages.insufficientCurrency`, [
+                    currentBalance,
+                    config.currency,
+                    requiredAmount
+                  ]))
+                ]);
+                return;
+              }
+            } catch (error) {
+              ctx.logger.error(`检查用户 ${session.user.id} 货币余额时出错:`, error);
+              await session.send([quote, h.text("检查货币余额时出错，请稍后重试。")]);
+              return;
+            }
+          }
 
           // 从当前消息和引用消息中提取图片
           const extractedImages = extractImagesFromSession(session)
@@ -134,6 +185,24 @@ export function apply(ctx: Context, config: Config) {
             const result = await callImageEditApi(files, promptText, cmdConfig.apiParams)
 
             if (result) {
+              // 成功获取图片后，如果启用了货币服务，则扣除相应费用
+              if (config.monetaryCommands && ctx.monetary) {
+                try {
+                  await updateUserCurrency(session.user.id, config.monetaryCost);
+                  // 获取扣除后的余额并发送提示
+                  const newBalance = await getUserCurrency(session.user.id);
+                  await session.send(h.text(session.text(`commands.${config.basename}.messages.currencyDeducted`, [
+                    Math.abs(config.monetaryCost),
+                    config.currency,
+                    newBalance
+                  ])));
+                } catch (error) {
+                  ctx.logger.error(`扣除用户 ${session.user.id} 货币时出错:`, error);
+                  await session.send(h.text("货币扣除失败，但图片已生成。"));
+                  // 即使货币扣除失败，仍然返回图片
+                }
+              }
+
               // 处理单张图片或多张图片的情况
               if (Array.isArray(result)) {
                 // 多张图片：发送所有图片
@@ -249,7 +318,44 @@ export function apply(ctx: Context, config: Config) {
 
     function logInfo(...args: any[]) {
       if (config.loggerinfo) {
-        logger.info.apply(logger, args);
+        logger.info(args);
+      }
+    }
+
+
+    async function updateUserCurrency(uid, amount: number, currency: string = config.currency) {
+      try {
+        const numericUserId = Number(uid); // 将 userId 转换为数字类型
+
+        //  通过 ctx.monetary.gain 为用户增加货币，
+        //  或者使用相应的 ctx.monetary.cost 来减少货币
+        if (amount > 0) {
+          await ctx.monetary.gain(numericUserId, amount, currency);
+          logInfo(`为用户 ${uid} 增加了 ${amount} ${currency}`);
+        } else if (amount < 0) {
+          await ctx.monetary.cost(numericUserId, -amount, currency);
+          logInfo(`为用户 ${uid} 减少了 ${-amount} ${currency}`);
+        }
+
+        return `用户 ${uid} 成功更新了 ${Math.abs(amount)} ${currency}`;
+      } catch (error) {
+        ctx.logger.error(`更新用户 ${uid} 的货币时出错: ${error}`);
+        return `更新用户 ${uid} 的货币时出现问题。`;
+      }
+    }
+
+    async function getUserCurrency(uid, currency = config.currency) {
+      try {
+        const numericUserId = Number(uid);
+        const [data] = await ctx.database.get('monetary', {
+          uid: numericUserId,
+          currency,
+        }, ['value']);
+
+        return data ? data.value : 0;
+      } catch (error) {
+        ctx.logger.error(`获取用户 ${uid} 的货币时出错: ${error}`);
+        return 0; // Return 0 
       }
     }
   })
