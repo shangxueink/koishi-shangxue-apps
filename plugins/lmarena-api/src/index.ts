@@ -1,5 +1,7 @@
 import { Context, Schema, h, Logger, Session } from "koishi"
-import defaultCommands from './../data/command.json'
+
+import { readFileSync } from "node:fs"
+import { resolve } from "node:path"
 
 export const name = "image-edit"
 export const inject = ["http", "logger", "i18n"]
@@ -9,15 +11,15 @@ export const usage = `
 
 通过配置API，调用 {{URL}}/v1/images/edits 接口实现手办化插件的功能。
 
-推荐站点：https://happyapi.org/ 或者 https://api.bltcy.ai/
+推荐站点：https://happyapi.org/ （happyapi）或者 https://api.bltcy.ai/ （柏拉图）
 
-推荐模型：doubao-seedream-4-0-250828
+推荐模型：doubao-seedream-4-0-250828 （豆包-即梦AI 4.0）
 
-这个比较便宜捏（基本一毛钱一张
+这个模型效果不错，价格还可以捏（基本一毛钱一张
 
 ---
 
-如果你也使用的是happyapi，那么使用默认配置，直接开启插件就可以使用啦。
+如果你使用的是happyapi，那么使用默认配置，直接开启插件就可以使用啦。
 
 如果你是其他API站点，请手动编辑配置项的请求参数，**尤其是模型！**
 `;
@@ -53,7 +55,7 @@ export const Config: Schema<Config> = Schema.intersect([
       Schema.object({
         name: Schema.string().required().description("<hr><hr><hr><hr><hr><br>指令名称"),
         enabled: Schema.boolean().default(true).description("是否启用该指令"),
-        apiParams: Schema.dict(String).role('table').description("自定义API请求的body参数").default({
+        apiParams: Schema.dict(String).role('table').description("自定义API的POST请求body参数").default({
           "model": "",
           "prompt": "{{prompt}}",
           "size": "1024x1024",
@@ -62,14 +64,13 @@ export const Config: Schema<Config> = Schema.intersect([
           "response_format": "url"
         }),
         prompt: Schema.string().role("textarea", { rows: [6, 4] }).description("该指令对应的提示词"),
-      })).description("折叠起来的指令配置<br>超级长的配置项，慎点").default(defaultCommands),
+      })).description("可以折叠的指令配置<br>超级长的配置项，慎点").default(loadDefaultCommands()),
   }).description("指令配置"),
 
   Schema.object({
     loggerinfo: Schema.boolean().default(false).description("日志调试模式"),
   }).description("调试设置"),
 ]) as Schema<Config>
-
 
 export function apply(ctx: Context, config: Config) {
   ctx.on("ready", () => {
@@ -252,4 +253,15 @@ export function apply(ctx: Context, config: Config) {
       }
     }
   })
+}
+
+function loadDefaultCommands(): Command[] {
+  try {
+    const configPath = resolve(__dirname, '../data/command.json')
+    const configData = readFileSync(configPath, 'utf-8')
+    return JSON.parse(configData)
+  } catch (error) {
+    logger.warn('无法加载默认配置文件，使用空配置:', error.message)
+    return []
+  }
 }
