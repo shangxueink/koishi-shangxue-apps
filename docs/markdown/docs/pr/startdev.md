@@ -18,6 +18,8 @@ yarn clone shangxueink/koishi-shangxue-apps
 yarn clone shangxueink/koishi-plugin-puppeteer-without-canvas
 yarn clone BSTluo/koishi-plugin-adapter-iirose
 yarn clone Roberta001/koishi-plugin-adapter-bilibili-dm
+yarn clone idranme/koishi-plugin-gif-reverse
+yarn clone idranme/koishi-plugin-music-voice
 ```
 
 ## 发布管理
