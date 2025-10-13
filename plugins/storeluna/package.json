@@ -1,29 +1,67 @@
 {
   "name": "koishi-plugin-storeluna",
-  "description": "/*storeluna*/通过koishi，⭐快速搭建你的koishi镜像！支持统计访问量📈、同步次数🔄、成功次数✅、白名单规则数🟢、黑名单规则数🔴🛠️.....",
-  "version": "1.1.10",
-  "main": "lib/index.js",
-  "typings": "lib/index.d.ts",
+  "description": "/*storeluna*/ 使用控制台安装、卸载、更新你的插件",
+  "version": "2.0.0",
+  "main": "lib/node/index.js",
+  "types": "lib/index.d.ts",
   "files": [
     "lib"
   ],
   "license": "MIT",
   "keywords": [
+    "bot",
     "chatbot",
     "koishi",
-    "插件市场镜像",
-    "plugin"
+    "plugin",
+    "market",
+    "manager",
+    "server"
   ],
   "homepage": "https://github.com/shangxueink/koishi-shangxue-apps/tree/main/plugins/storeluna",
   "bugs": {
     "url": "https://github.com/shangxueink/koishi-shangxue-apps/issues"
   },
-  "service": {
-    "required": [
-      "server"
-    ]
+  "koishi": {
+    "public": [
+      "dist"
+    ],
+    "description": {
+      "en": "Manage your plugins with console",
+      "zh": "/*storeluna*/ 使用控制台安装、卸载、更新你的插件"
+    },
+    "service": {
+      "optional": [
+        "console"
+      ],
+      "implements": [
+        "installer"
+      ]
+    }
   },
   "peerDependencies": {
-    "koishi": "^4.18.0"
+    "@koishijs/plugin-console": "^5.30.7",
+    "koishi": "^4.18.7"
+  },
+  "peerDependenciesMeta": {
+    "@koishijs/plugin-console": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@koishijs/client": "^5.30.7",
+    "@koishijs/market": "^4.2.5",
+    "@koishijs/plugin-config": "^2.8.6",
+    "@types/semver": "^7.5.8",
+    "@types/which-pm-runs": "^1.0.2"
+  },
+  "dependencies": {
+    "@koishijs/console": "^5.30.7",
+    "@koishijs/registry": "^7.0.3",
+    "execa": "^5.1.1",
+    "get-registry": "^1.2.0",
+    "ns-require": "^1.1.4",
+    "p-map": "^4.0.0",
+    "semver": "^7.6.3",
+    "which-pm-runs": "^1.1.0"
   }
 }
