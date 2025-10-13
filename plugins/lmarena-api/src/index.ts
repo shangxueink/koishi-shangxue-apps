@@ -1,5 +1,5 @@
 import { Context, Schema, h, Logger, Session } from "koishi"
-import defaultCommands from './command.json'
+import defaultCommands from './../data/command.json'
 
 export const name = "image-edit"
 export const inject = ["http", "logger", "i18n"]
@@ -9,9 +9,11 @@ export const usage = `
 
 通过配置API，调用 {{URL}}/v1/images/edits 接口实现手办化插件的功能。
 
-推荐站点：https://happyapi.org/
+推荐站点：https://happyapi.org/ 或者 https://api.bltcy.ai/
 
-这个比较便宜捏（
+推荐模型：doubao-seedream-4-0-250828
+
+这个比较便宜捏（基本一毛钱一张
 
 ---
 
@@ -26,10 +28,6 @@ interface Command {
   name: string
   prompt: string
   enabled: boolean
-  custom: boolean
-  maxImages: number
-  waitTimeout: number
-  defaultImageUrls: string[]
   apiParams: Record<string, string>
 }
 
@@ -37,39 +35,35 @@ interface Config {
   basename: string
   apiUrl: string
   apiKey: string
-  nested: {
-    commands: Command[]
-  }
+  waitTimeout: number
+  customCommands: Command[]
   loggerinfo: boolean
 }
 
 export const Config: Schema<Config> = Schema.intersect([
   Schema.object({
     basename: Schema.string().default("imagen").description("父级指令名称"),
-    apiUrl: Schema.string().default("https://cn.happyapi.org/v1/images/edits").role("link").description("API 服务器地址"),
+    apiUrl: Schema.string().default("https://cn.happyapi.org/v1/images/edits").role("link").description("API 服务器地址<br>注意是`{{URL}}/v1/images/edits`的接口"),
     apiKey: Schema.string().role("secret").required().description("API 密钥"),
-    nested: Schema.object({
-      commands: Schema.array(
-        Schema.object({
-          name: Schema.string().required().description("<hr><hr><hr><hr><hr><br>指令名称"),
-          enabled: Schema.boolean().default(true).description("是否启用该指令"),
-          maxImages: Schema.number().default(1).min(0).max(5).description("需要用户提供的图片数量（不包括默认图片）"),
-          defaultImageUrls: Schema.array(Schema.string().role("link")).description("默认图片URL列表（即默认输入一张图，此图不计入用户图片数量）").default([]),
-          waitTimeout: Schema.number().default(50).max(200).min(10).step(1).description("等待输入图片的最大时间（秒）"),
-          custom: Schema.boolean().default(false).description("是否为【用户自定义指令】（需要用户输入提示词）"),
-          prompt: Schema.string().role("textarea", { rows: [4, 4] }).description("该指令对应的提示词（【用户自定义指令】可留空此项）"),
-          apiParams: Schema.dict(String).role('table').description("自定义API请求的body参数").default({
-            "model": "",
-            "prompt": "{{prompt}}",
-            "size": "1024x1024",
-            "n": "1",
-            "type": "normal",
-            "response_format": "url"
-          }),
-          // @ts-ignore
-        })).description("指令配置").default(defaultCommands),
-    }).collapse().description("指令配置"),
+    waitTimeout: Schema.number().default(60).max(200).min(10).step(1).description("等待输入图片的最大时间（秒）"),
   }).description("基础配置"),
+
+  Schema.object({
+    customCommands: Schema.array(
+      Schema.object({
+        name: Schema.string().required().description("<hr><hr><hr><hr><hr><br>指令名称"),
+        enabled: Schema.boolean().default(true).description("是否启用该指令"),
+        apiParams: Schema.dict(String).role('table').description("自定义API请求的body参数").default({
+          "model": "",
+          "prompt": "{{prompt}}",
+          "size": "1024x1024",
+          "n": "1",
+          "type": "normal",
+          "response_format": "url"
+        }),
+        prompt: Schema.string().role("textarea", { rows: [6, 4] }).description("该指令对应的提示词"),
+      })).description("折叠起来的指令配置<br>超级长的配置项，慎点").default(defaultCommands),
+  }).description("指令配置"),
 
   Schema.object({
     loggerinfo: Schema.boolean().default(false).description("日志调试模式"),
@@ -85,14 +79,11 @@ export function apply(ctx: Context, config: Config) {
         [config.basename]: {
           description: "使用 AI 编辑图片",
           messages: {
-            waitpromptmultiple: "请在{0}秒内发送{1}张图片...",
-            customprompt: "请在{0}秒内输入自定义提示词...",
-            invalidimage: "未检测到有效的图片，请重新发送带图片的消息",
+            invalidimage: "未检测到有效的图片，请重新发送带图片的消息。",
             processing: "正在处理图片，请稍候...",
-            failed: "图片生成失败，请稍后重试",
+            failed: "图片生成失败，请稍后重试。",
             error: "处理过程中发生错误: {0}",
-            needprompt: "请提供自定义提示词",
-            needimages: "请提供至少一张图片"
+            needimages: "未检测到图片。请重新交互，提供至少一张图片。"
           },
         },
       }
@@ -100,63 +91,20 @@ export function apply(ctx: Context, config: Config) {
 
     ctx.command(config.basename)
 
-    for (const cmdConfig of config.nested.commands) {
+    for (const cmdConfig of config.customCommands) {
       if (!cmdConfig.enabled) continue;
 
-      ctx.command(`${config.basename}.${cmdConfig.name} [message:text]`)
+      ctx.command(`${config.basename}.${cmdConfig.name} [...args]`, `${cmdConfig.name} 风格绘画`)
         .usage(`${cmdConfig.name} 处理图片`)
-        .action(async ({ session }, message) => {
+        .action(async ({ session }, ...args) => {
           if (!session) return
           const quote = h.quote(session.messageId)
-          const { custom, maxImages, waitTimeout, defaultImageUrls } = cmdConfig
-          let promptText = cmdConfig.prompt
+          const promptText = cmdConfig.prompt
           let images: string[] = []
 
-          if (defaultImageUrls.length > 0) {
-            images.push(...defaultImageUrls)
-            logInfo(`添加 ${defaultImageUrls.length} 张默认图片`)
-          }
-
-          if (custom) {
-            let textContent: string | undefined
-            if (message) {
-              const textElements = h.select(session.stripped.content, "text")
-              if (textElements.length > 0) {
-                textContent = textElements.map(el => el.attrs.content || "").join(" ").trim()
-              }
-            }
-
-            if (textContent) {
-              promptText = promptText ? `${promptText}\n\n${textContent}` : textContent
-            }
-
-            if (!promptText) {
-              await session.send(h.text(session.text(`commands.${config.basename}.messages.customprompt`, [waitTimeout])))
-              const userPrompt = await session.prompt(waitTimeout * 1000)
-              if (userPrompt) {
-                promptText = cmdConfig.prompt ? `${cmdConfig.prompt}\n\n${userPrompt}` : userPrompt
-              } else {
-                await session.send(h.text(session.text(`commands.${config.basename}.messages.needprompt`)))
-                return
-              }
-            }
-          }
-
+          // 从当前消息和引用消息中提取图片
           const extractedImages = extractImagesFromSession(session)
           images.push(...extractedImages)
-
-          const remainingImages = Math.max(0, maxImages - extractedImages.length)
-          if (remainingImages > 0) {
-            await session.send(h.text(session.text(`commands.${config.basename}.messages.waitpromptmultiple`, [waitTimeout, remainingImages])))
-            for (let i = 0; i < remainingImages; i++) {
-              const promptContent = await session.prompt(waitTimeout * 1000)
-              if (promptContent) {
-                images.push(...extractImagesFromMessage(promptContent))
-              } else {
-                break
-              }
-            }
-          }
 
           if (images.length === 0) {
             await session.send(h.text(session.text(`commands.${config.basename}.messages.needimages`)))
@@ -185,7 +133,14 @@ export function apply(ctx: Context, config: Config) {
             const result = await callImageEditApi(files, promptText, cmdConfig.apiParams)
 
             if (result) {
-              return h.image(result)
+              // 处理单张图片或多张图片的情况
+              if (Array.isArray(result)) {
+                // 多张图片：发送所有图片
+                return result.map(url => h.image(url))
+              } else {
+                // 单张图片：直接发送
+                return h.image(result)
+              }
             } else {
               await session.send(h.text(session.text(`commands.${config.basename}.messages.failed`)))
               return
@@ -212,7 +167,7 @@ export function apply(ctx: Context, config: Config) {
       return h.select(content, "img").map(img => img.attrs.src).filter(Boolean)
     }
 
-    async function callImageEditApi(files: { data: ArrayBuffer, mime: string, filename: string }[], prompt: string, apiParams: Record<string, string>): Promise<string | null> {
+    async function callImageEditApi(files: { data: ArrayBuffer, mime: string, filename: string }[], prompt: string, apiParams: Record<string, string>): Promise<string[] | string | null> {
       const formData = new FormData()
       const logParams = {}
       const imageKey = Object.keys(apiParams).find(key => apiParams[key] === '{{inputimage}}');
@@ -240,11 +195,10 @@ export function apply(ctx: Context, config: Config) {
         logParams[key] = finalValue;
       }
 
-      logInfo("使用 fetch 发送 API 请求:", {
+      logInfo("发送 API 请求:", {
         url: config.apiUrl,
         ...logParams,
         prompt: (logParams['prompt'] || '').substring(0, 100) + ((logParams['prompt'] || '').length > 100 ? '...' : ''),
-        imageCount: files.length
       })
 
       try {
@@ -265,9 +219,17 @@ export function apply(ctx: Context, config: Config) {
         const contentType = response.headers.get("content-type")
         if (contentType && contentType.includes("application/json")) {
           const result = await response.json()
-          if (result.data && Array.isArray(result.data) && result.data[0].url) {
-            logInfo("API 成功响应 (JSON):", result.data[0].url)
-            return result.data[0].url
+          if (result.data && Array.isArray(result.data)) {
+            // 提取所有有效的图片 URL
+            const urls = result.data
+              .filter(item => item && item.url)
+              .map(item => item.url)
+
+            if (urls.length > 0) {
+              logInfo(`API 成功响应 (JSON): 返回 ${urls.length} 张图片`)
+              // 如果只有一张图片，返回字符串；多张图片返回数组
+              return urls.length === 1 ? urls[0] : urls
+            }
           }
         } else if (contentType && contentType.startsWith("image/")) {
           const buffer = await response.arrayBuffer()

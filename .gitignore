@@ -28,3 +28,4 @@ tsconfig.tsbuildinfo
 *.ntvs*
 *.njsproj
 *.sln
+plugins/*/tsconfig.tsbuildinfo
