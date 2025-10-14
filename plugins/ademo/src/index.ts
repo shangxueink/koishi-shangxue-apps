@@ -28,10 +28,13 @@ export const Config: Schema<Config> = Schema.intersect([
 
 export function apply(ctx: Context, config: Config) {
   // write your plugin here
+  ctx.on('ready', () => {
 
-  function logInfo(...args: any[]) {
-    if (config.loggerinfo) {
-      (logger.info as (...args: any[]) => void)(...args);
+    function logInfo(...args: any[]) {
+      if (config.loggerinfo) {
+        (logger.info as (...args: any[]) => void)(...args);
+      }
     }
-  }
+
+  })
 }
