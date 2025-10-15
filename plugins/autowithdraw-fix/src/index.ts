@@ -26,7 +26,9 @@ export const usage = `
 
 目前仅在 onebot 平台测试 实际可用！
 
-已知bug：发送消息时，无法回显messageId
+已知bug：由于[before send 事件特性](https://koishi.chat/zh-CN/api/core/events.html#%E4%BA%8B%E4%BB%B6-before-send)，发送消息时，无法回显messageId。
+
+这会导致其他插件一直判断为消息发送失败（但实际发送成功）。
 
 ---
 `;
@@ -135,7 +137,7 @@ export async function apply(ctx: Context, config) {
           ctx.logger.info(aaa)
           const bbb = await session.send("即时回复222");
           ctx.logger.info(bbb)
-          await sleep(10000);
+          await sleep(10 * 1000);
           const ccc = await session.send("延时回复222");
           ctx.logger.info(ccc)
           const ddd = await session.send("延时回复222");
