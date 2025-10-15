@@ -207,7 +207,7 @@ export async function apply(ctx: Context, config) {
         logInfo(`拦截已撤回session的后续消息: SN=${sessionSn}`);
         outputSession.content = '';
         logInfo("========= before-send 事件结束 =========");
-        return false;
+        return true; // 返回一个 truthy 值可以取消消息的发送
       }
 
       const shouldSkip = config.returntable.some(item => outputContent.includes(item.include));
@@ -298,11 +298,11 @@ export async function apply(ctx: Context, config) {
         // 清空原始内容防止重复发送
         outputSession.content = '';
         logInfo("========= before-send 事件结束 =========");
-        return false;
+        return true; // 返回一个 truthy 值可以取消消息的发送
       } catch (error: any) {
         ctx.logger.error("手动发送消息失败:", error);
         logInfo("========= before-send 事件结束 =========");
-        return false;
+        return;
       }
     }, true);
 
