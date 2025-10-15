@@ -1,9 +1,14 @@
 import { Context, Schema, h } from 'koishi';
+
 import { } from 'koishi-plugin-puppeteer';
 import { } from 'koishi-plugin-monetary'
+
 import fs from 'node:fs';
 import path from 'node:path';
+
 export const name = 'deer-pipe';
+export const inject = ['database', 'puppeteer', 'monetary'];
+
 export const usage = `
 <!DOCTYPE html>
 <html lang="zh-CN">
@@ -90,19 +95,34 @@ export const usage = `
 本插件的排行榜用户昵称可以通过 [callme](/market?keyword=callme) 插件自定义
 在未指定 callme 插件的名称的时候，默认使用 适配器的username，或者userid
 `;
+
 export const Config: Schema = Schema.intersect([
   Schema.object({
     maximum_helpsignin_times_per_day: Schema.number().description('每日帮助别人签到次数上限（不受重复签到开关控制）').default(5).min(1),
     enable_deerpipe: Schema.boolean().description('开启后，允许重复签到<br>关闭后就没有重复签到的玩法').default(false),
     maximum_times_per_day: Schema.number().description('每日签到次数上限`小鹿怡..什么伤身来着`').default(3).min(1),
     enable_blue_tip: Schema.boolean().description('开启后，签到后会返回补签玩法提示').default(false),
-    //enable_use_key_to_help: Schema.boolean().description('开启后，允许使用【钥匙】强制开锁').default(true),
-  }).description('签到设置'),
+  }).description('基础设置'),
+
+  Schema.object({
+    delete_message_after_signin: Schema.boolean().description('开启后，会撤回签到消息。').default(false),
+  }).description('进阶设置'),
+  Schema.union([
+    Schema.object({
+      delete_message_after_signin: Schema.const(true).required(),
+      delete_message_time: Schema.number().description('发送消息若干秒后撤回。（单位：秒）').default(30).min(10).max(120).step(1).role('slider'),
+    }),
+    Schema.object({
+      delete_message_after_signin: Schema.const(false),
+    }),
+  ]),
+
   Schema.object({
     leaderboard_people_number: Schema.number().description('签到次数·排行榜显示人数').default(15).min(3),
     enable_allchannel: Schema.boolean().description('开启后，排行榜将展示全部用户排名`关闭则仅展示当前频道的用户排名`').default(false),
     Reset_Cycle: Schema.union(['每月', '不重置']).default("每月").description("签到数据重置周期。（相当于重新开始排名）"),
   }).description('签到次数·排行榜设置'),
+
   Schema.object({
     currency: Schema.string().default('default').description('monetary 的 currency 字段'),
     cost: Schema.object({
@@ -180,6 +200,7 @@ export const Config: Schema = Schema.intersect([
       })).role('table').default([{ "item": "锁", "cost": -50 }, { "item": "钥匙", "cost": -250 }]).description('【购买】商店道具货价表'),
     })).role('table').description('货币平衡设置——**特殊价格表**<br>需在`store_item`右侧白框填入`用户ID`或者`频道ID`<br>涉及游戏平衡，谨慎修改')
   }).description('monetary·通用货币设置'),
+
   Schema.object({
     fontPath: Schema.string().description("渲染排行榜使用的字体（包含emoji）。<br>请填写`.ttf 字体文件`的绝对路径<br>若渲染功能正常，请不要修改此项！以免出现问题<br>仅供部分显示有问题的用户使用-> [Noto+Color+Emoji](https://fonts.google.com/noto/specimen/Noto+Color+Emoji)"),
     calendarImagePreset1: Schema.union([
@@ -211,9 +232,10 @@ export const Config: Schema = Schema.intersect([
   ]),
 
   Schema.object({
-    console: Schema.boolean().description('启用调试日志输出模式').default(false).experimental(),
+    logInfo: Schema.boolean().description('启用调试日志输出模式').default(false).experimental(),
   }).description('开发者选项'),
 ]);
+
 interface DeerPipeTable {
   userid: string;
   username: string;
@@ -225,12 +247,13 @@ interface DeerPipeTable {
   allowHelp: boolean;
   itemInventory: string[];
 }
+
 declare module 'koishi' {
   interface Tables {
     deerpipe: DeerPipeTable;
   }
 }
-export const inject = ['database', 'puppeteer', 'monetary'];
+
 export async function apply(ctx: Context, config) {
   ctx.on('ready', async () => {
     ctx.model.extend('deerpipe', {
@@ -270,16 +293,13 @@ export async function apply(ctx: Context, config) {
       const fontPath = config.fontPath?.trim()
       if (fontPath) {
         const fontData = await fs.promises.readFile(fontPath);
-        loggerinfo(`读取字体路径：${config.fontPath}`)
+        logInfo(`读取字体路径：${config.fontPath}`)
         fontBase64 = fontData.toString('base64');
-      } else {
-        loggerinfo(`默认，没有指定字体。`)
       }
     } catch (error) {
       ctx.logger.error(`读取字体文件失败: ${error}`);
       // return; // 阻止插件加载
     }
-
 
     const zh_CN_default = {
       commands: {
@@ -491,8 +511,8 @@ export async function apply(ctx: Context, config) {
         const balance = await getUserCurrency(ctx, targetUserIduid); // 使用 targetUserId 对应的 aid 获取余额
         const imgBuf = await renderSignInCalendar(ctx, targetUserId, targetUsername, currentYear, currentMonth);
         const calendarImage = h.image(imgBuf, 'image/png');
-        await session.send(h.at(targetUserId) + ` ` + h.text(session.text(`.balance`, [balance])));
-        await session.send(calendarImage);
+        await sendWithDelete(session, h.at(targetUserId) + ` ` + h.text(session.text(`.balance`, [balance])));
+        await sendWithDelete(session, calendarImage);
       });
     // 【鹿 [user]】指令，仅对 session.userId 进行签到
     ctx.command('鹿管签到/鹿 [user]', '鹿管签到', { authority: 1 })
@@ -601,9 +621,9 @@ export async function apply(ctx: Context, config) {
         const calendarImage = h.image(imgBuf, 'image/png');
         await updateUserCurrency(ctx, session.user.id, cost);
         if (config.enable_blue_tip) {
-          await session.send(calendarImage + `<p>` + h.at(sessionUserId) + session.text('.Sign_in_success', [sessionRecord.totaltimes, cost]) + session.text('.enable_blue_tip'));
+          await sendWithDelete(session, calendarImage + `<p>` + h.at(sessionUserId) + session.text('.Sign_in_success', [sessionRecord.totaltimes, cost]) + session.text('.enable_blue_tip'));
         } else {
-          await session.send(calendarImage + `<p>` + h.at(sessionUserId) + session.text('.Sign_in_success', [sessionRecord.totaltimes, cost]));
+          await sendWithDelete(session, calendarImage + `<p>` + h.at(sessionUserId) + session.text('.Sign_in_success', [sessionRecord.totaltimes, cost]));
         }
         return;
       });
@@ -758,11 +778,11 @@ export async function apply(ctx: Context, config) {
         const calendarImage = h.image(imgBuf, 'image/png');
         // 发送带图片的消息
         const message = `${calendarImage}\n` + `${session.text('.Sign_in_success', [targetRecord.totaltimes, cost1])} `;
-        await session.send(`${h.at(session.userId)} ${session.text('.Help_sign_in', [targetUsername, cost2])}`);
+        await sendWithDelete(session, `${h.at(session.userId)} ${session.text('.Help_sign_in', [targetUsername, cost2])}`);
         if (config.enable_blue_tip) {
-          await session.send(message + session.text('.enable_blue_tip'));
+          await sendWithDelete(session, message + session.text('.enable_blue_tip'));
         } else {
-          await session.send(message);
+          await sendWithDelete(session, message);
         }
       });
     ctx.command('鹿管签到/鹿榜', '查看签到排行榜', { authority: 1 })
@@ -774,7 +794,7 @@ export async function apply(ctx: Context, config) {
         const filteredRecords = enableAllChannel
           ? records
           : records.filter(record => record.channelId?.includes(session.channelId));
-        loggerinfo(filteredRecords)
+        logInfo(filteredRecords)
         const currentMonth = new Date().getMonth() + 1;
         const currentYear = new Date().getFullYear();
         const currentRecordtime = `${currentYear}-${currentMonth}`;
@@ -1011,9 +1031,9 @@ ${deer.order === 3 ? '<span class="medal">🥉</span>' : ''}
         const calendarImage = h.image(imgBuf, 'image/png');
         // 发送签到成功信息
         if (user) {
-          await session.send(calendarImage + `<p>` + h.at(targetUserId) + session.text('.help_others_Resign_success', [dayNum]) + `<p>` + h.at(session.userId) + session.text('.help_others_Resign_success_cost', [cost]));
+          await sendWithDelete(session, calendarImage + `<p>` + h.at(targetUserId) + session.text('.help_others_Resign_success', [dayNum]) + `<p>` + h.at(session.userId) + session.text('.help_others_Resign_success_cost', [cost]));
         } else {
-          await session.send(calendarImage + `<p>` + h.at(targetUserId) + session.text('.Resign_success', [dayNum, cost]));
+          await sendWithDelete(session, calendarImage + `<p>` + h.at(targetUserId) + session.text('.Resign_success', [dayNum, cost]));
         }
         return;
       });
@@ -1070,7 +1090,7 @@ ${deer.order === 3 ? '<span class="medal">🥉</span>' : ''}
             });
             const imgBuf = await renderSignInCalendar(ctx, session.userId, username, currentYear, currentMonth);
             const calendarImage = h.image(imgBuf, 'image/png');
-            await session.send(calendarImage + `<p>` + h.at(session.userId) + session.text('.Cancel_sign_in_success', [dayNum, cost]));
+            await sendWithDelete(session, calendarImage + `<p>` + h.at(session.userId) + session.text('.Cancel_sign_in_success', [dayNum, cost]));
           } else {
             await session.send(`${h.at(session.userId)} ${session.text('.No_sign_in', [dayNum])}`);
           }
@@ -1078,11 +1098,41 @@ ${deer.order === 3 ? '<span class="medal">🥉</span>' : ''}
           await session.send(`${h.at(session.userId)} ${session.text('.No_sign_in', [dayNum])}`);
         }
       });
-    function loggerinfo(message) {
-      if (config.console) {
+
+    function logInfo(message) {
+      if (config.logInfo) {
         ctx.logger.info(message);
       }
     }
+
+    async function sendWithDelete(session, content) {
+      if (!config.delete_message_after_signin) {
+        // 如果未开启撤回功能，直接发送消息
+        await session.send(content);
+        return
+      }
+      const messageResult = await session.send(content);
+      // 设置定时器在指定时间后撤回消息
+      ctx.setTimeout(async () => {
+        try {
+          if (Array.isArray(messageResult)) {
+            // 如果返回的是消息ID数组，撤回所有消息
+            for (const messageId of messageResult) {
+              await session.bot.deleteMessage(session.channelId, messageId);
+            }
+          } else if (typeof messageResult === 'number' || typeof messageResult === 'string') {
+            // 如果返回的是单个消息ID，撤回该消息
+            await session.bot.deleteMessage(session.channelId, messageResult);
+          }
+          logInfo(`已撤回签到消息，消息ID: ${messageResult}`);
+        } catch (error) {
+          ctx.logger.error(`撤回消息失败: ${error}`);
+        }
+      }, config.delete_message_time * 1000);
+
+      return messageResult;
+    }
+
     async function updateUserCurrency(ctx: Context, uid, amount: number, currency: string = config.currency) {
       try {
         const numericUserId = Number(uid); // 将 userId 转换为数字类型
@@ -1090,10 +1140,10 @@ ${deer.order === 3 ? '<span class="medal">🥉</span>' : ''}
         //  或者使用相应的 ctx.monetary.cost 来减少货币
         if (amount > 0) {
           await ctx.monetary.gain(numericUserId, amount, currency);
-          loggerinfo(`为用户 ${uid} 增加了 ${amount} ${currency}`);
+          logInfo(`为用户 ${uid} 增加了 ${amount} ${currency}`);
         } else if (amount < 0) {
           await ctx.monetary.cost(numericUserId, -amount, currency);
-          loggerinfo(`为用户 ${uid} 减少了 ${-amount} ${currency}`);
+          logInfo(`为用户 ${uid} 减少了 ${-amount} ${currency}`);
         }
         return `用户 ${uid} 成功更新了 ${Math.abs(amount)} ${currency}`;
       } catch (error) {
@@ -1129,7 +1179,6 @@ ${deer.order === 3 ? '<span class="medal">🥉</span>' : ''}
       // 返回 aid 字段作为对应的 id
       return bindingRecord.aid;
     }
-
 
     async function renderSignInCalendar(ctx: Context, userId: string, username: string, year: number, month: number): Promise<Buffer> {
       const [record] = await ctx.database.get('deerpipe', { userid: userId });

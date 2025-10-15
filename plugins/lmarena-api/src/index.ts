@@ -68,10 +68,18 @@ export const Config: Schema<Config> = Schema.intersect([
 
   Schema.object({
     commandAuthority: Schema.number().default(1).max(5).min(0).description("指令所需权限"),
-    monetaryCommands: Schema.boolean().default(false).description("引入货币服务"),
-    currency: Schema.string().default('default').description('monetary 数据库的 currency 字段名称（货币种类）'),
-    monetaryCost: Schema.number().default(-1000).max(0).description("每次调用指令的货币变化数量（负数）（-1000代表消耗1000个货币）"),
+    monetaryCommands: Schema.boolean().default(false).description("调用指令时，消耗货币（需要monetary服务）"),
   }).description("进阶指令功能配置"),
+  Schema.union([
+    Schema.object({
+      monetaryCommands: Schema.const(true).required(),
+      currency: Schema.string().default('default').description('monetary 数据库的 currency 字段名称（货币种类）<br>一般保持默认即可'),
+      monetaryCost: Schema.number().default(-1000).max(0).description("每次调用指令的货币变化数量==**（负数）**（-1000代表消耗1000个货币）"),
+    }),
+    Schema.object({
+      monetaryCommands: Schema.const(false),
+    }),
+  ]),
 
   Schema.object({
     customCommands: Schema.array(
