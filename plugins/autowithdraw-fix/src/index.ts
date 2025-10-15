@@ -173,16 +173,15 @@ export async function apply(ctx: Context, config) {
         return;
       }
 
+      if (!config.enableplatform.includes(options.session.platform)) {
+        return; // 插件不生效
+      }
+
       const inputSession = options.session;
       const outputSession = _session;
       const inputMessageId = inputSession.messageId;
       const outputContent = outputSession.content;
       const sessionSn = inputSession.sn;
-      const platform = inputSession.platform;
-
-      if (!config.enableplatform.includes(platform)) {
-        return; // 插件不生效
-      }
 
       if (!inputMessageId) {
         return;
