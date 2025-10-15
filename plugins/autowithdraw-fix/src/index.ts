@@ -1,13 +1,12 @@
-import { Context, Schema, sleep, h, Model } from "koishi";
+import { Context, Schema, sleep, h } from "koishi";
 
 export const name = "autowithdraw-fix";
 export const inject = ["logger"];
+
 export const usage = `
 ---
 
-<h2>简介</h2>
-
-<p>在用户输入被撤回后，自动撤回机器人响应的关联消息。</p>
+<p>在用户撤回指令后，自动撤回机器人的指令响应消息。</p>
 
 ---
 
@@ -16,8 +15,9 @@ export const usage = `
 <ul>
 <li>确保 Koishi 机器人具有撤回消息的权限。</li>
 <li><code>withdrawExpire</code> 设置得太小可能会导致插件无法正确撤回消息。</li>
-<li><code>loggerinfo</code> 选项仅用于调试目的，不建议在生产环境中开启。</li>
 </ul>
+
+---
 
 <h2>灵感来源</h2>
 <p>灵感来自这个项目：<a href="https://github.com/Kabuda-czh/koishi-plugin-autowithdraw/" target="_blank">github.com/Kabuda-czh/koishi-plugin-autowithdraw</a></p>
@@ -26,10 +26,10 @@ export const usage = `
 
 目前仅在 onebot 平台测试 实际可用！
 
-已知bug：在qq平台使用会导致报错，发不出消息。
+已知bug：发送消息时，无法回显messageId
 
+---
 `;
-
 
 export const Config =
   Schema.intersect([
@@ -38,8 +38,26 @@ export const Config =
     }).description('基础设置'),
 
     Schema.object({
-      quoteEnable: Schema.boolean().default(false).description("是否 以引用的方式发送 回复内容（还有其他功能）<br>可能会有兼容问题，谨慎开启").experimental(),
-    }).description('追加消息设置'),
+      withdrawExpire: Schema.number().default(150).description("记录`session.sn`的过期时间 (秒)<br>超出此时间的`session.sn`将被清除记录，不再能找到对应需要撤回的消息ID<br>此时间应该大于用户限定撤回时间，例如`onebot`平台：两分钟`（120秒）`"),
+      returntable: Schema.array(Schema.object({
+        include: Schema.string().description("关键词"),
+      })).role('table').description("`响应内容`包含特定字符时，不进行代理发送<br>即 消息包含下面的任意一个内容时，跳过本插件逻辑"),
+    }).description('进阶设置'),
+
+    Schema.object({
+      autodeleteMessage: Schema.boolean().default(false).description("定时撤回已经发送的所有消息").experimental(),
+    }).description('定时撤回设置'),
+    Schema.union([
+      Schema.object({
+        autodeleteMessage: Schema.const(true).required(),
+        autodeleteMessagewithdrawExpire: Schema.number().default(60).description("发送多少秒后 开始消息撤回 (单位：秒)<br>此值应小于`平台限定的撤回时间`，例如`onebot`平台：两分钟`（120秒）`"),
+      }),
+      Schema.object({}),
+    ]),
+
+    Schema.object({
+      quoteEnable: Schema.boolean().default(false).description("为发送的消息 强制追加前缀内容<br>可能会有兼容问题，谨慎开启<br>默认效果是强制使用quote回复").experimental(),
+    }).description('追加消息前缀'),
     Schema.union([
       Schema.object({
         quoteEnable: Schema.const(true).required(),
@@ -83,30 +101,11 @@ export const Config =
     ]),
 
     Schema.object({
-      withdrawExpire: Schema.number().default(150).description("记录`session.sn`的过期时间 (秒)<br>超出此时间的`session.sn`将被清除记录，不再能找到对应需要撤回的消息ID<br>此时间应该大于用户限定撤回时间，例如`onebot`平台：两分钟`（120秒）`"),
-      returntable: Schema.array(Schema.object({
-        include: Schema.string().description("关键词"),
-      })).role('table').description("`响应内容`包含特定字符时，不进行代理发送<br>即 消息包含下面的任意一个内容时，跳过本插件逻辑"),
-    }).description('进阶设置'),
-
-    Schema.object({
-      autodeleteMessage: Schema.boolean().default(false).description("自动定时撤回机器人的所有消息<br>不论有没有用户有没有撤回输入，都定时撤回已发送的内容").experimental(),
-    }).description('自动撤回设置'),
-    Schema.union([
-      Schema.object({
-        autodeleteMessage: Schema.const(true).required(),
-        autodeleteMessagewithdrawExpire: Schema.number().default(60).description("设定阈值时间。发送多少秒后撤回消息 (秒)<br>需注意部分平台可能有撤回时间最大值限制，例如`onebot`平台：两分钟`（120秒）`"),
-      }),
-      Schema.object({}),
-    ]),
-
-    Schema.object({
       loggerinfo: Schema.boolean().default(false).description("日志调试：一般输出<br>提issue时，请开启此功能 并且提供BUG复现日志").experimental(),
       loggerinfo_content: Schema.boolean().default(false).description("日志调试：代发内容输出(content)<br>非开发者请勿改动").experimental(),
       loggerinfo_setInterval: Schema.boolean().default(false).description("日志调试：20 秒 定时打印 变量-视检<br>非开发者请勿改动").experimental(),
     }).description('调试设置'),
   ]);
-
 
 interface MessageIdMap {
   [originId: string]: {
@@ -123,26 +122,26 @@ export async function apply(ctx: Context, config) {
 
   ctx.on('ready', () => {
 
-
-    function logInfo(message: any, detail?: any) {
+    function logInfo(...args: (any)[]) {
       if (config.loggerinfo) {
-        if (detail) {
-          ctx.logger.info(message, detail);
-        } else {
-          ctx.logger.info(message);
-        }
+        ctx.logger(`DEV:${name}`).info(args)
       }
     }
 
     if (config.loggerinfo) {
       ctx.command('撤回测试')
         .action(async ({ session },) => {
-          await session.send(h.quote(session.messageId) + "即时回复111");
-          await session.send("即时回复222");
+          const aaa = await session.send(h.quote(session.messageId) + "即时回复111");
+          ctx.logger.info(aaa)
+          const bbb = await session.send("即时回复222");
+          ctx.logger.info(bbb)
           await sleep(10000);
-          await session.send("延迟回复111");
-          await session.send("延迟回复222");
+          const ccc = await session.send("延时回复222");
+          ctx.logger.info(ccc)
+          const ddd = await session.send("延时回复222");
+          ctx.logger.info(ddd)
         });
+
       if (config.loggerinfo_setInterval) {
         // 定时打印 messageIdMap 视检
         ctx.setInterval(() => {
@@ -182,7 +181,6 @@ export async function apply(ctx: Context, config) {
       const platform = inputSession.platform;
 
       if (!config.enableplatform.includes(platform)) {
-        logInfo(`当前平台 ${platform} 不在配置的可用平台列表中，插件跳过。可用平台：${config.enableplatform.join(', ')}`);
         return; // 插件不生效
       }
 
@@ -260,7 +258,6 @@ export async function apply(ctx: Context, config) {
           }
         }
 
-
         if (config.loggerinfo_content) {
           logInfo("发送内容:", messageToSend);
         }
@@ -335,7 +332,6 @@ export async function apply(ctx: Context, config) {
         withdrawnSessions.delete(sessionSn);
         logInfo(`[withdrawnSessions] 已定时清理 session.sn: ${sessionSn}`);
       }, config.withdrawExpire * 1000);
-
 
       // 撤回所有已发送的消息
       for (const id of replyIds) {
