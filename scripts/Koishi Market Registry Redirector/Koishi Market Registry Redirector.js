@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Koishi Market Registry Redirector
 // @namespace    https://github.com/shangxueink
-// @version      3.13
+// @version      3.14
 // @description  将 Koishi 市场注册表请求重定向到多个备用镜像源，支持自动重试、单独配置每个镜像源的代理请求解决CORS问题，并修复时间显示问题。
 // @author       shangxueink
 // @license      MIT
@@ -1566,7 +1566,7 @@
                 method: 'POST',
                 headers: {
                     'api-u': targetUrl,
-                    'api-o0': 'method=GET, timings=true, timeout=3000',
+                    'api-o0': 'method=GET, timings=true, timeout=30000',
                     'Content-Type': 'application/json'
                 },
                 cache: 'no-store'
