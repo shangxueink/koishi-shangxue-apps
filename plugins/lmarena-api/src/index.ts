@@ -42,7 +42,6 @@ interface Command {
   name: string
   prompt: string
   enabled: boolean
-  apiParams: Record<string, string>
 }
 
 interface Config {
@@ -50,6 +49,7 @@ interface Config {
   apiUrl: string
   apiKey: string
   waitTimeout: number
+  apiParams: Record<string, string>
   customCommands: Command[]
   loggerinfo: boolean
   monetaryCommands: boolean
@@ -61,10 +61,22 @@ interface Config {
 export const Config: Schema<Config> = Schema.intersect([
   Schema.object({
     basename: Schema.string().default("imagen").description("父级指令名称"),
+    waitTimeout: Schema.number().default(60).max(200).min(10).step(1).description("等待用户输入图片的最大时间（秒）"),
+  }).description("基础配置"),
+
+  Schema.object({
     apiUrl: Schema.string().default("https://cn.happyapi.org/v1/images/edits").role("link").description("API 服务器地址<br>注意是`{{URL}}/v1/images/edits`的接口"),
     apiKey: Schema.string().role("secret").required().description("API 密钥"),
-    waitTimeout: Schema.number().default(60).max(200).min(10).step(1).description("等待输入图片的最大时间（秒）"),
-  }).description("基础配置"),
+    apiParams: Schema.dict(String).role('table').description("API请求参数<br>POST请求的body参数").default({
+      "model": "doubao-seedream-4-0-250828",
+      "image": "{{inputimage}}",
+      "prompt": "{{prompt}}",
+      "size": "1024x1024",
+      "n": "1",
+      "type": "normal",
+      "response_format": "url"
+    }),
+  }).description("API配置"),
 
   Schema.object({
     commandAuthority: Schema.number().default(1).max(5).min(0).description("指令所需权限"),
@@ -84,17 +96,8 @@ export const Config: Schema<Config> = Schema.intersect([
   Schema.object({
     customCommands: Schema.array(
       Schema.object({
-        name: Schema.string().required().description("<hr><hr><hr><hr><hr><br>指令名称"),
-        enabled: Schema.boolean().default(true).description("是否启用该指令"),
-        apiParams: Schema.dict(String).role('table').description("自定义API的POST请求body参数").default({
-          "model": "",
-          "image": "{{inputimage}}",
-          "prompt": "{{prompt}}",
-          "size": "1024x1024",
-          "n": "1",
-          "type": "normal",
-          "response_format": "url"
-        }),
+        enabled: Schema.boolean().default(true).description("<hr><hr><hr><hr><hr><br>是否启用该指令"),
+        name: Schema.string().required().description("指令名称"),
         prompt: Schema.string().role("textarea", { rows: [6, 4] }).description("该指令对应的提示词"),
       })).description("可以折叠的指令配置<br>超级长的配置项，慎点").default(loadDefaultCommands()),
   }).description("完整指令配置"),
@@ -116,9 +119,12 @@ export function apply(ctx: Context, config: Config) {
             processing: "正在处理图片，请稍候...",
             failed: "图片生成失败，请稍后重试。",
             error: "处理过程中发生错误: {0}",
-            needimages: "未检测到图片。请重新交互，提供至少一张图片。",
+            needimages: "请发送图片：",
             insufficientCurrency: "余额不足！当前余额: {0} {1}，需要: {2} {1}",
-            currencyDeducted: "成功扣除 {0} {1}，当前余额: {2} {1}"
+            currencyDeducted: "成功扣除 {0} {1}，当前余额: {2} {1}",
+            noImagesInPrompt: "未检测到图片，请稍后重新交互。",
+            promptTimeout: "等待输入超时，请稍后重试。",
+            promptError: "交互式输入发生错误，请稍后重试。"
           },
         },
       }
@@ -166,15 +172,47 @@ export function apply(ctx: Context, config: Config) {
           const extractedImages = extractImagesFromSession(session)
           images.push(...extractedImages)
 
+          // 如果没有图片，进入交互式输入模式
           if (images.length === 0) {
-            await session.send(h.text(session.text(`commands.${config.basename}.messages.needimages`)))
-            return
+            const [needimagesMessageId] = await session.send(h.text(session.text(`commands.${config.basename}.messages.needimages`)))
+
+            try {
+              // 等待用户输入图片
+              const promptContent = await session.prompt(config.waitTimeout * 1000)
+              if (promptContent) {
+                const interactiveImages = extractImagesFromMessage(promptContent)
+                images.push(...interactiveImages)
+
+                if (images.length === 0) {
+                  await session.send(h.text(session.text(`commands.${config.basename}.messages.noImagesInPrompt`)))
+                  return
+                }
+                try {
+                  await session.bot.deleteMessage(session.channelId, needimagesMessageId)
+                } catch (deleteError) {
+                  ctx.logger.warn(`删除交互提示消息失败:`, deleteError)
+                  // 忽略删除失败错误，继续执行
+                }
+                logInfo(`通过交互模式收集到 ${interactiveImages.length} 张图片:`, interactiveImages)
+              } else {
+                await session.send(h.text(session.text(`commands.${config.basename}.messages.promptTimeout`)))
+                return
+              }
+            } catch (error) {
+              if (error.message.includes('timeout')) {
+                await session.send(h.text(session.text(`commands.${config.basename}.messages.promptTimeout`)))
+              } else {
+                ctx.logger.error(`交互式图片输入失败:`, error)
+                await session.send(h.text(session.text(`commands.${config.basename}.messages.promptError`)))
+              }
+              return
+            }
           }
 
           logInfo(`收集到 ${images.length} 张图片:`, images)
 
           try {
-            await session.send([quote, h.text(session.text(`commands.${config.basename}.messages.processing`))])
+            const [processingMessageId] = await session.send([quote, h.text(session.text(`commands.${config.basename}.messages.processing`))])
 
             // 下载图片
             const files = await Promise.all(
@@ -190,7 +228,7 @@ export function apply(ctx: Context, config: Config) {
             }
 
             // 调用 API
-            const result = await callImageEditApi(files, promptText, cmdConfig.apiParams)
+            const result = await callImageEditApi(files, promptText, config.apiParams)
 
             if (result) {
               // 成功获取图片后，如果启用了货币服务，则扣除相应费用
@@ -210,14 +248,22 @@ export function apply(ctx: Context, config: Config) {
                   // 即使货币扣除失败，仍然返回图片
                 }
               }
+              try {
+                await session.bot.deleteMessage(session.channelId, processingMessageId)
+              } catch (deleteError) {
+                ctx.logger.warn(`删除处理中提示消息失败:`, deleteError)
+                // 忽略删除失败错误，继续执行
+              }
 
               // 处理单张图片或多张图片的情况
               if (Array.isArray(result)) {
                 // 多张图片：发送所有图片
-                return result.map(url => h.image(url))
+                await session.send(result.map(url => h.image(url)))
+                return
               } else {
                 // 单张图片：直接发送
-                return h.image(result)
+                await session.send(h.image(result))
+                return
               }
             } else {
               await session.send(h.text(session.text(`commands.${config.basename}.messages.failed`)))
@@ -242,10 +288,28 @@ export function apply(ctx: Context, config: Config) {
 
     // 从消息内容中提取图片 URL
     function extractImagesFromMessage(content: string): string[] {
-      return h.select(content, "img").map(img => img.attrs.src).filter(Boolean)
+      const images: string[] = []
+
+      // 提取 img 元素的图片
+      const imgElements = h.select(content, "img")
+      for (const img of imgElements) {
+        if (img.attrs.src) {
+          images.push(img.attrs.src)
+        }
+      }
+
+      // 提取 mface 元素的图片
+      const mfaceElements = h.select(content, "mface")
+      for (const mface of mfaceElements) {
+        if (mface.attrs.url) {
+          images.push(mface.attrs.url)
+        }
+      }
+
+      return images
     }
 
-    async function callImageEditApi(files: { data: ArrayBuffer, mime: string, filename: string }[], prompt: string, apiParams: Record<string, string>): Promise<string[] | string | null> {
+    async function callImageEditApi(files: { data: ArrayBuffer, mime: string, filename: string }[], prompt: string, apiParams: Record<string, string> = config.apiParams): Promise<string[] | string | null> {
       const formData = new FormData()
       const logParams = {}
       const imageKey = Object.keys(apiParams).find(key => apiParams[key] === '{{inputimage}}');
@@ -320,7 +384,9 @@ export function apply(ctx: Context, config: Config) {
       } catch (error) {
         const errorMsg = error.message || '请求失败'
         ctx.logger.error(`API 请求失败: ${errorMsg}`, error)
-        throw new Error(errorMsg)
+        if (errorMsg !== 'openai_error') {
+          throw new Error(errorMsg)
+        }
       }
     }
 
