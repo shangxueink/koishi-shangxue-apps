@@ -104,7 +104,7 @@ export function apply(ctx: Context, config: Config) {
       koaCtx.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With')
 
       if (koaCtx.method === 'OPTIONS') {
-        loggerInfo(`[${config.selfId}] 处理OPTIONS预检请求: ${koaCtx.path}`)
+        logInfo(`[${config.selfId}] 处理OPTIONS预检请求: ${koaCtx.path}`)
         koaCtx.status = 200
         return
       }
@@ -128,8 +128,8 @@ export function apply(ctx: Context, config: Config) {
 
       try {
         // 记录请求信息
-        loggerInfo(`[${config.selfId}] 收到POST请求: ${koaCtx.method} ${koaCtx.path}`)
-        loggerInfo(`[${config.selfId}] 请求头:`, JSON.stringify(koaCtx.headers, null, 2))
+        logInfo(`[${config.selfId}] 收到POST请求: ${koaCtx.method} ${koaCtx.path}`)
+        logInfo(`[${config.selfId}] 请求头:`, JSON.stringify(koaCtx.headers, null, 2))
         logDebug(`[${config.selfId}] 详细请求头:`, koaCtx.headers)
 
         // 验证 token（如果配置了）
@@ -145,7 +145,7 @@ export function apply(ctx: Context, config: Config) {
         }
 
         const body = koaCtx.request.body
-        loggerInfo(`[${config.selfId}] 请求体:`, JSON.stringify(body, null, 2))
+        logInfo(`[${config.selfId}] 请求体:`, JSON.stringify(body, null, 2))
 
         // 验证请求格式
         if (!body || !body.messages || !Array.isArray(body.messages)) {
