@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Koishi Market Registry Redirector
 // @namespace    https://github.com/shangxueink
-// @version      3.16
+// @version      3.17
 // @description  将 Koishi 市场注册表请求重定向到多个备用镜像源，支持自动重试、单独配置每个镜像源的代理请求解决CORS问题，并修复时间显示问题。
 // @author       shangxueink
 // @license      MIT
@@ -19,6 +19,13 @@
 
 (function () {
     'use strict';
+
+    // Check if the script should be disabled for this session
+    if (sessionStorage.getItem('disableMarketRedirectorOnce') === 'true') {
+        sessionStorage.removeItem('disableMarketRedirectorOnce');
+        console.log('[Koishi Market Registry Redirector] Script disabled for this session. It will be re-enabled on the next navigation.');
+        return; // Stop script execution
+    }
 
     const currentPath = window.location.pathname;
     const currentSearch = window.location.search;
@@ -41,13 +48,10 @@
             { url: 'https://koishi-registry.yumetsuki.moe/index.json', useProxy: false },
             { url: "https://cdn.jsdmirror.com/gh/shangxueink/koishi-registry-aggregator@gh-pages/market.json", useProxy: false },
             { url: "https://cdn.jsdelivr.net/gh/shangxueink/koishi-registry-aggregator@gh-pages/market.json", useProxy: false },
-            { url: 'https://registry.koishi.chat/index.json', useProxy: true },
         ],
         currentMirrorIndex: 0,
         debug: false,
         requestTimeout: 5000,
-        maxRetries: 2,
-        currentRetries: 0,
         disableCache: true,
         useProxy: true,
         proxyUrl: 'https://web-proxy.apifox.cn/api/v1/request'
@@ -147,11 +151,6 @@
                 <label for="timeout">请求超时时间（毫秒）</label>
                 <input type="number" id="timeout" value="${CONFIG.requestTimeout}" min="1000" style="border: 1px solid #ccc; padding: 0.5rem; width: 100%; box-sizing: border-box;">
                 <p>请求超时时间，单位毫秒，建议不要设置过小。</p>
-            </div>
-            <div class="form-item">
-                <label for="retries">最大重试次数</label>
-                <input type="number" id="retries" value="${CONFIG.maxRetries}" min="1" style="border: 1px solid #ccc; padding: 0.5rem; width: 100%; box-sizing: border-box;">
-                <p>最大重试次数，当请求失败时，会自动重试。</p>
             </div>
             <div class="form-item">
                 <label for="disableCache"><input type="checkbox" id="disableCache" ${CONFIG.disableCache ? 'checked' : ''}> 禁用从磁盘缓存</label>
@@ -487,13 +486,11 @@
                 // 重置配置为默认值
                 CONFIG.mirrorUrls = [...DEFAULT_CONFIG.mirrorUrls];
                 CONFIG.requestTimeout = DEFAULT_CONFIG.requestTimeout;
-                CONFIG.maxRetries = DEFAULT_CONFIG.maxRetries;
                 CONFIG.debug = DEFAULT_CONFIG.debug;
                 CONFIG.disableCache = DEFAULT_CONFIG.disableCache;
                 CONFIG.useProxy = DEFAULT_CONFIG.useProxy;
                 CONFIG.proxyUrl = DEFAULT_CONFIG.proxyUrl;
                 CONFIG.currentMirrorIndex = DEFAULT_CONFIG.currentMirrorIndex;
-                CONFIG.currentRetries = DEFAULT_CONFIG.currentRetries;
 
                 // 立即保存到localStorage
                 localStorage.setItem('koishiMarketConfig', JSON.stringify(CONFIG));
@@ -501,7 +498,6 @@
                 // 更新UI显示
                 renderMirrorList();
                 document.getElementById('timeout').value = CONFIG.requestTimeout;
-                document.getElementById('retries').value = CONFIG.maxRetries;
                 document.getElementById('disableCache').checked = CONFIG.disableCache;
                 document.getElementById('useProxy').checked = CONFIG.useProxy;
                 document.getElementById('proxyUrl').value = CONFIG.proxyUrl;
@@ -553,7 +549,6 @@
             }).filter(mirror => mirror.url);
 
             CONFIG.requestTimeout = parseInt(document.getElementById('timeout').value) || 5000;
-            CONFIG.maxRetries = parseInt(document.getElementById('retries').value) || 2;
             CONFIG.disableCache = document.getElementById('disableCache').checked;
             CONFIG.useProxy = document.getElementById('useProxy').checked;
             CONFIG.proxyUrl = document.getElementById('proxyUrl').value.trim() || DEFAULT_CONFIG.proxyUrl;
@@ -672,6 +667,49 @@
         document.head.appendChild(style);
     }
 
+    function showFailureUI() {
+        const loadingElement = document.querySelector('.market-loading');
+        // 检查加载元素是否存在，以及是否已经添加了按钮
+        if (!loadingElement || loadingElement.querySelector('.market-failure-controls')) {
+            return;
+        }
+
+        const controlsContainer = document.createElement('div');
+        controlsContainer.className = 'market-failure-controls';
+        controlsContainer.style.textAlign = 'center';
+        controlsContainer.style.marginTop = '1rem';
+
+        const resetButton = document.createElement('button');
+        resetButton.textContent = '恢复默认配置';
+        resetButton.className = 'VPLink link button';
+        resetButton.style.marginRight = '1rem';
+        resetButton.style.border = '1px solid var(--vp-c-divider)';
+        resetButton.style.padding = '8px 16px';
+        resetButton.style.borderRadius = '8px';
+        resetButton.onclick = () => {
+            localStorage.setItem('koishiMarketConfig', JSON.stringify(DEFAULT_CONFIG));
+            window.location.reload();
+        };
+
+        const disableButton = document.createElement('button');
+        disableButton.textContent = '单次禁用此脚本';
+        disableButton.className = 'VPLink link button';
+        disableButton.style.border = '1px solid var(--vp-c-divider)';
+        disableButton.style.padding = '8px 16px';
+        disableButton.style.borderRadius = '8px';
+        disableButton.onclick = () => {
+            sessionStorage.setItem('disableMarketRedirectorOnce', 'true');
+            window.location.reload();
+        };
+
+        controlsContainer.appendChild(resetButton);
+        controlsContainer.appendChild(disableButton);
+
+        // 将按钮添加到 .market-loading 元素内部，使其显示在文字下方
+        loadingElement.appendChild(controlsContainer);
+        log('显示加载失败的UI控件');
+    }
+
     function addConfigButton() {
         // 如果按钮已经添加，则直接返回
         if (configButtonAdded) {
@@ -775,9 +813,25 @@
         });
     }
 
+    function initLoadingObserver() {
+        const observer = new MutationObserver(() => {
+            const loadingElement = document.querySelector('.market-loading');
+            if (loadingElement) {
+                showFailureUI();
+            }
+        });
+
+        observer.observe(document.body, {
+            childList: true,
+            subtree: true,
+        });
+        log('已初始化加载界面观察器');
+    }
+
     // 在 DOMContentLoaded 事件触发后立即尝试添加按钮
     document.addEventListener('DOMContentLoaded', () => {
         addConfigButton();
+        initLoadingObserver();
     });
 
 
@@ -1529,166 +1583,110 @@
     // 获取当前使用的镜像源URL
     const getCurrentMirrorUrl = function () {
         const currentMirror = CONFIG.mirrorUrls[CONFIG.currentMirrorIndex];
-        return currentMirror ? currentMirror.url : '';
-    };
-
-    // 切换到下一个镜像源
-    const switchToNextMirror = function () {
-        CONFIG.currentMirrorIndex = (CONFIG.currentMirrorIndex + 1) % CONFIG.mirrorUrls.length;
-        CONFIG.currentRetries = 0; // 切换镜像源后重置重试次数
-        error(`切换到下一个镜像源: ${getCurrentMirrorUrl()}, 重置重试次数`); // 始终打印切换镜像源的信息
-        return getCurrentMirrorUrl();
-    };
-
-    // 重置重试计数
-    const resetRetries = function () {
-        CONFIG.currentRetries = 0;
-    };
-
-    // 获取目标 URL
-    const getTargetUrl = function () {
-        const baseUrl = getCurrentMirrorUrl();
-        return baseUrl;
+        return currentMirror ? currentMirror.url : 'N/A';
     };
 
     // 代理请求函数
-    const requestWithProxy = async function (targetUrl) {
-        const currentMirror = CONFIG.mirrorUrls[CONFIG.currentMirrorIndex];
-        if (!currentMirror || !currentMirror.useProxy) {
-            // 如果当前镜像源不使用代理，直接返回原始fetch
-            return originalFetch.call(window, targetUrl, {
-                cache: CONFIG.disableCache ? 'no-store' : 'default'
-            });
-        }
-
+    const requestWithProxy = async function (targetUrl, options) {
+        log('[Concurrent] 使用代理请求:', targetUrl);
         try {
-            log('使用代理请求:', targetUrl);
             const response = await originalFetch.call(window, CONFIG.proxyUrl, {
                 method: 'POST',
                 headers: {
                     'api-u': targetUrl,
-                    'api-o0': 'method=GET, timings=true, timeout=30000',
+                    'api-o0': `method=GET, timings=true, timeout=${CONFIG.requestTimeout}`,
                     'Content-Type': 'application/json'
                 },
-                cache: 'no-store'
+                cache: 'no-store',
+                signal: options.signal
             });
 
             if (!response.ok) {
                 throw new Error(`代理请求失败: ${response.status} ${response.statusText}`);
             }
 
-            // 获取代理返回的数据
             const proxyData = await response.text();
-
-            // 创建一个新的Response对象，模拟原始请求的响应
             const mockResponse = new Response(proxyData, {
                 status: 200,
                 statusText: 'OK',
-                headers: {
-                    'Content-Type': 'application/json'
-                }
+                headers: { 'Content-Type': 'application/json' }
             });
 
-            log('代理请求成功');
+            log('[Concurrent] 代理请求成功:', targetUrl);
             return mockResponse;
-        } catch (error) {
-            error('代理请求失败:', error);
-            throw error;
+        } catch (e) {
+            error('[Concurrent] 代理请求失败:', targetUrl, e);
+            throw e;
         }
     };
 
-    // 处理请求失败和重试
-    const handleRequestFailure = function (originalRequest, init) {
-        CONFIG.currentRetries++;
-        if (CONFIG.currentRetries <= CONFIG.maxRetries) {
-            const currentUrl = typeof originalRequest === 'string' ? originalRequest : originalRequest.url;
-            error(`请求 ${currentUrl} 失败，正在重试 (第 ${CONFIG.currentRetries}/${CONFIG.maxRetries} 次)`);
+    // 并发请求最快的镜像源
+    const fetchFromFastestMirror = (input, init) => {
+        const promises = CONFIG.mirrorUrls.map((mirror, index) => {
+            return new Promise(async (resolve, reject) => {
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => {
+                    controller.abort();
+                    reject(new Error(`Request to ${mirror.url} timed out`));
+                }, CONFIG.requestTimeout);
 
-            // 如果是字符串URL
-            if (typeof originalRequest === 'string') {
-                return fetchWithRetry(originalRequest, init); // 保持原始URL，fetchWithRetry会自动获取新的targetUrl
-            }
-            // 如果是Request对象
-            else if (originalRequest instanceof Request) {
-                return fetchWithRetry(new Request(originalRequest.url, originalRequest), init); // 保持原始Request对象，fetchWithRetry会自动获取新的targetUrl
-            }
-        } else {
-            error(`已达到最大重试次数 (${CONFIG.maxRetries})，尝试切换镜像源`);
-            const nextUrl = switchToNextMirror();
-            if (CONFIG.currentMirrorIndex === 0) { // 切换回第一个镜像源，说明所有镜像源都尝试过了
-                error(`所有镜像源都尝试过了，请求失败`);
-                resetRetries();
-                return Promise.reject(new Error('所有镜像源请求均失败'));
-            } else {
-                error(`切换到备用镜像: ${nextUrl}`);
-                // 如果是字符串URL
-                if (typeof originalRequest === 'string') {
-                    return fetchWithRetry(originalRequest, init); // 保持原始URL，fetchWithRetry会自动获取新的targetUrl
-                }
-                // 如果是Request对象
-                else if (originalRequest instanceof Request) {
-                    return fetchWithRetry(new Request(originalRequest.url, originalRequest), init); // 保持原始Request对象，fetchWithRetry会自动获取新的targetUrl
-                }
-            }
-        }
-    };
+                const { url, useProxy } = mirror;
+                try {
+                    const fetchOptions = {
+                        ...(init || {}),
+                        cache: CONFIG.disableCache ? 'no-store' : 'default',
+                        signal: controller.signal,
+                    };
 
-    // 带重试功能的fetch
-    const fetchWithRetry = function (input, init) {
-        const targetUrl = getTargetUrl(); // 每次请求都重新获取targetUrl，以保证时间戳更新
-        const currentMirror = CONFIG.mirrorUrls[CONFIG.currentMirrorIndex];
-        const shouldUseProxy = currentMirror ? currentMirror.useProxy : false;
+                    const response = useProxy
+                        ? await requestWithProxy(url, fetchOptions)
+                        : await originalFetch.call(window, url, fetchOptions);
 
-        return new Promise((resolve, reject) => {
-            // 设置超时
-            const timeoutId = setTimeout(() => {
-                error(`请求超时: ${typeof input === 'string' ? input : input.url}`);
-                resolve(handleRequestFailure(input, init));
-            }, CONFIG.requestTimeout);
-
-            // 根据当前镜像源的代理设置决定是否使用代理
-            const requestPromise = shouldUseProxy
-                ? requestWithProxy(targetUrl)
-                : originalFetch.call(window, typeof input === 'string' ? targetUrl : new Request(targetUrl, {
-                    ...input,
-                    cache: CONFIG.disableCache ? 'no-store' : 'default'
-                }), CONFIG.disableCache ? { ...init, cache: 'no-store' } : init);
-
-            requestPromise
-                .then(response => {
                     clearTimeout(timeoutId);
+
                     if (!response.ok) {
-                        error(`请求返回非成功状态码: ${response.status}`);
-                        resolve(handleRequestFailure(input, init));
-                        return;
+                        throw new Error(`Request to ${url} failed with status: ${response.status}`);
                     }
 
-                    // 成功后重置重试计数
-                    resetRetries();
-
-                    // 克隆响应以便我们可以读取它两次
-                    const clonedResponse = response.clone();
-
-                    // 读取响应并存储插件数据
-                    clonedResponse.json().then(data => {
-                        // 存储完整的响应数据
-                        registryData = data;
-                        log('已缓存注册表数据');
-
-                        // 在数据加载后初始化时间修复功能
-                        setTimeout(initTimeFixing, 1000);
-                    }).catch(err => {
-                        error('解析注册表数据失败:', err);
-                    });
-
-                    resolve(response);
-                })
-                .catch(err => {
+                    log(`[Concurrent] Success from: ${url}`);
+                    resolve({ response, index });
+                } catch (err) {
                     clearTimeout(timeoutId);
-                    error(`请求失败:`, err);
-                    resolve(handleRequestFailure(input, init));
-                });
+                    error(`[Concurrent] Failed for ${url}:`, err.message);
+                    reject(err);
+                }
+            });
         });
+
+        return Promise.any(promises)
+            .then(({ response, index }) => {
+                const winningMirror = CONFIG.mirrorUrls[index];
+                log(`Fastest mirror was: ${winningMirror.url}`);
+
+                CONFIG.currentMirrorIndex = index;
+                localStorage.setItem('koishiMarketConfig', JSON.stringify(CONFIG));
+
+                const clonedResponse = response.clone();
+                clonedResponse.json().then(data => {
+                    registryData = data;
+                    log('Cached registry data from fastest mirror.');
+                    const mirrorInfoEl = document.querySelector('.mirror-info code');
+                    if (mirrorInfoEl) {
+                        const proxyStatus = winningMirror.useProxy ? ' (代理)' : '';
+                        mirrorInfoEl.textContent = `${winningMirror.url}${proxyStatus}`;
+                    }
+                    setTimeout(initTimeFixing, 1000);
+                }).catch(err => {
+                    error('Failed to parse registry data from fastest mirror:', err);
+                });
+
+                return response;
+            })
+            .catch(aggregateError => {
+                error('All mirror requests failed.', aggregateError.errors);
+                // 返回一个失败的Promise，以便调用者可以处理
+                return Promise.reject(new Error('All mirror requests failed.'));
+            });
     };
 
     // 创建一个 XMLHttpRequest 代理
@@ -1697,25 +1695,23 @@
         // 检查 URL 是否是我们想要重定向的
         if (url && typeof url === 'string' && url.includes(CONFIG.sourceUrl)) {
             log('拦截到 XHR 请求:', url);
-            // 替换为新的 URL
-            url = getTargetUrl();
-            log('重定向到:', url);
+            // 替换为上次最快的镜像源 URL
+            const newUrl = getCurrentMirrorUrl();
+            log('重定向到:', newUrl);
+            // 替换 arguments 中的 url
+            arguments[1] = newUrl;
         }
 
-        return originalXHROpen.apply(this, arguments.length === 1 ? [method] : arguments.length === 2 ? [method, url] : arguments.length === 3 ? [method, url, async] : arguments.length === 4 ? [method, url, async, user] : [method, url, async, user, password]);
+        return originalXHROpen.apply(this, arguments);
     };
 
     // 拦截 fetch 请求
     const originalFetch = window.fetch;
     window.fetch = function (input, init) {
-        if (input && typeof input === 'string' && normalizeUrl(input).includes(CONFIG.sourceUrl)) {
-            log('拦截到 fetch 请求 (字符串):', input);
-            // 使用带重试功能的fetch
-            return fetchWithRetry(input, CONFIG.disableCache ? { ...init, cache: 'no-store' } : init);
-        } else if (input && input instanceof Request && input.url.includes(CONFIG.sourceUrl)) {
-            log('拦截到 fetch 请求 (Request):', input.url);
-            // 使用带重试功能的fetch
-            return fetchWithRetry(input, CONFIG.disableCache ? { ...init, cache: 'no-store' } : init);
+        const url = typeof input === 'string' ? input : input.url;
+        if (url && normalizeUrl(url).includes(CONFIG.sourceUrl)) {
+            log('拦截到 fetch 请求:', url);
+            return fetchFromFastestMirror(input, init);
         }
 
         // 调用原始 fetch 方法
