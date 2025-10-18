@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Koishi Market Registry Redirector
 // @namespace    https://github.com/shangxueink
-// @version      3.17
-// @description  将 Koishi 市场注册表请求重定向到多个备用镜像源，支持自动重试、单独配置每个镜像源的代理请求解决CORS问题，并修复时间显示问题。
+// @version      3.22
+// @description  将 Koishi 市场注册表请求重定向到多个备用镜像源，支持自动重试、单独配置每个镜像源的代理请求解决CORS问题，并修复时间显示问题（包括工具提示和移动端时间戳换行显示），新增镜像地址点击复制功能并优化了复制反馈，同时重构了返回顶部按钮，使其能够动态显示滚动进度。
 // @author       shangxueink
 // @license      MIT
 // @match        https://koishi.chat/zh-CN/market/*
@@ -23,7 +23,7 @@
     // Check if the script should be disabled for this session
     if (sessionStorage.getItem('disableMarketRedirectorOnce') === 'true') {
         sessionStorage.removeItem('disableMarketRedirectorOnce');
-        console.log('[Koishi Market Registry Redirector] Script disabled for this session. It will be re-enabled on the next navigation.');
+        log('[Koishi Market Registry Redirector] Script disabled for this session. It will be re-enabled on the next navigation.');
         return; // Stop script execution
     }
 
@@ -733,7 +733,7 @@
             const marketTitle = Array.from(document.querySelectorAll('h1')).find(h1 => h1.textContent.trim() === '插件市场');
 
             if (!marketTitle) {
-                console.log('[Koishi Market Registry Redirector] 未找到包含 "插件市场" 文本的标题元素，正在重试...');
+                log('[Koishi Market Registry Redirector] 未找到包含 "插件市场" 文本的标题元素，正在重试...');
                 return false; // 返回 false 表示未找到元素
             }
 
@@ -787,7 +787,7 @@
         `;
             document.head.appendChild(style);
 
-            console.log('[Koishi Market Registry Redirector] 成功添加配置按钮');
+            log('[Koishi Market Registry Redirector] 成功添加配置按钮');
             return true; // 返回 true 表示已成功找到并替换元素
         };
 
@@ -833,8 +833,6 @@
         addConfigButton();
         initLoadingObserver();
     });
-
-
 
     // 处理URL参数搜索功能 
     function handleUrlSearch() {
@@ -1217,13 +1215,49 @@
                                     color: var(--vp-c-text-2);
                                     text-align: center;
                                     width: 100%;
+                                    cursor: pointer;
+                                    transition: color 0.2s ease;
                                 `;
                                 const currentMirror = CONFIG.mirrorUrls[CONFIG.currentMirrorIndex];
                                 const mirrorUrl = currentMirror ? currentMirror.url : '';
                                 const proxyStatus = currentMirror && currentMirror.useProxy ? ' (代理)' : '';
-                                mirrorInfo.innerHTML = `<code>${mirrorUrl}${proxyStatus}</code>`;
+                                const fullText = `${mirrorUrl}${proxyStatus}`;
+                                const originalHTML = `<code>${fullText}</code>`;
+                                mirrorInfo.innerHTML = originalHTML;
+
+                                let revertTimeout = null;
+
+                                mirrorInfo.addEventListener('click', () => {
+                                    if (revertTimeout) {
+                                        clearTimeout(revertTimeout);
+                                        revertTimeout = null;
+                                        mirrorInfo.innerHTML = originalHTML;
+                                        mirrorInfo.style.color = 'var(--vp-c-text-2)';
+                                        return;
+                                    }
+
+                                    navigator.clipboard.writeText(mirrorUrl).then(() => {
+                                        mirrorInfo.innerHTML = `<code>已复制到剪贴板!</code>`;
+                                        mirrorInfo.style.color = 'var(--vp-c-brand)';
+                                        revertTimeout = setTimeout(() => {
+                                            mirrorInfo.innerHTML = originalHTML;
+                                            mirrorInfo.style.color = 'var(--vp-c-text-2)';
+                                            revertTimeout = null;
+                                        }, 2000);
+                                    }).catch(err => {
+                                        error('无法复制到剪贴板:', err);
+                                        mirrorInfo.innerHTML = `<code>复制失败!</code>`;
+                                        mirrorInfo.style.color = 'var(--vp-c-danger)';
+                                        revertTimeout = setTimeout(() => {
+                                            mirrorInfo.innerHTML = originalHTML;
+                                            mirrorInfo.style.color = 'var(--vp-c-text-2)';
+                                            revertTimeout = null;
+                                        }, 2000);
+                                    });
+                                });
+
                                 infoDiv.parentNode.insertBefore(mirrorInfo, infoDiv.nextSibling);
-                                log('已添加镜像源信息');
+                                log('已添加镜像源信息并附加点击复制功能');
                                 observer.disconnect();
                             }
                         }
@@ -1235,167 +1269,95 @@
         observer.observe(document.body, { childList: true, subtree: true });
     }
 
-    // 添加返回顶部按钮
+    // 添加动态返回顶部按钮
     function addBackToTopButton() {
-        // 创建一个函数来检查并添加按钮
-        const checkAndAddButton = () => {
-            // 如果按钮已存在，不再添加
-            if (document.querySelector('.back-to-top-btn')) {
-                return;
-            }
-
-            // 查找所有分页控件
-            const paginationElements = document.querySelectorAll('.el-pagination');
-            if (paginationElements.length < 2) {
-                return; // 等待分页控件加载
-            }
-
-            // 获取底部的分页控件
-            const bottomPagination = paginationElements[paginationElements.length - 1];
-            const nextButton = bottomPagination.querySelector('.btn-next');
-
-            if (!nextButton) {
-                return; // 等待下一页按钮加载
-            }
-
-            // 创建返回顶部按钮容器
-            const backToTopContainer = document.createElement('div');
-            backToTopContainer.className = 'back-to-top-container';
-            backToTopContainer.style.cssText = `
-                width: 100%;
-                margin-top: 8px;
-                display: none; /* 初始隐藏 */
-            `;
-
-            // 创建返回顶部按钮
-            const backToTopBtn = document.createElement('button');
-            backToTopBtn.type = 'button';
-            backToTopBtn.className = 'back-to-top-btn el-button el-button--default';
-            backToTopBtn.setAttribute('aria-label', 'Back to top');
-            backToTopBtn.textContent = '回到顶部';
-
-            // 使用CSS变量和类名来确保主题适应性
-            backToTopBtn.style.cssText = `
-                width: 100%;
-                height: 32px;
-                margin: 0;
-                padding: 0 15px;
-                font-size: 14px;
-                border-radius: 4px;
-                cursor: pointer;
-                transition: all 0.2s ease;
-                box-sizing: border-box;
-                display: inline-flex;
-                align-items: center;
-                justify-content: center;
-                text-align: center;
-                white-space: nowrap;
-                outline: none;
-                user-select: none;
-                vertical-align: middle;
-                -webkit-appearance: none;
-                background-color: var(--el-button-bg-color, #ffffff);
-                border: 1px solid var(--el-button-border-color, #dcdfe6);
-                color: var(--el-button-text-color, #606266);
-            `;
-
-            // 添加悬停效果 - 使用CSS变量确保主题适应
-            backToTopBtn.addEventListener('mouseenter', () => {
-                backToTopBtn.style.backgroundColor = 'var(--el-button-hover-bg-color, #ecf5ff)';
-                backToTopBtn.style.borderColor = 'var(--el-button-hover-border-color, #c6e2ff)';
-                backToTopBtn.style.color = 'var(--el-button-hover-text-color, #409eff)';
-            });
-
-            backToTopBtn.addEventListener('mouseleave', () => {
-                backToTopBtn.style.backgroundColor = 'var(--el-button-bg-color, #ffffff)';
-                backToTopBtn.style.borderColor = 'var(--el-button-border-color, #dcdfe6)';
-                backToTopBtn.style.color = 'var(--el-button-text-color, #606266)';
-            });
-
-            // 添加主题变化监听器
-            const updateButtonTheme = () => {
-                // 强制重新应用样式以适应主题变化
-                backToTopBtn.style.backgroundColor = 'var(--el-button-bg-color, #ffffff)';
-                backToTopBtn.style.borderColor = 'var(--el-button-border-color, #dcdfe6)';
-                backToTopBtn.style.color = 'var(--el-button-text-color, #606266)';
-            };
-
-            // 监听主题变化
-            const themeObserver = new MutationObserver((mutations) => {
-                mutations.forEach((mutation) => {
-                    if (mutation.type === 'attributes' &&
-                        (mutation.attributeName === 'class' || mutation.attributeName === 'data-theme')) {
-                        setTimeout(updateButtonTheme, 100);
-                    }
-                });
-            });
-
-            // 监听document和html元素的主题变化
-            themeObserver.observe(document.documentElement, {
-                attributes: true,
-                attributeFilter: ['class', 'data-theme']
-            });
-            themeObserver.observe(document.body, {
-                attributes: true,
-                attributeFilter: ['class', 'data-theme']
-            });
-
-            // 添加点击事件
-            backToTopBtn.addEventListener('click', () => {
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-            });
-
-            // 将按钮添加到容器中
-            backToTopContainer.appendChild(backToTopBtn);
-
-            // 将容器添加到分页控件的父容器中
-            bottomPagination.parentNode.appendChild(backToTopContainer);
-
-            // 添加滚动监听，只在滚动到一定位置时显示
-            const handleScroll = () => {
-                const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
-                const bottomPaginationRect = bottomPagination.getBoundingClientRect();
-
-                // 当页面滚动超过一屏高度且底部分页控件在视口内时显示按钮
-                if (scrollTop > window.innerHeight / 2 &&
-                    bottomPaginationRect.top < window.innerHeight &&
-                    bottomPaginationRect.bottom > 0) {
-                    backToTopContainer.style.display = 'block';
-                } else {
-                    backToTopContainer.style.display = 'none';
-                }
-            };
-
-            window.addEventListener('scroll', handleScroll);
-            handleScroll(); // 初始检查
-
-            log('已添加返回顶部按钮');
-            return true;
-        };
-
-        // 立即尝试添加按钮
-        if (checkAndAddButton()) {
+        if (document.querySelector('.dynamic-back-to-top')) {
             return;
         }
 
-        // 如果没有成功添加，设置一个定时器定期检查
-        const buttonCheckInterval = setInterval(() => {
-            if (checkAndAddButton()) {
-                clearInterval(buttonCheckInterval);
-            }
-        }, 1000);
+        const backToTopBtn = document.createElement('div');
+        backToTopBtn.className = 'dynamic-back-to-top';
+        backToTopBtn.style.cssText = `
+            position: fixed;
+            right: 20px;
+            bottom: 20px;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background-color: var(--vp-c-brand);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            z-index: 100;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            opacity: 0;
+            transform: scale(0.8);
+            transition: opacity 0.3s ease, transform 0.3s ease;
+            user-select: none;
+        `;
 
-        // 同时使用MutationObserver监听DOM变化
-        const observer = new MutationObserver((mutations) => {
-            if (checkAndAddButton()) {
-                observer.disconnect();
-            }
+        const progressText = document.createElement('span');
+        progressText.className = 'progress-text';
+
+        const arrowSvg = `
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 19V5M5 12l7-7 7 7"/>
+            </svg>
+        `;
+
+        backToTopBtn.appendChild(progressText);
+        document.body.appendChild(backToTopBtn);
+
+        backToTopBtn.addEventListener('click', () => {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
         });
 
-        observer.observe(document.body, { childList: true, subtree: true });
+        const handleScroll = () => {
+            const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+            const scrollHeight = document.documentElement.scrollHeight;
+            const clientHeight = document.documentElement.clientHeight;
+            const scrollableHeight = scrollHeight - clientHeight;
 
-        // 确保在页面完全加载后也尝试添加按钮
-        window.addEventListener('load', checkAndAddButton);
+            if (scrollableHeight <= 0) {
+                backToTopBtn.style.opacity = '0';
+                backToTopBtn.style.transform = 'scale(0.8)';
+                return;
+            }
+
+            if (scrollTop > clientHeight / 2) {
+                backToTopBtn.style.opacity = '1';
+                backToTopBtn.style.transform = 'scale(1)';
+            } else {
+                backToTopBtn.style.opacity = '0';
+                backToTopBtn.style.transform = 'scale(0.8)';
+            }
+
+            const percentage = Math.min(100, Math.round((scrollTop / scrollableHeight) * 100));
+
+            if (percentage >= 100) {
+                if (backToTopBtn.innerHTML !== arrowSvg) {
+                    backToTopBtn.innerHTML = arrowSvg;
+                }
+            } else {
+                const textNode = backToTopBtn.querySelector('.progress-text');
+                if (textNode) {
+                    textNode.textContent = `${percentage}%`;
+                } else {
+                    backToTopBtn.innerHTML = '';
+                    backToTopBtn.appendChild(progressText);
+                    progressText.textContent = `${percentage}%`;
+                }
+            }
+        };
+
+        window.addEventListener('scroll', handleScroll, { passive: true });
+        handleScroll(); // Initial check
+
+        log('已添加动态返回顶部按钮');
     }
 
     // 在页面加载完成后初始化
@@ -1425,6 +1387,9 @@
 
         // 初始化头像悬停置顶功能
         initAvatarHoverEffect();
+
+        // 修复时间戳可见性
+        fixTimestampVisibility();
     });
 
     // 头像悬停置顶功能
@@ -1841,16 +1806,18 @@
         log('已初始化时间修复功能');
     }
 
-    // 在页面加载完成后初始化
-    window.addEventListener('load', () => {
-        log('页面加载完成，准备初始化时间修复功能');
-        if (registryData) {
-            initTimeFixing();
-        } else {
-            log('注册表数据尚未加载，将在数据加载后自动初始化时间修复功能');
-        }
-    });
+    // 修复时间戳在移动端不可见的问题
+    function fixTimestampVisibility() {
+        const style = document.createElement('style');
+        style.textContent = `
+            .info > .timestamp {
+                display: block !important;
+                margin-top: 4px;
+            }
+        `;
+        document.head.appendChild(style);
+        log('已应用时间戳可见性修复');
+    }
 
     log('脚本已启动 —————— 将', CONFIG.sourceUrl, '重定向到多个备用镜像源，当前使用:', getCurrentMirrorUrl());
 })();
-
