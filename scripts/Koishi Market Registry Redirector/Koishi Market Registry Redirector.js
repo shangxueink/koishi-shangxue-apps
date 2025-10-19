@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Koishi Market Registry Redirector
 // @namespace    https://github.com/shangxueink
-// @version      3.22
-// @description  将 Koishi 市场注册表请求重定向到多个备用镜像源，支持自动重试、单独配置每个镜像源的代理请求解决CORS问题，并修复时间显示问题（包括工具提示和移动端时间戳换行显示），新增镜像地址点击复制功能并优化了复制反馈，同时重构了返回顶部按钮，使其能够动态显示滚动进度。
+// @version      3.23
+// @description  将 Koishi 市场注册表请求重定向到多个备用镜像源，支持自动重试、单独配置每个镜像源的代理请求解决CORS问题，并修复时间显示问题，镜像地址可点击复制，增加返回顶部按钮。
 // @author       shangxueink
 // @license      MIT
 // @match        https://koishi.chat/zh-CN/market/*
@@ -1338,7 +1338,7 @@
 
             const percentage = Math.min(100, Math.round((scrollTop / scrollableHeight) * 100));
 
-            if (percentage >= 100) {
+            if (percentage >= 98) {
                 if (backToTopBtn.innerHTML !== arrowSvg) {
                     backToTopBtn.innerHTML = arrowSvg;
                 }
@@ -1806,17 +1806,104 @@
         log('已初始化时间修复功能');
     }
 
-    // 修复时间戳在移动端不可见的问题
+    // 修复并优化时间戳显示
     function fixTimestampVisibility() {
-        const style = document.createElement('style');
-        style.textContent = `
-            .info > .timestamp {
-                display: block !important;
-                margin-top: 4px;
+        let intervalId = null; // 用于存储定时器ID，以便在需要时清除
+
+        const observer = new MutationObserver((mutations, obs) => {
+            const infoElement = document.querySelector('.info');
+
+            // 确保 infoElement 存在且尚未处理
+            if (infoElement && !infoElement.dataset.timestampFixed) {
+                const timestampElement = infoElement.querySelector('.timestamp');
+
+                if (timestampElement) {
+                    // 标记为已处理，防止重复执行
+                    infoElement.dataset.timestampFixed = 'true';
+
+                    const timestampText = timestampElement.textContent.match(/\((.*)\)/);
+                    if (!timestampText || !timestampText[1]) {
+                        log('无法从.info元素中解析时间戳');
+                        return;
+                    }
+
+                    const timeString = timestampText[1];
+                    // 将 yyyy/MM/dd HH:mm:ss 格式转换为 Date 对象
+                    const lastUpdateTime = new Date(timeString.replace(/\//g, '-'));
+
+                    if (isNaN(lastUpdateTime.getTime())) {
+                        error('解析时间失败:', timeString);
+                        return;
+                    }
+
+                    // 隐藏原始时间戳而不是移除，以备后用
+                    timestampElement.style.display = 'none';
+
+                    // 创建新的容器来展示优化后的时间信息
+                    const timeInfoContainer = document.createElement('div');
+                    timeInfoContainer.className = 'time-info-container';
+                    timeInfoContainer.style.cssText = `
+                        margin-top: 4px;
+                        font-size: 0.9em;
+                        color: var(--vp-c-text-2);
+                        text-align: center;
+                    `;
+
+                    const lastUpdateElement = document.createElement('div');
+                    lastUpdateElement.className = 'last-update';
+                    lastUpdateElement.textContent = `最后更新时间 ${timeString}`;
+
+                    const timeDiffElement = document.createElement('div');
+                    timeDiffElement.className = 'time-diff';
+                    timeDiffElement.style.marginTop = '2px';
+
+                    timeInfoContainer.appendChild(lastUpdateElement);
+                    timeInfoContainer.appendChild(timeDiffElement);
+
+                    // 将新容器插入到 .info 元素之后
+                    infoElement.insertAdjacentElement('afterend', timeInfoContainer);
+
+
+                    // 清除之前的定时器（如果有）
+                    if (intervalId) {
+                        clearInterval(intervalId);
+                    }
+
+                    const updateTimeDiff = () => {
+                        const now = new Date();
+                        const diff = now - lastUpdateTime;
+
+                        // 确保时间差为正值
+                        if (diff < 0) {
+                            timeDiffElement.textContent = '更新时间在未来';
+                            return;
+                        }
+
+                        const totalSeconds = Math.floor(diff / 1000);
+                        const hours = String(Math.floor(totalSeconds / 3600)).padStart(2, '0');
+                        const minutes = String(Math.floor((totalSeconds % 3600) / 60)).padStart(2, '0');
+                        const seconds = String(totalSeconds % 60).padStart(2, '0');
+
+                        timeDiffElement.textContent = `距离上次更新已经过去 ${hours} 小时 ${minutes} 分钟 ${seconds} 秒`;
+                    };
+
+                    updateTimeDiff();
+                    intervalId = setInterval(updateTimeDiff, 1000);
+
+                    log('时间戳显示已优化');
+
+                    // 成功处理后，可以断开观察以节省资源
+                    obs.disconnect();
+                }
             }
-        `;
-        document.head.appendChild(style);
-        log('已应用时间戳可见性修复');
+        });
+
+        observer.observe(document.body, {
+            childList: true,
+            subtree: true
+        });
+
+        log('已启动时间戳优化观察器');
     }
 
     log('脚本已启动 —————— 将', CONFIG.sourceUrl, '重定向到多个备用镜像源，当前使用:', getCurrentMirrorUrl());
