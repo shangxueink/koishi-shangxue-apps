@@ -1,0 +1,40 @@
+$inner:
+    - {}
+    - $desc: 适配器配置
+      platform: 设置适配器平台名称。
+      pullModels: 是否自动拉取模型列表。关闭后将仅使用下方指定的模型。
+      additionalModels:
+          $desc: 额外模型列表
+          $inner:
+              model: 模型名称。
+              modelType: 模型类型。
+              contextSize: 模型上下文大小。
+              modelCapabilities:
+                $desc: 模型支持的能力
+                $inner:
+                    - 工具调用
+                    - 图片视觉输入
+
+    - $desc: 请求设置
+      apiKeys:
+          $inner:
+              - API Key
+              - API 请求地址
+              - 是否启用此配置
+          $desc: 配置 API Key 和对应的请求地址列表。
+      additionCookies:
+          $inner:
+              - Cookie 名称
+              - Cookie 值
+          $desc: 设置额外的 Cookie。
+
+    - $desc: 模型设置
+      maxContextRatio: 最大上下文使用比例（0~1），控制可用的模型上下文窗口大小的最大百分比。例如 0.35 表示最多使用模型上下文的 35%。
+      temperature: 回复的随机性程度，数值越高，回复越随机。
+      presencePenalty: 重复惩罚系数，数值越高，越不易重复出现已出现过至少一次的 Token（范围：-2~2，步长：0.1）。
+      frequencyPenalty: 频率惩罚系数，数值越高，越不易重复出现次数较多的 Token（范围：-2~2，步长：0.1）。
+      nonStreaming: 强制不启用流式返回。开启后，将总是以非流式发起请求，即便配置了 stream 参数。
+
+    - $desc: 其他设置
+      googleSearch: 是否启用 Google 搜索。（只对支持 google 搜索的 gemini 模型 且为 new-api 的端点有效）
+      googleSearchSupportModel: Google 搜索支持的模型列表。
