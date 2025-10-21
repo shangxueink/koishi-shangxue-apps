@@ -1,6 +1,6 @@
 {
-  "name": "koishi-plugin-chatluna-public-api-adapterr",
-  "description": "public api adapter for chatluna",
+  "name": "koishi-plugin-chatluna-public-api-adapter",
+  "description": "Public API adapter for ChatLuna",
   "version": "1.0.0",
   "main": "lib/index.js",
   "typings": "lib/index.d.ts",
@@ -59,8 +59,8 @@
   },
   "koishi": {
     "description": {
-      "zh": "ChatLuna 的 公共 API 适配器",
-      "en": "public API adapter for ChatLuna"
+      "zh": "ChatLuna 的 gpt-4o-mini 适配器，零成本、快速体验Chatluna。",
+      "en": "gpt-4o-mini adapter for ChatLuna"
     },
     "service": {
       "required": [

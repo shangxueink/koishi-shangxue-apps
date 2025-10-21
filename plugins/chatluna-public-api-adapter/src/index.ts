@@ -5,14 +5,27 @@ import {
     ChatLunaErrorCode
 } from 'koishi-plugin-chatluna/utils/error'
 import { createLogger } from 'koishi-plugin-chatluna/utils/logger'
-import { OpenAIClient } from './client'
-import { ModelCapabilities } from 'koishi-plugin-chatluna/llm-core/platform/types'
+import { PublicApiClient } from './public-api-client'
+import { initializeLogger } from './logger'
 
 export let logger: Logger
 export const reusable = true
+export const usage = `
+<p><strong>零成本、快速体验Chatluna</strong>。</p>
+<ul>
+<li><strong>API来源：</strong> WZH团队</li>
+<li>
+<strong>接口文档：</strong> 
+<a href="https://docs.api.ecylt.com/chatgpt/free-gpt-4o-mini" target="_blank" rel="noopener noreferrer">https://docs.api.ecylt.com/chatgpt/free-gpt-4o-mini</a>
+</li>
+</ul>
+<p><strong>请注意：</strong></p>
+<p>作为一个免费接口，该模型在响应质量和指令遵循方面可能存在一定的局限性。比如不扮演猫娘什么的）</p>
+`
 
 export function apply(ctx: Context, config: Config) {
-    logger = createLogger(ctx, 'chatluna-openai-like-adapter')
+    logger = createLogger(ctx, 'chatluna-public-api-adapter')
+    initializeLogger(logger, config)
 
     ctx.on('ready', async () => {
         if (config.platform == null || config.platform.length < 1) {
@@ -27,106 +40,39 @@ export function apply(ctx: Context, config: Config) {
         const plugin = new ChatLunaPlugin(ctx, config, platform)
 
         plugin.parseConfig((config) => {
-            return config.apiKeys
-                .filter(([apiKey, _, enabled]) => {
-                    return apiKey.length > 0 && enabled
-                })
-                .map(([apiKey, apiEndpoint]) => {
-                    return {
-                        apiKey,
-                        apiEndpoint,
-                        platform,
-                        chatLimit: config.chatTimeLimit,
-                        timeout: config.timeout,
-                        maxRetries: config.maxRetries,
-                        concurrentMaxSize: config.chatConcurrentMaxSize
-                    }
-                })
+            // a fake client
+            return [
+                {
+                    apiKey: 'any',
+                    apiEndpoint: 'any',
+                    platform,
+                    chatLimit: config.chatTimeLimit,
+                    timeout: config.timeout,
+                    maxRetries: config.maxRetries,
+                    concurrentMaxSize: config.chatConcurrentMaxSize
+                }
+            ]
         })
 
-        plugin.registerClient(() => new OpenAIClient(ctx, config, plugin))
+        plugin.registerClient(() => new PublicApiClient(ctx, config, plugin))
 
         await plugin.initClient()
     })
 }
 
 export interface Config extends ChatLunaPlugin.Config {
-    apiKeys: [string, string, boolean][]
-    pullModels: boolean
-    additionalModels: {
-        model: string
-        modelType: string
-        modelCapabilities: ModelCapabilities[]
-        contextSize: number
-    }[]
-    additionCookies: [string, string][]
-    maxContextRatio: number
-    temperature: number
-    presencePenalty: number
     platform: string
-    frequencyPenalty: number
-    nonStreaming: boolean
-    googleSearch: boolean
-    googleSearchSupportModel: string[]
+    loggerinfo: boolean
 }
 
 export const Config: Schema<Config> = Schema.intersect([
     ChatLunaPlugin.Config,
     Schema.object({
-        platform: Schema.string().default('openai-like'),
-        pullModels: Schema.boolean().default(true),
-        additionalModels: Schema.array(
-            Schema.object({
-                model: Schema.string(),
-                modelType: Schema.union([
-                    'LLM 大语言模型',
-                    'Embeddings 嵌入模型'
-                ]).default('LLM 大语言模型'),
-                modelCapabilities: Schema.array(
-                    Schema.union([
-                        ModelCapabilities.ToolCall,
-                        ModelCapabilities.ImageInput
-                    ])
-                )
-                    .default([ModelCapabilities.ToolCall])
-                    .role('checkbox'),
-                contextSize: Schema.number().default(128000)
-            })
-        )
-            .default([])
-            .role('table')
-    }),
-    Schema.object({
-        apiKeys: Schema.array(
-            Schema.tuple([
-                Schema.string().role('secret').default(''),
-                Schema.string().default('https://api.openai.com/v1'),
-                Schema.boolean().default(true)
-            ])
-        )
-            .default([[]])
-            .role('table'),
-        additionCookies: Schema.array(
-            Schema.tuple([Schema.string(), Schema.string()])
-        ).default([])
-    }),
-    Schema.object({
-        maxContextRatio: Schema.number()
-            .min(0)
-            .max(1)
-            .step(0.0001)
-            .role('slider')
-            .default(0.35),
-        temperature: Schema.percent().min(0).max(2).step(0.1).default(1),
-        presencePenalty: Schema.number().min(-2).max(2).step(0.1).default(0),
-        frequencyPenalty: Schema.number().min(-2).max(2).step(0.1).default(0),
-        nonStreaming: Schema.boolean().default(false)
-    }),
-    Schema.object({
-        googleSearch: Schema.boolean().default(false),
-        googleSearchSupportModel: Schema.array(Schema.string()).default([
-            'gemini-2.0'
-        ])
+        platform: Schema.string().default('public-api'),
+        loggerinfo: Schema.boolean()
+            .default(false)
+            .description('日志调试模式')
+            .experimental()
     })
 ]).i18n({
     'zh-CN': require('./locales/zh-CN.schema.yml'),
@@ -135,4 +81,4 @@ export const Config: Schema<Config> = Schema.intersect([
 
 export const inject = ['chatluna']
 
-export const name = 'chatluna-openai-like-adapter'
+export const name = 'chatluna-public-api-adapter'
