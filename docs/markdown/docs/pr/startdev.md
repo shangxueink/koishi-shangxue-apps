@@ -20,6 +20,7 @@ yarn clone BSTluo/koishi-plugin-adapter-iirose
 yarn clone Roberta001/koishi-plugin-adapter-bilibili-dm
 yarn clone idranme/koishi-plugin-gif-reverse
 yarn clone idranme/koishi-plugin-music-voice
+yarn clone FLY1919/adapter-yunhupro
 ```
 
 ## 发布管理
