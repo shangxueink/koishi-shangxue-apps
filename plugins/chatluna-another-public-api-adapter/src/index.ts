@@ -11,12 +11,12 @@ import { initializeLogger } from './logger'
 export let logger: Logger
 export const reusable = true
 export const usage = `
-<p><strong>另一个零成本、快速体验Chatluna的适配器</strong>。</p>
+<p>另一个<strong>零成本、快速体验Chatluna的适配器</strong>。</p>
 <ul>
 <li><strong>API来源：</strong> pearktrue</li>
 <li>
 <strong>接口地址：</strong>
-<a href="api.pearktrue.cn" target="_blank" rel="noopener noreferrer">https://api.pearktrue.cn/dashboard/detail/311</a>
+<a href="https://api.pearktrue.cn/dashboard/detail/311" target="_blank" rel="noopener noreferrer">api.pearktrue.cn/dashboard</a>
 </li>
 </ul>
 `

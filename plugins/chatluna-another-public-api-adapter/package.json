@@ -1,7 +1,7 @@
 {
   "name": "koishi-plugin-chatluna-another-public-api-adapter",
   "description": "Another public API adapter for ChatLuna, using pearktrue API.",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "main": "lib/index.js",
   "typings": "lib/index.d.ts",
   "files": [
