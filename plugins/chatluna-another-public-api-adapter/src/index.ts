@@ -16,11 +16,9 @@ export const usage = `
 <li><strong>API来源：</strong> pearktrue</li>
 <li>
 <strong>接口地址：</strong>
-<a href="https://api.pearktrue.cn/api/aichat/" target="_blank" rel="noopener noreferrer">https://api.pearktrue.cn/api/aichat/</a>
+<a href="api.pearktrue.cn" target="_blank" rel="noopener noreferrer">https://api.pearktrue.cn/dashboard/detail/311</a>
 </li>
 </ul>
-<p><strong>请注意：</strong></p>
-<p>这是一个免费的、无状态的API，每次请求都会发送完整的对话历史。</p>
 `
 
 export function apply(ctx: Context, config: Config) {
