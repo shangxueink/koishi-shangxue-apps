@@ -6,7 +6,7 @@ import path from 'node:path';
 export const name = "curriculum-table";
 export const inject = {
   required: ['puppeteer', "database"],
-  // optional: ["cron"]
+  //  optional: ["cron"]//  加这个会卡死前端（）
 };
 
 export const usage = `
@@ -173,12 +173,12 @@ export const usage = `
 const logger = new Logger(`DEV:${name}`);
 export const Config = Schema.intersect([
   Schema.object({
-    command: Schema.string().default("群友课程表").description("注册的`父级指令`的名称"),
-    command11: Schema.string().default("添加课程").description("实现 `添加课程` 的指令名称"),
-    command12: Schema.string().default("移除课程").description("实现 `移除课程` 的指令名称"),
+    command: Schema.string().default("课表").description("注册的`父级指令`的名称"),
+    command11: Schema.string().default("添加").description("实现 `添加课程` 的指令名称"),
+    command12: Schema.string().default("移除").description("实现 `移除课程` 的指令名称"),
     command13: Schema.string().default("wakeup").description("实现 `wakeup快速导入课表` 的指令名称"),
-    command14: Schema.string().default("课程去重").description("实现 `课程去重` 的指令名称"),
-    command21: Schema.string().default("查看课程表").description("实现 `查看当前群组的课表` 的指令名称"),
+    command14: Schema.string().default("去重").description("实现 `课程去重` 的指令名称"),
+    command21: Schema.string().default("看看").description("实现 `查看当前群组的课表` 的指令名称"),
   }).description('基础设置'),
 
   Schema.object({
@@ -187,16 +187,16 @@ export const Config = Schema.intersect([
   }).description('进阶设置'),
 
   Schema.object({
-    cronPush: Schema.boolean().default(false).description("是否开启自动推送功能。**需要cron服务！**<br>指定机器人 在特定时间推送到特定频道"),
+    cronPush: Schema.boolean().default(false).description("是否开启自动推送功能。**需要cron服务！**<br>指定机器人，并定时推送到指定频道"),
   }).description('定时推送'),
   Schema.union([
     Schema.object({
       cronPush: Schema.const(true).required(),
       subscribe: Schema.array(Schema.object({
-        bot: Schema.string().description('bot的Id'),
+        bot: Schema.string().description('机器人ID'),
         channelId: Schema.string().description("群组ID"),
-        subscribetime: Schema.string().description("推送时间(cron表达式)"),
-      })).role('table').description("在指定群组订阅课表 定时主动推送<br>例如：`10 16 * * *` 的意思是<br>**10**: 分钟 (10 分)<br>**16**: 小时 (16 点，即下午 4 点)<br> *: 日 (一个月中的每一天)<br> *: 月 (每个月)<br> *: 星期 (一周中的每一天)<br>"),
+        time: Schema.string().role('time').description("每日推送时间"),
+      })).role('table').description("在指定群组订阅课表 定时主动推送<br>例如：`07:30:55` 代表每天早上7:30推送（秒数无效）"),
     }),
     Schema.object({
       cronPush: Schema.const(false),
@@ -243,7 +243,7 @@ export async function apply(ctx, config) {
 
     ctx.command(`${config.command}`)
 
-    ctx.command(`${config.command}/${config.command11} <param1:string> <param2:string> <param3:string>`)
+    ctx.command(`${config.command}${config.command11} <param1:string> <param2:string> <param3:string>`)
       .option('userid', '-i <userid:string> 指定用户ID (QQ号)')
       .option('username', '-n <username:string> 指定用户的名称')
       .example(`${config.command11} 周一周三 高等数学 8:00-9:30`)
@@ -368,7 +368,7 @@ export async function apply(ctx, config) {
       });
 
     // wakeup快速导入
-    ctx.command(`${config.command}/${config.command13} <param:text>`)
+    ctx.command(`${config.command}.${config.command13} <param:text>`)
       .option('userid', '-i <userid:string> 指定用户ID (QQ号)')
       .option('username', '-n <username:string> 指定用户的名称')
       .example(`输入示例：\n${config.command13} 这是来自「WakeUp课程表」的课表分享......分享口令为「PaJ_8Kj_zeelspJs2HBL1」`)
@@ -497,7 +497,7 @@ export async function apply(ctx, config) {
         }
       });
 
-    ctx.command(`${config.command}/${config.command12}`)
+    ctx.command(`${config.command}.${config.command12}`)
       .option('userid', '-i <userid:string> 指定用户ID (QQ号)')
       .option('username', '-n <username:string> 指定用户的名称')
       .action(async ({ session, options }) => {
@@ -539,7 +539,7 @@ export async function apply(ctx, config) {
         }
       });
 
-    ctx.command(`${config.command}/${config.command14}`)
+    ctx.command(`${config.command}.${config.command14}`)
       .action(async ({ session }) => {
         const userId = session.userId;
         const channelId = session.channelId;
@@ -589,7 +589,7 @@ export async function apply(ctx, config) {
       });
 
     // 渲染课程表
-    ctx.command(`${config.command}/${config.command21} [day:number]`)
+    ctx.command(`${config.command}.${config.command21} [day:number]`)
       .action(async ({ session, options }, day) => {
         const dayOffset = Number(day) || 0;
 
@@ -602,24 +602,36 @@ export async function apply(ctx, config) {
   });
 
   ctx.on('ready', async () => {
-    if (!config.subscribe || config.subscribe.length === 0) {
+    // 确保 cronPush 为 true 且存在订阅时才执行
+    if (!config.cronPush || !config.subscribe || config.subscribe.length === 0) {
       return;
     }
 
-    const bot: any = Object.values(ctx.bots).find((b: Bot) => b.selfId === config.bot || b.user?.id === config.bot);
-    if (!bot || bot.status !== Universal.Status.ONLINE) {
-      ctx.logger.warn(`定时消息发送失败: 未找到ID为 ${config.bot} 的bot`);
-      return;
-    }
-    if (bot == null) return;
+    // 注入 cron 服务
+    ctx.inject(['cron'], (ctx) => {
+      // 遍历所有订阅
+      for (const subscription of config.subscribe) {
+        const { bot: botId, channelId, time } = subscription;
 
-    for (const subscription of config.subscribe) {
-      const { channelId, subscribetime } = subscription;
+        // 如果没有提供时间，则跳过
+        if (!time) continue;
 
-      try {
-        ctx.inject(['cron'], (ctx) => {
+        // 查找对应的 bot 实例
+        const bot = (Object.values(ctx.bots) as Bot[]).find(b => b.selfId === botId || b.user?.id === botId);
 
-          ctx.cron(subscribetime, async () => {
+        // 如果找不到 bot 或 bot 不在线，则跳过此订阅
+        if (!bot || bot.status !== Universal.Status.ONLINE) {
+          ctx.logger.warn(`定时消息发送失败: 未找到ID为 ${botId} 的bot或bot不在线`);
+          continue;
+        }
+
+        // 将时间字符串 "HH:mm:ss" 转换成 cron 表达式
+        const [hour, minute] = time.split(':');
+        const cronExpression = `${minute} ${hour} * * *`;
+
+        try {
+          // 设置定时任务
+          ctx.cron(cronExpression, async () => {
             const allCourses = await ctx.database.get('curriculumtable', { channelId });
 
             if (allCourses.length === 0) {
@@ -650,13 +662,12 @@ export async function apply(ctx, config) {
             }
           });
 
-        })
-        ctx.logger.info(`已为群组 ${channelId} 设置定时任务，cron 表达式：${subscribetime}`);
-
-      } catch (error) {
-        ctx.logger.error(`为群组 ${channelId} 设置定时任务失败，cron 表达式可能无效：${subscribetime}`, error);
+          ctx.logger.info(`已为群组 ${channelId} 设置定时任务，cron 表达式：${cronExpression}`);
+        } catch (error) {
+          ctx.logger.error(`为群组 ${channelId} 设置定时任务失败，cron 表达式可能无效：${cronExpression}`, error);
+        }
       }
-    }
+    });
   });
 
 
