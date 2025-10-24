@@ -1,18 +1,10 @@
 {
-  "compilerOptions": {
-    "rootDir": "src",
-    "outDir": "lib",
-    "target": "es2020",
-    "module": "esnext",
-    "moduleResolution": "bundler",
-    "incremental": true,
-    "skipLibCheck": true,
-    "declaration": true,
-    "emitDeclarationOnly": true,
-    "esModuleInterop": true,
-    "composite": true,
-  },
-  "include": [
-    "."
-  ],
+    "extends": "./../../tsconfig",
+    "compilerOptions": {
+        "rootDir": "src",
+        "outDir": "lib"
+    },
+    "include": [
+        "src"
+    ]
 }
