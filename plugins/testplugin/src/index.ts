@@ -23,20 +23,30 @@ export function apply(ctx: Context) {
   //     // ctx.logger.info(aaa)
   //   }
   // })
+
+  ctx
+    .command('emoji测试')
+    .action(async ({ session }, jsoninput) => {
+      ctx.logger.info(session)
+      await session.send("请发送emoji：")
+      const aaa = await session.prompt(30 * 1000)
+      await session.send(aaa)
+      return
+    })
   ctx
     .command('这是直接发的指令')
     .action(async ({ session }, jsoninput) => {
       ctx.logger.info(session)
       return 'Hello from 直接指令!'
     })
-    
+
   ctx
     .command('这是普通指令 [...args]')
     .action(async ({ session }, ...args) => {
       ctx.logger.info('用户输入的参数为：', args)
       return 'Hello from 普通指令!'
     })
-    
+
   ctx
     .command('这是自定义输入指令 [jsoninput]')
     .action(async ({ session }, jsoninput) => {
