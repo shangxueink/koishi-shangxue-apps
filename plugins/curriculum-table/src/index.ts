@@ -171,9 +171,10 @@ export const usage = `
 输入 <code>查看课程表 -1</code> 即可查看昨天课程，
 `;
 const logger = new Logger(`DEV:${name}`);
+
 export const Config = Schema.intersect([
   Schema.object({
-    command: Schema.string().default("课表").description("注册的`父级指令`的名称"),
+    command: Schema.string().default("群友课表").description("注册的`父级指令`的名称"),
     command11: Schema.string().default("添加").description("实现 `添加课程` 的指令名称"),
     command12: Schema.string().default("移除").description("实现 `移除课程` 的指令名称"),
     command13: Schema.string().default("wakeup").description("实现 `wakeup快速导入课表` 的指令名称"),
@@ -195,7 +196,7 @@ export const Config = Schema.intersect([
       subscribe: Schema.array(Schema.object({
         bot: Schema.string().description('机器人ID'),
         channelId: Schema.string().description("群组ID"),
-        time: Schema.string().role('time').description("每日推送时间"),
+        time: Schema.string().role('time').description("每日推送时间").default("07:30:00"),
       })).role('table').description("在指定群组订阅课表 定时主动推送<br>例如：`07:30:55` 代表每天早上7:30推送（秒数无效）"),
     }),
     Schema.object({
@@ -240,7 +241,6 @@ export async function apply(ctx, config) {
       autoInc: true,
     });
 
-
     ctx.command(`${config.command}`)
 
     ctx.command(`${config.command}${config.command11} <param1:string> <param2:string> <param3:string>`)
@@ -276,7 +276,6 @@ export async function apply(ctx, config) {
           return identified;
         }
 
-
         if (!param1 || !param2 || !param3) {
           return "请提供所有必需的参数：日期、课程名称和时间。";
         }
@@ -294,7 +293,9 @@ export async function apply(ctx, config) {
         const username = options.username || session.username || userId;
         const channelId = session.channelId;
         let useravatar = session.event.user.avatar;
-        if (options.userid) useravatar = `http://q.qlogo.cn/headimg_dl?dst_uin=${options.userid}&spec=640`
+        if (options.userid) {
+          useravatar = `http://q.qlogo.cn/headimg_dl?dst_uin=${options.userid}&spec=640`
+        }
 
         const normalizedTime = time.replace(/：/g, ':').replace(/——/g, '-');
         const normalizedWeekday = weekday.replace(/，/g, ',').split(/[,、，]/).flatMap(dayGroup => {
@@ -342,7 +343,6 @@ export async function apply(ctx, config) {
           const now = new Date();
           const startDate = now.toISOString().split('T')[0]; // YYYY-MM-DD
           const endDate = new Date(now.setDate(now.getDate() + (5 * 31))).toISOString().split('T')[0];
-
 
           await ctx.database.create('curriculumtable', {
             channelId: channelId,
@@ -589,12 +589,34 @@ export async function apply(ctx, config) {
       });
 
     // 渲染课程表
-    ctx.command(`${config.command}.${config.command21} [day:number]`)
+    ctx.command(`${config.command}.${config.command21} [day:string]`)
       .action(async ({ session, options }, day) => {
-        const dayOffset = Number(day) || 0;
+        let dayOffset = 0;
+        if (day) {
+          const num = Number(day);
+          if (!isNaN(num)) {
+            dayOffset = num;
+          } else {
+            const dayMap = {
+              '今天': 0, '明天': 1, '后天': 2, '大后天': 3,
+              '昨天': -1, '前天': -2, '大前天': -3,
+            };
 
-        if (isNaN(dayOffset)) {
-          return "day 参数必须是一个数字。";
+            if (day in dayMap) {
+              dayOffset = dayMap[day];
+            } else {
+              const futureMatch = day.match(/^(大+)(后天)$/);
+              const pastMatch = day.match(/^(大+)(前天)$/);
+
+              if (futureMatch) {
+                dayOffset = futureMatch[1].length + 2;
+              } else if (pastMatch) {
+                dayOffset = -(pastMatch[1].length + 2);
+              } else {
+                return `无法识别的日期描述: "${day}"。请输入数字或 "今天"、"明天"、"昨天" 等。`;
+              }
+            }
+          }
         }
 
         await session.send(await renderCourseTable(ctx, config, session.channelId, dayOffset));
@@ -670,8 +692,6 @@ export async function apply(ctx, config) {
     });
   });
 
-
-
   // 渲染课程表的函数 
   async function renderCourseTable(ctx, config, channelId, dayOffset = 0) {
     if (!ctx.puppeteer) {
@@ -708,7 +728,6 @@ export async function apply(ctx, config) {
         logInfo(`群组 ${channelId} 在今天（${currentDayOfWeekName}）有 ${validCourses.length} 门课程，开始渲染课表。`);
       }
 
-
       const courseList = [];
       validCourses.forEach(course => {
         course.curriculumndate.forEach(day => {
@@ -731,7 +750,6 @@ export async function apply(ctx, config) {
           }
         });
       });
-
 
       courseList.sort((a, b) => a.timestamp - b.timestamp);
 
@@ -790,7 +808,6 @@ export async function apply(ctx, config) {
         }
       }
 
-
       for (const [userid, noCourseInfo] of noCourseMap) {
         let truncatedDetails = noCourseInfo.noCourseDetails.join('; ').substring(0, 20);
         if (noCourseInfo.noCourseDetails.join('; ').length > 20) {
@@ -807,7 +824,6 @@ export async function apply(ctx, config) {
         if (!a.noCourseDetails && b.noCourseDetails) return -1;
         return a.timestamp - b.timestamp;
       });
-
 
       // HTML 模板
       const htmlTemplate = `
@@ -845,7 +861,6 @@ overflow: hidden;
 padding: 20px; /* 内部间距 */
 box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); /* 阴影效果 */
 }
-
 
 h1 {
 font-family: '方正像素12', sans-serif; /* 优先使用自定义字体 */
@@ -891,7 +906,6 @@ align-items: stretch; /* 垂直方向拉伸 */
 border-bottom: none; /* 移除最后一个元素的下边框 */
 }
 
-
 .avatar-info {
 display: flex;
 flex-direction: column; /* 垂直排列头像和昵称 */
@@ -918,7 +932,6 @@ text-overflow: ellipsis;
 font-size: 0.9em; /* 稍小字体 */
 }
 
-
 .course-separator {
 width: 1px;
 background-color: #ddd;
@@ -931,7 +944,6 @@ flex-grow: 1; /* 课程详情占据剩余空间 */
 display: flex;
 flex-direction: column; /* 内部垂直排列 */
 }
-
 
 .status-and-course {
 display: flex;
@@ -974,7 +986,6 @@ color: #555;
 margin: 0;
 }
 
-
 .no-course-details {
 flex-grow: 1; /* 无课程信息占据剩余空间 */
 display: flex;
@@ -993,7 +1004,6 @@ font-size: 0.9em;
 color: #777;
 text-align: left; /* 文字左对齐 */
 }
-
 
 footer {
 margin-top: 30px; /* 减小页脚边距 */
@@ -1023,7 +1033,6 @@ right: -5px; /* 减小页脚边框偏移 */
 border-bottom: 10px solid; /* 减小页脚边框大小 */
 border-right: 10px solid;  /* 减小页脚边框大小 */
 }
-
 
 /* CSS 箭头样式 */
 .status::before {
@@ -1076,7 +1085,6 @@ ${mergedCourseList.map(course => {
           endTimestamp = course.timestamp + (endHour * 60 + endMinute) - (parseInt(course.time.split(':')[0]) * 60 + parseInt(course.time.split(':')[1]));
         }
 
-
         let timeRemainingText = '';
         if (hasEndTime && course.timestamp <= currentTimestamp && currentTimestamp <= endTimestamp) {
           status = "ongoing";
@@ -1101,7 +1109,6 @@ ${mergedCourseList.map(course => {
 
           //mergedCourseList.push(course); // 已经在外层循环处理
         }
-
 
         return `
 <li class="course-item">
