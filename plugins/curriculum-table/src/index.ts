@@ -15,16 +15,6 @@ export const usage = `
 此外，插件还支持定时自动发送课程表图片到指定群组。
 </p>
 
-<h2>主要功能</h2>
-
-<ul>
-<li><strong>手动添加课程</strong>：通过指令手动添加课程信息。</li>
-<li><strong>WakeUp 课程表导入</strong>：从 WakeUp 课程表应用分享的链接中导入课程。</li>
-<li><strong>查看课程表</strong>：生成并发送当前群组的课程表图片。</li>
-<li><strong>定时发送</strong>：根据配置的 Cron 表达式，定时自动发送课程表图片。</li>
-<li><strong>移除课程</strong>: 移除已添加的课程。</li>
-</ul>
-
 <h2>指令说明</h2>
 <details>
 <summary>点击此处————查看指令说明</summary>
@@ -36,7 +26,7 @@ export const usage = `
 
 <pre>
 <code>
-群友课程表/添加课程 &lt;星期几&gt; &lt;课程名称&gt; &lt;上课时间-下课时间&gt;
+群友课表.添加 &lt;星期几&gt; &lt;课程名称&gt; &lt;上课时间-下课时间&gt;
 </code>
 </pre>
 <ul>
@@ -60,8 +50,8 @@ export const usage = `
 
 <pre>
 <code>
-群友课程表/添加课程 周一周三 高等数学 8:00-9:30
-群友课程表/添加课程 周四周五 9:55-12:15 大学英语 -i 114514 -n 上学大人
+群友课表.添加 周一周三 高等数学 8:00-9:30
+群友课表.添加 周四周五 9:55-12:15 大学英语 -i 114514 -n 上学大人
 </code>
 </pre>
 
@@ -96,7 +86,7 @@ export const usage = `
 
 <pre>
 <code>
-群友课程表/wakeup 这是来自「WakeUp课程表」的课表分享......分享口令为「PaJ_8Kj_zeelspJs2HBL1」
+群友课表.wakeup 这是来自「WakeUp课程表」的课表分享......分享口令为「PaJ_8Kj_zeelspJs2HBL1」
 </code>
 </pre>
 
@@ -106,7 +96,7 @@ export const usage = `
 </p>
 <pre>
 <code>
-群友课程表/查看课程表
+群友课表.看看
 </code>
 </pre>
 
@@ -116,7 +106,7 @@ export const usage = `
 
 <pre>
 <code>
-群友课程表/移除课程
+群友课表.移除
 </code>
 </pre>
 
@@ -166,9 +156,9 @@ export const usage = `
 
 本插件只适合一些互相熟悉的小团体玩。
 
-输入 <code>查看课程表 1</code> 即可查看明日课程，输入 <code>查看课程表 2</code> 即可查看后天课程，
+输入 <code>群友课表.看看 1</code> 即可查看明日课程，输入 <code>群友课表.看看 2</code> 即可查看后天课程，
 
-输入 <code>查看课程表 -1</code> 即可查看昨天课程，
+输入 <code>群友课表.看看 -1</code> 即可查看昨天课程，
 `;
 const logger = new Logger(`DEV:${name}`);
 
@@ -243,7 +233,7 @@ export async function apply(ctx, config) {
 
     ctx.command(`${config.command}`)
 
-    ctx.command(`${config.command}${config.command11} <param1:string> <param2:string> <param3:string>`)
+    ctx.command(`${config.command}.${config.command11} <param1:string> <param2:string> <param3:string>`)
       .option('userid', '-i <userid:string> 指定用户ID (QQ号)')
       .option('username', '-n <username:string> 指定用户的名称')
       .example(`${config.command11} 周一周三 高等数学 8:00-9:30`)
