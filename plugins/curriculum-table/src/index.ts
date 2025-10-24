@@ -1,4 +1,4 @@
-import { Schema, Logger, h } from "koishi";
+import { Schema, Logger, h, Universal, Bot } from "koishi";
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -182,24 +182,33 @@ export const Config = Schema.intersect([
   }).description('基础设置'),
 
   Schema.object({
+    waittimeout: Schema.number().description("等待用户交互的超时时间。（单位：秒）").default(30),
+    autocommand14: Schema.boolean().default(true).description("添加课程时，自动执行`课程去重`"),
+  }).description('进阶设置'),
+
+  Schema.object({
+    cronPush: Schema.boolean().default(false).description("是否开启自动推送功能。**需要cron服务！**<br>指定机器人 在特定时间推送到特定频道"),
+  }).description('定时推送'),
+  Schema.union([
+    Schema.object({
+      cronPush: Schema.const(true).required(),
+      subscribe: Schema.array(Schema.object({
+        bot: Schema.string().description('bot的Id'),
+        channelId: Schema.string().description("群组ID"),
+        subscribetime: Schema.string().description("推送时间(cron表达式)"),
+      })).role('table').description("在指定群组订阅课表 定时主动推送<br>例如：`10 16 * * *` 的意思是<br>**10**: 分钟 (10 分)<br>**16**: 小时 (16 点，即下午 4 点)<br> *: 日 (一个月中的每一天)<br> *: 月 (每个月)<br> *: 星期 (一周中的每一天)<br>"),
+    }),
+    Schema.object({
+      cronPush: Schema.const(false),
+    }),
+  ]),
+
+  Schema.object({
     screenshotquality: Schema.number().role('slider').min(0).max(100).step(1).default(60).description('设置图片压缩 保留质量（%）'),
     backgroundcolor: Schema.string().role('color').description("渲染的课表底色背景色").default("rgba(234, 228, 225, 1)"),
     customFontPath: Schema.string().description("字体 URL (.ttf)<br>注意：需填入本地绝对路径的地址").default(path.join(__dirname, './../font/方正像素12.ttf')), // https://www.mostfont.com/font/VMnwofYeecb3N/%E6%96%B9%E6%AD%A3%E5%83%8F%E7%B4%A012
     footertext: Schema.string().role('textarea', { rows: [2, 4] }).description("页脚描述文字。换行请用`\<br\>`").default("输入 群友课程表 以查看指令帮助<br>Bot of koishi & koishi-plugin-curriculum-table"),
   }).description('渲染设置'),
-
-  Schema.object({
-    waittimeout: Schema.number().description("等待用户交互的超时时间").default(30),
-    autocommand14: Schema.boolean().default(true).description("添加课程时，自动执行`课程去重`"),
-  }).description('进阶设置'),
-
-  Schema.object({
-    bot: Schema.number().description('定时消息由第几个bot发出？`第一个是0，第二个是1，...`<br>▶ 如果你只接了一个机器人，那么`0`即可').default(0).min(0),
-    subscribe: Schema.array(Schema.object({
-      channelId: Schema.string().description("群组ID"),
-      subscribetime: Schema.string().description("推送时间(cron表达式)"),
-    })).role('table').description("在指定群组订阅课表 定时主动推送<br>例如：`10 16 * * *` 的意思是<br>**10**: 分钟 (10 分)<br>**16**: 小时 (16 点，即下午 4 点)<br> *: 日 (一个月中的每一天)<br> *: 月 (每个月)<br> *: 星期 (一周中的每一天)<br>"),
-  }).description('定时推送'),
 
   Schema.object({
     loggerinfo: Schema.boolean().default(false).description("日志调试模式 `非必要不开启`"),
@@ -364,6 +373,10 @@ export async function apply(ctx, config) {
       .option('username', '-n <username:string> 指定用户的名称')
       .example(`输入示例：\n${config.command13} 这是来自「WakeUp课程表」的课表分享......分享口令为「PaJ_8Kj_zeelspJs2HBL1」`)
       .action(async ({ session, options }, param) => {
+        if (!param) {
+          await session.send("请输入wakeup课程表分享口令：")
+          param = await session.prompt(config.waittimeout * 1000)
+        }
         const keyMatch = param.match(/分享口令为「(.*?)」/);
         if (!keyMatch) return "未检测到分享口令，请检查输入格式。";
         const shareKey = keyMatch[1];
@@ -376,7 +389,7 @@ export async function apply(ctx, config) {
           logInfo(apiUrl);
           logInfo(response);
 
-          if (response?.status !== "1" || !response?.data) {
+          if (response?.status !== 1 || !response?.data) {
             return `WakeUp API 请求失败: ${response?.message || '未知错误'}`;
           }
 
@@ -483,7 +496,6 @@ export async function apply(ctx, config) {
           return "导入课程表失败，请检查网络或稍后重试。";
         }
       });
-
 
     ctx.command(`${config.command}/${config.command12}`)
       .option('userid', '-i <userid:string> 指定用户ID (QQ号)')
@@ -594,11 +606,12 @@ export async function apply(ctx, config) {
       return;
     }
 
-    const bot = ctx.bots[config.bot];
-    if (bot == null) {
+    const bot: any = Object.values(ctx.bots).find((b: Bot) => b.selfId === config.bot || b.user?.id === config.bot);
+    if (!bot || bot.status !== Universal.Status.ONLINE) {
       ctx.logger.warn(`定时消息发送失败: 未找到ID为 ${config.bot} 的bot`);
       return;
     }
+    if (bot == null) return;
 
     for (const subscription of config.subscribe) {
       const { channelId, subscribetime } = subscription;
