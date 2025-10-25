@@ -1,0 +1,9 @@
+{
+    "api": "https://www.modelscope.cn/api/v1/studio/MiDd1Eye/Pathfinder2.0-Bert-VITS2/gradio/run/predict",
+    "fileApi": "https://www.modelscope.cn/api/v1/studio/MiDd1Eye/Pathfinder2.0-Bert-VITS2/gradio/file=",
+    "speakers": {
+        "Speaker": {
+            "speaker": "Speaker"
+        }
+    }
+}

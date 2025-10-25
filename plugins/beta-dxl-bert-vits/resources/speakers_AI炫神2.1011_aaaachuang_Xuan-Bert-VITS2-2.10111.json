@@ -1,0 +1,9 @@
+{
+    "api": "https://www.modelscope.cn/api/v1/studio/aaaachuang/Xuan-Bert-VITS2-2.10111/gradio/run/predict",
+    "fileApi": "https://www.modelscope.cn/api/v1/studio/aaaachuang/Xuan-Bert-VITS2-2.10111/gradio/file=",
+    "speakers": {
+        "炫神": {
+            "speaker": "炫神"
+        }
+    }
+}

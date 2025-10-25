@@ -1,0 +1,9 @@
+{
+    "api": "https://www.modelscope.cn/api/v1/studio/kagarise/Nana7mi-Bert-VITS2/gradio/run/predict",
+    "fileApi": "https://www.modelscope.cn/api/v1/studio/kagarise/Nana7mi-Bert-VITS2/gradio/file=",
+    "speakers": {
+        "Nana7mi": {
+            "speaker": "Nana7mi"
+        }
+    }
+}

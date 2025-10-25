@@ -1,59 +1,67 @@
-import path from 'path'
-import fs from 'fs'
-import { APISpeakers } from './types'
+import path from 'node:path'
+import fs from 'node:fs'
+import { SpeakerData } from './types'
+import { Logger } from 'koishi'
 
-export const APISpeakerList: APISpeakers[] = (function () {
-    const dir = path.resolve('data/bert-vits')
-    const file = path.resolve(dir, 'speakers.json')
+export interface SpeakerInfo {
+    api: string
+    fileApi: string
+    internalName: string
+}
 
-    if (!fs.existsSync(file)) {
-        const defaultPath = path.join(__dirname, '../resources/speakers.json')
+export function loadSpeakersData(logger: Logger) {
+    const resourcesDir = path.resolve(__dirname, '../resources')
 
+    if (!fs.existsSync(resourcesDir)) {
+        fs.mkdirSync(resourcesDir, { recursive: true })
+    }
+
+    const files = fs
+        .readdirSync(resourcesDir)
+        .filter(
+            (file) => file.startsWith('speakers_') && file.endsWith('.json')
+        )
+
+    const speakersMap = new Map<string, SpeakerInfo>()
+
+    files.forEach((file) => {
         try {
-            fs.mkdirSync(dir)
-        } catch (e) {
-            //
+            const filePath = path.join(resourcesDir, file)
+            const content = fs.readFileSync(filePath, 'utf-8')
+            const data = JSON.parse(content) as SpeakerData
+            const fileIdentifier = file
+                .replace('speakers_', '')
+                .replace('.json', '')
+
+            for (const speakerName in data.speakers) {
+                const uniqueName = `${speakerName} (${fileIdentifier})`
+                if (speakersMap.has(uniqueName)) {
+                    logger.warn(
+                        `Duplicate speaker found, skipping: ${uniqueName} in ${file}`
+                    )
+                    continue
+                }
+                speakersMap.set(uniqueName, {
+                    api: data.api,
+                    fileApi: data.fileApi,
+                    internalName: data.speakers[speakerName].speaker,
+                })
+            }
+        } catch (error) {
+            logger.error(`Error reading or parsing ${file}:`, error)
         }
-        fs.copyFileSync(defaultPath, file)
-    }
+    })
 
-    return JSON.parse(fs.readFileSync(file, 'utf-8'))
-})()
+    const SpeakersList = [...speakersMap.keys()].sort()
 
-let baseSpeakId = 114514
-
-// as {key:value}
-export const SpeakerKeyIdMap = APISpeakerList.flatMap((apiSpeaker) => {
-    const entries = Object.entries(apiSpeaker.speakers)
-
-    const result: string[] = []
-
-    for (const [key, value] of entries) {
-        if (value.language) {
-            result.push(`${key}_${value.language}`)
-            continue
-        }
-
-        if (value.languages) {
-            value.languages.forEach((l) => {
-                result.push(`${key}_${l}`)
-            })
-        }
-    }
-
-    return result
-})
-    .sort((a, b) => (a < b ? 1 : -1))
-    .map((k, index) => [k, baseSpeakId++])
-    .reduce(
-        (acc, [k, v]) => {
-            acc[v as number] = k as string
+    let baseSpeakId = 114514
+    const SpeakerIdMap = SpeakersList.reduce(
+        (acc, speaker, index) => {
+            acc[baseSpeakId + index] = speaker
             return acc
         },
         {} as Record<number, string>
     )
 
-// reverse SpeakerKeyIdMap
-export const SpeakerKeyMap = Object.fromEntries(
-    Object.entries(SpeakerKeyIdMap).map(([k, v]) => [v, k])
-)
+    return { speakersMap, SpeakersList, SpeakerIdMap }
+}

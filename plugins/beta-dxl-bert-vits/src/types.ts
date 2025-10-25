@@ -6,28 +6,16 @@ export interface SpeakConfig {
     length: number
     prompt: string
     weight: number
-    language: string
     input: string
 }
 
 export interface Speaker {
-    languages?: string[]
-    language?: string
-    version?: string
-    speaker?: string
+    speaker: string
 }
 
-export interface API {
-    endpoint: any
-    base: string
-    is_gradio?: boolean
-    params?: {
-        [key: string]: string
-    }
-}
-
-export interface APISpeakers {
-    api: API
+export interface SpeakerData {
+    api: string
+    fileApi: string
     speakers: {
         [key: string]: Speaker
     }

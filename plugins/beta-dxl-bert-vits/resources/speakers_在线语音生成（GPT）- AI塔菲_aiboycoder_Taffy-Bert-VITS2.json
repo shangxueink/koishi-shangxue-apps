@@ -1,0 +1,9 @@
+{
+    "api": "https://www.modelscope.cn/api/v1/studio/aiboycoder/Taffy-Bert-VITS2/gradio/run/predict",
+    "fileApi": "https://www.modelscope.cn/api/v1/studio/aiboycoder/Taffy-Bert-VITS2/gradio/file=",
+    "speakers": {
+        "taffy": {
+            "speaker": "taffy"
+        }
+    }
+}

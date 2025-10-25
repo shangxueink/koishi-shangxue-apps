@@ -1,0 +1,9 @@
+{
+    "api": "https://www.modelscope.cn/api/v1/studio/AWM2000/Gun-Bert-VITS2/gradio/run/predict",
+    "fileApi": "https://www.modelscope.cn/api/v1/studio/AWM2000/Gun-Bert-VITS2/gradio/file=",
+    "speakers": {
+        "otto": {
+            "speaker": "otto"
+        }
+    }
+}
