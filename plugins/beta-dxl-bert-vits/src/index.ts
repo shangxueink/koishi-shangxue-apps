@@ -4,7 +4,21 @@ import { betavits, betavitsService } from './service'
 import { Config } from './config'
 
 export * from './config'
+export const usage = `
+---
 
+### 指令用法
+
+\`\`\`
+++betavits 你好啊，这是一段测试的模板语音
+\`\`\`
+
+---
+
+如何添加新模型？[请查看README.md](https://github.com/example/repo/blob/main/README.md)。
+
+---
+`
 const logger = new Logger('beta-dxl-bert-vits')
 
 export function apply(ctx: Context, config: Config) {
