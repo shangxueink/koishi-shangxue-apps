@@ -22,6 +22,7 @@ export function apply(ctx: Context) {
   ctx
     .command('html测试')
     .action(async ({ session }) => {
+      await session.send(h("yunhu:html", "<h1>你好</h1>"))
       await session.send(h("html", "<h1>你好</h1>"))
       return
     })
@@ -36,6 +37,7 @@ export function apply(ctx: Context) {
   ctx
     .command('md测试')
     .action(async ({ session }) => {
+      await session.send(h("yunhu:markdown", "# 你好\n## 这是markdown！"))
       await session.send(h("markdown", "# 你好\n## 这是markdown！"))
       return
     })
