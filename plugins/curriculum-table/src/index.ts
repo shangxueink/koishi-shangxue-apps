@@ -628,15 +628,6 @@ export async function apply(ctx, config) {
         // 如果没有提供时间，则跳过
         if (!time) continue;
 
-        // 查找对应的 bot 实例
-        const bot = (Object.values(ctx.bots) as Bot[]).find(b => b.selfId === botId || b.user?.id === botId);
-
-        // 如果找不到 bot 或 bot 不在线，则跳过此订阅
-        if (!bot || bot.status !== Universal.Status.ONLINE) {
-          ctx.logger.warn(`定时消息发送失败: 未找到ID为 ${botId} 的bot或bot不在线`);
-          continue;
-        }
-
         // 将时间字符串 "HH:mm:ss" 转换成 cron 表达式
         const [hour, minute] = time.split(':');
         const cronExpression = `${minute} ${hour} * * *`;
@@ -644,6 +635,13 @@ export async function apply(ctx, config) {
         try {
           // 设置定时任务
           ctx.cron(cronExpression, async () => {
+            // 在任务执行时查找 bot 实例并检查状态
+            const bot = (Object.values(ctx.bots) as Bot[]).find(b => b.selfId === botId || b.user?.id === botId);
+
+            if (!bot || bot.status !== Universal.Status.ONLINE) {
+              ctx.logger.warn(`定时消息发送失败: 未找到ID为 ${botId} 的bot或bot不在线`);
+              return; // 仅跳过本次执行
+            }
             const allCourses = await ctx.database.get('curriculumtable', { channelId });
 
             if (allCourses.length === 0) {
