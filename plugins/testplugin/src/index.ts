@@ -45,7 +45,7 @@ export function apply(ctx: Context) {
   ctx
     .command('视频测试')
     .action(async ({ session }) => {
-      await session.send(h.video("file:///E:/download/Windowsdownload/software_apps_downloads/TEMP/0b6657eb10fbc53a3d47906c0fb7cb75.mp4"))
+      await session.send(h.video("file:///E:/download/Windowsdownload/software_apps_downloads/TEMP/7610d9617b0a8343b649667a9114a505.mp4"))
       return
     })
 

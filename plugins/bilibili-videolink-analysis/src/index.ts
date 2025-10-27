@@ -203,7 +203,6 @@ export function apply(ctx: Context, config: Config) {
       }
 
       let sessioncontent = session.stripped.content;
-      ctx.logger.info(sessioncontent)
       if (config.BVnumberParsing) {
         const bvUrls = bilibiliParser.convertBVToUrl(sessioncontent);
         if (bvUrls.length > 0) {
