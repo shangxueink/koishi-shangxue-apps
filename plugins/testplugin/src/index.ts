@@ -8,7 +8,10 @@ export const Config: Schema<Config> = Schema.object({})
 
 export function apply(ctx: Context) {
   // write your plugin here
-  // 如果收到“天王盖地虎”，就回应“宝塔镇河妖”
+  const commandName = "测试"
+
+  const command = ctx.command(commandName)
+
   ctx.on('interaction/button', async (session) => {
     ctx.logger.info(session)
   })
@@ -19,66 +22,96 @@ export function apply(ctx: Context) {
   //   }
   // })
 
-  ctx
-    .command('html测试')
+  command
+    .subcommand('.编辑消息.md')
+    .action(async ({ session }) => {
+      const aaa = await session.send(h.text("你好，这是编辑之前的消息。"))
+      await sleep(3 * 1000)
+      await session.bot.editMessage(session.channelId, aaa[0], h("markdown", "# 你好\n## 你好啊"))
+      await session.send(h.text("我已经编辑完毕"))
+      return
+    })
+
+  command
+    .subcommand('.编辑消息.图片')
+    .action(async ({ session }) => {
+      const aaa = await session.send(h.text("你好，这是编辑之前的消息。"))
+      await sleep(3 * 1000)
+      await session.bot.editMessage(session.channelId, aaa[0], h.image("https://i1.hdslb.com/bfs/archive/ea9dc9d2d716280b673a3bd5eb21023b3a2ed2b3.jpg"))
+      await session.send(h.text("我已经编辑完毕"))
+      return
+    })
+
+  command
+    .subcommand('.编辑消息.文字')
+    .action(async ({ session }) => {
+      const aaa = await session.send(h.text("你好，这是编辑之前的消息。"))
+      await sleep(3 * 1000)
+      await session.bot.editMessage(session.channelId, aaa[0], "你好，这是编辑以后的消息。")
+      await session.send(h.text("我已经编辑完毕"))
+      return
+    })
+
+  command
+    .subcommand('.html')
     .action(async ({ session }) => {
       await session.send(h("yunhu:html", "<h1>你好</h1>"))
       await session.send(h("html", "<h1>你好</h1>"))
       return
     })
 
-  ctx
-    .command('h1测试')
+  command
+    .subcommand('.h1')
     .action(async ({ session }) => {
       await session.send(h("h1", "你好这是h1"))
       return
     })
 
-  ctx
-    .command('md测试')
+  command
+    .subcommand('.md')
     .action(async ({ session }) => {
       await session.send(h("yunhu:markdown", "# 你好\n## 这是markdown！"))
       await session.send(h("markdown", "# 你好\n## 这是markdown！"))
       return
     })
 
-  ctx
-    .command('视频测试')
+  command
+    .subcommand('.视频')
     .action(async ({ session }) => {
       await session.send(h.video("file:///E:/download/Windowsdownload/software_apps_downloads/TEMP/7610d9617b0a8343b649667a9114a505.mp4"))
       return
     })
 
-  ctx
-    .command('语音测试')
+  command
+    .subcommand('.语音')
     .action(async ({ session }) => {
       await session.send(h.audio("https://api.injahow.cn/meting/?type=url&id=2748727454"))
       return
     })
 
-  ctx
-    .command('图片测试')
+  command
+    .subcommand('.图片')
     .action(async ({ session }) => {
       await session.send(h.image("https://i1.hdslb.com/bfs/archive/ea9dc9d2d716280b673a3bd5eb21023b3a2ed2b3.jpg"))
       return
     })
 
-  ctx
-    .command('发送消息到 [id]')
+  command
+    .subcommand('.发送消息到 [id]')
     .action(async ({ session }, id) => {
       await session.bot.sendMessage("group:307149245", h.at("37090343") + " assign")
       return
     })
 
-  ctx
-    .command('assign切换 [id]')
+  command
+    .subcommand('.assign切换 [id]')
     .action(async ({ session }, id) => {
       await session.send(h.at(id) + ` assign`)
       return
     })
 
-  ctx
-    .command('at测试 [...at]')
+  command
+    .subcommand('.at [...at]')
     .action(async ({ session }, ...at) => {
       ctx.logger.info(at)
       ctx.logger.info(h.parse(session.content))
@@ -86,8 +119,8 @@ export function apply(ctx: Context) {
       return
     })
 
-  ctx
-    .command('emoji测试')
+  command
+    .subcommand('.emoji')
     .action(async ({ session }) => {
       ctx.logger.info(session)
       await session.send("请发送emoji：")
@@ -97,24 +130,24 @@ export function apply(ctx: Context) {
     })
 
   // yunhu platform
-  ctx
-    .command('这是直接发的指令')
+  command
+    .subcommand('这是直接发的指令')
     .action(async ({ session }) => {
       ctx.logger.info(session)
       return 'Hello from 直接指令!'
     })
 
-  ctx
-    .command('这是普通指令 [...args]')
+  command
+    .subcommand('这是普通指令 [...args]')
     .action(async ({ session }, ...args) => {
       ctx.logger.info('用户输入的参数为：', args)
       return 'Hello from 普通指令!'
     })
 
-  ctx
-    .command('这是自定义输入指令 [jsoninput]')
+  command
+    .subcommand('这是自定义输入指令 [jsoninput]')
     .action(async ({ session }, jsoninput) => {
       ctx.logger.info('用户输入的json表单内容为：', jsoninput)
-      return 'Hello from 测试!'
+      return 'Hello from !'
     })
 }
