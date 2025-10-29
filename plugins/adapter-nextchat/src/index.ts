@@ -6,6 +6,7 @@ import { } from '@koishijs/plugin-console'
 import { NextChatBot } from './bot'
 
 import { resolve } from 'node:path'
+import { Query } from 'koishi'
 
 // 全局日志函数
 export let loggerError: (message: any, ...args: any[]) => void;
@@ -77,6 +78,20 @@ export const Config: Schema<Config> = Schema.intersect([
 export function apply(ctx: Context, config: Config) {
 
   ctx.on('ready', () => {
+    // 生成动态URL
+    const nextchatBaseUrl = 'https://chat.bailili.top'
+    const settings = {
+      key: config.token,
+      url: `http://localhost:5140/nextchat`,
+    }
+    const settingsQuery = encodeURIComponent(JSON.stringify(settings))
+    const dynamicUrl = `${nextchatBaseUrl}/#/?settings=${settingsQuery}`
+
+    // 注册重定向页面
+    ctx.server.get('/nextchat-redirect', async (koaCtx) => {
+      koaCtx.redirect(dynamicUrl)
+    })
+
     // 注册控制台入口
     ctx.console.addEntry({
       dev: resolve(__dirname, '../client/index.ts'),
@@ -225,9 +240,8 @@ export function apply(ctx: Context, config: Config) {
       }
     })
 
-    loggerInfo(`NextChat 适配器已启动，监听路径: http://localhost:${ctx.server.port}${apiPath}
-    请在nextchat中填入：
-    API地址：http://localhost:${ctx.server.port}/nextchat
-    APIkey：${config.token}`)
+    loggerInfo(`NextChat 适配器已启动
+      监听路径: http://localhost:${ctx.server.port}${apiPath}
+      重定向页面: http://localhost:${ctx.server.port}/nextchat-redirect`)
   })
 }
