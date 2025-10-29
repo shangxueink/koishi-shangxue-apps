@@ -226,9 +226,8 @@ export function apply(ctx: Context, config: Config) {
     })
 
     loggerInfo(`NextChat 适配器已启动，监听路径: http://localhost:${ctx.server.port}${apiPath}
-    可在nextchat中填入：
-    API地址：http://127.0.0.1:5140/nextchat
+    请在nextchat中填入：
+    API地址：http://localhost:${ctx.server.port}/nextchat
     APIkey：${config.token}`)
-
   })
 }
