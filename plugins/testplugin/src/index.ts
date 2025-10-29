@@ -76,6 +76,82 @@ export function apply(ctx: Context) {
     })
 
   command
+    .subcommand('.引用')
+    .action(async ({ session }) => {
+      await session.send(h.quote(session.messageId) + "你好啊，我在回复你！你好啊，我在回复你！你好啊，我在回复你！")
+      return
+    })
+  command
+    .subcommand('.剧透')
+    .action(async ({ session }) => {
+      await session.send(h("spl", "你好啊"))
+      return
+    })
+  command
+    .subcommand('.粗体')
+    .action(async ({ session }) => {
+      await session.send(h("b", "这是粗体文本"))
+      return
+    })
+  command
+    .subcommand('.斜体')
+    .action(async ({ session }) => {
+      await session.send(h("i", "这是斜体文本"))
+      return
+    })
+  command
+    .subcommand('.下划线')
+    .action(async ({ session }) => {
+      await session.send(h("u", "这是下划线文本"))
+      return
+    })
+
+  command
+    .subcommand('.删除线')
+    .action(async ({ session }) => {
+      await session.send(h("s", "这是删除线文本"))
+      return
+    })
+  command
+    .subcommand('.代码')
+    .action(async ({ session }) => {
+      await session.send(h("code", "console.log('Hello World')"))
+      return
+    })
+  command
+    .subcommand('.上标')
+    .action(async ({ session }) => {
+      await session.send(h("sup", "2"))
+      return
+    })
+  command
+    .subcommand('.下标')
+    .action(async ({ session }) => {
+      await session.send(h("sub", "2"))
+      return
+    })
+  command
+    .subcommand('.换行')
+    .action(async ({ session }) => {
+      await session.send([
+        h.text("第一行<br>"),
+        h.text("第二行<br>"),
+        h.text("第三行"),
+      ])
+      return
+    })
+
+  command
+    .subcommand('.段落')
+    .action(async ({ session }) => {
+      await session.send([
+        h("p", "这是第一段"),
+        h("p", "这是第二段")
+      ])
+      return
+    })
+
+  command
     .subcommand('.视频')
     .action(async ({ session }) => {
       await session.send(h.video("file:///E:/download/Windowsdownload/software_apps_downloads/TEMP/7610d9617b0a8343b649667a9114a505.mp4"))
