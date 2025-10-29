@@ -1,8 +1,11 @@
 import { Context, Schema, Logger } from 'koishi'
+
 import { } from '@koishijs/plugin-server'
 import { } from '@koishijs/plugin-console'
+
 import { NextChatBot } from './bot'
-import { resolve } from 'path'
+
+import { resolve } from 'node:path'
 
 // 全局日志函数
 export let loggerError: (message: any, ...args: any[]) => void;
@@ -12,6 +15,8 @@ export let logDebug: (message: any, ...args: any[]) => void;
 
 export const name = 'adapter-nextchat'
 export const inject = ['server', 'console']
+export const reusable = false
+export const filter = false
 
 const logger = new Logger(`Development:${name}-dev`)
 
@@ -35,6 +40,18 @@ export interface Config {
   username?: string;
   loggerInfo?: boolean;
   loggerDebug?: boolean;
+}
+
+// 定义 OpenAI Chat Completions API 请求体的类型
+interface ChatCompletionRequest {
+  messages: Array<{
+    role: string;
+    content: string;
+  }>;
+  stream?: boolean;
+  model?: string;
+  user?: string;
+  username?: string;
 }
 
 export const Config: Schema<Config> = Schema.intersect([
@@ -144,7 +161,7 @@ export function apply(ctx: Context, config: Config) {
           logDebug(`[${config.selfId}] Token 验证通过`)
         }
 
-        const body = koaCtx.request.body
+        const body = (koaCtx.request as any).body as ChatCompletionRequest
         logInfo(`[${config.selfId}] 请求体:`, JSON.stringify(body, null, 2))
 
         // 验证请求格式
@@ -169,7 +186,8 @@ export function apply(ctx: Context, config: Config) {
         logDebug(`[${config.selfId}] 找到Bot实例: platform=${bot.platform}, selfId=${bot.selfId}`)
 
         // 处理对话请求
-        const response = await bot.handleChatCompletion(body)
+        const nextChatBot = bot as unknown as NextChatBot
+        const response = await nextChatBot.handleChatCompletion(body)
 
         const processingTime = Date.now() - startTime
 
@@ -182,7 +200,7 @@ export function apply(ctx: Context, config: Config) {
           koaCtx.set('Cache-Control', 'no-cache')
           koaCtx.set('Connection', 'keep-alive')
 
-          const streamData = bot.createStreamResponse(response.content, response.model)
+          const streamData = nextChatBot.createStreamResponse(response.content, response.model)
           koaCtx.status = 200
           koaCtx.body = streamData
         } else {
@@ -210,7 +228,7 @@ export function apply(ctx: Context, config: Config) {
     loggerInfo(`NextChat 适配器已启动，监听路径: http://localhost:${ctx.server.port}${apiPath}
     可在nextchat中填入：
     API地址：http://127.0.0.1:5140/nextchat
-    APIkey：sk-nextchat-koishi-adapter`)
+    APIkey：${config.token}`)
 
   })
 }

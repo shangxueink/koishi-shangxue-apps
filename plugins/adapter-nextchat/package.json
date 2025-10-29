@@ -15,7 +15,12 @@
     "plugin"
   ],
   "peerDependencies": {
-    "@koishijs/plugin-server": "^5.0.0",
-    "koishi": "^4.18.7"
+    "@koishijs/plugin-console": "^5.11.0",
+    "koishi": "^4.16.0"
+  },
+  "devDependencies": {
+    "@koishijs/plugin-server": "^3.2.7",
+    "@koishijs/client": "^5.11.0",
+    "koishi": "^4.16.0"
   }
 }

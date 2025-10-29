@@ -8,7 +8,7 @@ export const Config: Schema<Config> = Schema.object({})
 
 export function apply(ctx: Context) {
   // write your plugin here
-  const commandName = "测试"
+  const commandName = "消息"
 
   const command = ctx.command(commandName)
 
@@ -92,7 +92,9 @@ export function apply(ctx: Context) {
   command
     .subcommand('.图片')
     .action(async ({ session }) => {
-      await session.send(h.image("https://i1.hdslb.com/bfs/archive/ea9dc9d2d716280b673a3bd5eb21023b3a2ed2b3.jpg"))
+      const aaa = h.image("file:///D:/Pictures/meme/fox/0242a0f2d7ca7bcbe9cc0c3af8096b63f624a83b.jpg")
+      ctx.logger.info(aaa)
+      await session.send(aaa)
       return
     })
 
