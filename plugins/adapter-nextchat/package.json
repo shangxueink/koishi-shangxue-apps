@@ -19,8 +19,8 @@
     "koishi": "^4.16.0"
   },
   "devDependencies": {
-    "@koishijs/plugin-server": "^3.2.7",
     "@koishijs/client": "^5.11.0",
+    "@koishijs/plugin-server": "^3.2.7",
     "koishi": "^4.16.0"
   }
 }

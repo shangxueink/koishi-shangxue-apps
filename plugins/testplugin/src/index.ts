@@ -76,6 +76,18 @@ export function apply(ctx: Context) {
     })
 
   command
+    .subcommand('.quote')
+    .action(async ({ session }) => {
+      ctx.logger.info(session.quote)
+      if (session.quote) {
+        ctx.logger.info(session.quote.content)
+        ctx.logger.info(session.quote.channel)
+      }
+      await session.send("已经打印！")
+      return
+    })
+
+  command
     .subcommand('.引用')
     .action(async ({ session }) => {
       await session.send(h.quote(session.messageId) + "你好啊，我在回复你！你好啊，我在回复你！你好啊，我在回复你！")
