@@ -80,7 +80,9 @@ export function apply(ctx: Context) {
     .action(async ({ session }) => {
       await session.send([
         h.text("你好啊"),
-        h("button", { id: 1, type: "input", text: "你好啊" })
+        h("button", { id: 1, type: "action", text: "action按钮" }),
+        h("button", { id: 2, type: "link", text: "link按钮", href: "bilibili.com" }),
+        h("button", { id: 3, type: "input", text: "input按钮" }),
       ])
       return
     })
