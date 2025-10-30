@@ -76,6 +76,16 @@ export function apply(ctx: Context) {
     })
 
   command
+    .subcommand('.按钮')
+    .action(async ({ session }) => {
+      await session.send([
+        h.text("你好啊"),
+        h("button", { id: 1, type: "input", text: "你好啊" })
+      ])
+      return
+    })
+
+  command
     .subcommand('.quote')
     .action(async ({ session }) => {
       ctx.logger.info(session.quote)
