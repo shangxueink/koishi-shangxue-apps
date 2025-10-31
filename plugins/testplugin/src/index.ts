@@ -1,4 +1,5 @@
 import { Context, h, Schema, sleep, Universal } from 'koishi'
+import { inspect } from 'node:util'
 
 export const name = 'testplugin'
 
@@ -15,11 +16,30 @@ export function apply(ctx: Context) {
   ctx.on('interaction/button', async (session) => {
     ctx.logger.info(session)
   })
+
   // ctx.on('message', async (session) => {
-  //   if (session.userId.includes("7756242") || session.userId.includes("1919892171")) {
-  //     ctx.logger.info(session.quote?.elements)
-  //     ctx.logger.info(session.author)
+  //   if (session.userId.includes("7756242") || session.userId.includes("1919892171") || session.userId.includes("679a51f1d4893")) {
+  //     ctx.logger.info(session.content)
+  //     ctx.logger.info(h.parse(session.content))
+  //     // ctx.logger.info(session.quote?.elements)
   //   }
+  // })
+
+
+  ctx.on('iirose/broadcast' as any, async (session, data) => {
+    ctx.logger.info(session, data)
+  })
+
+  // ctx.platform("iirose").on('guild-member-added', async (session) => {
+  //   ctx.logger.info('added', session)
+  // })
+
+  // ctx.platform("iirose").on('guild-member-removed', async (session) => {
+  //   ctx.logger.info('removed', session)
+  // })
+
+  // ctx.platform("iirose").on('guild-member-updated', async (session) => {
+  //   ctx.logger.info('updated', session)
   // })
 
   command
@@ -100,6 +120,56 @@ export function apply(ctx: Context) {
     })
 
   command
+    .subcommand('.元素 [text]')
+    .action(async ({ session }, text) => {
+      if (text) {
+        ctx.logger.info("直接输入", h.parse(text))
+        await session.send("已经打印！")
+        return
+      }
+      if (session.quote) {
+        ctx.logger.info("引用输入", session.quote.elements)
+        await session.send("已经打印！")
+        return
+      }
+      if (!text) {
+        await session.send("请发送元素：")
+        const aaa = await session.prompt(30 * 1000)
+        ctx.logger.info("交互输入", h.parse(aaa))
+        await session.send("已经打印！")
+      }
+      return
+    })
+
+  command
+    .subcommand('.log [content:text]')
+    .action(async ({ session }, content) => {
+      // 权限检查
+      if (!content || !(
+        session.userId.includes("7756242") ||
+        session.userId.includes("1919892171") ||
+        session.userId.includes("679a51f1d4893") ||
+        session.platform.includes("sandbox")
+      )) {
+        return "不符合要求"
+      }
+      try {
+        const contextNames = ['ctx', 'h', 'session', 'inspect'];
+        const contextValues = [ctx, h, session, inspect];
+        const dynamicFunction = new Function(...contextNames, `return ${content}`);
+        const result = dynamicFunction(...contextValues);
+        const loggerstr = inspect(result, { depth: null, colors: true })
+        ctx.logger.info(loggerstr);
+        await session.send("已经打印！")
+        return;
+      } catch (e) {
+        ctx.logger.warn(`执行代码时出错: ${e.stack}`);
+        return `执行代码时出错：${e.message}`;
+      }
+    });
+
+
+  command
     .subcommand('.引用')
     .action(async ({ session }) => {
       await session.send(h.quote(session.messageId) + "你好啊，我在回复你！你好啊，我在回复你！你好啊，我在回复你！")
@@ -158,9 +228,9 @@ export function apply(ctx: Context) {
     .subcommand('.换行')
     .action(async ({ session }) => {
       await session.send([
-        h.text("第一行<br>"),
-        h.text("第二行<br>"),
-        h.text("第三行"),
+        "第一行<br>",
+        "第二行<br>",
+        "第三行",
       ])
       return
     })
@@ -199,9 +269,13 @@ export function apply(ctx: Context) {
     })
 
   command
-    .subcommand('.发送消息到 [id]')
-    .action(async ({ session }, id) => {
-      await session.bot.sendMessage("group:307149245", h.at("37090343") + " assign")
+    .subcommand('.消息 [type]')
+    .action(async ({ session }, type) => {
+      if (type === "user") {
+        await session.bot.sendPrivateMessage(session.userId, "怎么了嘛")
+      } else {
+        await session.bot.sendMessage(session.channelId, "怎么了嘛")
+      }
       return
     })
 
@@ -215,9 +289,11 @@ export function apply(ctx: Context) {
   command
     .subcommand('.at [...at]')
     .action(async ({ session }, ...at) => {
+      const aaa = h.at(session.userId)
       ctx.logger.info(at)
       ctx.logger.info(h.parse(session.content))
-      await session.send(h.at(session.userId) + "你好啊！我at你了")
+      ctx.logger.info(`${aaa}`)
+      await session.send(aaa + "你好啊！我at你了")
       return
     })
 
