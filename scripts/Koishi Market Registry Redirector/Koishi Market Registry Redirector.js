@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Koishi Market Registry Redirector
 // @namespace    https://github.com/shangxueink
-// @version      3.24
+// @version      3.30
 // @description  将 Koishi 市场注册表请求重定向到多个备用镜像源，支持自动重试、单独配置每个镜像源的代理请求解决CORS问题，并修复时间显示问题，镜像地址可点击复制，增加返回顶部按钮。
 // @author       shangxueink
 // @license      MIT
@@ -929,8 +929,8 @@
         { name: 'NPM Mirror (淘宝)', url: 'https://npmmirror.com/package/' }
     ];
 
-    // 创建镜像选择器
-    function createMirrorSelector(packageName, originalLink) {
+    // 创建增强的镜像选择器
+    function createEnhancedMirrorSelector(packageName, marketPackage, githubLink) {
         // 创建遮罩层
         const overlay = document.createElement('div');
         overlay.style.cssText = `
@@ -957,8 +957,10 @@
             border-radius: 8px;
             box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
             border: 1px solid var(--vp-c-divider);
-            max-width: 400px;
+            max-width: 500px;
             width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
             transform: scale(0.9);
             transition: transform 0.2s ease-out;
         `;
@@ -984,14 +986,31 @@
             word-break: break-all;
         `;
 
-        // 创建镜像链接列表
+        // 创建链接列表容器
         const linkList = document.createElement('div');
         linkList.style.cssText = `
             display: flex;
             flex-direction: column;
             gap: 0.5rem;
+            margin-bottom: 1rem;
         `;
 
+        // 添加NPM镜像选项
+        const npmSection = document.createElement('div');
+        npmSection.style.marginBottom = '1rem';
+        npmSection.style.textAlign = 'center';
+        
+        // const npmTitle = document.createElement('h4');
+        // npmTitle.textContent = 'NPM 镜像';
+        // npmTitle.style.cssText = `
+        //     margin: 0 0 0.5rem 0;
+        //     color: var(--vp-c-text);
+        //     font-size: 1rem;
+        //     font-weight: normal;
+        // `;
+        
+        // npmSection.appendChild(npmTitle);
+        
         NPM_MIRRORS.forEach(mirror => {
             const linkButton = document.createElement('button');
             linkButton.textContent = mirror.name;
@@ -1003,9 +1022,20 @@
                 border-radius: 4px;
                 cursor: pointer;
                 transition: all 0.2s;
-                text-align: left;
+                text-align: center;
                 font-size: 0.9rem;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                gap: 0.5rem;
+                width: 100%;
             `;
+
+            const icon = document.createElement('span');
+            icon.innerHTML = '📦';
+            icon.style.fontSize = '1.2rem';
+            
+            linkButton.appendChild(icon);
 
             linkButton.addEventListener('mouseenter', () => {
                 linkButton.style.backgroundColor = 'var(--vp-c-brand)';
@@ -1022,11 +1052,155 @@
             linkButton.addEventListener('click', () => {
                 const fullUrl = mirror.url + packageName;
                 window.open(fullUrl, '_blank');
-                closeMirrorSelector();
+                closeEnhancedMirrorSelector();
             });
 
-            linkList.appendChild(linkButton);
+            npmSection.appendChild(linkButton);
         });
+        
+        linkList.appendChild(npmSection);
+
+        // 添加Repository和Homepage选项
+        const pluginData = findPluginData(packageName);
+        let repositoryUrl = null;
+        let homepageUrl = null;
+        
+        // 尝试从插件数据中获取链接
+        if (pluginData && pluginData.package && pluginData.package.links) {
+            repositoryUrl = pluginData.package.links.repository;
+            homepageUrl = pluginData.package.links.homepage;
+        }
+        
+        // 如果没有从插件数据获取到，尝试从页面元素获取
+        if (!repositoryUrl && githubLink) {
+            repositoryUrl = githubLink.href;
+        }
+        
+        // 添加Repository选项
+        if (repositoryUrl) {
+            const repoSection = document.createElement('div');
+            repoSection.style.marginBottom = '1rem';
+            repoSection.style.textAlign = 'center';
+            
+            // const repoTitle = document.createElement('h4');
+            // repoTitle.textContent = 'Repository (仓库)';
+            // repoTitle.style.cssText = `
+            //     margin: 0 0 0.5rem 0;
+            //     color: var(--vp-c-text);
+            //     font-size: 1rem;
+            //     font-weight: normal;
+            // `;
+            
+            // repoSection.appendChild(repoTitle);
+            
+            const repoButton = document.createElement('button');
+            repoButton.textContent = 'GitHub 仓库';
+            repoButton.style.cssText = `
+                padding: 0.75rem 1rem;
+                border: 1px solid var(--vp-c-divider);
+                background-color: var(--vp-c-bg-soft);
+                color: var(--vp-c-text);
+                border-radius: 4px;
+                cursor: pointer;
+                transition: all 0.2s;
+                text-align: center;
+                font-size: 0.9rem;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                gap: 0.5rem;
+                width: 100%;
+            `;
+
+            const repoIcon = document.createElement('span');
+            repoIcon.innerHTML = '📁';
+            repoIcon.style.fontSize = '1.2rem';
+            
+            repoButton.appendChild(repoIcon);
+
+            repoButton.addEventListener('mouseenter', () => {
+                repoButton.style.backgroundColor = 'var(--vp-c-brand)';
+                repoButton.style.color = 'var(--vp-c-bg)';
+                repoButton.style.transform = 'translateY(-1px)';
+            });
+
+            repoButton.addEventListener('mouseleave', () => {
+                repoButton.style.backgroundColor = 'var(--vp-c-bg-soft)';
+                repoButton.style.color = 'var(--vp-c-text)';
+                repoButton.style.transform = 'translateY(0)';
+            });
+
+            repoButton.addEventListener('click', () => {
+                window.open(repositoryUrl, '_blank');
+                closeEnhancedMirrorSelector();
+            });
+
+            repoSection.appendChild(repoButton);
+            linkList.appendChild(repoSection);
+        }
+        
+        // 添加Homepage选项
+        if (homepageUrl) {
+            const homeSection = document.createElement('div');
+            homeSection.style.marginBottom = '1rem';
+            homeSection.style.textAlign = 'center';
+            
+            // const homeTitle = document.createElement('h4');
+            // homeTitle.textContent = 'Homepage (主页)';
+            // homeTitle.style.cssText = `
+            //     margin: 0 0 0.5rem 0;
+            //     color: var(--vp-c-text);
+            //     font-size: 1rem;
+            //     font-weight: normal;
+            // `;
+            
+            // homeSection.appendChild(homeTitle);
+            
+            const homeButton = document.createElement('button');
+            homeButton.textContent = '项目主页';
+            homeButton.style.cssText = `
+                padding: 0.75rem 1rem;
+                border: 1px solid var(--vp-c-divider);
+                background-color: var(--vp-c-bg-soft);
+                color: var(--vp-c-text);
+                border-radius: 4px;
+                cursor: pointer;
+                transition: all 0.2s;
+                text-align: center;
+                font-size: 0.9rem;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                gap: 0.5rem;
+                width: 100%;
+            `;
+
+            const homeIcon = document.createElement('span');
+            homeIcon.innerHTML = '🏠';
+            homeIcon.style.fontSize = '1.2rem';
+            
+            homeButton.appendChild(homeIcon);
+
+            homeButton.addEventListener('mouseenter', () => {
+                homeButton.style.backgroundColor = 'var(--vp-c-brand)';
+                homeButton.style.color = 'var(--vp-c-bg)';
+                homeButton.style.transform = 'translateY(-1px)';
+            });
+
+            homeButton.addEventListener('mouseleave', () => {
+                homeButton.style.backgroundColor = 'var(--vp-c-bg-soft)';
+                homeButton.style.color = 'var(--vp-c-text)';
+                homeButton.style.transform = 'translateY(0)';
+            });
+
+            homeButton.addEventListener('click', () => {
+                window.open(homepageUrl, '_blank');
+                closeEnhancedMirrorSelector();
+            });
+
+            homeSection.appendChild(homeButton);
+            linkList.appendChild(homeSection);
+        }
 
         // 创建取消按钮
         const cancelButton = document.createElement('button');
@@ -1055,7 +1229,7 @@
             cancelButton.style.transform = 'translateY(0)';
         });
 
-        cancelButton.addEventListener('click', closeMirrorSelector);
+        cancelButton.addEventListener('click', closeEnhancedMirrorSelector);
 
         // 组装选择器
         selector.appendChild(title);
@@ -1077,7 +1251,7 @@
         }, 10);
 
         // 关闭选择器函数
-        function closeMirrorSelector() {
+        function closeEnhancedMirrorSelector() {
             overlay.style.opacity = '0';
             selector.style.transform = 'scale(0.9)';
 
@@ -1090,14 +1264,14 @@
         // 点击遮罩层关闭
         overlay.addEventListener('click', (e) => {
             if (e.target === overlay) {
-                closeMirrorSelector();
+                closeEnhancedMirrorSelector();
             }
         });
 
         // ESC键关闭
         const handleEscKey = (e) => {
             if (e.key === 'Escape') {
-                closeMirrorSelector();
+                closeEnhancedMirrorSelector();
                 document.removeEventListener('keydown', handleEscKey);
             }
         };
@@ -1133,7 +1307,7 @@
         }
     }
 
-    // 拦截版本号链接点击
+    // 拦截版本号链接点击和整个插件卡片点击
     function interceptVersionLinks() {
         // 使用事件委托监听所有点击事件
         document.addEventListener('click', (e) => {
@@ -1141,6 +1315,45 @@
             const avatarContainer = e.target.closest('.avatars');
             if (avatarContainer) {
                 // 如果点击的是头像区域，直接返回，不进行拦截
+                return;
+            }
+
+            // 检查是否点击了整个插件卡片
+            const marketPackage = e.target.closest('.market-package');
+            if (marketPackage) {
+                // 查找插件卡片中的所有链接
+                const allLinks = marketPackage.querySelectorAll('a');
+                let npmLink = null;
+                let githubLink = null;
+                
+                // 查找npm链接和github链接
+                allLinks.forEach(link => {
+                    if (link.href && isStandardNpmPackageUrl(link.href)) {
+                        npmLink = link;
+                    } else if (link.href && link.href.includes('github.com')) {
+                        githubLink = link;
+                    }
+                });
+                
+                // 如果找到了npm链接，拦截点击
+                if (npmLink) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    
+                    // 提取包名
+                    let packageName = npmLink.href;
+                    if (packageName.includes('/package/')) {
+                        packageName = packageName.replace(/^https?:\/\/www\.npmjs\.com\/package\//, '');
+                    } else {
+                        // 处理直接的@scope格式：https://www.npmjs.com/@scope/package
+                        packageName = packageName.replace(/^https?:\/\/www\.npmjs\.com\//, '');
+                    }
+                    
+                    log('拦截插件卡片点击:', packageName);
+                    
+                    // 显示增强的镜像选择器
+                    createEnhancedMirrorSelector(packageName, marketPackage, githubLink);
+                }
                 return;
             }
 
@@ -1190,8 +1403,18 @@
 
                     log('拦截版本号链接点击:', packageName);
 
-                    // 显示镜像选择器
-                    createMirrorSelector(packageName, target);
+                    // 查找插件卡片中的github链接
+                    const marketPackage = target.closest('.market-package');
+                    let githubLink = null;
+                    if (marketPackage) {
+                        const githubLinks = marketPackage.querySelectorAll('a[href*="github.com"]');
+                        if (githubLinks.length > 0) {
+                            githubLink = githubLinks[0];
+                        }
+                    }
+
+                    // 显示增强的镜像选择器
+                    createEnhancedMirrorSelector(packageName, marketPackage, githubLink);
                 }
             }
         }, true); // 使用捕获阶段确保优先处理
