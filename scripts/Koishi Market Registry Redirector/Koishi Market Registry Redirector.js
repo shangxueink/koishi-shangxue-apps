@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Koishi Market Registry Redirector
 // @namespace    https://github.com/shangxueink
-// @version      3.23
+// @version      3.24
 // @description  将 Koishi 市场注册表请求重定向到多个备用镜像源，支持自动重试、单独配置每个镜像源的代理请求解决CORS问题，并修复时间显示问题，镜像地址可点击复制，增加返回顶部按钮。
 // @author       shangxueink
 // @license      MIT
@@ -1480,8 +1480,6 @@
                 const footer = avatarsContainer.closest('.footer');
 
                 if (marketPackage) {
-                    log('鼠标进入头像区域，启用置顶显示');
-
                     // 添加悬停状态类
                     avatarsContainer.classList.add('hover-active');
                     marketPackage.classList.add('avatar-hover-parent');
@@ -1512,8 +1510,6 @@
                 const footer = avatarsContainer.closest('.footer');
 
                 if (marketPackage) {
-                    log('鼠标离开头像区域，恢复正常显示');
-
                     // 移除悬停状态类
                     avatarsContainer.classList.remove('hover-active');
                     marketPackage.classList.remove('avatar-hover-parent');
