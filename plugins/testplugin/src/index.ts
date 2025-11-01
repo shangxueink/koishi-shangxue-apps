@@ -26,9 +26,9 @@ export function apply(ctx: Context) {
   // })
 
 
-  ctx.on('iirose/broadcast' as any, async (session, data) => {
-    ctx.logger.info(session, data)
-  })
+  // ctx.on('iirose/broadcast' as any, async (session, data) => {
+  //   ctx.logger.info(session, data)
+  // })
 
   // ctx.platform("iirose").on('guild-member-added', async (session) => {
   //   ctx.logger.info('added', session)
@@ -41,6 +41,14 @@ export function apply(ctx: Context) {
   // ctx.platform("iirose").on('guild-member-updated', async (session) => {
   //   ctx.logger.info('updated', session)
   // })
+
+  command
+    .subcommand('.bot [id]')
+    .action(async ({ session }, id) => {
+      const aaa = await session.bot.getChannel(id || session.channelId)
+      ctx.logger.info(aaa)
+      return
+    })
 
   command
     .subcommand('.编辑消息.md')
@@ -81,17 +89,37 @@ export function apply(ctx: Context) {
     })
 
   command
-    .subcommand('.h1')
+    .subcommand('.a')
     .action(async ({ session }) => {
-      await session.send(h("h1", "你好这是h1"))
+      await session.send(h("a", "https://iirose.com/"))
       return
     })
 
   command
-    .subcommand('.md')
+    .subcommand('.del')
     .action(async ({ session }) => {
-      await session.send(h("yunhu:markdown", "# 你好\n## 这是markdown！"))
-      await session.send(h("markdown", "# 你好\n## 这是markdown！"))
+      await session.send(h("del", "你好这是del"))
+      return
+    })
+
+  command
+    .subcommand('.sharp')
+    .action(async ({ session }) => {
+      await session.send([
+        h.text("猜您在找，这个频道："),
+        h("sharp", { id: session.guildId })
+      ])
+      return
+    })
+
+  command
+    .subcommand('.md [text:text]')
+    .action(async ({ session }, text) => {
+      if (!text) {
+        await session.send(h("iirose:markdown", "# 你好\n## 这是markdown！"))
+      } else {
+        await session.send(h("iirose:markdown", text))
+      }
       return
     })
 
@@ -120,7 +148,7 @@ export function apply(ctx: Context) {
     })
 
   command
-    .subcommand('.元素 [text]')
+    .subcommand('.元素 [text:text]')
     .action(async ({ session }, text) => {
       if (text) {
         ctx.logger.info("直接输入", h.parse(text))
