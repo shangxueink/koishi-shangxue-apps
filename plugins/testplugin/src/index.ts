@@ -22,13 +22,11 @@ export function apply(ctx: Context) {
     ctx.logger.info(session)
   })
 
-  // ctx.on('message', async (session) => {
-  //   if (session.userId.includes("7756242") || session.userId.includes("1919892171") || session.userId.includes("679a51f1d4893")) {
-  //     ctx.logger.info(session.content)
-  //     ctx.logger.info(h.parse(session.content))
-  //     // ctx.logger.info(session.quote?.elements)
-  //   }
-  // })
+  ctx.platform("iirose").on('message', async (session) => {
+    ctx.logger.info(session.content)
+    ctx.logger.info(h.parse(session.content))
+    // ctx.logger.info(session.quote?.elements)
+  })
 
 
   // ctx.on('iirose/broadcast' as any, async (session, data) => {
@@ -293,6 +291,7 @@ export function apply(ctx: Context) {
   command
     .subcommand('.视频')
     .action(async ({ session }) => {
+      await session.send(`正在处理中...`)
       await session.send(h.video("file:///D:/Music/%E5%8D%95%E6%9B%B2%E5%BE%AA%E7%8E%AF/1601237804-1-16.mp4"))
       return
     })

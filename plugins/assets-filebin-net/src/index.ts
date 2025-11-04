@@ -30,8 +30,8 @@ class FilebinAssets extends Assets<FilebinAssets.Config> {
     const logger = this.ctx.logger('assets-filebin-net')
 
     try {
-      // 融合日期、时间戳、用户seed和文件URL，生成唯一值
-      const uniqueSeed = `${new Date().toISOString()}${Date.now()}${this.config.seed}${url}`
+      // 融合日期、时间戳、用户seed和随机数，生成唯一值
+      const uniqueSeed = `${new Date().toISOString()}${Date.now()}${this.config.seed}${Math.random().toString(36)}`
       // 使用 MD5 哈希处理，确保每次上传的 bin 都不同，避免空间不足
       const bin = createHash('md5').update(uniqueSeed).digest('hex')
 
@@ -122,7 +122,6 @@ namespace FilebinAssets {
 
   **重要配置说明：**
   - seed 值用于生成唯一的存储文件夹，请设置一个独特的值避免与其他用户冲突
-  - 文件会按照每5天一个周期自动分组存储
 
   ---
 
