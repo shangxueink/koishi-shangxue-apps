@@ -30,11 +30,10 @@ class FilebinAssets extends Assets<FilebinAssets.Config> {
     const logger = this.ctx.logger('assets-filebin-net')
 
     try {
-      // 生成 bin 名称（每5天一个新的bin）
-      const binNum = String(Math.floor(Date.now() / 1000 / 60 / 60 / 24 / 5))
-      // 对 seed 进行 MD5 哈希处理
-      const hashedSeed = createHash('md5').update(this.config.seed).digest('hex').slice(0, 8)
-      const bin = hashedSeed + binNum
+      // 融合日期、时间戳、用户seed和文件URL，生成唯一值
+      const uniqueSeed = `${new Date().toISOString()}${Date.now()}${this.config.seed}${url}`
+      // 使用 MD5 哈希处理，确保每次上传的 bin 都不同，避免空间不足
+      const bin = createHash('md5').update(uniqueSeed).digest('hex')
 
       // 生成随机文件名
       const randomName = Math.random().toString(36).slice(-8)
@@ -46,7 +45,7 @@ class FilebinAssets extends Assets<FilebinAssets.Config> {
       await this.http.post(uploadUrl, buffer, {
         headers: {
           'Content-Type': 'application/octet-stream',
-        }
+        },
       })
 
       this.logInfo(`文件上传完成，获取访问链接...`)
@@ -56,8 +55,8 @@ class FilebinAssets extends Assets<FilebinAssets.Config> {
         method: 'GET',
         redirect: 'manual',
         headers: {
-          cookie: 'verified=2024-05-24'
-        }
+          cookie: 'verified=2024-05-24',
+        },
       })
 
       const location = response.headers.get('location')
@@ -68,9 +67,14 @@ class FilebinAssets extends Assets<FilebinAssets.Config> {
       const finalUrl = `${location}#${filename}`
       this.logInfo(`上传成功: ${finalUrl}`)
       return finalUrl
-
     } catch (error) {
       const err = error instanceof Error ? error : new Error(String(error))
+      // 捕获并处理“存储空间不足”的错误
+      if (err.message.includes('Insufficient Storage')) {
+        const friendlyError = new Error('filebin.net 存储空间不足。插件已自动尝试使用新的存储空间，请重试。如果问题依然存在，请考虑更换 seed 配置或等待一段时间。')
+        logger.error(`上传失败: ${friendlyError.message}`)
+        throw friendlyError
+      }
       logger.error(`上传失败: ${err.message}`)
       throw err
     }

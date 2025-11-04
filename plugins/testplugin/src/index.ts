@@ -1,7 +1,12 @@
 import { Context, h, Schema, sleep, Universal } from 'koishi'
+import { } from '@koishijs/assets';
 import { inspect } from 'node:util'
 
 export const name = 'testplugin'
+export const inject = {
+  required: ['http', 'logger', 'i18n', 'database'],
+  optional: ['assets']
+};
 
 export interface Config { }
 
@@ -45,7 +50,7 @@ export function apply(ctx: Context) {
   command
     .subcommand('.bot [id]')
     .action(async ({ session }, id) => {
-      const aaa = await session.bot.getChannel(id || session.channelId)
+      const aaa = await session.bot.internal.getUserProfile("5ddfce35c6991")
       ctx.logger.info(aaa)
       return
     })
@@ -274,9 +279,21 @@ export function apply(ctx: Context) {
     })
 
   command
+    .subcommand('.assets')
+    .action(async ({ session }) => {
+      await session.send(`正在处理中...`)
+      const videourl = "file:///D:/Music/%E5%8D%95%E6%9B%B2%E5%BE%AA%E7%8E%AF/1601237804-1-16.mp4"
+      const videoElement = `${h.video(videourl)}`
+      await session.send(`即将转换： ${videourl}`)
+      const videoElement2 = await ctx.assets.transform(videoElement)
+      await session.send(`${videoElement2}`)
+      return
+    })
+
+  command
     .subcommand('.视频')
     .action(async ({ session }) => {
-      await session.send(h.video("file:///E:/download/Windowsdownload/software_apps_downloads/TEMP/7610d9617b0a8343b649667a9114a505.mp4"))
+      await session.send(h.video("file:///D:/Music/%E5%8D%95%E6%9B%B2%E5%BE%AA%E7%8E%AF/1601237804-1-16.mp4"))
       return
     })
 
@@ -284,6 +301,16 @@ export function apply(ctx: Context) {
     .subcommand('.语音')
     .action(async ({ session }) => {
       await session.send(h.audio("https://api.injahow.cn/meting/?type=url&id=2748727454"))
+      return
+    })
+
+  command
+    .subcommand('.回显')
+    .action(async ({ session }) => {
+      const aaa = await session.send(`你好哦`)
+      ctx.logger.info(aaa)
+      const bbb = await session.send(h.image("file:///D:/Pictures/meme/fox/0242a0f2d7ca7bcbe9cc0c3af8096b63f624a83b.jpg"))
+      ctx.logger.info(bbb)
       return
     })
 
@@ -311,6 +338,14 @@ export function apply(ctx: Context) {
     .subcommand('.assign切换 [id]')
     .action(async ({ session }, id) => {
       await session.send(h.at(id) + ` assign`)
+      return
+    })
+
+  command
+    .subcommand('.回显')
+    .action(async ({ session }) => {
+      const aaa = await session.send(`你好哦`)
+      ctx.logger.info(aaa)
       return
     })
 
