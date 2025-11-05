@@ -22,11 +22,11 @@ export function apply(ctx: Context) {
     ctx.logger.info(session)
   })
 
-  ctx.platform("iirose").on('message', async (session) => {
-    ctx.logger.info(session.content)
-    ctx.logger.info(h.parse(session.content))
-    // ctx.logger.info(session.quote?.elements)
-  })
+  // ctx.platform("iirose").on('message', async (session) => {
+  //   ctx.logger.info(session.content)
+  //   ctx.logger.info(h.parse(session.content))
+  //   // ctx.logger.info(session.quote?.elements)
+  // })
 
 
   // ctx.on('iirose/broadcast' as any, async (session, data) => {

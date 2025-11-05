@@ -16,7 +16,7 @@ export const usage = `
 
 通过配置API，调用 {{URL}}/v1/images/edits 接口实现手办化插件的功能。
 
-推荐站点：https://happyapi.org/ （happyapi）或者 https://api.bltcy.ai/ （柏拉图）
+推荐站点：https://api.bltcy.ai/ （柏拉图）
 
 推荐模型：doubao-seedream-4-0-250828 （豆包-即梦AI 4.0）
 
@@ -24,7 +24,7 @@ export const usage = `
 
 ---
 
-如果你使用的是happyapi，那么使用默认配置，直接开启插件就可以使用啦。
+如果你使用的是柏拉图，那么使用默认配置，直接开启插件就可以使用啦。
 
 如果你是其他API站点，请手动编辑配置项的请求参数，**尤其是模型！**
 
@@ -65,7 +65,7 @@ export const Config: Schema<Config> = Schema.intersect([
   }).description("基础配置"),
 
   Schema.object({
-    apiUrl: Schema.string().default("https://cn.happyapi.org/v1/images/edits").role("link").description("API 服务器地址<br>注意是`{{URL}}/v1/images/edits`的接口"),
+    apiUrl: Schema.string().default("https://api.bltcy.ai/v1/images/edits").role("link").description("API 服务器地址<br>注意是`{{URL}}/v1/images/edits`的接口"),
     apiKey: Schema.string().role("secret").required().description("API 密钥"),
     apiParams: Schema.dict(String).role('table').description("API请求参数<br>POST请求的body参数").default({
       "model": "doubao-seedream-4-0-250828",
