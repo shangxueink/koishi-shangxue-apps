@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Bilibili专栏原图链接提取2024改版
 // @namespace    https://github.com/shangxueink
-// @version      3.6
+// @version      4.0
 // @description  PC端B站专栏图片默认是经压缩过的webp。此脚本帮助用户点击按钮后获取哔哩哔哩专栏中所有原图的直链，方便使用其他工具批量下载原图。
 // @author       shangxueink
 // @license      MIT
@@ -33,10 +33,10 @@
     const iconExtractLink = 'https://i0.hdslb.com/bfs/article/7a0cc21280e2ba013d2681cff4dee947312276085.png'; //  提取链接图标
     const iconCopyLink = 'https://i0.hdslb.com/bfs/article/cecac694c99629afbe764eb2b2066a46312276085.png'; //  复制链接图标
     const iconDownloadEach = 'https://i0.hdslb.com/bfs/article/0896498c861585719a122e0fc6ef5689312276085.png'; //  逐张下载图标
-    const checkMarkSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="green"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>`;
+    const iconDownloadMarkdown = 'https://www.svgrepo.com/show/510065/markdown.svg'; //  下载文档图标
 
 
-    function createButton(targetContainer, showDownloadEach, isHorizontal) {
+    function createButton(targetContainer, showDownloadEach, isHorizontal, showMarkdownButton) {
         var buttonsContainer = document.createElement("div");
         buttonsContainer.style.display = "flex";
         buttonsContainer.style.flexDirection = isHorizontal ? "row" : "column";
@@ -73,6 +73,17 @@
                 handleButtonClick(buttonDownloadEach, 'each');
             };
             buttonsContainer.appendChild(buttonDownloadEach);
+        }
+
+        if (showMarkdownButton) {
+            var buttonDownloadMD = document.createElement("button");
+            buttonDownloadMD.id = "btn004";
+            buttonDownloadMD.className = "toolbar-item";
+            buttonDownloadMD.style = setButtonStyle("#ADD8E6", width, height, iconDownloadMarkdown); // Light blue
+            buttonDownloadMD.onclick = function () {
+                handleMarkdownDownload(this);
+            };
+            buttonsContainer.appendChild(buttonDownloadMD);
         }
 
         targetContainer.appendChild(buttonsContainer);
@@ -243,7 +254,7 @@
             const buttonWidth = action.clientWidth;
             const buttonHeight = action.clientHeight;
 
-            createButton(footer, false, true);
+            createButton(footer, false, true, false);
 
             const buttonDownload = footer.querySelector("#btn001");
             const buttonCopy = footer.querySelector("#btn002");
@@ -458,13 +469,233 @@
     }
 
 
+    function download_md(filename, text) {
+        const currentUrl = window.location.href;
+        let customFilename = filename;
+        let articleTitle = document.querySelector('.opus-module-title__text')?.innerText || document.querySelector('.title')?.innerText || '';
+
+        // Sanitize title
+        articleTitle = articleTitle.replace(/[\\/:"*?<>|]/g, '_'); // remove invalid filename characters
+
+        if (currentUrl.includes('/opus/')) {
+            const opusId = currentUrl.match(/\/opus\/(\d+)/);
+            if (opusId && opusId[1]) {
+                customFilename = `${articleTitle || `bili_article.opus.${opusId[1]}`}.md`;
+            }
+        } else if (currentUrl.includes('/read/cv')) {
+            const cvId = currentUrl.match(/\/read\/cv(\d+)/);
+            if (cvId && cvId[1]) {
+                customFilename = `${articleTitle || `bili_article.read.cv${cvId[1]}`}.md`;
+            }
+        } else {
+            customFilename = `${articleTitle || filename}.md`;
+        }
+
+        let pom = document.createElement('a');
+        pom.setAttribute('href', 'data:text/markdown;charset=utf-8,' + encodeURIComponent(text));
+        pom.setAttribute('download', customFilename);
+        pom.click();
+    }
+
+    function convertArticleToMarkdown() {
+        const title = document.querySelector('.opus-module-title__text')?.innerText || document.querySelector('.title')?.innerText || 'Untitled';
+        let markdown = `# ${title}\n\n`;
+
+        const authorEl = document.querySelector('.opus-module-author__name');
+        const pubDateEl = document.querySelector('.opus-module-author__pub__text');
+        if (authorEl) {
+            markdown += `> 作者：${authorEl.innerText}\n`;
+        }
+        if (pubDateEl) {
+            markdown += `> ${pubDateEl.innerText}\n`;
+        }
+        if (authorEl || pubDateEl) {
+            markdown += `\n`;
+        }
+
+        const articleContainer = document.querySelector('.opus-module-content.opus-paragraph-children') || document.querySelector('#article-content');
+        if (!articleContainer) return markdown;
+
+        const processInlines = (element) => {
+            let content = '';
+            for (const child of element.childNodes) {
+                if (child.nodeType === Node.TEXT_NODE) {
+                    content += child.textContent;
+                } else if (child.nodeType === Node.ELEMENT_NODE) {
+                    const tagName = child.tagName.toLowerCase();
+                    const innerContent = processInlines(child);
+
+                    // Skip elements that are empty after processing children
+                    if (innerContent.trim() === '' && !['br', 'img'].includes(tagName)) {
+                        continue;
+                    }
+
+                    switch (tagName) {
+                        case 'strong':
+                        case 's':
+                        case 'em':
+                        case 'i':
+                            const marker = { 'strong': '**', 's': '~~', 'em': '*', 'i': '*' }[tagName];
+                            const leadSpace = innerContent.match(/^\s*/)[0];
+                            const trailSpace = innerContent.match(/\s*$/)[0];
+                            const trimmed = innerContent.trim();
+
+                            if (trimmed) {
+                                // If there were no spaces originally, add them. Otherwise, keep the original spaces.
+                                const finalLeadSpace = leadSpace.length > 0 ? leadSpace : ' ';
+                                const finalTrailSpace = trailSpace.length > 0 ? trailSpace : ' ';
+                                content += `${finalLeadSpace}${marker}${trimmed}${marker}${finalTrailSpace}`;
+                            } else {
+                                content += innerContent; // Preserve spaces if that's all there is
+                            }
+                            break;
+                        case 'a':
+                            // If the link contains an image, processInlines would have already converted the image.
+                            // So we just pass the content up. If not, format as a markdown link.
+                            if (child.querySelector('img')) {
+                                content += innerContent;
+                            } else {
+                                content += `[${innerContent}](${child.href})`;
+                            }
+                            break;
+                        case 'br':
+                            content += '  \n';
+                            break;
+                        case 'img':
+                            let src = (child.src || child.dataset.src || '').split('@')[0];
+                            if (src.startsWith('//')) {
+                                src = 'https:' + src;
+                            }
+                            if (src) {
+                                content += `<center><img src="${src}" alt="${child.alt || 'image'}" referrerpolicy="no-referrer"></center>`;
+                            }
+                            break;
+                        // For block-like elements that can appear inside others, just get their content.
+                        case 'p':
+                        case 'span':
+                        case 'div':
+                        default:
+                            content += innerContent;
+                            break;
+                    }
+                }
+            }
+            return content;
+        };
+
+        for (const node of articleContainer.children) {
+            const tagName = node.tagName.toLowerCase();
+            // Process children and clean up markdown for adjacent strong tags
+            let nodeContent = processInlines(node).replace(/\*\*\s*\*\*/g, '');
+
+            switch (tagName) {
+                case 'h1':
+                    markdown += `## ${nodeContent}\n\n`;
+                    break;
+                case 'h2':
+                    markdown += `### ${nodeContent}\n\n`;
+                    break;
+                case 'h3':
+                    markdown += `#### ${nodeContent}\n\n`;
+                    break;
+                case 'h4':
+                    markdown += `##### ${nodeContent}\n\n`;
+                    break;
+                case 'h5':
+                    markdown += `###### ${nodeContent}\n\n`;
+                    break;
+                case 'h6':
+                    markdown += `###### ${nodeContent}\n\n`;
+                    break;
+                case 'p':
+                    if (nodeContent.trim() === '') {
+                        // don't add multiple empty lines
+                        if (!markdown.endsWith('\n\n') && !markdown.endsWith('\n')) {
+                            markdown += '\n';
+                        }
+                    } else {
+                        if (node.style.textAlign === 'center') {
+                            markdown += `<center>${nodeContent}</center>\n\n`;
+                        } else {
+                            markdown += `${nodeContent}\n\n`;
+                        }
+                    }
+                    break;
+                case 'figure':
+                    if (node.classList.contains('opus-para-line')) {
+                        markdown += '---\n\n';
+                    } else {
+                        // This is an image, processInlines has handled it.
+                        if (nodeContent.trim()) {
+                            markdown += `${nodeContent}\n\n`;
+                        }
+                    }
+                    break;
+                case 'div':
+                    // This handles opus-para-pic and other divs.
+                    if (nodeContent.trim()) {
+                        markdown += `${nodeContent}\n\n`;
+                    }
+                    break;
+                case 'ul':
+                    let listContent = '';
+                    for (const li of node.querySelectorAll('li')) {
+                        // process each li and clean it up
+                        listContent += `- ${processInlines(li).replace(/\*\*\s*\*\*/g, '')}\n`;
+                    }
+                    markdown += `${listContent}\n`;
+                    break;
+                default:
+                    if (nodeContent.trim()) {
+                        markdown += `${nodeContent}\n\n`;
+                    }
+                    break;
+            }
+        }
+        // Final cleanup of excessive newlines
+        return markdown.replace(/(\n{3,})/g, '\n\n').trim();
+    }
+
+
+    function handleMarkdownDownload(button) {
+        button.disabled = true;
+        button.style.backgroundColor = "#FDE6E0";
+        button.style.backgroundImage = "none";
+        button.innerHTML = "正在生成...";
+
+        try {
+            const markdownContent = convertArticleToMarkdown();
+            if (markdownContent && markdownContent.trim() !== '') {
+                download_md("bili_article", markdownContent);
+                button.innerHTML = "已下载";
+            } else {
+                button.innerHTML = "内容为空，请【前往新版】";
+            }
+        } catch (e) {
+            console.error("Markdown conversion failed:", e);
+            button.innerHTML = "生成失败";
+        }
+
+        setTimeout(() => {
+            button.disabled = false;
+            button.style.cssText = setButtonStyle(
+                "#ADD8E6",
+                button.clientWidth,
+                button.clientHeight,
+                iconDownloadMarkdown
+            );
+            button.innerHTML = "";
+        }, 3000);
+    }
+
+
     if (window.location.href.includes("space.bilibili.com") && window.location.href.includes("dynamic")) {
         observeDocument();
     } else if (window.location.href.includes("read/cv")) {
         var observer = new MutationObserver(function (mutations, me) {
             var toolbar = document.querySelector(".side-toolbar");
             if (toolbar) {
-                createButton(toolbar, false, false); // 不显示第三个按钮
+                createButton(toolbar, false, false, true);
                 addSelectionFeatures();
                 me.disconnect();
                 return;
@@ -476,7 +707,7 @@
             var toolbarOpus = document.querySelector(".side-toolbar__box");
             if (toolbarOpus) {
                 var showDownloadEach = window.location.href.includes("opus/");
-                createButton(toolbarOpus, showDownloadEach, false); // 根据 URL 决定是否显示第三个按钮
+                createButton(toolbarOpus, showDownloadEach, false, true);
                 addSelectionFeatures();
                 me.disconnect();
                 return;
@@ -487,7 +718,7 @@
         var observerT = new MutationObserver(function (mutations, me) {
             var toolbarT = document.querySelector(".side-toolbar__box");
             if (toolbarT) {
-                createButton(toolbarT, true, false);
+                createButton(toolbarT, true, false, false);
                 me.disconnect();
                 return;
             }

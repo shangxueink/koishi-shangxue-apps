@@ -1608,150 +1608,60 @@
         // 添加返回顶部按钮
         addBackToTopButton();
 
-        // 初始化头像悬停置顶功能
-        initAvatarHoverEffect();
+        // 初始化新的头像布局
+        initNewAvatarLayout();
 
         // 修复时间戳可见性
         fixTimestampVisibility();
     });
 
-    // 头像悬停置顶功能
-    function initAvatarHoverEffect() {
-        log('初始化头像悬停置顶功能');
+    // 新的头像布局功能
+    function initNewAvatarLayout() {
+        log('初始化新的头像布局');
 
         // 添加CSS样式
-        const avatarStyle = document.createElement('style');
-        avatarStyle.textContent = `
-            /* 头像容器悬停效果 */
+        const newAvatarStyle = document.createElement('style');
+        newAvatarStyle.textContent = `
+            /* 头像容器新布局 */
             .avatars {
-                position: relative;
-                transition: all 0.2s ease;
+                display: flex;
+                flex-wrap: wrap;
+                justify-content: flex-end; /* 在容器内靠右对齐 */
+                gap: 4px; /* 头像间距 */
+                width: 52px; /* 宽度恰好容纳两个24px的头像和一个4px的间距 */
+                margin-left: auto; /* 容器本身在.footer里靠右 */
+            }
+
+            /* 覆盖原有的负边距样式 */
+            .avatars .avatar {
+                margin-left: 0 !important;
             }
             
-            .avatars:hover {
-                z-index: 1000 !important;
-                position: relative !important;
+            /* 确保父元素不会裁剪掉换行的头像 */
+            .market-package .footer, .market-package {
                 overflow: visible !important;
             }
-            
-            /* 当头像容器悬停时，允许其父容器溢出 */
-            .avatars:hover .avatar {
-                position: relative;
-                z-index: 1001;
+
+            /* 当鼠标悬停在卡片上时，提升其层级以显示溢出的头像 */
+            .market-package {
+                position: relative; /* z-index 生效需要 position */
+                transition: transform 0.2s ease, box-shadow 0.2s ease;
             }
-            
-            /* 确保头像在悬停时可以超出边界显示 */
-            .market-package:has(.avatars:hover) {
-                overflow: visible !important;
-                z-index: 999 !important;
+
+            .market-package:hover {
+                z-index: 10;
+                transform: translateY(-2px); /* 轻微上浮效果 */
+                box-shadow: var(--k-shadow-3); /* 使用主题的悬浮阴影效果 */
             }
-            
-            /* 为了兼容性，也添加JavaScript控制的类 */
-            .avatars.hover-active {
-                z-index: 1000 !important;
-                position: relative !important;
-                overflow: visible !important;
-            }
-            
-            .avatars.hover-active .avatar {
-                position: relative;
-                z-index: 1001;
-            }
-            
-            .market-package.avatar-hover-parent {
-                overflow: visible !important;
-                z-index: 999 !important;
-            }
-            
-            /* 确保头像容器的父级元素也支持溢出 */
-            .market-package .footer {
-                position: relative;
-            }
-            
-            .market-package .footer:has(.avatars:hover) {
-                overflow: visible !important;
-                z-index: 999 !important;
-            }
-            
-            .market-package .footer.avatar-hover-footer {
-                overflow: visible !important;
-                z-index: 999 !important;
-            }
-            
-            /* 确保Element UI的tooltip始终显示在头像区域之上 */
+
+            /* 确保Element UI的tooltip始终显示在最上层 */
             .el-popper[role="tooltip"] {
                 z-index: 10000 !important;
             }
-            
-            /* 特别针对作者昵称tooltip的样式 */
-            .el-popper.is-dark[role="tooltip"] {
-                z-index: 10000 !important;
-            }
         `;
-        document.head.appendChild(avatarStyle);
+        document.head.appendChild(newAvatarStyle);
 
-        // 使用事件委托监听头像区域的鼠标事件
-        document.addEventListener('mouseenter', function (e) {
-            // 安全检查：确保 e.target 存在且有 classList 属性
-            if (!e.target || !e.target.classList) return;
-
-            // 检查是否是头像容器
-            const avatarsContainer = e.target.classList.contains('avatars') ? e.target : e.target.closest('.avatars');
-
-            if (avatarsContainer) {
-                const marketPackage = avatarsContainer.closest('.market-package');
-                const footer = avatarsContainer.closest('.footer');
-
-                if (marketPackage) {
-                    // 添加悬停状态类
-                    avatarsContainer.classList.add('hover-active');
-                    marketPackage.classList.add('avatar-hover-parent');
-                    if (footer) {
-                        footer.classList.add('avatar-hover-footer');
-                    }
-
-                    // 确保所有父级元素都支持溢出显示
-                    let parent = avatarsContainer.parentElement;
-                    while (parent && !parent.classList.contains('market-package')) {
-                        parent.style.overflow = 'visible';
-                        parent.style.position = 'relative';
-                        parent = parent.parentElement;
-                    }
-                }
-            }
-        }, true);
-
-        document.addEventListener('mouseleave', function (e) {
-            // 安全检查：确保 e.target 存在且有 classList 属性
-            if (!e.target || !e.target.classList) return;
-
-            // 检查是否是头像容器
-            const avatarsContainer = e.target.classList.contains('avatars') ? e.target : e.target.closest('.avatars');
-
-            if (avatarsContainer) {
-                const marketPackage = avatarsContainer.closest('.market-package');
-                const footer = avatarsContainer.closest('.footer');
-
-                if (marketPackage) {
-                    // 移除悬停状态类
-                    avatarsContainer.classList.remove('hover-active');
-                    marketPackage.classList.remove('avatar-hover-parent');
-                    if (footer) {
-                        footer.classList.remove('avatar-hover-footer');
-                    }
-
-                    // 恢复父级元素的原始样式
-                    let parent = avatarsContainer.parentElement;
-                    while (parent && !parent.classList.contains('market-package')) {
-                        parent.style.overflow = '';
-                        parent.style.position = '';
-                        parent = parent.parentElement;
-                    }
-                }
-            }
-        }, true);
-
-        log('头像悬停置顶功能初始化完成');
+        log('新的头像布局样式已添加');
     }
 
     const log = function (...args) {

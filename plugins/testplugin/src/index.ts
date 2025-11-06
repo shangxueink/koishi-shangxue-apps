@@ -48,7 +48,7 @@ export function apply(ctx: Context) {
   command
     .subcommand('.bot [id]')
     .action(async ({ session }, id) => {
-      const aaa = await session.bot.internal.getUserProfile("5ddfce35c6991")
+      const aaa = await session.bot.internal.getFollowList(session.userId)
       ctx.logger.info(aaa)
       return
     })
@@ -292,7 +292,7 @@ export function apply(ctx: Context) {
     .subcommand('.视频')
     .action(async ({ session }) => {
       await session.send(`正在处理中...`)
-      await session.send(h.video("file:///D:/Music/%E5%8D%95%E6%9B%B2%E5%BE%AA%E7%8E%AF/1601237804-1-16.mp4"))
+      await session.send(h.video("http://r.iirose.com/m/25/11/1/17/0614-1U.mp4"))
       return
     })
 
