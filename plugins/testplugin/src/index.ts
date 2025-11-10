@@ -23,8 +23,10 @@ export function apply(ctx: Context) {
   })
 
   // ctx.platform("iirose").on('message', async (session) => {
-  //   ctx.logger.info(session.content)
-  //   ctx.logger.info(h.parse(session.content))
+  //   if (session.content.includes("<json")) {
+  //     ctx.logger.info(session.content)
+  //     ctx.logger.info(h.parse(session.content))
+  //   }
   //   // ctx.logger.info(session.quote?.elements)
   // })
 
@@ -48,7 +50,7 @@ export function apply(ctx: Context) {
   command
     .subcommand('.bot [id]')
     .action(async ({ session }, id) => {
-      const aaa = await session.bot.internal.getFollowList(session.userId)
+      const aaa = await session.bot.internal.cutOne()
       ctx.logger.info(aaa)
       return
     })
@@ -317,6 +319,15 @@ export function apply(ctx: Context) {
     .subcommand('.图片')
     .action(async ({ session }) => {
       const aaa = h.image("file:///D:/Pictures/meme/fox/0242a0f2d7ca7bcbe9cc0c3af8096b63f624a83b.jpg")
+      ctx.logger.info(aaa)
+      await session.send(aaa)
+      return
+    })
+
+  command
+    .subcommand('.文本')
+    .action(async ({ session }) => {
+      const aaa = h("任意不存在的名称", "    bb   bb        " + "   ")
       ctx.logger.info(aaa)
       await session.send(aaa)
       return
