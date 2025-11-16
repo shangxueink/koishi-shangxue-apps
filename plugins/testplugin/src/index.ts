@@ -50,8 +50,8 @@ export function apply(ctx: Context) {
   command
     .subcommand('.bot [id]')
     .action(async ({ session }, id) => {
-      const aaa = await session.bot.internal.cutOne()
-      ctx.logger.info(aaa)
+      const aaa = await session.bot.internal.uploadImage("file:///D:/Pictures/%E7%B4%A0%E6%9D%90%E5%9B%BE%E7%89%87/%E5%A4%B4%E5%83%8F/c91bb351c5fc283dfd9c95d0ec5d6c88.jpg")
+      ctx.logger.info(aaa) // { imageurl: 'https://chat-img.jwznb.com/c91bb351c5fc283dfd9c95d0ec5d6c88.jpg', imagekey: 'FomJTBFYHFp6XGG1Cn53alAVryOU' }
       return
     })
 
@@ -294,7 +294,15 @@ export function apply(ctx: Context) {
     .subcommand('.视频')
     .action(async ({ session }) => {
       await session.send(`正在处理中...`)
-      await session.send(h.video("http://r.iirose.com/m/25/11/1/17/0614-1U.mp4"))
+      await session.send(h.video("file:///D:/Music/%E5%8D%95%E6%9B%B2%E5%BE%AA%E7%8E%AF/1601237804-1-16.mp4"))
+      return
+    })
+
+  command
+    .subcommand('.文件')
+    .action(async ({ session }) => {
+      await session.send(`正在处理中...`)
+      await session.send(h.file("file:///D:/Music/%E5%8D%95%E6%9B%B2%E5%BE%AA%E7%8E%AF/1601237804-1-16.mp4"))
       return
     })
 
@@ -318,7 +326,7 @@ export function apply(ctx: Context) {
   command
     .subcommand('.图片')
     .action(async ({ session }) => {
-      const aaa = h.image("file:///D:/Pictures/meme/fox/0242a0f2d7ca7bcbe9cc0c3af8096b63f624a83b.jpg")
+      const aaa = h.image("file:///D:/Pictures/%E7%B4%A0%E6%9D%90%E5%9B%BE%E7%89%87/%E5%A4%B4%E5%83%8F/c91bb351c5fc283dfd9c95d0ec5d6c88.jpg")
       ctx.logger.info(aaa)
       await session.send(aaa)
       return

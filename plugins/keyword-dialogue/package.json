@@ -1,11 +1,12 @@
 {
   "name": "@shangxueink/koishi-plugin-keyword-dialogue",
-  "version": "0.8.8",
+  "version": "1.0.0",
   "description": "[<ruby>**关键词回复**<rp>（</rp><rt>点我查看使用说明</rt><rp>）</rp></ruby>](https://www.npmjs.com/package/@shangxueink/koishi-plugin-keyword-dialogue) 设置关键词回复，json存放便于编辑。适用于多段落图文的内容添加。自用小插件哦，[更强大的功能请使用dialogue](/market?keyword=dialogue)",
   "main": "lib/index.js",
   "typings": "lib/index.d.ts",
   "files": [
-    "lib"
+    "lib",
+    "src"
   ],
   "homepage": "https://github.com/shangxueink/koishi-shangxue-apps/tree/main/",
   "bugs": {
@@ -17,10 +18,7 @@
     "chatbot",
     "koishi",
     "plugin",
-    "自定义回复",
-    "图文",
-    "对话",
-    "喵喵插件",
+    "自定义对话回复",
     "关键词"
   ],
   "koishi": {
@@ -30,6 +28,6 @@
     }
   },
   "peerDependencies": {
-    "koishi": "^4.15.4"
+    "koishi": "^4.18.0"
   }
 }
