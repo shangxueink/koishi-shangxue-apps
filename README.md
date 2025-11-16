@@ -13,7 +13,7 @@
 请浏览 `plugins` 文件夹，找到你感兴趣的插件，并查阅其 `readme.md` 文件以获取详细的使用说明和配置信息。
 
 
-例如，`emojihub-bili` 插件的说明文档位于： [plugins/emojihub-bili/readme.md](plugins/emojihub-bili/README.md)
+例如，`emojihub-bili` 插件的说明文档位于： [plugins/emojihub-bili/readme.md](plugins/emojihub-bili/readme.md)
 
 **重要提示：**
 
