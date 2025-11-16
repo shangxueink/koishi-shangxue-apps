@@ -103,13 +103,14 @@ export interface Config {
     GlobalDeleteKeyword: string;
     KeywordOfSearch: string;
     KeywordOfFix: string;
+    GlobalKeywordOfFix: string;
     ViewKeywordList: string;
   };
   addKeywordTime: number;
   defaultImageExtension: 'jpg' | 'png' | 'gif';
   admin_list: {
     adminID: string;
-    allowcommand: ('添加' | '删除' | '全局添加' | '全局删除' | '查找关键词' | '修改' | '查看关键词列表')[];
+    allowcommand: ('添加' | '删除' | '全局添加' | '全局删除' | '查找关键词' | '修改' | '查看关键词列表' | '全局修改')[];
   }[];
   channel_admin_auth: boolean;
   Delete_Branch_Only: boolean;
@@ -137,12 +138,13 @@ export const Config = Schema.intersect([
     command: Schema.object({
       TriggerPrefix: Schema.string().default('添加').description('触发`添加关键词`功能的指令'),
       DeleteKeyword: Schema.string().default('删除').description('触发`删除关键词`功能的指令'),
+      KeywordOfFix: Schema.string().default('修改').description('触发`修改问答`功能的指令'),
       KeywordOfEsc: Schema.string().default('取消添加').description('取消`添加关键词`功能的关键词'),
       KeywordOfEnd: Schema.string().default('结束添加').description('退出`添加关键词`功能的关键词'),
       GlobalTriggerPrefix: Schema.string().default('全局添加').description('触发`全局添加关键词`功能的指令（可在全局范围内生效）'),
       GlobalDeleteKeyword: Schema.string().default('全局删除').description('触发`全局删除关键词`功能的指令'),
       KeywordOfSearch: Schema.string().default('查找关键词').description('触发`搜索关键词`功能的指令'),
-      KeywordOfFix: Schema.string().default('修改').description('触发`修改问答`功能的指令'),
+      GlobalKeywordOfFix: Schema.string().default('全局修改').description('触发`全局修改问答`功能的指令'),
       ViewKeywordList: Schema.string().default('查看关键词列表').description('触发`查看关键词列表`功能的指令（仅返回当前群组的关键词）'),
     }).collapse().description('指令注册设置'),
     addKeywordTime: Schema.number().role('slider').min(1).max(30).step(1).default(5).description('添加回复的输入时限，超过则视为超时，取消添加。`单位 分钟`'),
@@ -152,7 +154,7 @@ export const Config = Schema.intersect([
   Schema.object({
     admin_list: Schema.array(Schema.object({
       adminID: Schema.string().description('管理员用户ID'),
-      allowcommand: Schema.array(Schema.union(['添加', '删除', '全局添加', '全局删除', '查找关键词', '修改', '查看关键词列表']))
+      allowcommand: Schema.array(Schema.union(['添加', '删除', '全局添加', '全局删除', '查找关键词', '修改', '查看关键词列表', '全局修改']))
         .default(['添加', '删除', '修改', '查找关键词'])
         .description('可以使用的指令'),
     })).role('table')
@@ -254,6 +256,7 @@ export function apply(ctx: Context, config: Config) {
 
   const KeywordOfSearch = config.command.KeywordOfSearch; //  搜索关键词
   const KeywordOfFix = config.command.KeywordOfFix; // 修改
+  const GlobalKeywordOfFix = config.command.GlobalKeywordOfFix; // 全局修改
   const ViewKeywordList = config.command.ViewKeywordList; // 查看关键词列表
 
   const zh_CN_default = {
@@ -327,6 +330,17 @@ export function apply(ctx: Context, config: Config) {
           "Input_Timeout": "输入超时。",
           "Cancel_operation": "添加操作已取消。",
           "Keyword_exists": "关键词 \"{0}\" 已存在，不能添加重复的关键词。\n或者请删除这个关键词后重新添加。",
+          "Reply_added": "关键词 \"{0}\" 的回复已修改。"
+        }
+      },
+      [GlobalKeywordOfFix]: {
+        description: `全局修改关键词`,
+        messages: {
+          "channel_admin_auth": "你没有权限操作此指令。",
+          "no_Valid_Keyword": "请提供一个有效的关键词。",
+          "Keyword_not_found": "未找到关键词 \"{0}\" 的相关问答。",
+          "Input_Timeout": "输入超时。",
+          "Cancel_operation": "修改操作已取消。",
           "Reply_added": "关键词 \"{0}\" 的回复已修改。"
         }
       }
@@ -403,7 +417,7 @@ export function apply(ctx: Context, config: Config) {
   }
 
   // 检查用户是否有权限执行该指令
-  function hasPermission(session: Session, command: "查看关键词列表" | "查找关键词" | "添加" | "删除" | "全局添加" | "全局删除" | "修改"): boolean {
+  function hasPermission(session: Session, command: "查看关键词列表" | "查找关键词" | "添加" | "删除" | "全局添加" | "全局删除" | "修改" | "全局修改"): boolean {
     const userId = session.userId;
 
     // 查找特定用户的权限配置
@@ -977,81 +991,86 @@ ${pageKeywords.map(keyword => `<div class="keyword">${keyword}</div>`).join('')}
       await addKeywordReply(session, filePath, Keyword.trim(), config, options as Options);
     });
 
-  // 修改问答
+  // 修改问答函数
+  async function modifyKeywordReply(session: Session, options: Options, Keyword: string, isGlobal: boolean) {
+    if (!session || !options) return;
+
+    const permissionCommand = isGlobal ? '全局修改' : '修改';
+    if (!hasPermission(session, permissionCommand)) {
+      await session.send(session.text(".channel_admin_auth"));
+      return;
+    }
+
+    if (!isValidKeyword(Keyword)) {
+      await session.send(h.text(session.text(`.no_Valid_Keyword`)));
+      return;
+    }
+
+    const filePath = isGlobal
+      ? path.join(root, 'global.json')
+      : path.join(root, `${session.channelId!}.json`);
+
+    if (!fs.existsSync(filePath)) {
+      await session.send(h.text("未找到相关问答数据。"));
+      return;
+    }
+
+    const data: KeywordData = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+    const key = config.Treat_all_as_lowercase ? Keyword.toLowerCase() : Keyword;
+    const replies = data[key];
+
+    if (!replies) {
+      await session.send(h.text(`关键词 "${Keyword}" 不存在。`));
+      return;
+    }
+
+    const index = options.question ? options.question - 1 : 0;
+    if (index < 0 || index >= replies.length) {
+      await session.send(h.text(`指定的回复序号无效，请提供正确的序号。`));
+      return;
+    }
+
+    await session.send(h.unescape(`您正在修改的是【${Keyword}】的第【${index + 1}】条回复`));
+    const currentReply = replies[index];
+    let fullReplyContent: (string | h)[] = [];
+    for (const replyPart of currentReply) {
+      const formattedReply = await formatReply(replyPart, false);
+      fullReplyContent.push(formattedReply);
+    }
+    await session.send(h.normalize(fullReplyContent));
+
+    await session.send(h.text("请一次性将回复内容完整输入以修改：\n➣输入 取消添加 以取消"));
+
+    const timeout = config.addKeywordTime * 60000;
+    const reply = await session.prompt(timeout);
+
+    if (!reply) {
+      await session.send(h.text(session.text(`.Input_Timeout`)));
+      return;
+    }
+    if (reply.includes(KeywordOfEsc)) {
+      await session.send(h.text(session.text(`.Cancel_operation`)));
+      return;
+    }
+
+    const replyData = await parseReplyContent(reply, root, session, options);
+    data[key][index] = replyData;
+    fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf-8');
+    await session.send(h.unescape((session.text(`.Reply_added`, [Keyword]))));
+  }
+
+  // 修改问答指令
   ctx.command(`keyword-dialogue/${KeywordOfFix} [Keyword]`)
     .option('question', '-q [number] 指定回复序号')
     .action(async ({ session, options }, Keyword: string) => {
-      if (!session || !options) return;
-      if (!hasPermission(session, '修改')) {
-        await session.send(session.text(".channel_admin_auth"));
-        return;
-      }
-      if (!isValidKeyword(Keyword)) {
-        await session.send(h.text(session.text(`.no_Valid_Keyword`)));
-        return;
-      }
+      await modifyKeywordReply(session, options as Options, Keyword, false);
+    });
 
-      const filePath = (options as Options).global
-        ? path.join(root, 'global.json')
-        : path.join(root, `${session.channelId!}.json`);
-      if (!fs.existsSync(filePath)) {
-        await session.send(h.text("未找到相关问答数据。"));
-        return;
-      }
-
-      const data: KeywordData = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
-      const key = config.Treat_all_as_lowercase ? Keyword.toLowerCase() : Keyword;
-      const replies = data[key];
-
-      if (!replies) {
-        await session.send(h.text(`关键词 "${Keyword}" 不存在。`));
-        return;
-      }
-
-      const index = (options as Options).question ? (options as Options).question! - 1 : 0;
-      if (index < 0 || index >= replies.length) {
-        await session.send(h.text(`指定的回复序号无效，请提供正确的序号。`));
-        return;
-      }
-
-      // 提示用户正在修改哪一条回复以及显示该回复内容
-      await session.send(h.unescape(`您正在修改的是【${Keyword}】的第【${index + 1}】条回复`));
-
-      // 获取当前需要修改的回复内容
-      const currentReply = replies[index];
-
-      // 定义一个变量存储完整的格式化内容
-      let fullReplyContent: (string | h)[] = [];
-
-      // 遍历所有的回复段落并格式化显示
-      for (const replyPart of currentReply) {
-        const formattedReply = await formatReply(replyPart, false);
-        fullReplyContent.push(formattedReply);
-      }
-
-      // 将完整的内容发送给用户
-      await session.send(h.normalize(fullReplyContent));
-
-      // 提示用户输入新的回复内容
-      await session.send(h.text("请一次性将回复内容完整输入以修改：\n➣输入 取消添加 以取消"));
-
-
-      const timeout = config.addKeywordTime * 60000; // 转换为毫秒
-      const reply = await session.prompt(timeout);
-
-      if (reply.includes(KeywordOfEsc)) {
-        await session.send(h.text(session.text(`.Cancel_operation`)));
-        return;
-      }
-      if (!reply) {
-        await session.send(h.text(session.text(`.Input_Timeout`)));
-        return;
-      }
-
-      const replyData = await parseReplyContent(reply, root, session, options as Options);
-      data[key][index] = replyData; // 修改指定的回复
-      fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf-8');
-      await session.send(h.unescape((session.text(`.Reply_added`, [Keyword]))));
+  // 全局修改问答指令
+  ctx.command(`keyword-dialogue/${GlobalKeywordOfFix} [Keyword]`)
+    .option('question', '-q [number] 指定回复序号')
+    .action(async ({ session, options }, Keyword: string) => {
+      await modifyKeywordReply(session, options as Options, Keyword, true);
     });
 
 
