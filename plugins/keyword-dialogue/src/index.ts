@@ -1,12 +1,40 @@
-import { Schema, Logger, h, Context } from "koishi";
+import { Schema, Logger, h, Context, Session, } from "koishi";
 import URL from 'node:url';
 import path from "node:path";
 import fs from 'node:fs';
 
+// 单个回复项的接口
+interface ReplyItem {
+  type: 'text' | 'image' | 'at' | 'audio' | 'video' | 'mface' | 'unknown';
+  text: string;
+  fileSize?: any;
+  replyway: string;
+}
+
+type ReplyGroup = ReplyItem[];
+
+// 关键词数据结构
+interface KeywordData {
+  [keyword: string]: ReplyGroup[];
+}
+
+// 命令选项的接口
+interface Options {
+  question?: number;
+  regex?: boolean;
+  global?: boolean;
+  unescape?: boolean;
+  forward?: number;
+}
+
+export const name = 'keyword-dialogue'
+
+const lastTriggerTimes: Record<string, number> = {}; // 用于记录每个关键词的最后触发时间
+const logger = new Logger('keyword-dialogue');
+
 export const inject = {
   optional: ['puppeteer']
 };
-
 
 export const usage = `
 <!DOCTYPE html>
@@ -64,6 +92,45 @@ export const usage = `
 </html>
 
 `;
+
+export interface Config {
+  command: {
+    TriggerPrefix: string;
+    DeleteKeyword: string;
+    KeywordOfEsc: string;
+    KeywordOfEnd: string;
+    GlobalTriggerPrefix: string;
+    GlobalDeleteKeyword: string;
+    KeywordOfSearch: string;
+    KeywordOfFix: string;
+    ViewKeywordList: string;
+  };
+  addKeywordTime: number;
+  defaultImageExtension: 'jpg' | 'png' | 'gif';
+  admin_list: {
+    adminID: string;
+    allowcommand: ('添加' | '删除' | '全局添加' | '全局删除' | '查找关键词' | '修改' | '查看关键词列表')[];
+  }[];
+  channel_admin_auth: boolean;
+  Delete_Branch_Only: boolean;
+  Treat_all_as_lowercase: boolean;
+  Prompt: string;
+  picture_save_to_local_send: '1' | '2' | '3' | '4';
+  MatchPatternForExit: '1' | '2' | '3' | '4';
+  AlwayPrompt: '1' | '2' | '3';
+  HandleDuplicateKeywords: '1' | '2' | '3';
+  MultisegmentAdditionRecoveryEffect: '1' | '2' | '3' | '4';
+  prefix: string[];
+  Frequency_limitation: number;
+  Type_of_restriction: '1' | '2';
+  Type_of_ViewKeywordList: '1' | '2';
+  Search_Range: '1' | '2' | '3';
+  Find_Return_Preset: '1' | '2' | '3';
+  Return_Limit: '1' | '2';
+  Preposition_middleware: boolean;
+  Unified_at_field: boolean;
+  consoleInfo: boolean;
+}
 
 export const Config = Schema.intersect([
   Schema.object({
@@ -176,10 +243,7 @@ export const Config = Schema.intersect([
   }).description('调试设置'),
 ]);
 
-const lastTriggerTimes = {}; // 用于记录每个关键词的最后触发时间
-const logger = new Logger('keyword-dialogue');
-
-export function apply(ctx: Context, config: any) {
+export function apply(ctx: Context, config: Config) {
   const add_command = config.command.TriggerPrefix; // 添加
   const global_add_command = config.command.GlobalTriggerPrefix;  //  全局添加
   const delete_command = config.command.DeleteKeyword;  //  删除
@@ -283,90 +347,69 @@ export function apply(ctx: Context, config: any) {
     }
   }
 
-  async function parseReplyContent(reply, root, session, options) {
+  async function parseReplyContent(reply: string, root: string, session: Session, options: Options): Promise<ReplyGroup> {
     const elements = h.parse(reply);
-    logInfo('Parsed elements:  ')
-    logInfo(elements)
-    const replyData = await Promise.all(elements.map(async element => {
+    logInfo('Parsed elements:  ');
+    logInfo(elements);
+
+    const replyData: ReplyGroup = [];
+    for (const element of elements) {
+      let item: ReplyItem | null = null;
+      const replyway = options.forward?.toString() || config.MultisegmentAdditionRecoveryEffect;
+
       if (element.type === 'img' || element.type === 'image') {
-        let localPath;
+        let localPath: string;
         switch (config.picture_save_to_local_send) {
           case '1':
             localPath = element.attrs.src;
             break;
           case '2':
-            localPath = await downloadImage(element.attrs.src, root, session, options.global);
-            break;
           case '3':
-            localPath = await downloadImage(element.attrs.src, root, session, options.global);
+            localPath = await downloadImage(element.attrs.src, root, session, !!options.global);
             break;
           case '4':
-            localPath = await downloadImageAsBase64(element.attrs.src);
+            localPath = await downloadImageAsBase64(element.attrs.src) || ''; // 提供默认值
             break;
           default:
             localPath = element.attrs.src;
         }
-        return {
-          type: 'image',
-          text: `${localPath}`,
-          fileSize: element.attrs.fileSize,
-          replyway: options.forward || config.MultisegmentAdditionRecoveryEffect
-        };
+        item = { type: 'image', text: localPath, fileSize: element.attrs.fileSize, replyway };
       } else if (element.type === 'text') {
-        return {
-          type: 'text',
-          text: element.attrs.content,
-          replyway: options.forward || config.MultisegmentAdditionRecoveryEffect
-        };
+        item = { type: 'text', text: element.attrs.content, replyway };
       } else if (element.type === 'at') {
-        return {
-          type: 'at',
-          text: element.attrs.id,
-          replyway: options.forward || config.MultisegmentAdditionRecoveryEffect
-        };
+        item = { type: 'at', text: element.attrs.id, replyway };
       } else if (element.type === 'audio') {
-        return {
-          type: 'audio',
-          text: element.attrs.path || element.attrs.url,
-          replyway: options.forward || config.MultisegmentAdditionRecoveryEffect
-        };
+        item = { type: 'audio', text: element.attrs.src || element.attrs.url, replyway };
       } else if (element.type === 'video') {
-        return {
-          type: 'video',
-          text: element.attrs.src,
-          replyway: options.forward || config.MultisegmentAdditionRecoveryEffect
-        };
+        item = { type: 'video', text: element.attrs.src, replyway };
       } else if (element.type === 'mface') {
-        return {
-          type: 'mface',
-          text: element.attrs.url || "无法获取该 mface 的图片链接",
-          replyway: options.forward || config.MultisegmentAdditionRecoveryEffect
-        };
+        item = { type: 'mface', text: element.attrs.url || "无法获取该 mface 的图片链接", replyway };
       } else {
-        return {
-          type: 'unknown',
-          text: reply,
-          replyway: options.forward || config.MultisegmentAdditionRecoveryEffect
-        };
+        // 对于未知类型，将原始回复内容作为文本处理
+        item = { type: 'unknown', text: h.select([element], 'text').map(e => e.attrs.content).join(''), replyway };
       }
-    })).then(results => results.filter(item => item !== null));
+
+      if (item) {
+        replyData.push(item);
+      }
+    }
     return replyData;
   }
 
   // 判断是否为管理员
-  function isAdmin(session) {
-    const sessionRoles = session.event.member.roles;
-    return sessionRoles && (sessionRoles.includes('admin') || sessionRoles.includes('owner'));
+  function isAdmin(session: Session): boolean {
+    const sessionRoles = session.event.member?.roles;
+    return !!sessionRoles && (sessionRoles.includes('admin') || sessionRoles.includes('owner'));
   }
 
   // 检查用户是否有权限执行该指令
-  function hasPermission(session, command) {
+  function hasPermission(session: Session, command: "查看关键词列表" | "查找关键词" | "添加" | "删除" | "全局添加" | "全局删除" | "修改"): boolean {
     const userId = session.userId;
 
     // 查找特定用户的权限配置
-    const adminConfig = config.admin_list.find(admin => admin.adminID === userId);
+    const adminConfig = config.admin_list.find((admin: { adminID: string; }) => admin.adminID === userId);
     // 查找 adminID 为 0 的配置，表示所有用户的默认权限
-    const defaultConfig = config.admin_list.find(admin => admin.adminID === '0');
+    const defaultConfig = config.admin_list.find((admin: { adminID: string; }) => admin.adminID === '0');
     if (defaultConfig && defaultConfig.allowcommand.includes(command)) {
       return true;
     }
@@ -392,13 +435,13 @@ export function apply(ctx: Context, config: any) {
     return false;
   }
   // 删除关键词回复分支
-  async function deleteKeywordReply(session, filePath, keyword, config, specifiedIndex) {
+  async function deleteKeywordReply(session: Session, filePath: string, keyword: string, config: Config, specifiedIndex: number | null) {
     if (!fs.existsSync(filePath)) {
       await session.send(h.unescape(session.text(`.Keyword_does_not_exist`)));
       return;
     }
 
-    let data = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+    let data: KeywordData = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
 
     // 转换关键词为小写
     if (config.Treat_all_as_lowercase) {
@@ -407,8 +450,8 @@ export function apply(ctx: Context, config: any) {
 
     // 查找关键词
     let found = false;
-    let replies;
-    let matchedKey;
+    let replies: ReplyGroup[] | undefined;
+    let matchedKey: string | undefined;
     for (const key in data) {
       const normalizedKey = config.Treat_all_as_lowercase ? key.toLowerCase() : key;
       const strippedKey = normalizedKey.startsWith('regex:') ? normalizedKey.slice(6) : normalizedKey;
@@ -420,7 +463,7 @@ export function apply(ctx: Context, config: any) {
       }
     }
 
-    if (!found) {
+    if (!found || !replies || !matchedKey) {
       await session.send(h.unescape(session.text(`.Keyword_does_not_exist`, [keyword])));
       return;
     }
@@ -458,15 +501,15 @@ export function apply(ctx: Context, config: any) {
   }
 
 
-  function escapeRegExp(string) {
+  function escapeRegExp(string: string) {
     return string
       .replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')  // 转义正则元字符
       .replace(/\s/g, '\\s')                     // 转义空白字符
       .replace(/\\\\/g, '\\\\');                 // 双反斜杠只处理一次
   }
 
-  async function addKeywordReply(session, filePath, keyword, config, options) {
-    let data;
+  async function addKeywordReply(session: Session, filePath: string, keyword: string, config: Config, options: Options) {
+    let data: KeywordData;
     try {
       data = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
     } catch (err) {
@@ -551,13 +594,13 @@ export function apply(ctx: Context, config: any) {
   }
 
 
-  async function downloadImage(url, outputPath, session, isGlobal) {
+  async function downloadImage(url: string, outputPath: string, session: Session, isGlobal: boolean): Promise<string> {
     try {
-      let absoluteOutputPath;
+      let absoluteOutputPath: string;
       if (isGlobal) {
         absoluteOutputPath = path.resolve(outputPath, 'global');  // 为全局关键词设定专门的文件夹
       } else {
-        absoluteOutputPath = path.resolve(outputPath, session.channelId);  // 使用群聊ID作为路径
+        absoluteOutputPath = path.resolve(outputPath, session.channelId!);  // 使用群聊ID作为路径
       }
 
       // 如果目录不存在，则创建目录
@@ -582,32 +625,26 @@ export function apply(ctx: Context, config: any) {
       // 返回图片的绝对路径
       return imageURL;
     } catch (error) {
-      logger.error(`下载图片失败: ${error.message}`);
+      logger.error(`下载图片失败: ${(error as Error).message}`);
       throw error;
     }
   }
 
-  async function downloadImageAsBase64(imagePath) {
+  async function downloadImageAsBase64(imagePath: string): Promise<string | null> {
     try {
       if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
         // 处理网络图片链接
-        const response = await ctx.http.get(imagePath, { responseType: 'arraybuffer' });
+        const response = await ctx.http.get<ArrayBuffer>(imagePath, { responseType: 'arraybuffer' });
         const buffer = Buffer.from(response);
-        const base64String = buffer.toString('base64');
-        return base64String;
+        return buffer.toString('base64');
       } else {
-        // 去掉 'file:///'，'file://' 和 'file:/' 前缀
-        if (imagePath.startsWith('file:///')) {
-          imagePath = imagePath.slice(8);
-        } else if (imagePath.startsWith('file://')) {
-          imagePath = imagePath.slice(7);
-        } else if (imagePath.startsWith('file:/')) {
-          imagePath = imagePath.slice(6);
+        // 处理本地文件路径
+        let localPath = imagePath;
+        if (localPath.startsWith('file:///')) {
+          localPath = URL.fileURLToPath(localPath);
         }
-        const imageBuffer = fs.readFileSync(imagePath);
-        // 将图片 buffer 转换为 Base64 字符串
-        const base64String = imageBuffer.toString('base64');
-        return base64String;
+        const imageBuffer = await fs.promises.readFile(localPath);
+        return imageBuffer.toString('base64');
       }
     } catch (error) {
       logger.error('Error converting image to base64:', error);
@@ -615,9 +652,9 @@ export function apply(ctx: Context, config: any) {
     }
   }
 
-  async function formatReply(reply, forwardreturn = false) {
-    let formattedReply;
-    if (reply.type === 'img' || reply.type === 'image') {
+  async function formatReply(reply: ReplyItem, forwardreturn = false): Promise<h | string> {
+    let formattedReply: h | string;
+    if (reply.type === 'image') {
       if (config.picture_save_to_local_send === '3') {
         const base64fileData = await downloadImageAsBase64(reply.text);
         formattedReply = h.image('data:image/png;base64,' + base64fileData);
@@ -636,28 +673,29 @@ export function apply(ctx: Context, config: any) {
       formattedReply = h.video(reply.text);
     } else if (reply.type === 'at') {
       formattedReply = h.at(reply.text);
-    } else if (reply.type === 'unknown') {
+    } else { // unknown
       formattedReply = reply.text;
     }
     const returnformatReply = forwardreturn ? h('message', {}, formattedReply) : formattedReply;
-    logInfo("returnformatReply:")
-    logInfo(returnformatReply)
+    logInfo("returnformatReply:");
+    logInfo(returnformatReply);
     return returnformatReply;
-  };
-
-  function isValidKeyword(keyword) {
-    return keyword && keyword.trim().length > 0;
   }
 
-  function calculateFontSize(numKeywords, maxFontSize, minFontSize) {
+  function isValidKeyword(keyword: string): boolean {
+    return !!keyword && keyword.trim().length > 0;
+  }
+
+  function calculateFontSize(numKeywords: number, maxFontSize: number, minFontSize: number): number {
     const m = (minFontSize - maxFontSize) / (40 - 1);
-    const b = maxFontSize - m * 1;
+    const b = maxFontSize - m;
     return m * numKeywords + b;
   }
 
   // 查看关键词列表指令
   ctx.command(`keyword-dialogue/${ViewKeywordList}`)
     .action(async ({ session }) => {
+      if (!session) return;
       if (!hasPermission(session, '查看关键词列表')) {
         await session.send(session.text(".channel_admin_auth"));
         return;
@@ -667,21 +705,21 @@ export function apply(ctx: Context, config: any) {
       const searchFiles = (() => {
         switch (config.Search_Range) {
           case '1':
-            return [`${session.channelId}.json`]; // 仅搜索当前频道
+            return [`${session.channelId!}.json`]; // 仅搜索当前频道
           case '2':
             return fs.readdirSync(root).filter(file => file.endsWith('.json')); // 搜索所有文件
           case '3':
-            return [`${session.channelId}.json`, 'global.json']; // 搜索当前频道和全局
+            return [`${session.channelId!}.json`, 'global.json']; // 搜索当前频道和全局
           default:
             return [];
         }
       })();
 
-      let keywords = [];
+      let keywords: string[] = [];
       for (const file of searchFiles) {
         const filePath = path.join(root, file);
         if (fs.existsSync(filePath)) {
-          const data = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+          const data: KeywordData = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
           keywords = keywords.concat(Object.keys(data));
         }
       }
@@ -698,6 +736,11 @@ export function apply(ctx: Context, config: any) {
         const message = keywords.join('\n');
         await session.send(h.text(message));
       } else if (config.Type_of_ViewKeywordList === '2') {
+        const puppeteer = ctx.get('puppeteer')
+        if (!puppeteer) {
+          await session.send("puppeteer 服务未启用。");
+          return;
+        }
         // 分页处理
         const pages = [];
         for (let i = 0; i < keywords.length; i += 40) {
@@ -705,7 +748,7 @@ export function apply(ctx: Context, config: any) {
         }
 
         for (const pageKeywords of pages) {
-          const page = await ctx.puppeteer.page();
+          const page = await puppeteer.page();
 
           // 设置页面内容
           const fontSize = calculateFontSize(pageKeywords.length, 120, 40);
@@ -766,8 +809,8 @@ ${pageKeywords.map(keyword => `<div class="keyword">${keyword}</div>`).join('')}
 
   // 搜索关键词
   ctx.command(`keyword-dialogue/${KeywordOfSearch} [Keyword]`)
-    .action(async ({ session }, Keyword) => {
-
+    .action(async ({ session }, Keyword: string) => {
+      if (!session) return;
       if (!hasPermission(session, '查找关键词')) {
         await session.send(session.text(".channel_admin_auth"));
         return;
@@ -783,23 +826,23 @@ ${pageKeywords.map(keyword => `<div class="keyword">${keyword}</div>`).join('')}
       const searchFiles = (() => {
         switch (searchRange) {
           case '1':
-            return [`${session.channelId}.json`];
+            return [`${session.channelId!}.json`];
           case '2':
             return fs.readdirSync(root).filter(file => file.endsWith('.json'));
           case '3':
-            return [`${session.channelId}.json`, 'global.json'];
+            return [`${session.channelId!}.json`, 'global.json'];
           default:
-            return [`${session.channelId}.json`]; // 默认本频道内搜索
+            return [`${session.channelId!}.json`]; // 默认本频道内搜索
         }
       })();
 
 
-      let results = [];
+      let results: (string | h)[] = [];
       for (const file of searchFiles) {
         const filePath = path.join(root, file);
         if (fs.existsSync(filePath)) {
           // 读取文件内容
-          const data = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+          const data: KeywordData = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
 
           // 搜索关键词
           for (const key in data) {
@@ -809,11 +852,8 @@ ${pageKeywords.map(keyword => `<div class="keyword">${keyword}</div>`).join('')}
 
               // 使用 formatReply 处理每个回复组，确保图片和文字格式化正确
               const formattedReplies = await Promise.all(data[key].map(async replyGroup => {
-                let combinedReply = '';
-                for (const reply of replyGroup) {
-                  combinedReply += await formatReply(reply, false); // 使用 formatReply 函数处理图片和文本
-                }
-                return combinedReply.trim();
+                const formattedParts = await Promise.all(replyGroup.map(reply => formatReply(reply, false)));
+                return h.normalize(formattedParts).join('');
               }));
 
               if (returnPreset === '1') {
@@ -838,7 +878,7 @@ ${pageKeywords.map(keyword => `<div class="keyword">${keyword}</div>`).join('')}
       if (results.length === 0) {
         await session.send(session.text(`.Keyword_not_found`, [Keyword]));
       } else {
-        await session.send(results.join('\n\n'));
+        await session.send(h.normalize(results).join('\n\n'));
       }
     });
 
@@ -846,8 +886,8 @@ ${pageKeywords.map(keyword => `<div class="keyword">${keyword}</div>`).join('')}
   ctx.command(`keyword-dialogue/${delete_command} [Keyword]`)
     .alias('删除关键词')
     .option('question', '-q [number] 指定删除回复的序号')
-    .action(async ({ session, options }, Keyword) => {
-
+    .action(async ({ session, options }, Keyword: string) => {
+      if (!session || !options) return;
       if (!hasPermission(session, '删除')) {
         await session.send(session.text(".channel_admin_auth"));
         return;
@@ -857,8 +897,8 @@ ${pageKeywords.map(keyword => `<div class="keyword">${keyword}</div>`).join('')}
         return;
       }
 
-      const filePath = path.join(root, `${session.channelId}.json`);
-      const specifiedIndex = options.question ? options.question : null;
+      const filePath = path.join(root, `${session.channelId!}.json`);
+      const specifiedIndex = (options as Options).question ?? null;
 
       await deleteKeywordReply(session, filePath, Keyword, config, specifiedIndex);
     });
@@ -867,8 +907,8 @@ ${pageKeywords.map(keyword => `<div class="keyword">${keyword}</div>`).join('')}
   ctx.command(`keyword-dialogue/${global_delete_command} [Keyword]`)
     .alias('全局删除关键词')
     .option('question', '-q [number] 指定删除回复的序号')
-    .action(async ({ session, options }, Keyword) => {
-
+    .action(async ({ session, options }, Keyword: string) => {
+      if (!session || !options) return;
       if (!hasPermission(session, '全局删除')) {
         await session.send(session.text(".channel_admin_auth"));
         return;
@@ -879,7 +919,7 @@ ${pageKeywords.map(keyword => `<div class="keyword">${keyword}</div>`).join('')}
       }
 
       const filePath = path.join(root, 'global.json');
-      const specifiedIndex = options.question ? options.question : null;
+      const specifiedIndex = (options as Options).question ?? null;
 
       await deleteKeywordReply(session, filePath, Keyword, config, specifiedIndex);
     });
@@ -892,8 +932,8 @@ ${pageKeywords.map(keyword => `<div class="keyword">${keyword}</div>`).join('')}
     .option('unescape', '-u 取消转义以使用自定义正则')
     .option('forward', '-f <number> 指定回复方式：1.按照原版输入，原版输出 2.合为图文消息 3.合为一条图文消息的合并转发 4.按照原版输入，合并转发发送')
     .example("全局添加关键词 使用教程 -x  -f 2")
-    .action(async ({ session, options }, Keyword) => {
-
+    .action(async ({ session, options }, Keyword: string) => {
+      if (!session || !options) return;
       if (!hasPermission(session, '全局添加')) {
         await session.send(session.text(".channel_admin_auth"));
         return;
@@ -902,12 +942,12 @@ ${pageKeywords.map(keyword => `<div class="keyword">${keyword}</div>`).join('')}
         await session.send(h.text(session.text(`.no_Valid_Keyword`)));
         return;
       }
-      options.global = true;
+      (options as Options).global = true;
       const filePath = path.join(root, 'global.json');
       if (!fs.existsSync(filePath)) {
         fs.writeFileSync(filePath, JSON.stringify({}, null, 2), 'utf-8');
       }
-      await addKeywordReply(session, filePath, Keyword.trim(), config, options);
+      await addKeywordReply(session, filePath, Keyword.trim(), config, options as Options);
     });
 
   //添加关键词
@@ -918,8 +958,8 @@ ${pageKeywords.map(keyword => `<div class="keyword">${keyword}</div>`).join('')}
     .option('unescape', '-u 取消转义以使用自定义正则')
     .option('forward', '-f <number> 指定回复方式：1.按照原版输入，原版输出 2.合为图文消息 3.合为一条图文消息的合并转发 4.按照原版输入，合并转发发送')
     .example("添加关键词 使用教程 -x  -f 2")
-    .action(async ({ session, options }, Keyword) => {
-
+    .action(async ({ session, options }, Keyword: string) => {
+      if (!session || !options) return;
       if (!hasPermission(session, '添加')) {
         await session.send(session.text(".channel_admin_auth"));
         return;
@@ -929,19 +969,19 @@ ${pageKeywords.map(keyword => `<div class="keyword">${keyword}</div>`).join('')}
         return;
       }
 
-      const filePath = options.global ? path.join(root, 'global.json') : path.join(root, `${session.channelId}.json`);
+      const filePath = (options as Options).global ? path.join(root, 'global.json') : path.join(root, `${session.channelId!}.json`);
 
       if (!fs.existsSync(filePath)) {
         fs.writeFileSync(filePath, JSON.stringify({}, null, 2), 'utf-8');
       }
-      await addKeywordReply(session, filePath, Keyword.trim(), config, options);
+      await addKeywordReply(session, filePath, Keyword.trim(), config, options as Options);
     });
 
   // 修改问答
   ctx.command(`keyword-dialogue/${KeywordOfFix} [Keyword]`)
     .option('question', '-q [number] 指定回复序号')
-    .action(async ({ session, options }, Keyword) => {
-
+    .action(async ({ session, options }, Keyword: string) => {
+      if (!session || !options) return;
       if (!hasPermission(session, '修改')) {
         await session.send(session.text(".channel_admin_auth"));
         return;
@@ -951,15 +991,15 @@ ${pageKeywords.map(keyword => `<div class="keyword">${keyword}</div>`).join('')}
         return;
       }
 
-      const filePath = options.global
+      const filePath = (options as Options).global
         ? path.join(root, 'global.json')
-        : path.join(root, `${session.channelId}.json`);
+        : path.join(root, `${session.channelId!}.json`);
       if (!fs.existsSync(filePath)) {
         await session.send(h.text("未找到相关问答数据。"));
         return;
       }
 
-      const data = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+      const data: KeywordData = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
       const key = config.Treat_all_as_lowercase ? Keyword.toLowerCase() : Keyword;
       const replies = data[key];
 
@@ -968,7 +1008,7 @@ ${pageKeywords.map(keyword => `<div class="keyword">${keyword}</div>`).join('')}
         return;
       }
 
-      const index = options.question ? options.question - 1 : 0;
+      const index = (options as Options).question ? (options as Options).question! - 1 : 0;
       if (index < 0 || index >= replies.length) {
         await session.send(h.text(`指定的回复序号无效，请提供正确的序号。`));
         return;
@@ -981,16 +1021,16 @@ ${pageKeywords.map(keyword => `<div class="keyword">${keyword}</div>`).join('')}
       const currentReply = replies[index];
 
       // 定义一个变量存储完整的格式化内容
-      let fullReplyContent = '';
+      let fullReplyContent: (string | h)[] = [];
 
       // 遍历所有的回复段落并格式化显示
       for (const replyPart of currentReply) {
         const formattedReply = await formatReply(replyPart, false);
-        fullReplyContent += formattedReply;
+        fullReplyContent.push(formattedReply);
       }
 
       // 将完整的内容发送给用户
-      await session.send(fullReplyContent.trim());
+      await session.send(h.normalize(fullReplyContent));
 
       // 提示用户输入新的回复内容
       await session.send(h.text("请一次性将回复内容完整输入以修改：\n➣输入 取消添加 以取消"));
@@ -1008,7 +1048,7 @@ ${pageKeywords.map(keyword => `<div class="keyword">${keyword}</div>`).join('')}
         return;
       }
 
-      const replyData = await parseReplyContent(reply, root, session, options);
+      const replyData = await parseReplyContent(reply, root, session, options as Options);
       data[key][index] = replyData; // 修改指定的回复
       fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf-8');
       await session.send(h.unescape((session.text(`.Reply_added`, [Keyword]))));
@@ -1016,8 +1056,8 @@ ${pageKeywords.map(keyword => `<div class="keyword">${keyword}</div>`).join('')}
 
 
 
-  const middlewareFunction = async (session, next) => {
-    let { channelId, platform } = session;
+  const middlewareFunction = async (session: Session, next: () => Promise<void | h.Fragment>) => {
+    const { channelId, platform } = session;
     let anothercontent = unescapeHtml(session.content).trim();
     // 移除开头的at内容
     if (platform === 'qq' || platform === 'qqguild') {
@@ -1038,13 +1078,15 @@ ${pageKeywords.map(keyword => `<div class="keyword">${keyword}</div>`).join('')}
     const channelFilePath = path.join(root, `${channelId}.json`);
 
     // 添加前缀处理逻辑
-    const getPrefixedKeywords = (keyword, prefixes) => {
+    const getPrefixedKeywords = (keyword: string, prefixes: string[]): string[] => {
       return prefixes.map(prefix => prefix + keyword);
     };
 
     // 获取关键词的指定后缀，支持【关键词+序号】与【关键词+空格+序号】来指定触发回复的第几条
-    const getSuffixIndex = (inputKeyword, baseKeyword) => {
-      const suffixPattern = new RegExp(`^${escapeRegExp(baseKeyword)}\\s*(\\d+)$`);
+    const getSuffixIndex = (inputKeyword: string, baseKeyword: string): number | null => {
+      // 确保 baseKeyword 被正确转义以用于正则表达式
+      const escapedBaseKeyword = escapeRegExp(baseKeyword);
+      const suffixPattern = new RegExp(`^${escapedBaseKeyword}\\s*(\\d+)$`);
       const match = inputKeyword.match(suffixPattern);
       if (match) {
         return parseInt(match[1], 10); // 返回指定的序号
@@ -1053,49 +1095,46 @@ ${pageKeywords.map(keyword => `<div class="keyword">${keyword}</div>`).join('')}
     };
 
 
-    const sendReplies = async (session, replyGroup) => {
-      // 检查每个回复项是否有 replyway 字段
-      const replyway = replyGroup[0]?.replyway || config.MultisegmentAdditionRecoveryEffect;
+    const sendReplies = async (session: Session, replyGroup: ReplyGroup) => {
+      if (!replyGroup || replyGroup.length === 0) return;
+
+      const replyway = replyGroup[0].replyway || config.MultisegmentAdditionRecoveryEffect;
 
       if (replyway === '1') {
         for (const reply of replyGroup) {
           logInfo(reply);
           const formattedReply = await formatReply(reply, false);
-          await session.send(formattedReply);  // 逐条发送
+          await session.send(formattedReply);
         }
       } else if (replyway === '2') {
-        let combinedReply = '';
-        for (const reply of replyGroup) {
-          combinedReply += await formatReply(reply, false);  // 累加
-        }
-        combinedReply = combinedReply.trim();
+        const formattedParts = await Promise.all(replyGroup.map(reply => formatReply(reply, false)));
+        const combinedReply = h.normalize(formattedParts);
         logInfo(combinedReply);
-        await session.send(combinedReply); // 发送累加的图文消息
-      } else if (replyway === '3') {
+        await session.send(combinedReply);
+      } else if (replyway === '3' || replyway === '4') {
+        const isForward = replyway === '4';
         const result = h('figure');
         for (const reply of replyGroup) {
-          const formattedReply = await formatReply(reply, false);
-          result.children.push(formattedReply);
+          const formattedReply = await formatReply(reply, isForward);
+          if (typeof formattedReply === 'string') {
+            result.children.push(h.text(formattedReply));
+          } else {
+            result.children.push(formattedReply);
+          }
         }
         logInfo(result);
-        await session.send(result); // 发送合并转发消息
-      } else if (replyway === '4') {
-        const result = h('figure');
-        for (const reply of replyGroup) {
-          const formattedReply = await formatReply(reply, true);
-          result.children.push(formattedReply);
-        }
-        logInfo(result);
-        await session.send(result); // 发送合并转发消息
+        await session.send(result);
       }
     };
 
 
-    const checkAndSendRandomReply = async (filePath) => {
+    const checkAndSendRandomReply = async (filePath: string): Promise<boolean> => {
       if (fs.existsSync(filePath)) {
-        const data = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+        const data: KeywordData = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
         for (const keyword in data) {
           const replies = data[keyword];
+          if (!replies || replies.length === 0) continue;
+
           let isMatch = false;
 
           // 获取当前关键词对应的所有可能的带前缀的关键词
