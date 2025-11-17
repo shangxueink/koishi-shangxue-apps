@@ -6,18 +6,18 @@ import './index.scss'
 import './icons'
 
 export default (ctx: Context) => {
-    ctx.page({
-        name: '聊天室',
-        path: '/chat-patch',
-        desc: "",
-        authority: 4,
-        icon: 'activity:chat',
-        component: defineComponent({
-            setup() {
-                return () => h(resolveComponent('k-layout'), {}, {
-                    default: () => h(Chat)
-                })
-            },
-        }),
-    })
+  ctx.page({
+    name: '聊天室',
+    path: '/chat-patch',
+    desc: "",
+    authority: 4,
+    icon: 'activity:chat',
+    component: defineComponent({
+      setup() {
+        return () => h(resolveComponent('k-layout'), {}, {
+          default: () => h(Chat)
+        })
+      },
+    }),
+  })
 }

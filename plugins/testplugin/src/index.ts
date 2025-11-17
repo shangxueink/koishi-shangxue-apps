@@ -50,8 +50,34 @@ export function apply(ctx: Context) {
   command
     .subcommand('.bot [id]')
     .action(async ({ session }, id) => {
-      const aaa = await session.bot.internal.uploadImage("file:///D:/Pictures/%E7%B4%A0%E6%9D%90%E5%9B%BE%E7%89%87/%E5%A4%B4%E5%83%8F/c91bb351c5fc283dfd9c95d0ec5d6c88.jpg")
-      ctx.logger.info(aaa) // { imageurl: 'https://chat-img.jwznb.com/c91bb351c5fc283dfd9c95d0ec5d6c88.jpg', imagekey: 'FomJTBFYHFp6XGG1Cn53alAVryOU' }
+      const aaa = session.bot.getGuildMemberIter(session.guildId)
+      ctx.logger.info(aaa)
+      return
+    })
+
+  command
+    .subcommand('.sendPrivateMessage [id]')
+    .action(async ({ session }, id) => {
+      const aaa = session.bot.sendPrivateMessage(session.userId, "你好啊！私聊消息！")
+      ctx.logger.info(aaa)
+      return
+    })
+
+  command
+    .subcommand('.撤回')
+    .action(async ({ session }) => {
+      const aaa = await session.send("即将执行撤回。。。")
+      ctx.logger.info(aaa)
+      const bbb = await session.bot.deleteMessage(session.channelId, aaa[0])
+      ctx.logger.info(bbb)
+      return
+    })
+
+  command
+    .subcommand('.getGuild')
+    .action(async ({ session }) => {
+      const aaa = await session.bot.getGuild(session.channelId)
+      ctx.logger.info(aaa)
       return
     })
 
@@ -353,9 +379,9 @@ export function apply(ctx: Context) {
     })
 
   command
-    .subcommand('.assign切换 [id]')
+    .subcommand('.att [id]')
     .action(async ({ session }, id) => {
-      await session.send(h.at(id) + ` assign`)
+      await session.send(h.at("679A51F1D4893"))
       return
     })
 
