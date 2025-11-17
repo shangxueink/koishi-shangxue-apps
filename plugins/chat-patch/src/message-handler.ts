@@ -51,16 +51,38 @@ export class MessageHandler {
   // 更新频道信息到JSON文件
   async updateChannelInfoToFile(session: Session): Promise<string> {
     let guildName = session.channelId
+    let directUserName = session.username || session.userId || '未知用户'
 
     const data = this.fileManager.readChatDataFromFile()
 
     try {
+      // 获取群组名称
       if (session.guildId && session.bot.getGuild && typeof session.bot.getGuild === 'function') {
         const guild = await session.bot.getGuild(session.guildId)
         guildName = guild?.name || session.channelId
       }
-    } catch (guildError) {
-      this.logInfo('获取群组信息失败，使用频道ID作为备用:', guildError)
+
+      // 获取私聊用户昵称
+      if (session.isDirect && session.bot.getUser && typeof session.bot.getUser === 'function') {
+        try {
+          const user = await session.bot.getUser(session.userId)
+          directUserName = user?.name || session.username || session.userId || '未知用户'
+        } catch (userError) {
+          this.logInfo('获取用户信息失败，使用备用名称:', userError)
+        }
+      }
+
+      // 如果没有getGuild方法，尝试使用getChannel方法
+      if (session.guildId && !session.bot.getGuild && session.bot.getChannel && typeof session.bot.getChannel === 'function') {
+        try {
+          const channel = await session.bot.getChannel(session.guildId)
+          guildName = channel?.name || session.channelId
+        } catch (channelError) {
+          this.logInfo('获取频道信息失败，使用频道ID作为备用:', channelError)
+        }
+      }
+    } catch (error) {
+      this.logInfo('获取频道信息失败，使用频道ID作为备用:', error)
       guildName = session.channelId
     }
 
@@ -71,7 +93,7 @@ export class MessageHandler {
     const channelInfo: ChannelInfo = {
       id: session.channelId,
       name: session.isDirect
-        ? `私信 ${session.channelId}`
+        ? `私聊（${directUserName}）`
         : `${guildName} (${session.channelId})`,
       type: session.type || 0,
       channelId: session.channelId,

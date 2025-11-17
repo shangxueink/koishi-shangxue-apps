@@ -2895,7 +2895,7 @@ export function useChatLogic() {
 
     if (messageEvent.channelId && !chatData.value.channels[messageEvent.selfId][messageEvent.channelId]) {
       const channelName = messageEvent.isDirect
-        ? `私信 ${messageEvent.channelId}`
+        ? `私聊（${messageEvent.username || '未知用户'}）`
         : `${messageEvent.guildName || messageEvent.channelId} (${messageEvent.channelId})`
 
       chatData.value.channels[messageEvent.selfId][messageEvent.channelId] = {
@@ -3108,7 +3108,7 @@ export function useChatLogic() {
 
     if (botMessageEvent.channelId && !chatData.value.channels[botMessageEvent.selfId][botMessageEvent.channelId]) {
       const channelName = botMessageEvent.isDirect
-        ? `私信 ${botMessageEvent.channelId}`
+        ? `私聊（${botMessageEvent.username || '未知用户'}）`
         : `${botMessageEvent.guildName || botMessageEvent.channelId} (${botMessageEvent.channelId})`
 
       chatData.value.channels[botMessageEvent.selfId][botMessageEvent.channelId] = {
