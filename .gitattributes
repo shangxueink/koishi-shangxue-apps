@@ -7,6 +7,5 @@
 *.webp -text
 
 * linguist-vendored
-plugins/*/lib/** -linguist-vendored
 plugins/*/src/** -linguist-vendored
 yarn-*.cjs linguist-vendored
