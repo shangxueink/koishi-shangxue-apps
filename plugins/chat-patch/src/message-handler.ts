@@ -63,7 +63,7 @@ export class MessageHandler {
       }
 
       // 获取私聊用户昵称
-      if (session.isDirect && session.bot.getUser && typeof session.bot.getUser === 'function') {
+      if (session.userId && session.isDirect && session.bot.getUser && typeof session.bot.getUser === 'function') {
         try {
           const user = await session.bot.getUser(session.userId)
           directUserName = user?.name || session.username || session.userId || '未知用户'
