@@ -1,4 +1,5 @@
 import { Context, h, Schema, sleep, Universal } from 'koishi'
+import { } from 'koishi-plugin-downloads-url'
 import { } from '@koishijs/assets';
 import { inspect } from 'node:util'
 
@@ -46,6 +47,13 @@ export function apply(ctx: Context) {
   // ctx.platform("iirose").on('guild-member-updated', async (session) => {
   //   ctx.logger.info('updated', session)
   // })
+
+  command
+    .subcommand('.服务 [id]')
+    .action(async ({ session }, id) => {
+      ctx.downloadsurl
+      return
+    })
 
   command
     .subcommand('.bot [id]')
