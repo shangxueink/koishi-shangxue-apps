@@ -37,9 +37,6 @@ export function apply(ctx: Context, config: Config) {
   ctx.on('ready', async () => {
     const logger = ctx.logger('manosaba-memes');
     const assetPath = resolve(__dirname, '../assets');
-
-    logger.info('表情包插件已准备就绪。');
-
     ctx
       .command("manosaba.安安说 [text:text]")
       .example("manosaba.安安说 吾辈命令你现在【猛击自己的魔丸一百下】")
