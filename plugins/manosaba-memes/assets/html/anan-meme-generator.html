@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>夏目安安表情包生成器</title>
+    <style>
+        @font-face {
+            font-family: 'SourceHanSans';
+            src: url({{FONT_DATA_URL}}) format('opentype');
+        }
+        body {
+            margin: 0;
+            padding: 0;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="preview-canvas" width="519" height="636"></canvas>
+    <script>
+        // 由后端注入的资源和数据
+        const RENDER_TEXT = `{{RENDER_TEXT}}`;
+        const SELECTED_FACE = `{{SELECTED_FACE}}`;
+        const ASSETS = {
+            font: `{{FONT_DATA_URL}}`,
+            overlay: `{{OVERLAY_DATA_URL}}`,
+            faces: {
+                base: `{{FACE_BASE_DATA_URL}}`,
+                害羞: `{{FACE_害羞_DATA_URL}}`,
+                生气: `{{FACE_生气_DATA_URL}}`,
+                病娇: `{{FACE_病娇_DATA_URL}}`,
+                无语: `{{FACE_无语_DATA_URL}}`,
+                开心: `{{FACE_开心_DATA_URL}}`
+            }
+        };
+
+        const canvas = document.getElementById('preview-canvas');
+        const ctx = canvas.getContext('2d');
+        const imageCache = {};
+
+        const FONT_FAMILY = 'SourceHanSans';
+        const TEXT_REGION = { x: 100, y: 432, width: 319, height: 204 };
+
+        function loadImage(src) {
+            return new Promise((resolve, reject) => {
+                if (imageCache[src]) {
+                    resolve(imageCache[src]);
+                    return;
+                }
+                const img = new Image();
+                img.onload = () => {
+                    imageCache[src] = img;
+                    resolve(img);
+                };
+                img.onerror = () => reject(new Error(`Failed to load image with src: ${src.substring(0, 100)}...`));
+                img.src = src;
+            });
+        }
+
+        function wrapText(context, text, maxWidth) {
+            const words = text.split('');
+            let lines = [];
+            let currentLine = '';
+            for (let i = 0; i < words.length; i++) {
+                const testLine = currentLine + words[i];
+                if (context.measureText(testLine).width > maxWidth && i > 0) {
+                    lines.push(currentLine);
+                    currentLine = words[i];
+                } else {
+                    currentLine = testLine;
+                }
+            }
+            lines.push(currentLine);
+            return lines;
+        }
+
+        function fitText(text) {
+            let fontSize = 100;
+            const minFontSize = 10;
+            while (fontSize > minFontSize) {
+                ctx.font = `bold ${fontSize}px ${FONT_FAMILY}`;
+                const lineHeight = fontSize * 1.2;
+                const lines = wrapText(ctx, text, TEXT_REGION.width);
+                if (lines.length * lineHeight <= TEXT_REGION.height) {
+                    return { lines, lineHeight, fontSize };
+                }
+                fontSize -= 2;
+            }
+            ctx.font = `bold ${minFontSize}px ${FONT_FAMILY}`;
+            return { lines: wrapText(ctx, text, TEXT_REGION.width), lineHeight: minFontSize * 1.2, fontSize: minFontSize };
+        }
+
+        async function drawAnanMeme() {
+            try {
+                const baseImageSrc = ASSETS.faces[SELECTED_FACE] || ASSETS.faces.base;
+                const [baseImage, overlayImage] = await Promise.all([
+                    loadImage(baseImageSrc),
+                    loadImage(ASSETS.overlay)
+                ]);
+                
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.drawImage(baseImage, 0, 0, canvas.width, canvas.height);
+
+                const { lines, lineHeight, fontSize } = fitText(RENDER_TEXT);
+                const totalTextHeight = (lines.length - 1) * lineHeight;
+                let startY = TEXT_REGION.y + (TEXT_REGION.height - totalTextHeight) / 2;
+                
+                ctx.textBaseline = 'middle';
+                let inBracket = false;
+
+                lines.forEach(line => {
+                    const segments = line.split(/(【|】)/g).filter(Boolean);
+                    const totalWidth = ctx.measureText(line).width;
+                    let currentX = TEXT_REGION.x + (TEXT_REGION.width - totalWidth) / 2 - fontSize / 4;
+
+                    for (const segment of segments) {
+                        if (segment === '【') inBracket = true;
+                        ctx.fillStyle = inBracket || segment === '】' ? '#800080' : 'black';
+                        if (segment === '】') inBracket = false;
+                        
+                        ctx.fillText(segment, currentX, startY);
+                        currentX += ctx.measureText(segment).width;
+                    }
+                    startY += lineHeight;
+                });
+
+                ctx.drawImage(overlayImage, 0, 0, canvas.width, canvas.height);
+            } catch (error) {
+                console.error('绘制失败:', error);
+                document.body.innerHTML = `<div style="color:red;">绘制失败: ${error.message || error}</div>`;
+            }
+        }
+        
+        // 确保字体加载完成后再绘制
+        document.fonts.load(`bold 10px ${FONT_FAMILY}`).then(drawAnanMeme).catch(drawAnanMeme);
+    </script>
+</body>
+</html>

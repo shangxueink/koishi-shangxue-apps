@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>艾玛和希罗表情包生成器</title>
+    <style>
+        @font-face {
+            font-family: 'SourceHanSerifSC';
+            src: url({{FONT_DATA_URL}}) format('opentype');
+        }
+        body { margin: 0; padding: 0; }
+    </style>
+</head>
+<body>
+    <canvas id="preview-canvas" width="1260" height="1080"></canvas>
+    <script>
+        // 由后端注入的资源和数据
+        const SELECTED_CHARACTER = `{{SELECTED_CHARACTER}}`;
+        const OPTIONS = JSON.parse(`{{OPTIONS_JSON}}`);
+        const ASSETS = {
+            font: `{{FONT_DATA_URL}}`,
+            background: `{{BACKGROUND_DATA_URL}}`,
+            black: `{{BLACK_DATA_URL}}`,
+            option: `{{OPTION_DATA_URL}}`,
+            characters: {
+                ema: `{{CHARACTER_EMA_DATA_URL}}`,
+                hiro: `{{CHARACTER_HIRO_DATA_URL}}`
+            },
+            statements: {
+                agreement: `{{STATEMENT_AGREEMENT_DATA_URL}}`,
+                doubt: `{{STATEMENT_DOUBT_DATA_URL}}`,
+                perjury: `{{STATEMENT_PERJURY_DATA_URL}}`,
+                refutation: `{{STATEMENT_REFUTATION_DATA_URL}}`
+            }
+        };
+
+        const canvas = document.getElementById('preview-canvas');
+        const ctx = canvas.getContext('2d');
+        const imageCache = {};
+
+        function loadImage(src) {
+            return new Promise((resolve, reject) => {
+                if (imageCache[src]) {
+                    resolve(imageCache[src]);
+                    return;
+                }
+                const img = new Image();
+                img.onload = () => {
+                    imageCache[src] = img;
+                    resolve(img);
+                };
+                img.onerror = () => reject(new Error(`Failed to load image with src: ${src.substring(0, 100)}...`));
+                img.src = src;
+            });
+        }
+
+        function getOptionCoordinates(number) {
+            const coordinates = [];
+            if (number === 0) return coordinates;
+            if (number % 2 === 1) {
+                const padding = Math.min(286, (1080 - 364 - 216) / Math.floor(number / 2) || 286);
+                for (let i = Math.ceil(-number / 2); i <= Math.floor(number / 2); i++) {
+                    coordinates.push([29, 364 + padding * i]);
+                }
+            } else {
+                const padding = Math.min(286, (1080 - 364 - 216) / (Math.floor(number / 2) - 0.5) || 286);
+                for (let i = Math.ceil(-number / 2); i < Math.floor(number / 2); i++) {
+                    coordinates.push([29, Math.round(364 + padding * (i + 0.5))]);
+                }
+            }
+            return coordinates;
+        }
+
+        function wrapText(context, text, maxWidth) {
+            const words = text.split('');
+            let lines = [];
+            let currentLine = '';
+            for (const char of words) {
+                const testLine = currentLine + char;
+                if (context.measureText(testLine).width > maxWidth && currentLine) {
+                    lines.push(currentLine);
+                    currentLine = char;
+                } else {
+                    currentLine = testLine;
+                }
+            }
+            lines.push(currentLine);
+            return lines;
+        }
+
+        async function drawTrialMeme() {
+            try {
+                const [
+                    backgroundImage, characterImage, blackImage, optionImage
+                ] = await Promise.all([
+                    loadImage(ASSETS.background),
+                    loadImage(ASSETS.characters[SELECTED_CHARACTER]),
+                    loadImage(ASSETS.black),
+                    loadImage(ASSETS.option)
+                ]);
+
+                ctx.drawImage(blackImage, 0, 0, canvas.width, canvas.height);
+                ctx.drawImage(backgroundImage, 0, 0, canvas.width, canvas.height);
+                ctx.drawImage(characterImage, 667, 0, 593, 1080);
+
+                const coordinates = getOptionCoordinates(OPTIONS.length);
+                const statementImages = await Promise.all(
+                    OPTIONS.map(opt => loadImage(ASSETS.statements[opt.statement]))
+                );
+
+                for (let i = 0; i < OPTIONS.length; i++) {
+                    const option = OPTIONS[i];
+                    const [x, y] = coordinates[i];
+                    
+                    ctx.drawImage(optionImage, x, y, 802, 216);
+                    ctx.drawImage(statementImages[i], x + 21, y - 41, 146, 126);
+                    
+                    ctx.fillStyle = 'rgb(39, 33, 30)';
+                    ctx.font = 'bold 36px "SourceHanSerifSC", serif';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    
+                    const text = option.text || '选项文字';
+                    const textX = x + 109 + 589 / 2;
+                    const textY = y + 32 + 150 / 2;
+                    const lines = wrapText(ctx, text, 589);
+                    const lineHeight = 40;
+                    const startY = textY - (lines.length - 1) * lineHeight / 2;
+                    
+                    lines.forEach((line, index) => {
+                        ctx.fillText(line, textX, startY + index * lineHeight);
+                    });
+                }
+            } catch (error) {
+                console.error('绘制失败:', error);
+                document.body.innerHTML = `<div style="color:red;">绘制失败: ${error.message || error}</div>`;
+            }
+        }
+
+        document.fonts.load('bold 36px "SourceHanSerifSC"').then(drawTrialMeme).catch(drawTrialMeme);
+    </script>
+</body>
+</html>
