@@ -106,10 +106,10 @@ export function apply(ctx: Context, config: Config) {
       });
 
     ctx
-      .command("manosaba.审判 <options:string>")
+      .command("manosaba.审判 <options:text>")
       .example("manosaba.审判 赞同：一定是汉娜干的")
       .example("manosaba.审判 --role hiro 伪证：我和艾玛不是恋人；赞同：我们初中的时候就确认关系了")
-      .example("manosaba.审判 -r 艾玛 疑问：汉娜和雪莉约会没有邀请我 很可疑")
+      .example("manosaba.审判 -r 艾玛 疑问：汉娜和雪莉约会没有邀请我很可疑")
       .option('role', '-r <role:string>', { fallback: 'ema' })
       .action(async ({ session, options }, text) => {
         // 处理角色别名
