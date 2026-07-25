@@ -2,7 +2,7 @@ name: 🟢 功能增改请求 (Feature Request)
 description: 提交一个关于 koishi-shangxue-app 插件的功能增改请求
 title: "[Feature]: "
 labels: ["feature"]
-assignees: []
+assignees: ["shangxueink"]
 
 body:
   - type: markdown
