@@ -226,19 +226,35 @@ export function apply(ctx: Context) {
   // });
 
   ctx.platform('qq').on("message", async (session) => {
-    ctx.logger.info(session);
+    ctx.logger.info(session.quote);
   });
+
+  // ctx.platform('onebot').on('guild-member-added', async (session) => {
+  //   ctx.logger.info('[guild-member-added] %o', session);
+  //   ctx.logger.info(session.guildId);
+  //   ctx.logger.info(session.userId);
+  //   ctx.logger.info(session.bot.muteGuildMember);
+  //   await (session.bot).muteGuildMember((session.guildId),(session.userId),60000);
+  // });
+
+
+
+
   ctx.platform('qq').on('guild-member-added', async (session) => {
-    ctx.logger.info('[guild-member-added] %o', session);
+    ctx.logger.info('[guild-member-added] %o', JSON.stringify(session));
+    //  await session.send(h.text("欢迎新成员！"));
+  });
+  ctx.platform('qq').on("guild-added", async (session) => {
+    ctx.logger.info('[guild-added] %o', JSON.stringify(session));
   });
 
-  ctx.platform('qq').on('guild-member-updated', async (session) => {
-    ctx.logger.info('[guild-member-updated] %o', session);
-  });
+  // ctx.platform('qq').on('guild-member-updated', async (session) => {
+  //   ctx.logger.info('[guild-member-updated] %o', session);
+  // });
 
-  ctx.platform('qq').on('guild-member-removed', async (session) => {
-    ctx.logger.info('[guild-member-removed] %o', session);
-  });
+  // ctx.platform('qq').on('guild-member-removed', async (session) => {
+  //   ctx.logger.info('[guild-member-removed] %o', session);
+  // });
 
   // ctx.on('message', async (session) => {
   //   ctx.logger.info(session.content)
@@ -962,7 +978,8 @@ https://ti.qq.com/new_open_qq/index.html?appid=64&url=mqqapi%3A%2F%2Fqqrobotaio%
       if (!session) return;
       const aaa = h.image("file:///D:/Pictures/%E7%B4%A0%E6%9D%90%E5%9B%BE%E7%89%87/%E5%A4%B4%E5%83%8F/3bc929916c8e45a53fb79dd77d3349cb.jpg");
       const bbb = h.text("123" + "456" + "\n" + "789");
-      await session.send([aaa, bbb]);
+
+      await session.send([h.text("一串文字\n\n"), aaa, bbb]);
       return;
     });
 
