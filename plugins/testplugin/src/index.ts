@@ -226,7 +226,7 @@ export function apply(ctx: Context) {
   // });
 
   ctx.platform('qq').on("message", async (session) => {
-    ctx.logger.info(session.quote);
+    ctx.logger.info("quote内容： ",session.quote);
   });
 
   // ctx.platform('onebot').on('guild-member-added', async (session) => {
