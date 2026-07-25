@@ -2,7 +2,6 @@ import { Context, h, Session, Universal } from "koishi";
 import { Config, usage } from "./config";
 import { logInfo, logError, logInfoformat, replacePlaceholders } from "./utils";
 import { determineImagePath, getImageAsBase64, getRandomEmojiHubCommand, listAllCommands, uploadImageToChannel } from "./core";
-import url from "node:url";
 import { markdown, command_list_markdown, sendmarkdownMessage } from "./markdown";
 
 import { } from "koishi-plugin-cron";
@@ -28,7 +27,7 @@ export function apply(ctx: Context, config: Config) {
           messages: {
             "notfound_txt": "ERROR！找不到文件或文件为空！指令：{0}",
             "List_of_emojis": "可用的表情包指令：{0}",
-            "notallowednum": `{0}次超出单次返回最大值\n请使用指令：{1} -${config.optionsname} {2}`,
+            "notallowednum": `{0}次超出单次返回最大值\n请使用指令：{1} -n {2}`,
           }
         },
         [config.emojihub_onemore]: {
@@ -84,7 +83,7 @@ export function apply(ctx: Context, config: Config) {
       const txtCommandList = listAllCommands(config);
       logInfo(config, `指令列表txtCommandList：  ` + txtCommandList);
 
-      if (config.markdown_button_mode_without_emojilist_keyboard && (config.markdown_button_mode === "markdown" || config.markdown_button_mode === "raw" || config.markdown_button_mode === "json" || config.markdown_button_mode === "markdown_raw_json")) {
+      if (session.platform === "qq" || session.platform === "qqguild") {
         let markdownMessage = command_list_markdown(session, config);
         await sendmarkdownMessage(ctx, session, markdownMessage, config);
       } else {
@@ -97,7 +96,7 @@ export function apply(ctx: Context, config: Config) {
     config.MoreEmojiHubList.forEach(({ command, source_url }) => {
       ctx.command(`${config.emojihub_bili_command}/${command} [local_picture_name...]`)
         .example(`${command} 关键词1 关键词2 关键词3`)
-        .option('numpics', `-${config.optionsname} <numpics:number> 指定返回数量`)
+        .option('numpics', `-n <numpics:number> 指定返回数量`)
         .action(async ({ session, options }, ...local_picture_name) => {
           if (options?.numpics) {
             await sendMultipleEmojis(session, `${command} ${local_picture_name.join(' ')}`.trim(), options.numpics);
@@ -116,23 +115,15 @@ export function apply(ctx: Context, config: Config) {
 
           try {
             let message;
-            if ((session.platform === "qq" || session.platform === "qqguild") && (config.markdown_button_mode === "markdown" || config.markdown_button_mode === "raw" || config.markdown_button_mode === "markdown_raw_json")) {
+            if ((session.platform === "qq" || session.platform === "qqguild") && (config.markdown_button_mode === "raw")) {
               if (imageResult.isLocal) {
                 if (config.localPicToBase64) {
-                  let imagebase64 = await getImageAsBase64(imageResult.imageUrl);
+                  let imagebase64 = await getImageAsBase64(imageResult.imagePath ?? imageResult.imageUrl);
                   let MDimagebase64 = 'data:image/png;base64,' + imagebase64;
                   message = await markdown(ctx, session, command, MDimagebase64, config);
                   await sendmarkdownMessage(ctx, session, message, config);
-                } else if ((session.platform === "qq" || session.platform === "qqguild") && config.QQPicToChannelUrl) {
-                  const localfilepath = url.pathToFileURL(imageResult.imageUrl).href
-                  let imagebase64 = await getImageAsBase64(imageResult.imageUrl);
-                  let MDimagebase64 = 'data:image/png;base64,' + imagebase64;
-                  const uploadedImageURL = await uploadImageToChannel(ctx, config.consoleinfo, localfilepath, session.bot.config.id, session.bot.config.secret, config.QQchannelId);
-                  message = await markdown(ctx, session, command, uploadedImageURL.url, config, MDimagebase64);
-                  await sendmarkdownMessage(ctx, session, message, config);
                 } else {
-                  const imageUrl = url.pathToFileURL(imageResult.imageUrl).href;
-                  message = await markdown(ctx, session, command, imageUrl, config);
+                  message = await markdown(ctx, session, command, imageResult.imageUrl, config);
                   await sendmarkdownMessage(ctx, session, message, config);
                 }
               } else {
@@ -150,7 +141,7 @@ export function apply(ctx: Context, config: Config) {
                 // 格式化时间
                 const formattedTime = imageResult.imageTime.toLocaleString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }).replace(/\//g, '-');
 
-                let imagebase64 = await getImageAsBase64(imageResult.imageUrl);
+                let imagebase64 = await getImageAsBase64(imageResult.imagePath ?? imageResult.imageUrl);
                 const context = {
                   IMAGE: h('image', { url: 'data:image/png;base64,' + imagebase64 }),
                   NAME: imageResult.imageName,
@@ -197,20 +188,6 @@ export function apply(ctx: Context, config: Config) {
                 } catch (error) {
                   ctx.logger.error("发送网络图片失败：", error)
                 }
-              }
-
-              if ((session.platform === "qq" || session.platform === "qqguild") && config.markdown_button_mode === "json") {
-                const keyboardId = config.nested.json_button_template_id;
-                let markdownMessage = {
-                  msg_id: session.messageId,
-                  msg_type: 2,
-                  content: "",
-                  keyboard: {
-                    id: keyboardId,
-                  },
-                };
-                logInfo(config, markdownMessage);
-                await sendmarkdownMessage(ctx, session, markdownMessage, config);
               }
             }
 
@@ -315,12 +292,11 @@ export function apply(ctx: Context, config: Config) {
                   if (imageResult.isLocal) { //本地图片
                     if (config.localPicToBase64) {
                       //本地base64发图
-                      let imagebase64 = await getImageAsBase64(imageResult.imageUrl);
+                      let imagebase64 = await getImageAsBase64(imageResult.imagePath ?? imageResult.imageUrl);
                       message = h('image', { url: 'data:image/png;base64,' + imagebase64 });
                     } else {
                       //正常本地文件发图
-                      const imageUrl = url.pathToFileURL(imageResult.imageUrl).href;
-                      message = h.image(imageUrl);
+                      message = h.image(imageResult.imageUrl);
                     }
                   } else {
                     message = h.image(imageResult.imageUrl);
@@ -411,12 +387,11 @@ export function apply(ctx: Context, config: Config) {
                       if (imageResult.isLocal) { //本地图片
                         if (config.localPicToBase64) {
                           //本地base64发图
-                          let imagebase64 = await getImageAsBase64(imageResult.imageUrl);
+                          let imagebase64 = await getImageAsBase64(imageResult.imagePath ?? imageResult.imageUrl);
                           message = h('image', { url: 'data:image/png;base64,' + imagebase64 });
                         } else {
                           //正常本地文件发图
-                          const imageUrl = url.pathToFileURL(imageResult.imageUrl).href;
-                          message = h.image(imageUrl);
+                          message = h.image(imageResult.imageUrl);
                         }
                       } else {
                         message = h.image(imageResult.imageUrl);

@@ -1,6 +1,7 @@
 import { Context } from "koishi";
 import { Config } from "./config";
 import { replacePlaceholders, logInfo, logError } from "./utils";
+import { resolveLocalPath } from "./path";
 
 export function command_list_markdown(session, config: Config) {
   let markdownMessage = {
@@ -10,104 +11,30 @@ export function command_list_markdown(session, config: Config) {
     keyboard: {},
   };
 
-  if (!config.markdown_button_mode_initiative) {
-    markdownMessage.msg_id = session.messageId;
-  }
+  try {
+    const rawMarkdownContent = config.nestedlist.raw_markdown_button_content;
+    const rawMarkdownKeyboard = config.nestedlist.raw_markdown_button_keyboard;
 
-  if (config.markdown_button_mode === "json" && !config.markdown_button_mode_initiative) {
-    if (!config.markdown_button_mode_initiative) {
-      // @ts-ignore
-      markdownMessage = {
-        msg_id: session.messageId, // 被动消息
-        msg_type: 2,
-        // markdown: {}, // json情况里不允许传入这个字段，但是其他情况都有。
-        keyboard: {},
-      }
-    } else {
-      // @ts-ignore
-      markdownMessage = { // 主动消息
-        msg_type: 2,
-        // markdown: {}, // json情况里不允许传入这个字段，但是其他情况都有。
-        keyboard: {},
-      }
-    }
-    const keyboardId = config.nestedlist.json_button_template_id;
-    if (config.markdown_button_mode_keyboard) {
-      markdownMessage.keyboard = {
-        id: keyboardId,
-      };
-    }
-  }
-  else if (config.markdown_button_mode === "markdown") {
-    const templateId = config.nestedlist.markdown_button_template_id;
-    const keyboardId = config.nestedlist.markdown_button_keyboard_id;
-    const contentTable = config.nestedlist.markdown_button_content_table;
+    const replacedMarkdownContent = replacePlaceholders(rawMarkdownContent, { session, config }, true);
+    const replacedMarkdownKeyboard = replacePlaceholders(rawMarkdownKeyboard, { session, config }, true)
+      .replace(/^[\s\S]*?"keyboard":\s*/, '')
+      .replace(/\\n/g, '')
+      .replace(/\\"/g, '"')
+      .trim();
 
-    const params = contentTable.map(item => ({
-      key: item.raw_parameters,
-      values: replacePlaceholders(item.replace_parameters, { session, config }),
-    }));
+    const keyboard = JSON.parse(replacedMarkdownKeyboard);
 
     markdownMessage.markdown = {
-      custom_template_id: templateId,
-      params: params,
+      // @ts-ignore
+      content: replacedMarkdownContent,
     };
-    if (config.markdown_button_mode_keyboard) {
-      markdownMessage.keyboard = {
-        id: keyboardId,
-      };
+    markdownMessage.keyboard = {
+      content: keyboard,
     }
-
-  } else if (config.markdown_button_mode === "markdown_raw_json") {
-    const templateId = config.nestedlist.markdown_raw_json_button_template_id;
-    const contentTable = config.nestedlist.markdown_raw_json_button_content_table;
-    let keyboard = JSON.parse(config.nestedlist.markdown_raw_json_button_keyboard);
-
-    keyboard = replacePlaceholders(keyboard, { session, config }, true);
-
-    const params = contentTable.map(item => ({
-      key: item.raw_parameters,
-      values: replacePlaceholders(item.replace_parameters, { session, config }),
-    }));
-
-    markdownMessage.markdown = {
-      custom_template_id: templateId,
-      params: params,
-    };
-    if (config.markdown_button_mode_keyboard) {
-      markdownMessage.keyboard = {
-        content: keyboard,
-      };
-    }
-  } else if (config.markdown_button_mode === "raw") {
-    try {
-      const rawMarkdownContent = config.nestedlist.raw_markdown_button_content;
-      const rawMarkdownKeyboard = config.nestedlist.raw_markdown_button_keyboard;
-
-      const replacedMarkdownContent = replacePlaceholders(rawMarkdownContent, { session, config }, true);
-      const replacedMarkdownKeyboard = replacePlaceholders(rawMarkdownKeyboard, { session, config }, true)
-        .replace(/^[\s\S]*?"keyboard":\s*/, '')
-        .replace(/\\n/g, '')
-        .replace(/\\"/g, '"')
-        .trim();
-
-      const keyboard = JSON.parse(replacedMarkdownKeyboard);
-
-      markdownMessage.markdown = {
-        // @ts-ignore
-        content: replacedMarkdownContent,
-      };
-      if (config.markdown_button_mode_keyboard) {
-        markdownMessage.keyboard = {
-          content: keyboard,
-        };
-      }
-    } catch (error) {
-      logError(`解析原生 Markdown 出错: ${error}`);
-      return null;
-    }
+  } catch (error) {
+    logError(`解析原生 Markdown 出错: ${error}`);
+    return null;
   }
-
   logInfo(config, `Markdown 模板参数: ${JSON.stringify(markdownMessage, null, 2)}`);
   return markdownMessage;
 }
@@ -121,9 +48,6 @@ export async function markdown(ctx: Context, session, command, imageUrl, config:
     keyboard: {},
   };
 
-  if (!config.markdown_button_mode_initiative) {
-    markdownMessage.msg_id = session.messageId;
-  }
 
   let originalWidth;
   let originalHeight;
@@ -134,82 +58,38 @@ export async function markdown(ctx: Context, session, command, imageUrl, config:
     originalWidth = parseInt(sizeMatch[1], 10);
     originalHeight = parseInt(sizeMatch[2], 10);
   } else {
-    const canvasimage = await ctx.canvas.loadImage(localimage || imageUrl);
+    const loadTarget = localimage ? resolveLocalPath(localimage) ?? localimage : resolveLocalPath(imageUrl) ?? imageUrl;
+    const canvasimage = await ctx.canvas.loadImage(loadTarget);
     // @ts-ignore
     originalWidth = canvasimage.naturalWidth || canvasimage.width;
     // @ts-ignore
     originalHeight = canvasimage.naturalHeight || canvasimage.height;
   }
 
-  if (config.markdown_button_mode === "markdown") {
-    const templateId = config.nested.markdown_button_template_id;
-    const keyboardId = config.nested.markdown_button_keyboard_id;
-    const contentTable = config.nested.markdown_button_content_table;
+  try {
+    const rawMarkdownContent = config.nested.raw_markdown_button_content;
+    const rawMarkdownKeyboard = config.nested.raw_markdown_button_keyboard;
 
-    const params = contentTable.map(item => ({
-      key: item.raw_parameters,
-      values: replacePlaceholders(item.replace_parameters, { session, config, img_pxpx: `img#${originalWidth}px #${originalHeight}px`, img_url: imageUrl, command }),
-    }));
+    const replacedMarkdownContent = replacePlaceholders(rawMarkdownContent, { session, config, img_pxpx: `img#${originalWidth}px #${originalHeight}px`, img_url: imageUrl, command }, true);
+    const replacedMarkdownKeyboard = replacePlaceholders(rawMarkdownKeyboard, { session, config, command }, true)
+      .replace(/^[\s\S]*?"keyboard":\s*/, '')
+      .replace(/\\n/g, '')
+      .replace(/\\"/g, '"')
+      .trim();
 
-    markdownMessage.markdown = {
-      custom_template_id: templateId,
-      params: params,
-    };
-    if (config.markdown_button_mode_keyboard) {
-      markdownMessage.keyboard = {
-        id: keyboardId,
-      };
-    }
-  } else if (config.markdown_button_mode === "markdown_raw_json") {
-    const templateId = config.nested.markdown_raw_json_button_template_id;
-    const contentTable = config.nested.markdown_raw_json_button_content_table;
-    let keyboard = JSON.parse(config.nested.markdown_raw_json_button_keyboard);
-
-    keyboard = replacePlaceholders(keyboard, { session, config, img_pxpx: `img#${originalWidth}px #${originalHeight}px`, img_url: imageUrl, command }, true);
-
-    const params = contentTable.map(item => ({
-      key: item.raw_parameters,
-      values: replacePlaceholders(item.replace_parameters, { session, config, img_pxpx: `img#${originalWidth}px #${originalHeight}px`, img_url: imageUrl, command }),
-    }));
+    const keyboard = JSON.parse(replacedMarkdownKeyboard);
 
     markdownMessage.markdown = {
-      custom_template_id: templateId,
-      params: params,
+      // @ts-ignore
+      content: replacedMarkdownContent,
     };
-    if (config.markdown_button_mode_keyboard) {
-      markdownMessage.keyboard = {
-        content: keyboard,
-      };
+    markdownMessage.keyboard = {
+      content: keyboard,
     }
-  } else if (config.markdown_button_mode === "raw") {
-    try {
-      const rawMarkdownContent = config.nested.raw_markdown_button_content;
-      const rawMarkdownKeyboard = config.nested.raw_markdown_button_keyboard;
-
-      const replacedMarkdownContent = replacePlaceholders(rawMarkdownContent, { session, config, img_pxpx: `img#${originalWidth}px #${originalHeight}px`, img_url: imageUrl, command }, true);
-      const replacedMarkdownKeyboard = replacePlaceholders(rawMarkdownKeyboard, { session, config, command }, true)
-        .replace(/^[\s\S]*?"keyboard":\s*/, '')
-        .replace(/\\n/g, '')
-        .replace(/\\"/g, '"')
-        .trim();
-
-      const keyboard = JSON.parse(replacedMarkdownKeyboard);
-
-      markdownMessage.markdown = {
-        // @ts-ignore
-        content: replacedMarkdownContent,
-      };
-      if (config.markdown_button_mode_keyboard) {
-        markdownMessage.keyboard = {
-          content: keyboard,
-        };
-      }
-    } catch (error) {
-      logError(`解析原生 Markdown 出错: ${error}`);
-      return null;
-    }
+  } catch (error) {
+    logError(`解析原生 Markdown 出错: ${error}`);
+    return null;
   }
-
   logInfo(config, `Markdown 模板参数: ${JSON.stringify(markdownMessage, null, 2)}`);
   return markdownMessage;
 }
