@@ -24,6 +24,7 @@ export const inject = {
   ],
   "optional": [
     "canvas",
+    "assets",
     "monetary",
     "database",
     "glyph"
