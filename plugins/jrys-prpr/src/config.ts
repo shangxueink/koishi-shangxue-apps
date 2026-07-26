@@ -13,9 +13,10 @@ export const Config = Schema.intersect([
     ]).description("`签到渲染中`提示语"),
     recallCheckin_HintText: Schema.boolean().description("jrys结果发送后，自动撤回`Checkin_HintText`提示语").default(true),
     GetOriginalImage_Command_HintText: Schema.union([
-      Schema.const('1').description('不返回文字提示'),
-      Schema.const('2').description('返回文字提示，且为图文消息'),
-      Schema.const('3').description('返回文字提示，且为单独发送的文字消息'),
+      Schema.const('0').description('不渲染图片，仅返回【原始背景图+运势文字提示】的图文消息'),
+      Schema.const('1').description('不返回文字提示，仅返回渲染图片'),
+      Schema.const('2').description('返回文字提示，且为【渲染图片+文字消息】'),
+      Schema.const('3').description('返回文字提示，且为【渲染图片】+【单独发送的文字消息】'),
     ]).role('radio').default('2').description("是否返回获取原图的文字提示。开启后，会发送`获取原图，请发送「原图  ******」`这样的文字提示"),
     FortuneProbabilityAdjustmentTable: Schema.array(Schema.object({
       Fortune: Schema.string().description('运势种类'),

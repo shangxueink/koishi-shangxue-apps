@@ -108,6 +108,31 @@ export async function markdown(
   return markdownMessage
 }
 
+export async function plainTextImageMarkdown(
+  ctx: Context,
+  session: Session,
+  imageUrl: string,
+  dJson: JrysData,
+  logInfo: (...args: any[]) => void
+): Promise<any> {
+  const markdownMessage: any = {
+    msg_type: 2,
+    markdown: {
+      content: [
+        '## 今日运势',
+        `### 您今天的运势是：${dJson.fortuneSummary}`,
+        dJson.signText,
+        dJson.unsignText,
+        `![img](${imageUrl})`,
+      ].join('\n\n'),
+    },
+  }
+
+  markdownMessage.msg_id = session.messageId
+  logInfo(`Markdown 简版参数: ${JSON.stringify(markdownMessage, null, 2)}`)
+  return markdownMessage
+}
+
 /**
  * 替换占位符
  */

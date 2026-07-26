@@ -36,7 +36,7 @@ export interface Config {
   autocleanjson: boolean
   Checkin_HintText: string | 'unset'
   recallCheckin_HintText: boolean
-  GetOriginalImage_Command_HintText: '1' | '2' | '3'
+  GetOriginalImage_Command_HintText: '0' | '1' | '2' | '3'
   FortuneProbabilityAdjustmentTable: FortuneProbability[]
   BackgroundURL: string[]
   screenshotquality: number

@@ -5,7 +5,7 @@ import { h } from 'koishi'
 import type { Context, Session } from 'koishi'
 import type { Config, JrysData } from '../types'
 import { recordOriginalImage } from './database'
-import { markdown, sendmarkdownMessage } from './markdown'
+import { markdown, plainTextImageMarkdown, sendmarkdownMessage } from './markdown'
 import { encodeTimestamp } from './image'
 import { renderFortuneCardImage } from './render-card'
 
@@ -18,6 +18,35 @@ function getPublicImageUrl(rawUrl: string): string {
 
 function isHttpUrl(url: string): boolean {
   return /^https?:\/\//i.test(url)
+}
+
+function getImageMimeType(source: string): string {
+  const lower = source.split('?')[0].toLowerCase()
+  if (lower.endsWith('.jpg') || lower.endsWith('.jpeg')) return 'image/jpeg'
+  if (lower.endsWith('.webp')) return 'image/webp'
+  if (lower.endsWith('.gif')) return 'image/gif'
+  return 'image/png'
+}
+
+async function resolveAssetsPublicUrl(ctx: Context, source: string): Promise<string> {
+  const assets = (ctx as any).assets
+  if (!assets) throw new Error('assets service not available')
+
+  const transformed = await assets.transform(String(h.image(source)))
+  const match = transformed.match(/<img\s+src="([^"]+)"/i)
+  if (!match?.[1]) {
+    throw new Error(`assets.transform did not return an image url: ${transformed}`)
+  }
+  return h.unescape(match[1])
+}
+
+function getSimpleFortuneText(dJson: JrysData): string {
+  return [
+    '今日运势',
+    `您今天的运势是：${dJson.fortuneSummary}`,
+    dJson.signText,
+    dJson.unsignText,
+  ].join('\n\n')
 }
 
 /**
@@ -35,7 +64,38 @@ export async function sendImageMessage(
   logInfo: (...args: any[]) => void
 ): Promise<void> {
   const messageTime = encodeTimestamp(new Date().toISOString())
-  const imageMessage = h.image(imageBuffer, 'image/png')
+  const isSimpleOriginalMode = config.GetOriginalImage_Command_HintText === '0'
+
+  if (isSimpleOriginalMode) {
+    const simpleText = getSimpleFortuneText(dJson)
+
+    if (config.markdown_button_mode === 'raw' && session.platform === 'qq') {
+      const publicUrl = isHttpUrl(BackgroundURL)
+        ? BackgroundURL
+        : await resolveAssetsPublicUrl(ctx, BackgroundURL)
+      const qqmarkdownmessage = await plainTextImageMarkdown(ctx, session, publicUrl, dJson, logInfo)
+      const sentMessage = await sendmarkdownMessage(ctx, session, qqmarkdownmessage, logInfo)
+
+      await recordOriginalImage(ctx, jsonFilePath, {
+        messageId: sentMessage,
+        messageTime,
+        backgroundURL: BackgroundURL,
+      }, logInfo)
+      return
+    }
+
+    const imageMessage = h.image(imageBuffer, getImageMimeType(BackgroundURL))
+    const sentMessage = await session.send(`${simpleText}\n${imageMessage}`)
+    await recordOriginalImage(ctx, jsonFilePath, {
+      messageId: sentMessage,
+      messageTime,
+      backgroundURL: BackgroundURL,
+    }, logInfo)
+    return
+  }
+
+  const renderBuffer = await renderFortuneCardImage(ctx, session, config, dJson, BackgroundURL, logInfo)
+  const imageMessage = h.image(renderBuffer, 'image/png')
 
   if (config.markdown_button_mode === 'raw' && session.platform === 'qq') {
     const assets = (ctx as any).assets
@@ -47,7 +107,6 @@ export async function sendImageMessage(
     }
 
     const tempFile = path.join(cacheDir, `${session.userId}-${Date.now()}-${Math.random().toString(36).slice(2)}.png`)
-    const renderBuffer = await renderFortuneCardImage(ctx, session, config, dJson, BackgroundURL, logInfo)
     fs.writeFileSync(tempFile, renderBuffer)
 
     try {
