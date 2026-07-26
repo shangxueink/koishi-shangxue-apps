@@ -350,6 +350,75 @@ export function apply(ctx: Context) {
       return;
     });
 
+async function sendMenuMessage(session: Session, message: unknown): Promise<void> {
+  const sess = session as any
+  const guildId = sess.event.guild?.id
+  const userId = sess.event.user?.id
+
+  if (guildId) {
+    if (sess.qq) {
+      await sess.qq.sendMessage(sess.channelId, message)
+      return
+    }
+
+    if (sess.qqguild) {
+      await sess.qqguild.sendMessage(sess.channelId, message)
+      return
+    }
+  }
+
+  if (userId && sess.qq) {
+    await sess.qq.sendPrivateMessage(userId, message)
+    return
+  }
+
+  throw new Error('当前会话没有可用的发送目标。')
+}
+  ctx.on('interaction/button', async (session: Session) => {
+    ctx.logger.info(`接收到回调按钮内容： `, session)
+  })
+
+  command
+    .subcommand('.QQ回调按钮')
+    .action(async ({ session }) => {
+      if (!session) return 'no session'
+      if (session.platform !== 'qq') return 'only qq'
+
+      const message = {
+        msg_type: 2,
+        msg_id: session.messageId || '', // 普通markdown消息用这个消息id，响应回调按钮的markdown消息用event_id
+        // event_id: 'INTERACTION_CREATE',
+        // event_id是只有响应回调按钮的markdown消息才能加上，普通markdown消息不能加这个参数
+        markdown: {
+          content: '## 按钮测试\n### 这是一个 QQ 回调按钮测试',
+        },
+        keyboard: {
+          content: {
+            rows: [
+              {
+                buttons: [
+                  {
+                    render_data: {
+                      label: '再来一次',
+                      style: 2,
+                    },
+                    action: {
+                      type: 1,
+                      permission: { type: 2 },
+                      data: '/jrysprpr',
+                      enter: true,
+                    },
+                  },
+                ],
+              },
+            ],
+          },
+        },
+      }
+
+      await sendMenuMessage(session, message as any)
+      return
+    })
 
   command
     .subcommand('.fork')
