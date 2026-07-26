@@ -1,14 +1,15 @@
 import { Context, h, Session, Universal } from "koishi";
+import { } from '@koishijs/assets';
 import { Config, usage } from "./config";
 import { logInfo, logError, logInfoformat, replacePlaceholders } from "./utils";
-import { determineImagePath, getImageAsBase64, getRandomEmojiHubCommand, listAllCommands, uploadImageToChannel } from "./core";
+import { determineImagePath, getRandomEmojiHubCommand, listAllCommands, uploadImageToChannel } from "./core";
 import { markdown, command_list_markdown, sendmarkdownMessage } from "./markdown";
 
 import { } from "koishi-plugin-cron";
 import { } from "koishi-plugin-canvas";
 
 export const inject = {
-  optional: ['canvas',]
+  optional: ['canvas', 'assets']
 };
 
 export const name = 'emojihub-bili';
@@ -18,6 +19,14 @@ export { Config, usage };
 
 export function apply(ctx: Context, config: Config) {
   const emojihub_bili_codecommand = config.emojihub_bili_command;
+  async function resolveAssetsUrlForMarkdown(imageUrl: string, imagePath?: string) {
+    if (!ctx.assets) throw new Error('assets service not available');
+    const localTarget = imageUrl || imagePath;
+    const transformed = await ctx.assets.transform(String(h.image(localTarget)));
+    const match = transformed.match(/<img\s+src="([^"]+)"/i);
+    if (!match?.[1]) throw new Error(`assets.transform did not return an image url: ${transformed}`);
+    return match[1];
+  }
 
   ctx.i18n.define("zh-CN",
     {
@@ -117,21 +126,16 @@ export function apply(ctx: Context, config: Config) {
             let message;
             if ((session.platform === "qq" || session.platform === "qqguild") && (config.markdown_button_mode === "raw")) {
               if (imageResult.isLocal) {
-                if (config.localPicToBase64) {
-                  let imagebase64 = await getImageAsBase64(imageResult.imagePath ?? imageResult.imageUrl);
-                  let MDimagebase64 = 'data:image/png;base64,' + imagebase64;
-                  message = await markdown(ctx, session, command, MDimagebase64, config);
-                  await sendmarkdownMessage(ctx, session, message, config);
-                } else {
-                  message = await markdown(ctx, session, command, imageResult.imageUrl, config);
-                  await sendmarkdownMessage(ctx, session, message, config);
-                }
+                const assetsUrl = await resolveAssetsUrlForMarkdown(imageResult.imageUrl, imageResult.imagePath);
+                logInfo(config, `[assets] converted local image to url: ${assetsUrl}`);
+                message = await markdown(ctx, session, command, assetsUrl, config);
+                await sendmarkdownMessage(ctx, session, message, config);
               } else {
                 message = await markdown(ctx, session, command, imageResult.imageUrl, config);
                 await sendmarkdownMessage(ctx, session, message, config);
               }
             } else {
-              if (imageResult.isLocal && config.localPicToBase64) {// 本地图片 + base64发出
+              if (imageResult.isLocal) {// 本地图片 + 绝对路径
                 const format = config.localPictureToName;
                 logInfo(config, imageResult.imageUrl)
                 // 格式化文件大小
@@ -141,33 +145,9 @@ export function apply(ctx: Context, config: Config) {
                 // 格式化时间
                 const formattedTime = imageResult.imageTime.toLocaleString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }).replace(/\//g, '-');
 
-                let imagebase64 = await getImageAsBase64(imageResult.imagePath ?? imageResult.imageUrl);
+                const assetsUrl = await resolveAssetsUrlForMarkdown(imageResult.imageUrl, imageResult.imagePath);
                 const context = {
-                  IMAGE: h('image', { url: 'data:image/png;base64,' + imagebase64 }),
-                  NAME: imageResult.imageName,
-                  TIME: formattedTime,
-                  SIZE: formattedSize,
-                  PATH: imageResult.imagePath,
-                };
-                const messageContent = replacePlaceholders(format, context);
-                logInfo(config, "变量替换本地文件名称，messageContent： base64太长了不打印了")
-                try {
-                  message = await session.send(h.unescape(`${messageContent}`.replace(/\\n/g, '\n')));
-                } catch (error) {
-                  ctx.logger.error("发送本地图片失败：", error)
-                }
-              } else if (imageResult.isLocal) {// 本地图片 + 绝对路径
-                const format = config.localPictureToName;
-                logInfo(config, imageResult.imageUrl)
-                // 格式化文件大小
-                const fileSizeKB = (imageResult.imageSize / 1024).toFixed(2);
-                const fileSizeMB = (imageResult.imageSize / (1024 * 1024)).toFixed(2);
-                const formattedSize = imageResult.imageSize < 1024 * 1024 ? `${fileSizeKB} KB` : `${fileSizeMB} MB`;
-                // 格式化时间
-                const formattedTime = imageResult.imageTime.toLocaleString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }).replace(/\//g, '-');
-
-                const context = {
-                  IMAGE: h.image(imageResult.imageUrl),
+                  IMAGE: h.image(assetsUrl),
                   NAME: imageResult.imageName,
                   TIME: formattedTime,
                   SIZE: formattedSize,
@@ -290,14 +270,7 @@ export function apply(ctx: Context, config: Config) {
                   groupConfig.count = 0; // 重置消息计数
                   let message;
                   if (imageResult.isLocal) { //本地图片
-                    if (config.localPicToBase64) {
-                      //本地base64发图
-                      let imagebase64 = await getImageAsBase64(imageResult.imagePath ?? imageResult.imageUrl);
-                      message = h('image', { url: 'data:image/png;base64,' + imagebase64 });
-                    } else {
-                      //正常本地文件发图
-                      message = h.image(imageResult.imageUrl);
-                    }
+                    message = h.image(imageResult.imageUrl);
                   } else {
                     message = h.image(imageResult.imageUrl);
                   }
@@ -385,14 +358,7 @@ export function apply(ctx: Context, config: Config) {
                     try {
                       let message;
                       if (imageResult.isLocal) { //本地图片
-                        if (config.localPicToBase64) {
-                          //本地base64发图
-                          let imagebase64 = await getImageAsBase64(imageResult.imagePath ?? imageResult.imageUrl);
-                          message = h('image', { url: 'data:image/png;base64,' + imagebase64 });
-                        } else {
-                          //正常本地文件发图
-                          message = h.image(imageResult.imageUrl);
-                        }
+                        message = h.image(imageResult.imageUrl);
                       } else {
                         message = h.image(imageResult.imageUrl);
                       }

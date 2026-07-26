@@ -101,7 +101,6 @@ export interface Config {
   nestedlist?: any;
   LocalSendNetworkPicturesList?: string;
   deletePictime?: number;
-  localPicToBase64?: boolean;
   consoleinfo: boolean;
   allfileinfo?: boolean;
 }
@@ -494,7 +493,6 @@ export const Config = Schema.intersect([
   Schema.object({
     LocalSendNetworkPicturesList: Schema.string().role('textarea', { rows: [2, 4] }).description('将`下列指令`对应的内容下载至本地，作为本地图片发送<br>请使用逗号分隔指令').default("").experimental(),
     deletePictime: Schema.number().default(10).description('若干`秒`后 删除下载的本地临时文件').experimental(),
-    localPicToBase64: Schema.boolean().description("`开启后`本地图片以base64发出 `日常使用无需开启，且不建议发送markdown的时候使用（直接发图还是可以考虑的）`").experimental().default(false),
   }).description('调试选项'),
 
   Schema.object({
