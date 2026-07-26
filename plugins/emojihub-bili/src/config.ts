@@ -4,20 +4,26 @@ import path from "node:path";
 export const usage = `
 ---
 
-<h2><a href="https://www.npmjs.com/package/koishi-plugin-emojihub-bili" target="_blank">如何额外添加自己喜欢的表情包</a></h2>
-<p>添加额外的表情包到 <strong>EmojiHub-bili</strong> 中非常简单！只需按照以下步骤操作：</p>
+<details>
+<summary><h2>点我展开 - 如何额外添加表情包</h2></summary>
+<p>添加额外的表情包到 <strong>emojihub-bili</strong> 中非常简单！只需按照以下步骤操作：</p>
 <ol>
 <li><strong>安装扩展（用户脚本管理器）</strong>：<br>在浏览器中添加扩展：<a href="https://docs.scriptcat.org/" target="_blank">ScriptCat---脚本猫</a>。</li>
 <li><strong>安装脚本</strong>：<br>在用户脚本管理器中添加脚本：<a href="https://greasyfork.org/zh-CN/scripts/521666-bilibili%E4%B8%93%E6%A0%8F%E5%8E%9F%E5%9B%BE%E9%93%BE%E6%8E%A5%E6%8F%90%E5%8F%962024%E6%94%B9%E7%89%88" target="_blank">（点击右侧文字查看）Bilibili专栏原图链接提取2024改版</a>。</li>
 <li><strong>搜索表情包</strong>：<br>开启扩展后，打开<a href="https://search.bilibili.com/article/" target="_blank">哔哩哔哩专栏搜索</a>，在专栏中搜索您需要的表情包。</li>
 <li><strong>提取链接</strong>：<br>点击进入具体的某个专栏帖子，屏幕靠近右下角会有一个绿色的【提取链接】按钮。点击该按钮，即可下载包含当前专栏所有图片的 URL 的 txt 文件。并且按下一次后会变成红色，防止误触，不可二次触发。如需再次下载，请刷新页面。</li>
-<li><strong>配置 EmojiHub-bili</strong>：<br>将同一类表情包图片的 URL 整合到同一个 txt 文件中。然后，在 Koishi 的配置项中填入相应的指令名称与 txt 文件路径。（无需像自带的txt一样省略前缀，写完整URL即可）</li>
+<li><strong>配置 emojihub-bili</strong>：<br>将同一类表情包图片的 URL 整合到同一个 txt 文件中。然后，在 Koishi 的配置项中填入相应的指令名称与 txt 文件路径。（无需像自带的txt一样省略前缀，写完整URL即可）</li>
 <li><strong>保存并重载</strong>：<br>完成配置后，保存您的配置并重载插件，您就可以使用自定义的指令发送表情包啦！🌟📚</li>
 </ol>
+
+</details>
+
+---
+
 <p> </p>
 <h2>温馨提示：</h2>
-<p><br>请勿将自定义的txt文件与本插件放置在同一目录下，以免插件更新导致文件丢失。</p>
-<p>目前EmojiHub-bili默认提供 <code>44套</code> 表情包。若您的配置内容有误差，请点击 <code>MoreEmojiHubList</code> 表格右上角按钮内的 <code>恢复默认值</code>。</p>
+<p>请勿将自定义的txt文件与本插件放置在同一目录下，以免插件更新导致文件丢失。</p>
+<p>emojihub-bili 默认提供 <code>44套</code> 表情包。若您的配置内容有误差，请点击 <code>MoreEmojiHubList</code> 表格右上角按钮内的 <code>恢复默认值</code>。</p>
 <p>若开启插件后，指令不出现，<a href="/market?keyword=commands">请重新开关commands插件</a></p>
 
 ---
@@ -115,7 +121,7 @@ export const Config = Schema.intersect([
       command: Schema.string().description('注册的指令名称'),
       source_url: Schema.string().description('表情包文件地址'),
     })).role('table').default(defaultMoreEmojiHubList)
-      .description('表情包指令映射表<br>▶ 若丢失了旧版本`MoreEmojiHub`配置 请先回退到 1.3.0 版本<br>▶ 若出现配置问题 请点击右方按钮 可以恢复到默认值<br>右列`文件地址`可以填入`txt绝对路径`、`文件夹绝对路径`、`图片直链`、`图片文件绝对路径`。支持格式 详见[➩项目README](https://github.com/koishi-shangxue-plugins/koishi-shangxue-apps/tree/main/plugins/emojihub-bili)'),
+      .description('表情包指令映射表<br>▶ 若出现配置问题 请点击右方按钮 可以恢复到默认值<br>右列`文件地址`可以填入`txt绝对路径`、`文件夹绝对路径`、`图片直链`、`图片文件绝对路径`。支持格式 详见[➩项目README](https://github.com/koishi-shangxue-plugins/koishi-shangxue-apps/tree/main/plugins/emojihub-bili)'),
     maxexecutetime: Schema.number().description('`-n 选项`指定 允许单次返回的 表情包最大数<br>例如默认10 ：`ba表情包 -n 30`，可以返回10张').default(10),
     deleteMsg: Schema.boolean().description("`开启后`自动撤回表情").default(false),
   }).description('表情包设置'),
@@ -207,14 +213,14 @@ export const Config = Schema.intersect([
     markdown_button_mode: Schema.union([
       Schema.const('unset').description('取消应用此配置项'),
       Schema.const('raw').description('markdown'),
-    ]).role('radio').description('markdown模式选择').default("unset"),
+    ]).role('radio').description('仅对QQ官方机器人生效，markdown模式选择').default("raw"),
   }).description('QQ官方按钮设置'),
   Schema.union([
     Schema.object({
-      markdown_button_mode: Schema.const("raw").required(),
+      markdown_button_mode: Schema.const("raw"),
 
       nested: Schema.object({
-        raw_markdown_button_content: Schema.string().role('textarea', { rows: [6, 6] }).collapse().default("## **表情包~😺**\n### 😽来了哦！\n![${img_pxpx}](${img_url})")
+        raw_markdown_button_content: Schema.string().role('textarea', { rows: [6, 6] }).collapse().default("## 表情包来咯~\n![${img_pxpx}](${img_url})")
           .description('实现QQ官方bot的按钮效果，需要`canvas`服务。<br>在这里填入你的markdown内容。本插件会替换形如`{{.xxx}}`或`${xxx}`的参数为`xxx`。<br>本插件提供的参数有`command`、`img_pxpx`、`img_url`、`ctx`、`session`、`config`<br>`img_pxpx`会被替换为`img#...px #...px`<br>`img_url`会被替换为`一个链接`更多说明，详见[➩项目README](https://github.com/koishi-shangxue-plugins/koishi-shangxue-apps/tree/main/plugins/emojihub-bili)'),
         raw_markdown_button_keyboard: Schema.string().role('textarea', { rows: [12, 12] }).collapse()
           .default(`{
@@ -223,7 +229,7 @@ export const Config = Schema.intersect([
             "buttons": [
                 {
                     "render_data": {
-                        "label": "再来一张😺",
+                        "label": "再来一张",
                         "style": 2
                     },
                     "action": {
@@ -237,7 +243,7 @@ export const Config = Schema.intersect([
                 },
                 {
                     "render_data": {
-                        "label": "返回列表😽",
+                        "label": "表情列表",
                         "style": 2
                     },
                     "action": {
@@ -260,22 +266,15 @@ export const Config = Schema.intersect([
           .description('实现QQ官方bot的按钮效果，需要`canvas`服务。<br>在这里填入你的markdown内容。本插件会替换形如`{{.xxx}}`或`${xxx}`的参数为`xxx`。<br>本插件提供的参数有`command`、`img_pxpx`、`img_url`、`ctx`、`session`、`config`<br>`img_pxpx`会被替换为`img#...px #...px`<br>`img_url`会被替换为`一个链接`更多说明，详见[➩项目README](https://github.com/koishi-shangxue-plugins/koishi-shangxue-apps/tree/main/plugins/emojihub-bili)'),
       }).collapse().description('➣表情包列表--按钮设置<br>更多说明，详见[➩项目README](https://github.com/koishi-shangxue-plugins/koishi-shangxue-apps/tree/main/plugins/emojihub-bili)<hr style="border: 2px solid red;"><hr style="border: 2px solid red;">'),
     }),
-    Schema.object({}),
+    Schema.object({
+      markdown_button_mode: Schema.const("unset").required(),
+    }),
   ]),
 
   Schema.object({
     LocalSendNetworkPicturesList: Schema.string().role('textarea', { rows: [2, 4] }).description('将`下列指令`对应的内容下载至本地，作为本地图片发送<br>请使用逗号分隔指令').default("").experimental(),
     deletePictime: Schema.number().default(10).description('若干`秒`后 删除下载的本地临时文件').experimental(),
+    consoleinfo: Schema.boolean().default(false).description("日志调试模式`日常使用无需开启`"),
   }).description('调试选项'),
 
-  Schema.object({
-    consoleinfo: Schema.boolean().default(false).description("日志调试模式`日常使用无需开启`"),
-  }).description('日志调试选项'),
-  Schema.union([
-    Schema.object({
-      consoleinfo: Schema.const(true).required(),
-      allfileinfo: Schema.boolean().description("输出allfile调试内容`MoreEmojiHubList 列表详细内容`"),
-    }),
-    Schema.object({})
-  ]),
 ]) as Schema<Config>;

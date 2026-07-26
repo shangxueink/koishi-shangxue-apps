@@ -1,5 +1,6 @@
 import { Context, Session } from "koishi";
 import { Config } from "./config";
+import { h } from "koishi";
 import { replacePlaceholders, logInfo, logError } from "./utils";
 import { resolveLocalPath } from "./path";
 
@@ -131,7 +132,20 @@ export function command_list_markdown(ctx: Context, session: Session, config: Co
   return markdownMessage;
 }
 
-export async function markdown(ctx: Context, session: Session, command, imageUrl, config: Config, localimage?) {
+export interface MarkdownImageSize {
+  width: number;
+  height: number;
+}
+
+export async function markdown(
+  ctx: Context,
+  session: Session,
+  command,
+  imageUrl,
+  config: Config,
+  localimage?: string,
+  imageSize?: MarkdownImageSize,
+) {
   const markdownMessage: any = {
     msg_id: "",
     msg_type: 2,
@@ -143,11 +157,15 @@ export async function markdown(ctx: Context, session: Session, command, imageUrl
   let originalHeight: number;
   const sizeMatch = typeof imageUrl === "string" ? imageUrl.match(/\?px=(\d+)x(\d+)$/) : null;
 
-  if (sizeMatch) {
+  if (imageSize?.width && imageSize?.height) {
+    originalWidth = imageSize.width;
+    originalHeight = imageSize.height;
+  } else if (sizeMatch) {
     originalWidth = parseInt(sizeMatch[1], 10);
     originalHeight = parseInt(sizeMatch[2], 10);
   } else {
-    const loadTarget = localimage ? resolveLocalPath(localimage) ?? localimage : resolveLocalPath(imageUrl) ?? imageUrl;
+    const rawTarget = localimage ? resolveLocalPath(localimage) ?? localimage : resolveLocalPath(imageUrl) ?? imageUrl;
+    const loadTarget = typeof rawTarget === "string" ? h.unescape(rawTarget) : rawTarget;
     const canvasimage = await ctx.canvas.loadImage(loadTarget);
     // @ts-ignore
     originalWidth = canvasimage.naturalWidth || canvasimage.width;

@@ -72,9 +72,6 @@ export async function determineImagePath(txtPath, config: Config, channelId, com
   }
 
   const allValidPaths = getAllValidPaths(config);
-  if (config.consoleinfo && config.allfileinfo) {
-    logger.info(allValidPaths);
-  }
   if (allValidPaths.length === 0) {
     return { imageUrl: null, isLocal: false };
   }
@@ -161,11 +158,6 @@ async function getRandomImageFromFolder(folderPath, config: Config, channelId, c
       return { imageUrl: null, isLocal: false };
     }
   }
-
-  if (config.consoleinfo && config.allfileinfo) {
-    logger.info(`文件夹 ${folderPath} 下的所有文件 \n${files.join("\n")}`);
-  }
-
   const imagePath = files[Math.floor(Math.random() * files.length)];
   logInfoformat(config, channelId, command, `使用文件夹 ${folderPath} \n发送本地图片为 ${imagePath}`);
   const stats = fs.statSync(imagePath);

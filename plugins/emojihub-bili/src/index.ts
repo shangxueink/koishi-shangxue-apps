@@ -1,10 +1,11 @@
 import { Context, h, Session, Universal } from "koishi";
-import { } from '@koishijs/assets';
+import { resolveLocalPath } from "./path";
 import { Config, usage } from "./config";
 import { logInfo, logError, logInfoformat, replacePlaceholders } from "./utils";
 import { determineImagePath, getRandomEmojiHubCommand, listAllCommands, } from "./core";
 import { markdown, command_list_markdown, sendmarkdownMessage } from "./markdown";
 
+import { } from '@koishijs/assets';
 import { } from "koishi-plugin-cron";
 import { } from "koishi-plugin-canvas";
 
@@ -19,13 +20,24 @@ export { Config, usage };
 
 export function apply(ctx: Context, config: Config) {
   const emojihub_bili_codecommand = config.emojihub_bili_command;
+  async function getLocalImageSize(localPath: string) {
+    if (!ctx.canvas) throw new Error('canvas service not available');
+    const resolvedPath = resolveLocalPath(localPath) ?? localPath;
+    const canvasimage = await ctx.canvas.loadImage(resolvedPath);
+    // @ts-ignore
+    const width = canvasimage.naturalWidth || canvasimage.width;
+    // @ts-ignore
+    const height = canvasimage.naturalHeight || canvasimage.height;
+    return { width, height };
+  }
+
   async function resolveAssetsUrlForMarkdown(imageUrl: string, imagePath?: string) {
     if (!ctx.assets) throw new Error('assets service not available');
     const localTarget = imageUrl || imagePath;
     const transformed = await ctx.assets.transform(String(h.image(localTarget)));
     const match = transformed.match(/<img\s+src="([^"]+)"/i);
     if (!match?.[1]) throw new Error(`assets.transform did not return an image url: ${transformed}`);
-    return match[1];
+    return h.unescape(match[1]);
   }
 
   ctx.i18n.define("zh-CN",
@@ -126,9 +138,10 @@ export function apply(ctx: Context, config: Config) {
             let message;
             if ((session.platform === "qq" || session.platform === "qqguild") && (config.markdown_button_mode === "raw")) {
               if (imageResult.isLocal) {
+                const imageSize = imageResult.imagePath ? await getLocalImageSize(imageResult.imagePath) : undefined;
                 const assetsUrl = await resolveAssetsUrlForMarkdown(imageResult.imageUrl, imageResult.imagePath);
                 logInfo(config, `[assets] converted local image to url: ${assetsUrl}`);
-                message = await markdown(ctx, session, command, assetsUrl, config);
+                message = await markdown(ctx, session, command, assetsUrl, config, imageResult.imagePath, imageSize);
                 await sendmarkdownMessage(ctx, session, message, config);
               } else {
                 message = await markdown(ctx, session, command, imageResult.imageUrl, config);
