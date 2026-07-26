@@ -24,49 +24,6 @@ function isAbsoluteLikePath(input: string) {
   return path.isAbsolute(input) || path.win32.isAbsolute(input) || path.posix.isAbsolute(input);
 }
 
-export async function uploadImageToChannel(ctx: Context, consoleinfo, data, appId, secret, channelId) {
-  async function refreshToken(bot) {
-    const { access_token: accessToken, expires_in: expiresIn } = await ctx.http.post("https://bots.qq.com/app/getAppAccessToken", {
-      appId: bot.appId,
-      clientSecret: bot.secret,
-    });
-    bot.token = accessToken;
-    ctx.setTimeout(() => refreshToken(bot), (expiresIn - 30) * 1000);
-  }
-
-  const bot = { appId, secret, channelId, token: "" };
-  await refreshToken(bot);
-
-  if (typeof data === "string") {
-    const localPath = resolveLocalPath(data);
-    if (localPath) {
-      data = await fs.promises.readFile(localPath);
-    } else if (isHttpUrl(data)) {
-      data = await ctx.http.get(data, { responseType: "arraybuffer" });
-      data = Buffer.from(data);
-    } else {
-      throw new Error(`不支持的图片来源: ${data}`);
-    }
-  }
-
-  const payload = new FormData();
-  payload.append("msg_id", "0");
-  payload.append("file_image", new Blob([data], { type: "image/png" }), "image.jpg");
-
-  await ctx.http.post(`https://api.sgroup.qq.com/channels/${bot.channelId}/messages`, payload, {
-    headers: {
-      Authorization: `QQBot ${bot.token}`,
-      "X-Union-Appid": bot.appId,
-    },
-  });
-
-  const md5 = crypto.createHash("md5").update(data).digest("hex").toUpperCase();
-  if (channelId !== undefined && consoleinfo) {
-    logger.info(`使用本地图片*QQ频道  发送URL为： https://gchat.qpic.cn/qmeetpic/0/0-0-${md5}/0`);
-  }
-  return { url: `https://gchat.qpic.cn/qmeetpic/0/0-0-${md5}/0` };
-}
-
 export async function getImageAsBase64(imagePath) {
   try {
     const filePath = resolveLocalPath(imagePath) ?? imagePath;

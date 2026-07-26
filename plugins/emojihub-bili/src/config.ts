@@ -96,7 +96,7 @@ export interface Config {
   count?: number;
   allgroupemojicommand?: string;
   botId?: string;
-  markdown_button_mode: 'unset' | 'json' | 'markdown' | 'markdown_raw_json' | 'raw';
+  markdown_button_mode: 'unset' | 'raw';
   nested?: any;
   nestedlist?: any;
   LocalSendNetworkPicturesList?: string;
