@@ -73,7 +73,7 @@ export async function sendImageMessage(
       const publicUrl = isHttpUrl(BackgroundURL)
         ? BackgroundURL
         : await resolveAssetsPublicUrl(ctx, BackgroundURL)
-      const qqmarkdownmessage = await plainTextImageMarkdown(ctx, session, publicUrl, dJson, logInfo)
+      const qqmarkdownmessage = await plainTextImageMarkdown(ctx, session, publicUrl, BackgroundURL, dJson, logInfo)
       const sentMessage = await sendmarkdownMessage(ctx, session, qqmarkdownmessage, logInfo)
 
       await recordOriginalImage(ctx, jsonFilePath, {

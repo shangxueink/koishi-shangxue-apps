@@ -1,9 +1,6 @@
 import type { Context, Session } from 'koishi'
 import type { Config, JrysData } from '../types'
 
-/**
- * 发送 Markdown 消息
- */
 export async function sendmarkdownMessage(
   ctx: Context,
   session: Session,
@@ -15,12 +12,8 @@ export async function sendmarkdownMessage(
     const { guild, user } = session.event
     const { qq, qqguild, channelId } = session as any
     if (guild?.id) {
-      if (qq) {
-        return await qq.sendMessage(channelId, message)
-      }
-      if (qqguild) {
-        return await qqguild.sendMessage(channelId, message)
-      }
+      if (qq) return await qq.sendMessage(channelId, message)
+      if (qqguild) return await qqguild.sendMessage(channelId, message)
     } else if (user?.id && qq) {
       return await qq.sendPrivateMessage(user.id, message)
     }
@@ -30,9 +23,6 @@ export async function sendmarkdownMessage(
   return undefined
 }
 
-/**
- * 构建 Markdown 消息
- */
 export async function markdown(
   ctx: Context,
   session: Session,
@@ -50,6 +40,7 @@ export async function markdown(
   }
 
   markdownMessage.msg_id = session.messageId
+
   let originalWidth: number
   let originalHeight: number
   const sizeMatch = imageUrl.match(/\?px=(\d+)x(\d+)$/)
@@ -92,12 +83,8 @@ export async function markdown(
 
       const keyboard = JSON.parse(replacedMarkdownKeyboard)
 
-      markdownMessage.markdown = {
-        content: replacedMarkdownContent,
-      }
-      markdownMessage.keyboard = {
-        content: keyboard,
-      }
+      markdownMessage.markdown = { content: replacedMarkdownContent }
+      markdownMessage.keyboard = { content: keyboard }
     } catch (error) {
       ctx.logger.error(`解析原生 Markdown 出错: ${error}`)
       return null
@@ -112,9 +99,24 @@ export async function plainTextImageMarkdown(
   ctx: Context,
   session: Session,
   imageUrl: string,
+  imageToload: string,
   dJson: JrysData,
   logInfo: (...args: any[]) => void
 ): Promise<any> {
+  let originalWidth: number
+  let originalHeight: number
+  const sizeMatch = imageUrl.match(/\?px=(\d+)x(\d+)$/)
+  if (sizeMatch) {
+    originalWidth = parseInt(sizeMatch[1], 10)
+    originalHeight = parseInt(sizeMatch[2], 10)
+  } else {
+    const canvasimage = await ctx.canvas.loadImage(imageToload || imageUrl)
+    // @ts-ignore
+    originalWidth = canvasimage.naturalWidth || canvasimage.width
+    // @ts-ignore
+    originalHeight = canvasimage.naturalHeight || canvasimage.height
+  }
+
   const markdownMessage: any = {
     msg_type: 2,
     markdown: {
@@ -123,19 +125,15 @@ export async function plainTextImageMarkdown(
         `### 您今天的运势是：${dJson.fortuneSummary}`,
         dJson.signText,
         dJson.unsignText,
-        `![img](${imageUrl})`,
+        `![img#${originalWidth}px #${originalHeight}px](${imageUrl})`,
       ].join('\n\n'),
     },
   }
 
   markdownMessage.msg_id = session.messageId
-  logInfo(`Markdown 简版参数: ${JSON.stringify(markdownMessage, null, 2)}`)
   return markdownMessage
 }
 
-/**
- * 替换占位符
- */
 export function replacePlaceholders(content: any, context: any, isRawMode = false): any {
   if (typeof content === 'string') {
     if (!/\{\{\.([^}]+)\}\}|\$\{([^}]+)\}/.test(content)) {
