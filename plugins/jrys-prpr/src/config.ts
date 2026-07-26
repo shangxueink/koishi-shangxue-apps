@@ -5,8 +5,6 @@ export const Config = Schema.intersect([
   Schema.object({
     command: Schema.string().default('jrysprpr').description("`签到`指令自定义"),
     command2: Schema.string().default('查看运势背景图').description("`原图`指令自定义"),
-    GetOriginalImageCommand: Schema.boolean().description("开启后启用`原图`指令，可以获取运势背景原图").default(true),
-    autocleanjson: Schema.boolean().description("自动获取原图后，删除对应的json记录信息").default(true),
     Checkin_HintText: Schema.union([
       Schema.const('unset').description('unset').description("不返回提示语"),
       Schema.string().description('string').description("请在右侧修改提示语").default("正在分析你的运势哦~请稍等~~"),

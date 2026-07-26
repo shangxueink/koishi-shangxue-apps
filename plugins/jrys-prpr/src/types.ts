@@ -32,8 +32,6 @@ export interface FortuneProbability {
 export interface Config {
   command: string
   command2: string
-  GetOriginalImageCommand: boolean
-  autocleanjson: boolean
   Checkin_HintText: string | 'unset'
   recallCheckin_HintText: boolean
   GetOriginalImage_Command_HintText: '0' | '1' | '2' | '3'

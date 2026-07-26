@@ -11,7 +11,6 @@ export function registerOriginalImageCommand(
   jsonFilePath: string,
   logInfo: (...args: any[]) => void
 ) {
-  if (!config.GetOriginalImageCommand) return
 
   ctx.command(`${config.command2} <InputmessageId:text>`, { authority: 1 })
     .alias('获取原图')
