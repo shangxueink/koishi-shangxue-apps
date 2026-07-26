@@ -51,10 +51,7 @@ export interface Config {
     Dashedboxcolor: string
     font: string
   }
-  markdown_button_mode: 'unset' | 'json' | 'markdown' | 'markdown_raw_json' | 'raw' | 'raw_jrys'
-  markdown_button_mode_initiative?: boolean
-  markdown_button_mode_keyboard?: boolean
-  QQchannelId?: string
+  markdown_button_mode: 'unset' | 'raw'
   nested?: any
   enablecurrency: boolean
   currency: string

@@ -226,7 +226,7 @@ export function apply(ctx: Context) {
   // });
 
   ctx.platform('qq').on("message", async (session) => {
-    ctx.logger.info("quote内容： ",session.quote);
+    ctx.logger.info("quote内容： ", session.quote);
   });
 
   // ctx.platform('onebot').on('guild-member-added', async (session) => {
@@ -887,7 +887,7 @@ https://ti.qq.com/new_open_qq/index.html?appid=64&url=mqqapi%3A%2F%2Fqqrobotaio%
     });
 
   command
-    .subcommand('.assets')
+    .subcommand('.assets.视频')
     .action(async ({ session }) => {
 
       if (!session) return;
@@ -897,6 +897,48 @@ https://ti.qq.com/new_open_qq/index.html?appid=64&url=mqqapi%3A%2F%2Fqqrobotaio%
       await session.send(`即将转换： ${videourl}`);
       const videoElement2 = await ctx.assets.transform(videoElement);
       await session.send(`${videoElement2}`);
+      return;
+    });
+
+  command
+    .subcommand('.assets.大视频')
+    .action(async ({ session }) => {
+
+      if (!session) return;
+      await session.send(`正在处理中...`);
+      const videourl = "file:///D:/Music/%E5%A4%9A%E5%B9%B8%E8%BF%90.mp4";
+      const videoElement = `${h.video(videourl)}`;
+      await session.send(`即将转换： ${videourl}`);
+      const videoElement2 = await ctx.assets.transform(videoElement);
+      await session.send(`${videoElement2}`);
+      return;
+    });
+
+
+  command
+    .subcommand('.assets.音频')
+    .action(async ({ session }) => {
+
+      if (!session) return;
+      await session.send(`正在处理中...`);
+      const audiourl = "file:///D:/Music/%E4%B8%8D%E5%86%8D%E6%9B%BC%E6%B3%A2.mp3";
+      const audioElement = `${h.audio(audiourl)}`;
+      await session.send(`即将转换： ${audiourl}`);
+      const audioElement2 = await ctx.assets.transform(audioElement);
+      await session.send(`${audioElement2}`);
+      return;
+    });
+  command
+    .subcommand('.assets.图片')
+    .action(async ({ session }) => {
+
+      if (!session) return;
+      await session.send(`正在处理中...`);
+      const audiourl = "file:///D:/Pictures/meme/2024-12-06-11-32-51-760.png";
+      const audioElement = `${h.image(audiourl)}`;
+      await session.send(`即将转换： ${audiourl}`);
+      const audioElement2 = await ctx.assets.transform(audioElement);
+      await session.send(`${audioElement2}`);
       return;
     });
 

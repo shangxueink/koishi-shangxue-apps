@@ -90,9 +90,7 @@ export async function markdown(
   }
 
   // 只有在非主动模式下才添加 msg_id
-  if (!config.markdown_button_mode_initiative) {
-    markdownMessage.msg_id = session.messageId
-  }
+  markdownMessage.msg_id = session.messageId
   let originalWidth: number
   let originalHeight: number
   // 尝试从 URL 中解析尺寸
@@ -111,47 +109,7 @@ export async function markdown(
   // 获取 dJson
   const dJson = await getJrys(session, config, logInfo)
 
-  if (config.markdown_button_mode === "markdown") {
-    const templateId = config.nested.markdown_button_template_id
-    const keyboardId = config.nested.markdown_button_keyboard_id
-    const contentTable = config.nested.markdown_button_content_table
-
-    const params = contentTable.map(item => ({
-      key: item.raw_parameters,
-      values: replacePlaceholders(item.replace_parameters, { session, config, img_pxpx: `img#${originalWidth}px #${originalHeight}px`, img_url: imageUrl, encodedMessageTime, dJson }),
-    }))
-
-    markdownMessage.markdown = {
-      custom_template_id: templateId,
-      params: params,
-    }
-    if (config.markdown_button_mode_keyboard) {
-      markdownMessage.keyboard = {
-        id: keyboardId,
-      }
-    }
-  } else if (config.markdown_button_mode === "markdown_raw_json") {
-    const templateId = config.nested.markdown_raw_json_button_template_id
-    const contentTable = config.nested.markdown_raw_json_button_content_table
-    let keyboard = JSON.parse(config.nested.markdown_raw_json_button_keyboard)
-
-    keyboard = replacePlaceholders(keyboard, { session, config, img_pxpx: `img#${originalWidth}px #${originalHeight}px`, img_url: imageUrl, encodedMessageTime, dJson }, true)
-
-    const params = contentTable.map(item => ({
-      key: item.raw_parameters,
-      values: replacePlaceholders(item.replace_parameters, { session, config, img_pxpx: `img#${originalWidth}px #${originalHeight}px`, img_url: imageUrl, encodedMessageTime, dJson }),
-    }))
-
-    markdownMessage.markdown = {
-      custom_template_id: templateId,
-      params: params,
-    }
-    if (config.markdown_button_mode_keyboard) {
-      markdownMessage.keyboard = {
-        content: keyboard,
-      }
-    }
-  } else if (config.markdown_button_mode === "raw") {
+  if (config.markdown_button_mode === "raw") {
     try {
       const rawMarkdownContent = config.nested.raw_markdown_button_content
       const rawMarkdownKeyboard = config.nested.raw_markdown_button_keyboard
@@ -169,39 +127,8 @@ export async function markdown(
       markdownMessage.markdown = {
         content: replacedMarkdownContent,
       }
-      if (config.markdown_button_mode_keyboard) {
-        markdownMessage.keyboard = {
-          content: keyboard,
-        }
-      }
-    } catch (error) {
-      ctx.logger.error(`解析原生 Markdown 出错: ${error}`)
-      return null
-    }
-  } else if (config.markdown_button_mode === "raw_jrys") {
-    try {
-      const raw_jrysMarkdownContent = config.nested.raw_jrys_markdown_button_content
-      const raw_jrysMarkdownKeyboard = config.nested.raw_jrys_markdown_button_keyboard
-
-      // 将 atUserString 插入到原始字符串中
-      const qqbotatuser = session.isDirect ? "\n" : `<qqbot-at-user id="${session.userId}" />`
-
-      const replacedMarkdownContent = replacePlaceholders(raw_jrysMarkdownContent, { session, qqbotatuser, dJson, config, img_pxpx: `img#${originalWidth}px #${originalHeight}px`, img_url: imageUrl, encodedMessageTime }, true)
-      const replacedMarkdownKeyboard = replacePlaceholders(raw_jrysMarkdownKeyboard, { session, qqbotatuser, config, encodedMessageTime, dJson }, true)
-        .replace(/^[\s\S]*?"keyboard":\s*/, '')
-        .replace(/\\n/g, '')
-        .replace(/\\"/g, '"')
-        .trim()
-
-      const keyboard = JSON.parse(replacedMarkdownKeyboard)
-
-      markdownMessage.markdown = {
-        content: replacedMarkdownContent,
-      }
-      if (config.markdown_button_mode_keyboard) {
-        markdownMessage.keyboard = {
-          content: keyboard,
-        }
+      markdownMessage.keyboard = {
+        content: keyboard,
       }
     } catch (error) {
       ctx.logger.error(`解析原生 Markdown 出错: ${error}`)

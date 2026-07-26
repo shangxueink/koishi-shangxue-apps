@@ -75,29 +75,8 @@ ${dJson.unsignText}\n
 
       let page: any
       try {
-        if (config.markdown_button_mode !== "raw_jrys") {
-          page = await ctx.puppeteer.page()
-          await page.setViewport({ width: 1080, height: 1920 })
 
-          let BackgroundURL_base64 = await convertToBase64image(ctx, BackgroundURL, logInfo)
-
-          // 生成 HTML
-          const HTMLsource = await generateFortuneHTML(ctx, session, config, dJson, BackgroundURL_base64, logInfo)
-
-          logInfo(`使用背景URL: ${BackgroundURL}`)
-          await page.setContent(HTMLsource)
-          // 等待网络空闲
-          await page.waitForNetworkIdle()
-          const element = await page.$('body')
-
-          imageBuffer = await element.screenshot({
-            type: "jpeg",  // 使用 JPEG 格式
-            encoding: "binary",
-            quality: config.screenshotquality  // 设置图片质量
-          })
-        } else {
-          imageBuffer = await getImageBuffer(ctx, BackgroundURL)
-        }
+        imageBuffer = await getImageBuffer(ctx, BackgroundURL)
 
         if (config.enablecurrency && !hasSignedInToday) {
           await updateUserCurrency(ctx, String(session.user.id), config.maintenanceCostPerUnit, config.currency, logInfo)
@@ -106,9 +85,6 @@ ${dJson.unsignText}\n
         // 发送图片消息
         await sendImageMessage(ctx, session, config, imageBuffer, BackgroundURL, hasSignedInToday, jsonFilePath, logInfo)
 
-        if (config.markdown_button_mode !== "raw_jrys") {
-          await recordSignIn(ctx, session.userId, session.channelId)
-        }
 
         if (Checkin_HintText_messageid && config.recallCheckin_HintText) {
           await session.bot.deleteMessage(session.channelId, Checkin_HintText_messageid)
