@@ -1,6 +1,5 @@
 import type { Context, Session } from 'koishi'
 import type { Config, JrysData } from '../types'
-import { getJrys } from './jrys'
 
 /**
  * 发送 Markdown 消息
@@ -10,23 +9,25 @@ export async function sendmarkdownMessage(
   session: Session,
   message: any,
   logInfo: (...args: any[]) => void
-): Promise<void> {
+): Promise<any> {
   logInfo(message)
   try {
     const { guild, user } = session.event
     const { qq, qqguild, channelId } = session as any
     if (guild?.id) {
       if (qq) {
-        await qq.sendMessage(channelId, message)
-      } else if (qqguild) {
-        await qqguild.sendMessage(channelId, message)
+        return await qq.sendMessage(channelId, message)
+      }
+      if (qqguild) {
+        return await qqguild.sendMessage(channelId, message)
       }
     } else if (user?.id && qq) {
-      await qq.sendPrivateMessage(user.id, message)
+      return await qq.sendPrivateMessage(user.id, message)
     }
   } catch (error) {
-    ctx.logger.error(`发送 markdown 消息时出错`, error)
+    ctx.logger.error(`发送 markdown 消息时出错: ${error}`)
   }
+  return undefined
 }
 
 /**
@@ -38,6 +39,7 @@ export async function markdown(
   encodedMessageTime: string,
   imageUrl: string,
   imageToload: string,
+  dJson: JrysData,
   config: Config,
   logInfo: (...args: any[]) => void
 ): Promise<any> {
@@ -62,15 +64,27 @@ export async function markdown(
     originalHeight = canvasimage.naturalHeight || canvasimage.height
   }
 
-  const dJson = await getJrys(session, config, logInfo)
-
   if (config.markdown_button_mode === 'raw') {
     try {
       const rawMarkdownContent = config.nested.raw_markdown_button_content
       const rawMarkdownKeyboard = config.nested.raw_markdown_button_keyboard
       const qqbotatuser = session.isDirect ? '\n' : `<qqbot-at-user id="${session.userId}" />`
-      const replacedMarkdownContent = replacePlaceholders(rawMarkdownContent, { session, qqbotatuser, config, img_pxpx: `img#${originalWidth}px #${originalHeight}px`, img_url: imageUrl, encodedMessageTime, dJson }, true)
-      const replacedMarkdownKeyboard = replacePlaceholders(rawMarkdownKeyboard, { session, qqbotatuser, config, encodedMessageTime, dJson }, true)
+      const replacedMarkdownContent = replacePlaceholders(rawMarkdownContent, {
+        session,
+        qqbotatuser,
+        config,
+        img_pxpx: `img#${originalWidth}px #${originalHeight}px`,
+        img_url: imageUrl,
+        encodedMessageTime,
+        dJson,
+      }, true)
+      const replacedMarkdownKeyboard = replacePlaceholders(rawMarkdownKeyboard, {
+        session,
+        qqbotatuser,
+        config,
+        encodedMessageTime,
+        dJson,
+      }, true)
         .replace(/^[\s\S]*?"keyboard":\s*/, '')
         .replace(/\\n/g, '')
         .replace(/\\"/g, '"')
@@ -115,13 +129,12 @@ export function replacePlaceholders(content: any, context: any, isRawMode = fals
   if (typeof content === 'object' && content !== null) {
     if (Array.isArray(content)) {
       return content.map(item => replacePlaceholders(item, context, isRawMode))
-    } else {
-      const result: Record<string, any> = {}
-      for (const key in content) {
-        result[key] = replacePlaceholders(content[key], context, isRawMode)
-      }
-      return result
     }
+    const result: Record<string, any> = {}
+    for (const key in content) {
+      result[key] = replacePlaceholders(content[key], context, isRawMode)
+    }
+    return result
   }
 
   return content

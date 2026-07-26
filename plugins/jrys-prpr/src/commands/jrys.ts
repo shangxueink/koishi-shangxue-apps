@@ -83,7 +83,7 @@ ${dJson.unsignText}\n
         }
 
         // 发送图片消息
-        await sendImageMessage(ctx, session, config, imageBuffer, BackgroundURL, hasSignedInToday, jsonFilePath, logInfo)
+        await sendImageMessage(ctx, session, config, dJson, imageBuffer, BackgroundURL, hasSignedInToday, jsonFilePath, logInfo)
 
 
         if (Checkin_HintText_messageid && config.recallCheckin_HintText) {
