@@ -9,11 +9,43 @@ export interface OriginalImageRecord {
 }
 
 function normalizeMessageIds(messageId: unknown): string[] {
-  if (!messageId) return []
-  if (Array.isArray(messageId)) {
-    return Array.from(new Set(messageId.map(item => String(item)).filter(Boolean)))
+  const result: string[] = []
+
+  const push = (value: unknown) => {
+    if (value == null) return
+    if (typeof value === 'string') {
+      const trimmed = value.trim()
+      if (trimmed) result.push(trimmed)
+      return
+    }
+    if (typeof value === 'number' || typeof value === 'bigint') {
+      result.push(String(value))
+      return
+    }
+    if (Array.isArray(value)) {
+      for (const item of value) push(item)
+      return
+    }
+    if (typeof value === 'object') {
+      const obj = value as Record<string, any>
+      const candidates = [
+        obj.messageId,
+        obj.message_id,
+        obj.messageIDs,
+        obj.message_ids,
+        obj.ids,
+        obj.id,
+        obj.data,
+      ]
+      for (const candidate of candidates) {
+        push(candidate)
+      }
+      return
+    }
   }
-  return [String(messageId)].filter(Boolean)
+
+  push(messageId)
+  return Array.from(new Set(result))
 }
 
 function normalizeOriginalImageRecord(record: any): OriginalImageRecord | null {
@@ -107,6 +139,10 @@ export async function recordOriginalImage(
   try {
     const nextRecord = normalizeOriginalImageRecord(record)
     if (!nextRecord) return
+    if (nextRecord.messageId.length === 0) {
+      ctx.logger.warn(`skip original image cache record without messageId: ${JSON.stringify(record)}`)
+      return
+    }
 
     const current = readOriginalImageRecords(jsonFilePath)
     const filtered = current.filter(item => {

@@ -7,6 +7,7 @@ import type { Config, JrysData } from '../types'
 import { recordOriginalImage } from './database'
 import { markdown, sendmarkdownMessage } from './markdown'
 import { encodeTimestamp } from './image'
+import { renderFortuneCardImage } from './render-card'
 
 function getPublicImageUrl(rawUrl: string): string {
   if (/response-content-type=image%2Fjpeg/i.test(rawUrl)) {
@@ -46,7 +47,8 @@ export async function sendImageMessage(
     }
 
     const tempFile = path.join(cacheDir, `${session.userId}-${Date.now()}-${Math.random().toString(36).slice(2)}.png`)
-    fs.writeFileSync(tempFile, imageBuffer)
+    const renderBuffer = await renderFortuneCardImage(ctx, session, config, dJson, BackgroundURL, logInfo)
+    fs.writeFileSync(tempFile, renderBuffer)
 
     try {
       const transformed = await assets.transform(String(h.image(pathToFileURL(tempFile).href)))
