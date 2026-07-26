@@ -2,7 +2,7 @@ import { Context, h, Session, Universal } from "koishi";
 import { } from '@koishijs/assets';
 import { Config, usage } from "./config";
 import { logInfo, logError, logInfoformat, replacePlaceholders } from "./utils";
-import { determineImagePath, getRandomEmojiHubCommand, listAllCommands, uploadImageToChannel } from "./core";
+import { determineImagePath, getRandomEmojiHubCommand, listAllCommands, } from "./core";
 import { markdown, command_list_markdown, sendmarkdownMessage } from "./markdown";
 
 import { } from "koishi-plugin-cron";
@@ -93,7 +93,7 @@ export function apply(ctx: Context, config: Config) {
       logInfo(config, `指令列表txtCommandList：  ` + txtCommandList);
 
       if (session.platform === "qq" || session.platform === "qqguild") {
-        let markdownMessage = command_list_markdown(session, config);
+        let markdownMessage = command_list_markdown(ctx, session, config, emojihub_bili_codecommand, 1);
         await sendmarkdownMessage(ctx, session, markdownMessage, config);
       } else {
         const commandText = txtCommandList.join('\n');
