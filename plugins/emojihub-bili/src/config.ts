@@ -212,7 +212,7 @@ export const Config = Schema.intersect([
   Schema.object({
     markdown_button_mode: Schema.union([
       Schema.const('unset').description('取消应用此配置项'),
-      Schema.const('raw').description('markdown'),
+      Schema.const('raw').description('markdown（需要assets服务，推荐`assets-qqbot-part-file`插件）'),
     ]).role('radio').description('仅对QQ官方机器人生效，markdown模式选择').default("raw"),
   }).description('QQ官方按钮设置'),
   Schema.union([
