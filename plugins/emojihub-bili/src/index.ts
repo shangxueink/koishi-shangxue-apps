@@ -1,15 +1,18 @@
-import { Context, h, Session, Universal } from "koishi";
-import { resolveLocalPath } from "./path";
+﻿import { Context, h, Session, Universal } from "koishi";
 import { Config, usage } from "./config";
 import { logInfo, logError, logInfoformat, replacePlaceholders } from "./utils";
 import { determineImagePath, getRandomEmojiHubCommand, listAllCommands, } from "./core";
 import { markdown, command_list_markdown, sendmarkdownMessage } from "./markdown";
+import { loadCanvasImageSource } from "./canvas-source";
+import { registerLocalImageProxyRoute } from "./media-proxy";
 
 import { } from '@koishijs/assets';
+import { } from '@koishijs/plugin-server';
 import { } from "koishi-plugin-cron";
 import { } from "koishi-plugin-canvas";
 
 export const inject = {
+  required: ['server'],
   optional: ['canvas', 'assets']
 };
 
@@ -20,10 +23,11 @@ export { Config, usage };
 
 export function apply(ctx: Context, config: Config) {
   const emojihub_bili_codecommand = config.emojihub_bili_command;
-  async function getLocalImageSize(localPath: string) {
+  registerLocalImageProxyRoute(ctx);
+  async function getLocalImageSize(canvasSource: string) {
     if (!ctx.canvas) throw new Error('canvas service not available');
-    const resolvedPath = resolveLocalPath(localPath) ?? localPath;
-    const canvasimage = await ctx.canvas.loadImage(resolvedPath);
+    logInfo(config, `获取本地图片尺寸，canvasSource: ${canvasSource}`);
+    const canvasimage = await loadCanvasImageSource(ctx, canvasSource);
     // @ts-ignore
     const width = canvasimage.naturalWidth || canvasimage.width;
     // @ts-ignore
@@ -138,17 +142,17 @@ export function apply(ctx: Context, config: Config) {
             let message;
             if ((session.platform === "qq" || session.platform === "qqguild") && (config.markdown_button_mode === "raw")) {
               if (imageResult.isLocal) {
-                const imageSize = imageResult.imagePath ? await getLocalImageSize(imageResult.imagePath) : undefined;
+                const imageSize = imageResult.imageUrl ? await getLocalImageSize(imageResult.imageUrl) : undefined;
                 const assetsUrl = await resolveAssetsUrlForMarkdown(imageResult.imageUrl, imageResult.imagePath);
                 logInfo(config, `[assets] converted local image to url: ${assetsUrl}`);
-                message = await markdown(ctx, session, command, assetsUrl, config, imageResult.imagePath, imageSize);
+                message = await markdown(ctx, session, command, assetsUrl, config, imageResult.imageUrl, imageSize);
                 await sendmarkdownMessage(ctx, session, message, config);
               } else {
                 message = await markdown(ctx, session, command, imageResult.imageUrl, config);
                 await sendmarkdownMessage(ctx, session, message, config);
               }
             } else {
-              if (imageResult.isLocal) {// 本地图片 + 绝对路径
+              if (imageResult.isLocal) {
                 const format = config.localPictureToName;
                 logInfo(config, imageResult.imageUrl)
                 // 格式化文件大小
@@ -158,7 +162,10 @@ export function apply(ctx: Context, config: Config) {
                 // 格式化时间
                 const formattedTime = imageResult.imageTime.toLocaleString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }).replace(/\//g, '-');
 
-                const assetsUrl = await resolveAssetsUrlForMarkdown(imageResult.imageUrl, imageResult.imagePath);
+                const imageBuffer = Buffer.from((await ctx.http.file(imageResult.imageUrl)).data);
+                const base64Data = imageBuffer.toString('base64');
+
+                const assetsUrl = `data:image/png;base64,${base64Data}`;
                 const context = {
                   IMAGE: h.image(assetsUrl),
                   NAME: imageResult.imageName,
@@ -167,8 +174,7 @@ export function apply(ctx: Context, config: Config) {
                   PATH: imageResult.imagePath,
                 };
                 const messageContent = replacePlaceholders(format, context);
-                logInfo(config, "变量替换本地文件名称，messageContent：")
-                logInfo(config, messageContent)
+                logInfo(config, "变量替换本地文件名称，messageContent：", messageContent)
                 try {
                   message = await session.send(h.unescape(`${messageContent}`.replace(/\\n/g, '\n')));
                 } catch (error) {

@@ -21,7 +21,7 @@ export function logError(message) {
 
 export function logInfo(config: Config, ...args: unknown[]) {
   if (config.consoleinfo) {
-    if (args.length > 0) {
+    if (args.length > 0 && args[0].toString().length < 500) {
       logger.info(args[0], ...args.slice(1));
     }
   }

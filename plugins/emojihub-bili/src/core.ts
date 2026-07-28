@@ -1,10 +1,10 @@
 import fs from "node:fs";
 import path from "node:path";
-import crypto from "node:crypto";
-import { Context } from "koishi";
+import { type Context } from "koishi";
 import { Config } from "./config";
 import { logError, logInfoformat, getAllFiles, getVirtualFilename, logger } from "./utils";
-import { isHttpUrl, resolveLocalPath, toFileHref } from "./path";
+import { isHttpUrl, resolveLocalPath } from "./path";
+import { getLocalImageProxyUrl } from "./media-proxy";
 
 export interface ImageResult {
   imageUrl: string | null;
@@ -24,7 +24,11 @@ function isAbsoluteLikePath(input: string) {
   return path.isAbsolute(input) || path.win32.isAbsolute(input) || path.posix.isAbsolute(input);
 }
 
-export async function getImageAsBase64(imagePath) {
+function toLocalImageUrl(ctx: Context, localPath: string): string | null {
+  return getLocalImageProxyUrl(ctx, localPath);
+}
+
+export async function getImageAsBase64(imagePath: string) {
   try {
     const filePath = resolveLocalPath(imagePath) ?? imagePath;
     const imageBuffer = fs.readFileSync(filePath);
@@ -35,7 +39,14 @@ export async function getImageAsBase64(imagePath) {
   }
 }
 
-export async function determineImagePath(txtPath, config: Config, channelId, command, ctx: Context, local_picture_name = null): Promise<ImageResult> {
+export async function determineImagePath(
+  txtPath: string,
+  config: Config,
+  channelId: string | null,
+  command: string,
+  ctx: Context,
+  local_picture_name: string[] | null = null,
+): Promise<ImageResult> {
   const localPath = resolveLocalPath(txtPath);
   if (localPath) {
     try {
@@ -46,10 +57,10 @@ export async function determineImagePath(txtPath, config: Config, channelId, com
       if (stats.isFile()) {
         if (isImageFile(localPath)) {
           logInfoformat(config, channelId, command, `本地图片的绝对路径: ${txtPath}`);
-          const fileHref = toFileHref(localPath);
-          if (!fileHref) return { imageUrl: null, isLocal: false };
+          const imageUrl = toLocalImageUrl(ctx, localPath);
+          if (!imageUrl) return { imageUrl: null, isLocal: false };
           return {
-            imageUrl: fileHref,
+            imageUrl,
             isLocal: true,
             imageName: path.basename(localPath),
             imageTime: stats.mtime,
@@ -88,10 +99,10 @@ export async function determineImagePath(txtPath, config: Config, channelId, com
     if (stats.isFile()) {
       if (isImageFile(pickedLocalPath)) {
         logInfoformat(config, channelId, command, `随机选择的本地图片路径: ${pickedPath}`);
-        const fileHref = toFileHref(pickedLocalPath);
-        if (!fileHref) return { imageUrl: null, isLocal: false };
+        const imageUrl = toLocalImageUrl(ctx, pickedLocalPath);
+        if (!imageUrl) return { imageUrl: null, isLocal: false };
         return {
-          imageUrl: fileHref,
+          imageUrl,
           isLocal: true,
           imageName: path.basename(pickedLocalPath),
           imageTime: stats.mtime,
@@ -118,14 +129,21 @@ export function getRandomEmojiHubCommand(config: Config) {
   return null;
 }
 
-function getAllValidPaths(config: Config) {
+function getAllValidPaths(config: Config): string[] {
   return config.MoreEmojiHubList.filter((emoji) => {
     const sourceUrl = emoji.source_url;
     return isAbsoluteLikePath(sourceUrl) || isHttpUrl(sourceUrl) || sourceUrl.startsWith("file:");
   }).map((emoji) => emoji.source_url);
 }
 
-async function getRandomImageFromFolder(folderPath, config: Config, channelId, command, ctx, local_picture_name) {
+async function getRandomImageFromFolder(
+  folderPath: string,
+  config: Config,
+  channelId: string | null,
+  command: string,
+  ctx: Context,
+  local_picture_name: string[] | null,
+) {
   if (!fs.existsSync(folderPath)) {
     logError(`错误:路径不存在: ${folderPath}`);
     return { imageUrl: null, isLocal: false };
@@ -161,10 +179,10 @@ async function getRandomImageFromFolder(folderPath, config: Config, channelId, c
   const imagePath = files[Math.floor(Math.random() * files.length)];
   logInfoformat(config, channelId, command, `使用文件夹 ${folderPath} \n发送本地图片为 ${imagePath}`);
   const stats = fs.statSync(imagePath);
-  const fileHref = toFileHref(imagePath);
-  if (!fileHref) return { imageUrl: null, isLocal: false };
+  const imageUrl = toLocalImageUrl(ctx, imagePath);
+  if (!imageUrl) return { imageUrl: null, isLocal: false };
   return {
-    imageUrl: fileHref,
+    imageUrl,
     isLocal: true,
     imageName: path.basename(imagePath),
     imageTime: stats.mtime,
@@ -173,8 +191,15 @@ async function getRandomImageFromFolder(folderPath, config: Config, channelId, c
   };
 }
 
-export async function getRandomImageUrlFromFile(txtPath, config: Config, channelId, command, ctx) {
-  let urls, imageUrl;
+export async function getRandomImageUrlFromFile(
+  txtPath: string,
+  config: Config,
+  channelId: string | null,
+  command: string,
+  ctx: Context,
+) {
+  let urls: string[];
+  let imageUrl: string;
   try {
     urls = fs.readFileSync(txtPath, "utf8").split("\n").filter((url) => url.trim() !== "");
   } catch (error) {
@@ -215,8 +240,8 @@ export async function getRandomImageUrlFromFile(txtPath, config: Config, channel
           logInfoformat(config, null, null, `临时文件已删除：${localOutputPath}`);
         }, config.deletePictime * 1000);
         logInfoformat(config, channelId, command, `下载并发送本地图片: ${localOutputPath}`);
-        const fileHref = toFileHref(localOutputPath);
-        return { imageUrl: fileHref ?? localOutputPath, isLocal: true, imagePath: localOutputPath };
+        const localImageUrl = toLocalImageUrl(ctx, localOutputPath);
+        return { imageUrl: localImageUrl, isLocal: true, imagePath: localOutputPath };
       } catch (downloadError) {
         logError(`图片下载失败：${downloadError.message}`);
         return { imageUrl: null, isLocal: false };
@@ -228,7 +253,7 @@ export async function getRandomImageUrlFromFile(txtPath, config: Config, channel
   return { imageUrl, isLocal: false };
 }
 
-export async function downloadImage(url, outputPath, ctx) {
+export async function downloadImage(url: string, outputPath: string, ctx: Context) {
   try {
     const response = await ctx.http.get(url, { responseType: "arraybuffer" });
     const buffer = Buffer.from(response);
@@ -240,7 +265,7 @@ export async function downloadImage(url, outputPath, ctx) {
   }
 }
 
-export function listAllCommands(config: Config) {
+export function listAllCommands(config: Config): string[] {
   const allCommands = config.MoreEmojiHubList.map((emoji) => emoji.command);
   if (allCommands.length === 0) {
     logError("未找到任何表情包指令。");

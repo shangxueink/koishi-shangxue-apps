@@ -2,6 +2,7 @@ import { clone, Context, h, Logger, Schema, sleep, Session } from 'koishi';
 import { } from '@koishijs/assets';
 import { } from 'koishi-plugin-puppeteer';
 import { } from "D:/QQbots/QQ_bots/koishing/coding/koishi-b/koishi-mipp/koishi-app/external/adapter-github/";
+import { } from "koishi-plugin-canvas";
 
 export const name = 'testplugin';
 export const inject = {
@@ -337,6 +338,18 @@ export function apply(ctx: Context) {
       }));
       return;
     });
+
+  command
+    .subcommand('.canvas')
+    .action(async ({ session }) => {
+
+      if (!session) return;
+      const aaa = await ctx.canvas.loadImage("file://D:/Pictures/koishi/moving_square_loop.webp");
+      ctx.logger.info(aaa);
+      await session.send("已经打印");
+      return;
+    });
+
   command
     .subcommand('.按钮')
     .action(async ({ session }) => {
@@ -350,30 +363,30 @@ export function apply(ctx: Context) {
       return;
     });
 
-async function sendMenuMessage(session: Session, message: unknown): Promise<void> {
-  const sess = session as any
-  const guildId = sess.event.guild?.id
-  const userId = sess.event.user?.id
+  async function sendMenuMessage(session: Session, message: unknown): Promise<void> {
+    const sess = session as any
+    const guildId = sess.event.guild?.id
+    const userId = sess.event.user?.id
 
-  if (guildId) {
-    if (sess.qq) {
-      await sess.qq.sendMessage(sess.channelId, message)
+    if (guildId) {
+      if (sess.qq) {
+        await sess.qq.sendMessage(sess.channelId, message)
+        return
+      }
+
+      if (sess.qqguild) {
+        await sess.qqguild.sendMessage(sess.channelId, message)
+        return
+      }
+    }
+
+    if (userId && sess.qq) {
+      await sess.qq.sendPrivateMessage(userId, message)
       return
     }
 
-    if (sess.qqguild) {
-      await sess.qqguild.sendMessage(sess.channelId, message)
-      return
-    }
+    throw new Error('当前会话没有可用的发送目标。')
   }
-
-  if (userId && sess.qq) {
-    await sess.qq.sendPrivateMessage(userId, message)
-    return
-  }
-
-  throw new Error('当前会话没有可用的发送目标。')
-}
   ctx.on('interaction/button', async (session: Session) => {
     ctx.logger.info(`接收到回调按钮内容： `, session)
   })

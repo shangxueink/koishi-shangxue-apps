@@ -2,7 +2,7 @@ import { Context, Session } from "koishi";
 import { Config } from "./config";
 import { h } from "koishi";
 import { replacePlaceholders, logInfo, logError } from "./utils";
-import { resolveLocalPath } from "./path";
+import { loadCanvasImageSource } from "./canvas-source";
 
 function clampPage(page: number, totalPages: number) {
   if (!Number.isFinite(page) || page < 1) return 1;
@@ -164,9 +164,8 @@ export async function markdown(
     originalWidth = parseInt(sizeMatch[1], 10);
     originalHeight = parseInt(sizeMatch[2], 10);
   } else {
-    const rawTarget = localimage ? resolveLocalPath(localimage) ?? localimage : resolveLocalPath(imageUrl) ?? imageUrl;
-    const loadTarget = typeof rawTarget === "string" ? h.unescape(rawTarget) : rawTarget;
-    const canvasimage = await ctx.canvas.loadImage(loadTarget);
+    const loadTarget = localimage || imageUrl;
+    const canvasimage = await loadCanvasImageSource(ctx, String(loadTarget));
     // @ts-ignore
     originalWidth = canvasimage.naturalWidth || canvasimage.width;
     // @ts-ignore
