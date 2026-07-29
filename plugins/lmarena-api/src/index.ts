@@ -95,7 +95,7 @@ export const Config: Schema<Config> = Schema.intersect([
         enabled: Schema.boolean().default(true).description("<hr><hr><hr><hr><hr><br>是否启用该指令"),
         name: Schema.string().required().description("指令名称"),
         prompt: Schema.string().role("textarea", { rows: [6, 4] }).description("该指令对应的提示词"),
-      })).description("可以折叠的指令配置<br>超级长的配置项，慎点").default(loadDefaultCommands()),
+      })).collapse().description("快捷画图 指令配置<br>**超级长的配置项，慎点！**").default(loadDefaultCommands()),
   }).description("完整指令配置"),
 
   Schema.object({
@@ -307,82 +307,93 @@ export function apply(ctx: Context, config: Config) {
 
     async function callImageEditApi(files: { data: ArrayBuffer, mime: string, filename: string }[], prompt: string, apiParams: Record<string, string> = config.apiParams): Promise<string[] | string | null> {
       const formData = new FormData()
-      const logParams = {}
-      const imageKey = Object.keys(apiParams).find(key => apiParams[key] === '{{inputimage}}');
+      const logParams: Record<string, string> = {}
+      const imageKey = Object.keys(apiParams).find(key => apiParams[key] === '{{inputimage}}')
 
-      // 添加图片文件
       if (imageKey) {
         for (const file of files) {
-          const blob = new Blob([file.data], { type: file.mime });
-          formData.append(imageKey, blob, file.filename || 'image.png');
+          const blob = new Blob([file.data], { type: file.mime })
+          formData.append(imageKey, blob, file.filename || 'image.png')
         }
       }
 
-      // 添加其他参数
       for (const key in apiParams) {
-        const value = apiParams[key];
-
-        if (value === '{{inputimage}}') continue;
-
-        let finalValue = value;
-        if (value === '{{prompt}}') {
-          finalValue = prompt;
-        }
-
-        formData.append(key, finalValue);
-        logParams[key] = finalValue;
+        const value = apiParams[key]
+        if (value === '{{inputimage}}') continue
+        const finalValue = value === '{{prompt}}' ? prompt : value
+        formData.append(key, finalValue)
+        logParams[key] = finalValue
       }
 
-      logInfo("发送 API 请求:", {
+      logInfo('API请求参数:', {
         url: config.apiUrl,
         ...logParams,
-        prompt: (logParams['prompt'] || '').substring(0, 100) + ((logParams['prompt'] || '').length > 100 ? '...' : ''),
+        prompt: (logParams.prompt || '').substring(0, 100) + ((logParams.prompt || '').length > 100 ? '...' : ''),
       })
 
       try {
         const response = await fetch(config.apiUrl, {
           method: 'POST',
           headers: {
-            "Authorization": `Bearer ${config.apiKey}`
+            Authorization: `Bearer ${config.apiKey}`,
           },
           body: formData,
         })
-
+        const responseForLog = response.clone()
+        const responseContentType = response.headers.get('content-type') || ''
+        if (responseContentType.includes('application/json')) {
+          try {
+            logInfo('API响应:', await responseForLog.json())
+          } catch { }
+        }
         if (!response.ok) {
           const errorData = await response.json()
           const message = errorData.error?.message || errorData.error?.type || errorData.error?.code || `HTTP error! status: ${response.status}`
           throw new Error(message)
         }
+        const contentType = response.headers.get('content-type')
+        const normalizeToDataUrl = async (source: string) => {
+          if (!source) return source
+          if (source.startsWith('data:')) return source
+          if (!/^https?:\/\//i.test(source)) return source
+          logInfo('转换HTTP URL为Data URL')
+          const file = await ctx.http.file(source)
+          const mime = file.type || file.mime || 'application/octet-stream'
+          const base64 = Buffer.from(file.data).toString('base64')
+          return `data:${mime};base64,${base64}`
+        }
 
-        const contentType = response.headers.get("content-type")
-        if (contentType && contentType.includes("application/json")) {
+        if (contentType && contentType.includes('application/json')) {
           const result = await response.json()
           if (result.data && Array.isArray(result.data)) {
-            const images = result.data
-              .map(item => {
-                if (!item) return null
-                if (item.b64_json) return `data:image/png;base64,${item.b64_json}`
-                if (item.url) return item.url
-                return null
-              })
-              .filter(Boolean) as string[]
+            const images = [] as string[]
+            for (const item of result.data) {
+              if (!item) continue
+              if (item.b64_json) {
+                images.push(`data:image/png;base64,${item.b64_json}`)
+                continue
+              }
+              if (item.url) {
+                images.push(await normalizeToDataUrl(item.url))
+              }
+            }
 
             if (images.length > 0) {
               logInfo(`API success response (JSON): returned ${images.length} images`)
               return images.length === 1 ? images[0] : images
             }
           }
-        } else if (contentType && contentType.startsWith("image/")) {
+        } else if (contentType && contentType.startsWith('image/')) {
           const buffer = await response.arrayBuffer()
           const base64 = Buffer.from(buffer).toString('base64')
-          logInfo(`API 成功响应 (Image Buffer): data:${contentType};base64,[${base64.length} chars]`)
+          logInfo(`API success response (Image Buffer): data:${contentType};base64,[${base64.length} chars]`)
           return `data:${contentType};base64,${base64}`
         }
 
-        throw new Error("未知的 API 响应格式")
+        throw new Error('Unknown API response format')
       } catch (error) {
-        const errorMsg = error.message || '请求失败'
-        ctx.logger.error(`API 请求失败: ${errorMsg}`, error)
+        const errorMsg = error.message || 'request failed'
+        ctx.logger.error(`API request failed: ${errorMsg}`, error)
         if (errorMsg !== 'openai_error') {
           throw new Error(errorMsg)
         }
