@@ -1,18 +1,18 @@
 {
   "name": "koishi-plugin-furry-encode-decode",
-  "version": "0.1.0",
-  "description": "/*兽音译者的js实现*/😻使用兽语加密/解密一段文本，😽不可套娃加密哦[食用方法](https://www.npmjs.com/package/koishi-plugin-furry-encode-decode)（如果加密sao话，被群u们decode了就会原地毕业的吧 /笑）",
+  "version": "1.0.0",
+  "description": "使用兽语加密、解密一段文本。加密方式支持【嗷呜啊~】【呃嗯！呼～❤呃啊～哼！！呃嗯哈嗯～啊】",
   "main": "lib/index.js",
   "typings": "lib/index.d.ts",
   "files": [
     "lib",
-    "dist"
+    "src"
   ],
   "keywords": [
     "koishi",
     "plugin",
-    "兽语加密/解密一段文本",
-    "兽音译者的js实现",
+    "兽音译者",
+    "encode",
     "decode"
   ],
   "author": "shangxue",
