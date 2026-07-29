@@ -23,6 +23,7 @@ export const usage = `
 </head>
 <body>
 <div>
+<hr>
 <h1>获取运势卡片 🧧</h1>
 <p>发送指令 <code>jrysprpr</code> 即可获取一张个性化的运势卡片。</p>
 <p>您还可以使用 <code>--split</code> 选项来获取图文模式的运势，只需发送 <code>jrysprpr -s</code> 即可。</p>
@@ -30,6 +31,8 @@ export const usage = `
 <h3>可以直接回复一张已发送的运势卡图片并输入指令 <code>获取原图</code>。</h3>
 <p>或者使用 <code>获取原图 ********</code> 来获取对应标识码的背景图。</p>
 <p>如果您使用的是QQ官方bot，也可以通过点击markdown运势卡上的"查看原图"按钮来获取。</p>
+<hr>
+<p>QQ官方机器人发送markdown消息 需要assets服务，推荐 <code>assets-qqbot-part-file</code> 插件。</p>
 <hr>
 </div>
 </body>
