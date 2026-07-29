@@ -9,17 +9,23 @@
 koishi插件市场安装`furry-encode-decode`
 
 ## 功能介绍
+
 1. **文本加密**：将普通文本转换为加密文本。
-    ```
+
+    ```text
      furry-encode <text>
     ```
+
 2. **文本解密**：将加密文本还原为普通文本。
-    ```
+
+    ```text
      furry-decode <text>
     ```
+
 ### 注意事项
+
 - 请确保输入的文本不含有敏感或不当内容。
 
-
 ## 贡献
-- 灵感来自 兽音译者的Python实现 https://www.52pojie.cn/thread-1571575-1-1.html
+
+- 灵感来自 兽音译者的Python实现 <https://www.52pojie.cn/thread-1571575-1-1.html>

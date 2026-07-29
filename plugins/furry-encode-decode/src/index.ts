@@ -73,15 +73,12 @@ async function handleCommand(config: Config, codec: FurryCodec | null, text: str
 export function apply(ctx: Context, config: Config) {
   const codec = createCodec(config)
 
-  ctx.command('furry-encode [text:text]')
-    .alias('兽语加密')
-    .alias('兽语翻译')
+  ctx.command('兽语加密 [text:text]')
     .action(async (_, text) => {
       return handleCommand(config, codec, text, 'encode')
     })
 
-  ctx.command('furry-decode [text:text]')
-    .alias('兽语解密')
+  ctx.command('兽语解密 [text:text]')
     .action(async (_, text) => {
       return handleCommand(config, codec, text, 'decode')
     })
