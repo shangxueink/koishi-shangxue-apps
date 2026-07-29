@@ -16,17 +16,13 @@ export const usage = `
 
 通过配置API，调用 {{URL}}/v1/images/edits 接口实现手办化插件的功能。
 
-推荐站点：https://api.bltcy.ai/ （柏拉图）
+推荐模型：gpt-image-2
 
-推荐模型：doubao-seedream-4-0-250828 （豆包-即梦AI 4.0）
-
-这个模型效果不错，价格还可以捏（基本一毛钱一张
+这个模型效果不错，价格还可以捏
 
 ---
 
-如果你使用的是柏拉图，那么使用默认配置，直接开启插件就可以使用啦。
-
-如果你是其他API站点，请手动编辑配置项的请求参数，**尤其是模型！**
+请手动编辑配置项的请求参数，**尤其是接口、模型！**
 
 ---
 
@@ -65,16 +61,16 @@ export const Config: Schema<Config> = Schema.intersect([
   }).description("基础配置"),
 
   Schema.object({
-    apiUrl: Schema.string().default("https://api.bltcy.ai/v1/images/edits").role("link").description("API 服务器地址<br>注意是`{{URL}}/v1/images/edits`的接口"),
+    apiUrl: Schema.string().default("https://cn.happyapi.org/v1/images/edits").role("link").description("API 服务器地址<br>注意是`{{URL}}/v1/images/edits`的接口"),
     apiKey: Schema.string().role("secret").required().description("API 密钥"),
     apiParams: Schema.dict(String).role('table').description("API请求参数<br>POST请求的body参数").default({
-      "model": "doubao-seedream-4-0-250828",
+      "model": "gpt-image-2",
       "image": "{{inputimage}}",
       "prompt": "{{prompt}}",
       "size": "1024x1024",
       "n": "1",
       "type": "normal",
-      "response_format": "url"
+      "response_format": "b64_json"
     }),
   }).description("API配置"),
 
@@ -362,15 +358,18 @@ export function apply(ctx: Context, config: Config) {
         if (contentType && contentType.includes("application/json")) {
           const result = await response.json()
           if (result.data && Array.isArray(result.data)) {
-            // 提取所有有效的图片 URL
-            const urls = result.data
-              .filter(item => item && item.url)
-              .map(item => item.url)
+            const images = result.data
+              .map(item => {
+                if (!item) return null
+                if (item.b64_json) return `data:image/png;base64,${item.b64_json}`
+                if (item.url) return item.url
+                return null
+              })
+              .filter(Boolean) as string[]
 
-            if (urls.length > 0) {
-              logInfo(`API 成功响应 (JSON): 返回 ${urls.length} 张图片`)
-              // 如果只有一张图片，返回字符串；多张图片返回数组
-              return urls.length === 1 ? urls[0] : urls
+            if (images.length > 0) {
+              logInfo(`API success response (JSON): returned ${images.length} images`)
+              return images.length === 1 ? images[0] : images
             }
           }
         } else if (contentType && contentType.startsWith("image/")) {
