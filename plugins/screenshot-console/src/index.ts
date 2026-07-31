@@ -7,11 +7,6 @@ import { } from 'koishi-plugin-puppeteer'
 export const name = 'screenshot-console'
 export const inject = ['puppeteer', 'server']
 
-type SearchMapping = {
-  key: string
-  value: string
-}
-
 type BoundEmail = {
   userId: string
   email: string
@@ -39,18 +34,9 @@ export interface Config {
   proxyTimeout: number
   cacheDuration: number
   colorTheme: ColorTheme
-  searchMappings: SearchMapping[]
   boundEmails: BoundEmail[]
   loggerinfo: boolean
 }
-
-const defaultSearchMappings: SearchMapping[] = [
-  { key: '综合', value: '' },
-  { key: '按评分', value: 'sort:rating' },
-  { key: '按下载量', value: 'sort:download' },
-  { key: '按创建时间', value: 'sort:created' },
-  { key: '按更新时间', value: 'sort:updated' },
-]
 
 export const Config: Schema<Config> = Schema.object({
   registryUrl: Schema.string().role('link').default('https://registry.koishi.chat/index.json').description('插件市场索引地址'),
@@ -62,10 +48,6 @@ export const Config: Schema<Config> = Schema.object({
     Schema.const('white').description('白色'),
     Schema.const('gray').description('灰色'),
   ]).role('radio').default('gray').description('搜索结果颜色主题'),
-  searchMappings: Schema.array(Schema.object({
-    key: Schema.string().description('需转换'),
-    value: Schema.string().description('转换为'),
-  })).role('table').default(defaultSearchMappings).description('插件市场搜索关键词映射'),
   boundEmails: Schema.array(Schema.object({
     userId: Schema.string().description('用户 ID，可填写平台前缀'),
     email: Schema.string().description('邮箱地址'),
@@ -487,9 +469,7 @@ export function apply(ctx: Context, config: Config) {
       const tokens = getTokens(session, config, keyword || '')
       if (!tokens.length) return '请输入搜索关键词。'
 
-      const queries = tokens
-        .map(token => config.searchMappings.find(item => item.key === token)?.value || token)
-        .filter(Boolean)
+      const queries = tokens.filter(Boolean)
       let sort = 'updated'
       const searchQueries = queries.filter(query => {
         if (query === 'sort:updated') {
