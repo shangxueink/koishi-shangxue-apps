@@ -17,9 +17,9 @@
         display: grid;
         gap: 10px;
         padding: 12px;
-        background: #ffffff;
-        color: #000000;
-        border: 1px solid #000000;
+        background: var(--page-bg, #ffffff);
+        color: var(--text, #000000);
+        border: 1px solid var(--border, #000000);
         border-radius: 6px;
       }
       #result-root.columns-1 {
@@ -81,13 +81,13 @@
         --card-bg: #000000;
         --text: #ffffff;
         --muted: #ffffff;
-        --border: #ffffff;
+        --border: #808080;
         --badge-bg: #ffffff;
         --badge-border: #ffffff;
         --badge-text: #000000;
-        background: #000000;
-        color: #ffffff;
-        border-color: #ffffff;
+        background: #000000 !important;
+        color: #ffffff !important;
+        border-color: #808080 !important;
       }
       #result-root.theme-white {
         --page-bg: #ffffff;
@@ -95,13 +95,13 @@
         --card-bg: #ffffff;
         --text: #000000;
         --muted: #000000;
-        --border: #000000;
+        --border: #808080;
         --badge-bg: #000000;
         --badge-border: #000000;
         --badge-text: #ffffff;
-        background: #ffffff;
-        color: #000000;
-        border-color: #000000;
+        background: #ffffff !important;
+        color: #000000 !important;
+        border-color: #808080 !important;
       }
       #result-root.theme-gray {
         --page-bg: #808080;
@@ -113,9 +113,9 @@
         --badge-bg: #000000;
         --badge-border: #000000;
         --badge-text: #ffffff;
-        background: #a6a6a6;
-        color: #000000;
-        border-color: #333333;
+        background: #808080 !important;
+        color: #000000 !important;
+        border-color: #333333 !important;
       }
       .empty {
         padding: 30px;
