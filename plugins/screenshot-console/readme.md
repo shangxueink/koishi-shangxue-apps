@@ -6,4 +6,4 @@ screenshot-console
 
 ---
 
-->
+-> <https://github.com/koishi-shangxue-plugins/koishi-shangxue-apps/tree/main/plugins/screenshot-console>
