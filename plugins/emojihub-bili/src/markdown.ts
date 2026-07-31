@@ -24,6 +24,20 @@ function chunk<T>(items: T[], size: number) {
   return rows;
 }
 
+function createMarkdownMessage(session: Session) {
+  const markdownMessage: any = {
+    msg_type: 2,
+    markdown: {},
+    keyboard: {},
+  };
+
+  if (session.messageId) {
+    markdownMessage.msg_id = session.messageId;
+  }
+
+  return markdownMessage;
+}
+
 function getCommandLabel(rootCommandName: string, command: any) {
   const fullName = String(command?.name || command?.displayName || "").trim();
   const root = String(rootCommandName || "").trim();
@@ -109,13 +123,9 @@ export function collectVisibleSubcommands(ctx: Context, session: Session, rootCo
 }
 
 export function command_list_markdown(ctx: Context, session: Session, config: Config, rootCommandName: string, page = 1) {
-  const markdownMessage: any = {
-    msg_id: "",
-    msg_type: 2,
-    markdown: {
-      content: config.nestedlist.raw_markdown_button_content || "",
-    },
-    keyboard: {},
+  const markdownMessage: any = createMarkdownMessage(session);
+  markdownMessage.markdown = {
+    content: config.nestedlist.raw_markdown_button_content || "",
   };
 
   try {
@@ -146,12 +156,7 @@ export async function markdown(
   localimage?: string,
   imageSize?: MarkdownImageSize,
 ) {
-  const markdownMessage: any = {
-    msg_id: "",
-    msg_type: 2,
-    markdown: {},
-    keyboard: {},
-  };
+  const markdownMessage: any = createMarkdownMessage(session);
 
   let originalWidth: number;
   let originalHeight: number;
