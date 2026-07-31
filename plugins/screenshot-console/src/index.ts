@@ -29,14 +29,16 @@ type MarketPackage = {
   publishTime: number
   downloads: number
   rating: number
-  packageSize: number
 }
+
+type ColorTheme = 'black' | 'white' | 'gray'
 
 export interface Config {
   registryUrl: string
   proxyUrl: string
   proxyTimeout: number
   cacheDuration: number
+  colorTheme: ColorTheme
   searchMappings: SearchMapping[]
   boundEmails: BoundEmail[]
   loggerinfo: boolean
@@ -55,6 +57,11 @@ export const Config: Schema<Config> = Schema.object({
   proxyUrl: Schema.string().role('link').default('https://web-proxy.apifox.cn/api/v1/request').description('HTTP 代理地址'),
   proxyTimeout: Schema.natural().default(15000).description('HTTP 请求超时，单位为毫秒'),
   cacheDuration: Schema.natural().default(30).description('插件市场索引缓存时间，单位为分钟'),
+  colorTheme: Schema.union([
+    Schema.const('black').description('黑色'),
+    Schema.const('white').description('白色'),
+    Schema.const('gray').description('灰色'),
+  ]).role('radio').default('gray').description('搜索结果颜色主题'),
   searchMappings: Schema.array(Schema.object({
     key: Schema.string().description('需转换'),
     value: Schema.string().description('转换为'),
@@ -141,7 +148,6 @@ function parseObject(object: Record<string, unknown>): MarketPackage | null {
     publishTime,
     downloads: getDownloads(object),
     rating: getNumber(object, 'rating'),
-    packageSize: getNumber(object, 'installSize') || getNumber(object, 'publishSize'),
   }
 }
 
@@ -329,31 +335,34 @@ async function requestRegistry(ctx: Context, config: Config) {
   ])
 }
 
-function renderResults(items: MarketPackage[]) {
-  const results = items.slice(0, 9).map(item => `
+function renderResults(items: MarketPackage[], theme: ColorTheme) {
+  const visibleItems = items.slice(0, 21)
+  const columns = visibleItems.length <= 7 ? 1 : visibleItems.length <= 14 ? 2 : 3
+  const results = visibleItems.map((item, index) => `
     <article class="item">
-      <div class="name">${escapeHtml(item.name)}</div>
+      <div class="result-index">${index + 1}</div>
+      <div class="name">${escapeHtml(getShortName(item.name))}</div>
       <div class="stats">
         <span>评分 ${item.rating.toFixed(2)}</span>
         <span>最新版本 ${escapeHtml(item.version || '未知')}</span>
-        <span>包体积 ${formatBytes(item.packageSize)}</span>
         <span>月下载 ${formatCount(item.downloads)}</span>
       </div>
     </article>
   `).join('')
-  return htmlTemplate.replace('<!--RESULTS-->', results || '<div class="empty">没有搜索到相关插件。</div>')
+  return htmlTemplate
+    .replace('__THEME__', theme)
+    .replace('__COLUMNS__', String(columns))
+    .replace('<!--RESULTS-->', results || '<div class="empty">没有搜索到相关插件。</div>')
 }
 
 function formatCount(value: number) {
   return new Intl.NumberFormat('zh-CN').format(value)
 }
 
-function formatBytes(value: number) {
-  if (!value) return '未知'
-  if (value < 1024) return `${value} B`
-  if (value < 1024 * 1024) return `${(value / 1024).toFixed(1)} KB`
-  if (value < 1024 * 1024 * 1024) return `${(value / 1024 / 1024).toFixed(1)} MB`
-  return `${(value / 1024 / 1024 / 1024).toFixed(1)} GB`
+function getShortName(name: string) {
+  const scopedPrefix = name.match(/^(@[^/]+)\/koishi-plugin-(.+)$/)
+  if (scopedPrefix) return `${scopedPrefix[1]}/${scopedPrefix[2]}`
+  return name.replace(/^koishi-plugin-/, '')
 }
 
 function getTokens(session: Session, config: Config, input: string) {
@@ -450,7 +459,7 @@ export function apply(ctx: Context, config: Config) {
         const page = await ctx.puppeteer.page()
         try {
           await page.setViewport({ width: 1000, height: 900, deviceScaleFactor: 1 })
-          await page.setContent(renderResults(packages), { waitUntil: 'load' })
+          await page.setContent(renderResults(packages, config.colorTheme), { waitUntil: 'load' })
           const result = await page.$('#result-root')
           if (!result) return '搜索失败。'
           return h.image(await result.screenshot({ captureBeyondViewport: false }), 'image/png')
