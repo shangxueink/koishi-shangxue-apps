@@ -274,46 +274,120 @@ function isRegistryText(text: string) {
   return objectsIndex >= 0 && text.indexOf('[', objectsIndex) >= 0
 }
 
-async function requestText(ctx: Context, url: string, init: RequestInit, timeout: number) {
-  let currentUrl = url
-  for (let attempt = 0; attempt < 4; attempt++) {
-    const controller = new AbortController()
-    const dispose = ctx.on('dispose', () => controller.abort())
-    const timer = ctx.setTimeout(() => controller.abort(), timeout)
-    try {
-      const response = await fetch(currentUrl, {
-        ...init,
-        redirect: 'manual',
-        signal: controller.signal,
-      })
-      if (response.status >= 300 && response.status < 400) {
-        const location = response.headers.get('location')
-        if (!location) throw new Error(`HTTP ${response.status} without location`)
-        currentUrl = new URL(location, currentUrl).href
-        continue
-      }
-      if (!response.ok) throw new Error(`HTTP ${response.status}`)
-      const text = await response.text()
-      if (!isRegistryText(text)) throw new Error('response is not a registry index')
-      return text
-    } finally {
-      timer()
-      dispose()
-      controller.abort()
-    }
+const requestRetryCount = 2
+const requestRetryDelay = 1000
+
+class RegistryRequestError extends Error {
+  constructor(message: string, readonly retryCount: number) {
+    super(message)
+    this.name = 'RegistryRequestError'
   }
-  throw new Error('too many redirects')
 }
 
-function firstSuccessful(tasks: Promise<string>[]) {
+function waitForRetry(ctx: Context, delay: number) {
+  return new Promise<void>(resolve => {
+    let settled = false
+    let timer: () => void
+    let dispose: () => void
+    const finish = () => {
+      if (settled) return
+      settled = true
+      timer()
+      dispose()
+      resolve()
+    }
+    timer = ctx.setTimeout(finish, delay)
+    dispose = ctx.on('dispose', finish)
+  })
+}
+
+function getRequestError(error: unknown) {
+  if (error instanceof RegistryRequestError) return error.message
+  if (error instanceof Error) return error.message || error.name
+  return String(error)
+}
+
+async function requestText(ctx: Context, url: string, init: RequestInit, timeout: number, cancelSignal: AbortSignal) {
+  let lastError: unknown = new Error('未知请求错误')
+  let disposed = false
+  const removeDispose = ctx.on('dispose', () => {
+    disposed = true
+  })
+
+  try {
+    for (let retry = 0; retry <= requestRetryCount; retry++) {
+      let currentUrl = url
+      let timedOut = false
+      try {
+        for (let redirect = 0; redirect < 4; redirect++) {
+          if (disposed || cancelSignal.aborted) throw new Error('请求已取消')
+          const controller = new AbortController()
+          const abort = () => controller.abort()
+          const removeAbort = ctx.on('dispose', abort)
+          cancelSignal.addEventListener('abort', abort, { once: true })
+          const timer = ctx.setTimeout(() => {
+            timedOut = true
+            controller.abort()
+          }, timeout)
+          try {
+            const response = await fetch(currentUrl, {
+              ...init,
+              redirect: 'manual',
+              signal: controller.signal,
+            })
+            if (response.status >= 300 && response.status < 400) {
+              const location = response.headers.get('location')
+              if (!location) throw new Error(`HTTP ${response.status}`)
+              currentUrl = new URL(location, currentUrl).href
+              continue
+            }
+            if (!response.ok) throw new Error(`HTTP ${response.status}`)
+            const text = await response.text()
+            if (!isRegistryText(text)) throw new Error('返回内容不是有效索引')
+            return text
+          } catch (error) {
+            if (disposed) throw new Error('请求已中止')
+            if (cancelSignal.aborted) throw new Error('请求已取消')
+            if (timedOut || (error instanceof Error && error.name === 'AbortError')) {
+              throw new Error(`请求超时（${Math.ceil(timeout / 1000)} 秒）`)
+            }
+            throw error
+          } finally {
+            timer()
+            removeAbort()
+            cancelSignal.removeEventListener('abort', abort)
+            controller.abort()
+          }
+        }
+        throw new Error('重定向次数过多')
+      } catch (error) {
+        lastError = error
+        if (disposed || cancelSignal.aborted) throw new RegistryRequestError(getRequestError(error), retry)
+        if (retry < requestRetryCount) await waitForRetry(ctx, requestRetryDelay)
+      }
+    }
+  } finally {
+    removeDispose()
+  }
+
+  throw new RegistryRequestError(`${getRequestError(lastError)}（已重试 ${requestRetryCount} 次）`, requestRetryCount)
+}
+
+function firstSuccessful(tasks: Promise<string>[], cancelController: AbortController) {
   return new Promise<string>((resolve, reject) => {
     let pending = tasks.length
-    let lastError: unknown
+    const errors: string[] = []
     for (const task of tasks) {
-      task.then(resolve).catch(error => {
-        lastError = error
+      task.then(value => {
+        cancelController.abort()
+        resolve(value)
+      }).catch(error => {
+        errors.push(getRequestError(error))
         pending--
-        if (pending === 0) reject(lastError)
+        if (pending === 0) {
+          cancelController.abort()
+          reject(new RegistryRequestError(errors.join('；'), requestRetryCount))
+        }
       })
     }
   })
@@ -325,14 +399,15 @@ async function requestRegistry(ctx: Context, config: Config) {
     'api-o0': `method=GET, timings=true, timeout=${config.proxyTimeout}`,
     'Content-Type': 'application/json',
   }
+  const cancelController = new AbortController()
   return firstSuccessful([
-    requestText(ctx, config.registryUrl, {}, config.proxyTimeout),
+    requestText(ctx, config.registryUrl, {}, config.proxyTimeout, cancelController.signal),
     requestText(ctx, config.proxyUrl, {
       method: 'POST',
       headers: proxyHeaders,
       body: '{}',
-    }, config.proxyTimeout),
-  ])
+    }, config.proxyTimeout, cancelController.signal),
+  ], cancelController)
 }
 
 function renderResults(items: MarketPackage[], theme: ColorTheme) {
@@ -468,7 +543,7 @@ export function apply(ctx: Context, config: Config) {
         }
       } catch (error) {
         debugLog(config.loggerinfo, '插件市场搜索失败', error)
-        return '插件市场搜索失败。'
+        return `插件市场搜索失败：${getRequestError(error)}`
       }
     })
 }
