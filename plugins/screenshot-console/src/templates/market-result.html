@@ -1,27 +1,132 @@
 <!doctype html>
 <html lang="zh-CN">
-<head>
-  <meta charset="utf-8">
-  <style>
-    * { box-sizing: border-box; }
-    body { margin: 0; padding: 20px; background: var(--page-bg); color: var(--text); font-family: Arial, sans-serif; }
-    #result-root { display: grid; gap: 10px; padding: 12px; background: var(--panel-bg); border: 1px solid var(--border); border-radius: 6px; }
-    #result-root.columns-1 { width: 360px; grid-template-columns: 1fr; }
-    #result-root.columns-2 { width: 560px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
-    #result-root.columns-3 { width: 760px; grid-template-columns: repeat(3, minmax(0, 1fr)); }
-    .item { position: relative; min-height: 92px; padding: 12px 42px 12px 12px; border: 1px solid var(--border); border-radius: 5px; background: var(--card-bg); color: var(--text); }
-    .result-index { position: absolute; top: 8px; right: 8px; display: flex; width: 24px; height: 24px; align-items: center; justify-content: center; border: 1px solid var(--badge-border); border-radius: 50%; background: var(--badge-bg); color: var(--badge-text); font-size: 14px; font-weight: 700; line-height: 1; }
-    .name { overflow-wrap: anywhere; font-size: 16px; font-weight: 700; line-height: 1.35; }
-    .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 10px; margin-top: 12px; color: var(--muted); font-size: 12px; line-height: 1.3; }
-    .theme-black { --page-bg: #101010; --panel-bg: #181818; --card-bg: #242424; --text: #f5f5f5; --muted: #c7c7c7; --border: #555555; --badge-bg: #f5f5f5; --badge-border: #ffffff; --badge-text: #111111; }
-    .theme-white { --page-bg: #ffffff; --panel-bg: #ffffff; --card-bg: #ffffff; --text: #111111; --muted: #555555; --border: #bdbdbd; --badge-bg: #111111; --badge-border: #111111; --badge-text: #ffffff; }
-    .theme-gray { --page-bg: #5b5b5b; --panel-bg: #707070; --card-bg: #858585; --text: #ffffff; --muted: #eeeeee; --border: #b5b5b5; --badge-bg: #2f2f2f; --badge-border: #eeeeee; --badge-text: #ffffff; }
-    .empty { padding: 30px; color: #6b7280; text-align: center; }
-  </style>
-</head>
-<body class="theme-__THEME__">
-  <main id="result-root" class="columns-__COLUMNS__">
-    <!--RESULTS-->
-  </main>
-</body>
+  <head>
+    <meta charset="utf-8" />
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        padding: 20px;
+        background: #ffffff;
+        color: #000000;
+        font-family: Arial, sans-serif;
+      }
+      #result-root {
+        display: grid;
+        gap: 10px;
+        padding: 12px;
+        background: #ffffff;
+        color: #000000;
+        border: 1px solid #000000;
+        border-radius: 6px;
+      }
+      #result-root.columns-1 {
+        width: 360px;
+        grid-template-columns: 1fr;
+      }
+      #result-root.columns-2 {
+        width: 560px;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+      #result-root.columns-3 {
+        width: 760px;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+      .item {
+        position: relative;
+        min-height: 92px;
+        padding: 12px 42px 12px 12px;
+        border: 1px solid var(--border);
+        border-radius: 5px;
+        background: var(--card-bg);
+        color: var(--text);
+      }
+      .result-index {
+        position: absolute;
+        top: 8px;
+        right: 8px;
+        display: flex;
+        width: 24px;
+        height: 24px;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid var(--badge-border);
+        border-radius: 50%;
+        background: var(--badge-bg);
+        color: var(--badge-text);
+        font-size: 14px;
+        font-weight: 700;
+        line-height: 1;
+      }
+      .name {
+        overflow-wrap: anywhere;
+        font-size: 16px;
+        font-weight: 700;
+        line-height: 1.35;
+      }
+      .stats {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 6px 10px;
+        margin-top: 12px;
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.3;
+      }
+      #result-root.theme-black {
+        --page-bg: #000000;
+        --panel-bg: #000000;
+        --card-bg: #000000;
+        --text: #ffffff;
+        --muted: #ffffff;
+        --border: #ffffff;
+        --badge-bg: #ffffff;
+        --badge-border: #ffffff;
+        --badge-text: #000000;
+        background: #000000;
+        color: #ffffff;
+        border-color: #ffffff;
+      }
+      #result-root.theme-white {
+        --page-bg: #ffffff;
+        --panel-bg: #ffffff;
+        --card-bg: #ffffff;
+        --text: #000000;
+        --muted: #000000;
+        --border: #000000;
+        --badge-bg: #000000;
+        --badge-border: #000000;
+        --badge-text: #ffffff;
+        background: #ffffff;
+        color: #000000;
+        border-color: #000000;
+      }
+      #result-root.theme-gray {
+        --page-bg: #808080;
+        --panel-bg: #a6a6a6;
+        --card-bg: #d9d9d9;
+        --text: #000000;
+        --muted: #333333;
+        --border: #333333;
+        --badge-bg: #000000;
+        --badge-border: #000000;
+        --badge-text: #ffffff;
+        background: #a6a6a6;
+        color: #000000;
+        border-color: #333333;
+      }
+      .empty {
+        padding: 30px;
+        color: #6b7280;
+        text-align: center;
+      }
+    </style>
+  </head>
+  <body>
+    <main id="result-root" class="theme-__THEME__ columns-__COLUMNS__">
+      <!--RESULTS-->
+    </main>
+  </body>
 </html>
