@@ -1,0 +1,35 @@
+{
+  "name": "koishi-plugin-screenshot-console",
+  "description": "Screenshot of some of the console pages",
+  "version": "1.1.0",
+  "main": "lib/index.js",
+  "typings": "lib/index.d.ts",
+  "files": [
+    "lib",
+    "src"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/idranme/koishi-plugin-screenshot-console.git"
+  },
+  "koishi": {
+    "description": {
+      "en": "Screenshot of some of the console pages",
+      "zh": "对控制台部分页面进行截图（例如插件市场）"
+    },
+    "browser": true
+  },
+  "keywords": [
+    "chatbot",
+    "koishi",
+    "plugin",
+    "screenshot",
+    "console",
+    "kongzhitai",
+    "market"
+  ],
+  "peerDependencies": {
+    "koishi": "^4.16.4"
+  }
+}
