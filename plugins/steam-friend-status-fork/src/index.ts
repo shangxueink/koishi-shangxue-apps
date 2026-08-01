@@ -56,6 +56,22 @@ export const usage = `
   <li><code>steam-friend-status.steam群报 off</code> - 关闭群内游戏状态播报（需要管理员权限）</li>
 </ul>
 
+<hr>
+
+<h3>🌐 网络代理</h3>
+
+<p>本插件使用 <code>ctx.http</code> 发起请求，代理由 <code>@koishijs/plugin-proxy-agent</code> 统一接管</p>
+
+<ul>
+  <li>安装并启用 <code>proxy-agent</code> 插件</li>
+  <li>配置示例：</li>
+</ul>
+
+<pre><code>proxyAgent: socks5://192.168.1.102:10808</code></pre>
+
+<p>支持 HTTP / HTTPS / SOCKS5<br>
+不安装代理插件时，请求会正常直连</p>
+
 ---
 
 `;
