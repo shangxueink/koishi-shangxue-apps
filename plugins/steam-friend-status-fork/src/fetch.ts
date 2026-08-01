@@ -3,6 +3,8 @@ import { Context, sleep } from "koishi";
 import { request } from "node:http";
 import { request as httpsRequest } from "node:https";
 import { URL } from "node:url";
+import * as tls from "node:tls";
+import * as net from "node:net";
 
 /**
  * 封装的 fetch 配置接口
@@ -170,6 +172,11 @@ async function fetchViaProxy(
   const target = new URL(targetUrl);
   const proxy = new URL(proxyUrl);
 
+  // SOCKS5 代理
+  if (proxy.protocol === 'socks5:' || proxy.protocol === 'socks5h:') {
+    return fetchViaSocks5(targetUrl, proxyUrl, options);
+  }
+
   return new Promise((resolve, reject) => {
     const requestOptions = {
       host: proxy.hostname,
@@ -199,6 +206,166 @@ async function fetchViaProxy(
     req.on('error', reject);
     req.end();
   });
+}
+
+/**
+ * 通过 SOCKS5 代理发送请求
+ */
+async function fetchViaSocks5(
+  targetUrl: string,
+  proxyUrl: string,
+  options: RequestInit = {}
+): Promise<Response> {
+  const target = new URL(targetUrl);
+  const proxy = new URL(proxyUrl);
+
+  const proxyPort = parseInt(proxy.port) || 1080;
+  const targetPort = parseInt(target.port) || (target.protocol === 'https:' ? 443 : 80);
+  const targetHost = target.hostname;
+  const isHttps = target.protocol === 'https:';
+
+  // 1. 连接代理
+  const socket = new net.Socket();
+  await new Promise<void>((resolve, reject) => {
+    socket.setTimeout(10000);
+    socket.on('connect', () => { socket.setTimeout(0); resolve(); });
+    socket.on('error', reject);
+    socket.on('timeout', () => { socket.destroy(); reject(new Error('连接代理超时')); });
+    socket.connect(proxyPort, proxy.hostname);
+  });
+
+  // 共享读缓冲区
+  let readBuf = Buffer.alloc(0);
+  socket.on('data', (chunk: Buffer) => {
+    readBuf = Buffer.concat([readBuf, Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)]);
+  });
+
+  // 读取精确 N 字节
+  async function readN(n: number, timeout = 10000): Promise<Buffer> {
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(() => {
+        reject(new Error(`SOCKS5 读取超时 (期望 ${n} 字节)`));
+      }, timeout);
+
+      const tryRead = () => {
+        if (readBuf.length >= n) {
+          clearTimeout(timer);
+          const result = readBuf.subarray(0, n);
+          readBuf = readBuf.subarray(n);
+          resolve(result);
+          return;
+        }
+        // 数据不够，等下一次 data 事件
+        socket.once('data', tryRead);
+      };
+
+      socket.once('error', (err) => { clearTimeout(timer); reject(err); });
+      socket.once('close', () => { clearTimeout(timer); reject(new Error('SOCKS5 连接关闭')); });
+
+      tryRead(); // 先检查缓冲区是否已有足够数据
+    });
+  }
+
+  try {
+    // 2. SOCKS5 greeting
+    socket.write(Buffer.from([0x05, 0x01, 0x00]));
+    const greet = await readN(2, 5000);
+    if (greet[0] !== 0x05) throw new Error(`SOCKS5 版本错误: ${greet[0]}`);
+    if (greet[1] !== 0x00) throw new Error(`SOCKS5 需要认证 (方式 ${greet[1]})`);
+
+    // 3. CONNECT 请求 (域名方式)
+    const hostBytes = Buffer.from(targetHost, 'utf-8');
+    const portBytes = Buffer.alloc(2);
+    portBytes.writeUInt16BE(targetPort, 0);
+    const connectReq = Buffer.concat([
+      Buffer.from([0x05, 0x01, 0x00, 0x03, hostBytes.length]),
+      hostBytes,
+      portBytes,
+    ]);
+    socket.write(connectReq);
+
+    // 4. 读 CONNECT 响应（先读 4 字节头，再根据 ATYP 读剩余部分）
+    // 格式: VER(1) + REP(1) + RSV(1) + ATYP(1) + BND.ADDR(可变) + BND.PORT(2)
+    const head = await readN(4, 10000);
+    const status = head[1];
+    if (status !== 0x00) {
+      const msgs: Record<number, string> = {
+        0x01: '服务器故障', 0x02: '连接不被允许',
+        0x03: '网络不可达', 0x04: '主机不可达',
+        0x05: '连接被拒绝', 0x06: 'TTL 超时',
+        0x07: '不支持的命令', 0x08: '不支持的地址类型',
+      };
+      throw new Error(`SOCKS5 连接失败: ${msgs[status] || status}`);
+    }
+
+    const atyp = head[3];
+    if (atyp === 0x01) await readN(6, 10000);       // IPv4: 4 字节地址 + 2 字节端口
+    else if (atyp === 0x03) {                        // 域名
+      const dl = (await readN(1, 10000))[0];
+      await readN(dl + 2, 10000);                    // 域名 + 2 字节端口
+    }
+    else if (atyp === 0x04) await readN(18, 10000);  // IPv6: 16 字节地址 + 2 字节端口
+    else throw new Error(`SOCKS5 不支持的地址类型: ${atyp}`);
+
+    // 5. 隧道已建立，发送 HTTP 请求
+    const httpBody = options.body as string | undefined;
+    const httpHeaders = options.headers as Record<string, string> || {};
+    let httpReq = `${options.method || 'GET'} ${target.pathname}${target.search} HTTP/1.1\r\n`;
+    httpReq += `Host: ${target.host}\r\n`;
+    for (const [k, v] of Object.entries(httpHeaders)) httpReq += `${k}: ${v}\r\n`;
+    httpReq += 'Connection: close\r\n';
+    httpReq += '\r\n';
+    if (httpBody) httpReq += httpBody;
+
+    if (isHttps) {
+      const tlsSocket = tls.connect({ socket, host: targetHost, servername: targetHost });
+      await new Promise<void>((resolve, reject) => {
+        tlsSocket.once('secureConnect', resolve);
+        tlsSocket.once('error', reject);
+      });
+      tlsSocket.write(Buffer.from(httpReq, 'utf-8'));
+      const chunks = await readAllData(tlsSocket);
+      return parseHttpResponse(chunks);
+    } else {
+      socket.write(Buffer.from(httpReq, 'utf-8'));
+      const chunks = await readAllData(socket);
+      return parseHttpResponse(chunks);
+    }
+  } finally {
+    socket.destroy();
+  }
+}
+
+/** 读取所有数据直到连接关闭 */
+function readAllData(socket: net.Socket | tls.TLSSocket): Promise<Buffer[]> {
+  return new Promise((resolve) => {
+    const chunks: Buffer[] = [];
+    socket.on('data', (chunk) => chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)));
+    socket.on('end', () => resolve(chunks));
+    socket.on('close', () => resolve(chunks));
+    socket.on('error', () => resolve(chunks));
+  });
+}
+
+/** 解析 HTTP 响应为 Response 对象 */
+function parseHttpResponse(chunks: Buffer[]): Response {
+  if (chunks.length === 0) throw new Error('收到空响应');
+  const buf = Buffer.concat(chunks);
+  const text = buf.toString('utf-8');
+  const idx = text.indexOf('\r\n\r\n');
+  if (idx === -1) throw new Error('无效的 HTTP 响应');
+  const headerBlock = text.substring(0, idx);
+  const body = buf.subarray(idx + 4);
+  const first = headerBlock.split('\r\n')[0];
+  const m = first.match(/HTTP\/\d\.\d (\d+) (.+)/);
+  const code = m ? parseInt(m[1]) : 500;
+  const statusText = m ? m[2] : 'Unknown';
+  const hdrs: Record<string, string> = {};
+  for (const line of headerBlock.split('\r\n').slice(1)) {
+    const ci = line.indexOf(':');
+    if (ci > 0) hdrs[line.substring(0, ci).toLowerCase()] = line.substring(ci + 2);
+  }
+  return new Response(body, { status: code, statusText, headers: hdrs });
 }
 
 /**
