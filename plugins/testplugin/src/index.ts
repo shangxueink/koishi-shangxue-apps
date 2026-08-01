@@ -248,7 +248,9 @@ export function apply(ctx: Context) {
   ctx.platform('qq').on("guild-added", async (session) => {
     ctx.logger.info('[guild-added] %o', JSON.stringify(session));
   });
-
+  ctx.platform('bilibili').on("message", async (session) => {
+    ctx.logger.info('[message] %o', JSON.stringify(session));
+  });
   // ctx.platform('qq').on('guild-member-updated', async (session) => {
   //   ctx.logger.info('[guild-member-updated] %o', session);
   // });
