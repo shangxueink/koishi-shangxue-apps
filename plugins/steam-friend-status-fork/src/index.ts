@@ -21,10 +21,8 @@ import {
   setUserNickname,
   getUserNickname,
 } from "./userdata";
-import * as path from "node:path";
-import * as fs from "node:fs";
 
-export const name = "steam-friend-status";
+export const name = "steam-friend-status-fork";
 
 export const inject = ["puppeteer", "database"];
 
@@ -83,7 +81,7 @@ export const Config = Schema.intersect([
       .description("是否使用代理"),
     proxyUrl: Schema.string()
       .default("http://localhost:7897")
-      .description("代理地址（仅支持 http/https/socks5 协议）"),
+      .description("代理地址（支持 http/https/socks5/socks5h 协议）"),
     maxRetries: Schema.number()
       .default(3)
       .min(1)
