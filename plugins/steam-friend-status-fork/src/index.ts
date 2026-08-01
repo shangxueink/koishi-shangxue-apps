@@ -83,7 +83,7 @@ export const Config = Schema.intersect([
       .description("是否使用代理"),
     proxyUrl: Schema.string()
       .default("http://localhost:7897")
-      .description("代理地址（仅支持 http/https 协议）"),
+      .description("代理地址，支持 http、https、socks、socks5 和 socks5h 协议"),
     maxRetries: Schema.number()
       .default(3)
       .min(1)
