@@ -26,7 +26,7 @@ import * as fs from "node:fs";
 
 export const name = "steam-friend-status";
 
-export const inject = ["puppeteer", "database"];
+export const inject = ["puppeteer", "database", "http"];
 
 export const usage = `
 ---
@@ -76,20 +76,6 @@ export const Config = Schema.intersect([
       .default(true)
       .description("播报时附带图片"),
   }).description("基础设置"),
-
-  Schema.object({
-    useProxy: Schema.boolean()
-      .default(false)
-      .description("是否使用代理"),
-    proxyUrl: Schema.string()
-      .default("http://localhost:7897")
-      .description("代理地址（仅支持 http/https/socks5 协议）"),
-    maxRetries: Schema.number()
-      .default(3)
-      .min(1)
-      .step(1)
-      .description("网络请求最大重试次数"),
-  }).description("网络设置"),
 
   Schema.object({
     showcardmode: Schema.union([

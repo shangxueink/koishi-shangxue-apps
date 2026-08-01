@@ -201,12 +201,7 @@ export async function downloadAvatar(ctx: Context, url: string, steamId: string)
   }
   const filepath = path.join(resourcePath, `steamuser${steamId}.jpg`);
   try {
-    const config = {
-      useProxy: ctx.config.useProxy,
-      proxyUrl: ctx.config.proxyUrl,
-      maxRetries: ctx.config.maxRetries
-    };
-    const headshot = await fetchArrayBuffer(ctx, url, config);
+    const headshot = await fetchArrayBuffer(ctx, url);
     fs.writeFileSync(filepath, Buffer.from(headshot));
     return true;
   } catch (error) {

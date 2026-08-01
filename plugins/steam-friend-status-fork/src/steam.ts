@@ -38,12 +38,7 @@ export async function getSteamUserInfo(
 ): Promise<SteamUserInfo> {
   const requestUrl = `${STEAM_WEB_API_URL}?key=${steamApiKey}&steamids=${steamid}`;
   try {
-    const config = {
-      useProxy: ctx.config.useProxy,
-      proxyUrl: ctx.config.proxyUrl,
-      maxRetries: ctx.config.maxRetries
-    };
-    const response = await fetchJson<SteamUserInfo>(ctx, requestUrl, config);
+    const response = await fetchJson<SteamUserInfo>(ctx, requestUrl);
     if (
       !response ||
       !response.response ||
@@ -76,12 +71,7 @@ export async function getSteamUserInfoByDatabase(
   try {
     const steamIds = steamusers.map((user) => user.steamId);
     const requestUrl = `${STEAM_WEB_API_URL}?key=${steamApiKey}&steamids=${steamIds.join(",")}`;
-    const config = {
-      useProxy: ctx.config.useProxy,
-      proxyUrl: ctx.config.proxyUrl,
-      maxRetries: ctx.config.maxRetries
-    };
-    const response = await fetchJson<SteamUserInfo>(ctx, requestUrl, config);
+    const response = await fetchJson<SteamUserInfo>(ctx, requestUrl);
     if (
       !response ||
       !response.response ||
@@ -184,12 +174,7 @@ export async function getRecentlyPlayedGames(
 ): Promise<RecentlyPlayedGamesInfo> {
   const url = `http://api.steampowered.com/IPlayerService/GetRecentlyPlayedGames/v0001/?key=${apiKey}&steamid=${steamId}&format=json`;
   try {
-    const config = {
-      useProxy: ctx.config.useProxy,
-      proxyUrl: ctx.config.proxyUrl,
-      maxRetries: ctx.config.maxRetries
-    };
-    const response = await fetchJson<any>(ctx, url, config);
+    const response = await fetchJson<any>(ctx, url);
     if (response && response.response && response.response.games) {
       return response.response;
     }

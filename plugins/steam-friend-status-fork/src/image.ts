@@ -130,12 +130,7 @@ export async function getGroupHeadshot(
       return;
     }
 
-    const config = {
-      useProxy: ctx.config.useProxy,
-      proxyUrl: ctx.config.proxyUrl,
-      maxRetries: ctx.config.maxRetries
-    };
-    const groupheadshot = await fetchArrayBuffer(ctx, avatarUrl, config);
+    const groupheadshot = await fetchArrayBuffer(ctx, avatarUrl);
     fs.writeFileSync(filepath, Buffer.from(groupheadshot));
   } catch (error) {
     ctx.logger.error(`获取群组 ${groupid} 头像失败:`, error);
@@ -176,12 +171,7 @@ export async function getBotHeadshot(ctx: Context, botId: string) {
       return;
     }
 
-    const config = {
-      useProxy: ctx.config.useProxy,
-      proxyUrl: ctx.config.proxyUrl,
-      maxRetries: ctx.config.maxRetries
-    };
-    const userheadshot = await fetchArrayBuffer(ctx, avatarUrl, config);
+    const userheadshot = await fetchArrayBuffer(ctx, avatarUrl);
     fs.writeFileSync(filepath, Buffer.from(userheadshot));
   } catch (error) {
     ctx.logger.error(`获取机器人 ${botId} 头像失败:`, error);
