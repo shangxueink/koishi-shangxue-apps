@@ -234,11 +234,12 @@ async function fetchViaSocks5(
     socket.connect(proxyPort, proxy.hostname);
   });
 
-  // 共享读缓冲区
+  // 共享读缓冲区（仅用于 SOCKS 握手阶段；隧道建立后会移除监听以避免缓存整个响应）
   let readBuf = Buffer.alloc(0);
-  socket.on('data', (chunk: Buffer) => {
+  const onHandshakeData = (chunk: Buffer) => {
     readBuf = Buffer.concat([readBuf, Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)]);
-  });
+  };
+  socket.on('data', onHandshakeData);
 
   // 读取精确 N 字节
   async function readN(n: number, timeout = 10000): Promise<Buffer> {
