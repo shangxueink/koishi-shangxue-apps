@@ -1,94 +1,204 @@
-import { OneBotActionRequest, OneBotActionResponse, ClientState, ActionHandler } from '../types'
-import { logInfo, loggerError, loggerInfo } from '../index'
+import {
+  ActionHandler,
+  ActionMiddleware,
+  OneBotActionContext,
+  OneBotActionDispatcher,
+  OneBotActionError,
+  OneBotActionRequest,
+  OneBotActionResponse,
+  OneBotRequestContext,
+  RegisterActionOptions,
+} from '../types'
+import { logInfo, loggerError } from '../index'
 import { createActionHandlers } from './handlers'
 import { Context } from 'koishi'
 
-export class ActionRouter {
-    private handlers: Map<string, ActionHandler> = new Map()
-
-    constructor(private ctx: Context, private config?: { selfId: string, selfname?: string, groupname?: string, appName?: string }) {
-        this.setupHandlers()
-    }
-
-    private setupHandlers() {
-        const handlers = createActionHandlers(this.ctx, this.config)
-
-        for (const [action, handler] of Object.entries(handlers)) {
-            this.handlers.set(action, handler)
-        }
-    }
-
-    async handle(request: OneBotActionRequest, clientState: ClientState): Promise<OneBotActionResponse> {
-        const { action, echo } = request
-        const params = request.params ?? {}
-
-        // 检查 action 是否存在
-        if (!action) {
-            loggerError('[onebot:unimplemented-api] Action is missing or undefined in request: %o', request)
-            return {
-                status: 'failed',
-                retcode: 1400,
-                message: 'Missing action field',
-                echo,
-            }
-        }
-
-        // 查找处理器
-        const handler = this.handlers.get(action)
-        if (!handler) {
-            // 记录未实现的 API
-            // loggerError('[onebot:unimplemented-api] Action: %s not implemented. Available actions: %o',
-            //     action, Array.from(this.handlers.keys()).sort())
-            loggerError('[onebot:unimplemented-api] Action: %s not implemented.', action)
-            return {
-                status: 'failed',
-                retcode: 1404,
-                message: `Unknown action: ${action}`,
-                echo,
-            }
-        }
-
-        try {
-            logInfo('[onebot:handler-call] Calling handler for action: %s', action)
-            const data = await handler(params, clientState)
-            return {
-                status: 'ok',
-                retcode: 0,
-                data,
-                echo,
-            }
-        } catch (error) {
-            // 检查是否是未知动作错误，返回 404
-            if (error.message.includes('Unknown action:')) {
-                return {
-                    status: 'failed',
-                    retcode: 404,
-                    data: null,
-                    message: error.message,
-                    echo,
-                }
-            }
-
-            return {
-                status: 'failed',
-                retcode: 1400,
-                message: error.message,
-                echo,
-            }
-        }
-    }
-
-    /**
-     * 注册新的动作处理器
-     */
-    register(action: string, handler: ActionHandler) {
-        this.handlers.set(action, handler)
-    }
-
-    /**
-     * 获取所有已注册的动作
-     */
-    getActions(): string[] {
-        return Array.from(this.handlers.keys())
-    }
+interface RegisteredAction {
+  handler: ActionHandler
+  source: string
 }
+
+export class ActionRouter implements OneBotActionDispatcher {
+  private handlers = new Map<string, RegisteredAction>()
+  private middlewares = new Map<string, ActionMiddleware[]>()
+
+  constructor(
+    private ctx: Context,
+    private config?: { selfId: string, selfname?: string, groupname?: string, appName?: string },
+  ) {
+    this.setupHandlers()
+  }
+
+  private setupHandlers() {
+    const handlers = createActionHandlers(this.ctx, this.config)
+    for (const [action, handler] of Object.entries(handlers)) {
+      this.registerAction(action, handler, { source: 'server-onebot' })
+    }
+  }
+
+  async dispatch(request: OneBotActionRequest, context: OneBotRequestContext): Promise<OneBotActionResponse> {
+    const echo = request?.echo
+    const action = request?.action
+
+    if (!action || typeof action !== 'string') {
+      loggerError('[onebot:invalid-request] Action is missing or invalid: %o', request)
+      return {
+        status: 'failed',
+        retcode: 1400,
+        message: 'Missing action field',
+        echo,
+      }
+    }
+
+    const actionContext: OneBotActionContext = {
+      ...context,
+      request,
+      action,
+      params: request.params ?? {},
+    }
+    const registered = this.handlers.get(action)
+
+    if (!registered) {
+      loggerError('[onebot:unimplemented-api] Action: %s not implemented.', action)
+      return {
+        status: 'failed',
+        retcode: 1404,
+        message: `Unknown action: ${action}`,
+        echo,
+      }
+    }
+
+    const executeHandler = async (): Promise<OneBotActionResponse> => {
+      try {
+        logInfo('[onebot:handler-call] Calling handler for action: %s', action)
+        const data = await registered.handler(actionContext.params, actionContext.client, actionContext)
+        return {
+          status: 'ok',
+          retcode: 0,
+          data,
+          echo,
+        }
+      } catch (error) {
+        return this.toErrorResponse(error, echo)
+      }
+    }
+
+    const middleware = [
+      ...(this.middlewares.get('*') ?? []),
+      ...(this.middlewares.get(action) ?? []),
+    ]
+
+    const execute = middleware.reduceRight<ActionNext>((next, current) => {
+      return () => current(actionContext, next)
+    }, executeHandler)
+
+    return execute()
+  }
+
+  async invoke(
+    action: string,
+    params: Record<string, any> = {},
+    context: Partial<OneBotRequestContext> = {},
+  ): Promise<any> {
+    const request: OneBotActionRequest = { action, params }
+    const response = await this.dispatch(request, {
+      request,
+      client: context.client ?? {
+        authorized: true,
+        selfId: context.endpoint?.selfId ?? this.config?.selfId,
+      },
+      endpoint: context.endpoint ?? {
+        id: 'internal',
+        direction: 'internal',
+        transport: 'internal',
+        selfId: this.config?.selfId,
+        appName: this.config?.appName,
+      },
+    })
+
+    if (response.status !== 'ok') {
+      throw new OneBotActionError(response.message ?? `Action failed: ${action}`, response.retcode, response.data)
+    }
+    return response.data
+  }
+
+  registerAction(action: string, handler: ActionHandler, options: RegisterActionOptions = {}) {
+    if (!action || typeof action !== 'string') {
+      throw new TypeError('OneBot action must be a non-empty string')
+    }
+    if (typeof handler !== 'function') {
+      throw new TypeError(`Handler for action ${action} must be a function`)
+    }
+    if (this.handlers.has(action) && !options.override) {
+      throw new Error(`OneBot action already registered: ${action}`)
+    }
+
+    const previous = this.handlers.get(action)
+    this.handlers.set(action, {
+      handler,
+      source: options.source ?? 'extension',
+    })
+
+    return () => {
+      const current = this.handlers.get(action)
+      if (current?.handler !== handler) return
+      if (previous) {
+        this.handlers.set(action, previous)
+      } else {
+        this.handlers.delete(action)
+      }
+    }
+  }
+
+  useAction(action: string | '*', middleware: ActionMiddleware) {
+    if (typeof middleware !== 'function') {
+      throw new TypeError('OneBot action middleware must be a function')
+    }
+    const list = this.middlewares.get(action) ?? []
+    list.push(middleware)
+    this.middlewares.set(action, list)
+
+    return () => {
+      const current = this.middlewares.get(action)
+      if (!current) return
+      const index = current.indexOf(middleware)
+      if (index >= 0) current.splice(index, 1)
+      if (current.length === 0) this.middlewares.delete(action)
+    }
+  }
+
+  register(action: string, handler: ActionHandler, options?: RegisterActionOptions) {
+    return this.registerAction(action, handler, options)
+  }
+
+  use(action: string | '*', middleware: ActionMiddleware) {
+    return this.useAction(action, middleware)
+  } getActions() {
+    return Array.from(this.handlers.keys()).sort()
+  }
+
+  private toErrorResponse(error: any, echo?: string): OneBotActionResponse {
+    if (error instanceof OneBotActionError) {
+      return {
+        status: 'failed',
+        retcode: error.retcode,
+        data: error.data,
+        message: error.message,
+        echo,
+      }
+    }
+
+    const message = error instanceof Error ? error.message : String(error)
+    return {
+      status: 'failed',
+      retcode: 1400,
+      message,
+      echo,
+    }
+  }
+}
+
+// Middleware is intentionally typed locally to avoid coupling the reducer to the public interface.
+type ActionNext = () => Promise<OneBotActionResponse>
+
+export * from './handlers'

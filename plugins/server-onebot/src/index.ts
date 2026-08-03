@@ -1,5 +1,5 @@
 import { Context, Schema } from 'koishi'
-import { OneBotServer } from './server'
+import { OneBotService } from './server'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
@@ -8,6 +8,12 @@ import { } from '@koishijs/plugin-notifier'
 export const name = 'server-onebot'
 export const reusable = false
 export const filter = true
+
+declare module 'koishi' {
+  interface Context {
+    onebot: OneBotService
+  }
+}
 
 export const inject = {
   required: ['server', 'database', 'logger'],
@@ -122,25 +128,13 @@ export function apply(ctx: Context, config: Config) {
     return
   }
 
-  const server = new OneBotServer(ctx, config)
-
-  ctx.on('ready', async () => {
-    await server.start()
-  })
-
-  ctx.on('dispose', async () => {
-    try {
-      loggerInfo('Plugin dispose triggered, stopping OneBot server...')
-      await server.stop()
-    } catch (error) {
-      loggerError('Error during OneBot server disposal:', error)
-    }
-  })
-
+  // OneBotService is a real Koishi service. It registers the built-in
+  // actions, exposes ctx.onebot, and starts configured transports on ready.
+  ctx.plugin(OneBotService, config)
   if (config.statuscommand) {
     ctx.command('onebot.status', '查看 OneBot 服务器状态')
       .action(() => {
-        const status = server.getStatus()
+        const status = ctx.onebot.getStatus()
         let result = `OneBot Server Status:
 WebSocket Server: ${status.wsServer.enabled ? `Enabled (${status.wsServer.clientCount} clients)` : 'Disabled'}
 Reverse WebSocket Clients: ${status.wsClients.enabled ? `${status.wsClients.connected}/${status.wsClients.total} Connected` : 'Disabled'}`
