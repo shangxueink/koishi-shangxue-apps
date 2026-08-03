@@ -166,10 +166,14 @@ export class WebSocketClient {
       client.lastMessageId = String(request.params.message_id)
     }
 
+    logInfo('[onebot:reverse-request] Action: %s, Echo: %s', request.action, request.echo || 'none')
+
     const requestKey = this.getRequestKey(request)
     const cached = this.recentRequests.get(requestKey)
     if (cached && Date.now() - cached.timestamp < 5000) {
-      return this.send(cached.response)
+      logInfo('[onebot:reverse-response-cache] Action: %s, Echo: %s', request.action, request.echo || 'none')
+      this.send(cached.response)
+      return
     }
 
     const context: OneBotRequestContext = {
@@ -183,9 +187,14 @@ export class WebSocketClient {
         appName: this.config.appName,
       },
     }
+    const startedAt = Date.now()
     const response = await this.dispatch(request, context)
     this.recentRequests.set(requestKey, { timestamp: Date.now(), response })
-    this.send(response)
+    const sent = this.send(response)
+    logInfo(
+      '[onebot:reverse-response] Action: %s, Status: %s, Retcode: %d, Duration: %dms, Echo: %s, Sent: %s',
+      request.action, response.status, response.retcode, Date.now() - startedAt, request.echo || 'none', sent,
+    )
   }
 
   private async dispatch(
@@ -207,12 +216,20 @@ export class WebSocketClient {
   }
 
   send(event: any) {
-    if (this.socket?.readyState !== WebSocket.OPEN) return false
+    const socket = this.socket
+    if (!socket || socket.readyState !== WebSocket.OPEN) {
+      loggerError(
+        'Cannot send OneBot message to %s: socket is not open (state: %s)',
+        this.getDisplayName(), socket?.readyState ?? 'none',
+      )
+      return false
+    }
     try {
-      this.socket.send(JSON.stringify(event))
+      const payload = JSON.stringify(event)
+      socket.send(payload)
       return true
     } catch (error) {
-      loggerError('Failed to send event to reverse WebSocket: %s', this.getErrorMessage(error))
+      loggerError('Failed to send OneBot message to reverse WebSocket: %s', this.getErrorMessage(error))
       return false
     }
   }

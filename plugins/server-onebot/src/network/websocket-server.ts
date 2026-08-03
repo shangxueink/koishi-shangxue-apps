@@ -109,9 +109,15 @@ export class WebSocketServer {
     }
 
     const context = this.createContext(request, client, selfId)
+    logInfo('[onebot:forward-request] Action: %s, Echo: %s', request.action, request.echo || 'none')
+    const startedAt = Date.now()
     const response = await this.dispatch(request, context)
     this.recentRequests.set(requestKey, { timestamp: Date.now(), response })
     this.sendResponse(socket, response)
+    logInfo(
+      '[onebot:forward-response] Action: %s, Status: %s, Retcode: %d, Duration: %dms, Echo: %s',
+      request.action, response.status, response.retcode, Date.now() - startedAt, request.echo || 'none',
+    )
   }
 
   private async dispatch(
@@ -155,11 +161,16 @@ export class WebSocketServer {
   }
 
   private sendResponse(socket: WebSocket, response: OneBotActionResponse) {
-    if (socket.readyState !== WebSocket.OPEN) return
+    if (!socket || socket.readyState !== WebSocket.OPEN) {
+      loggerError('Cannot send OneBot response: forward socket is not open (state: %s)', socket?.readyState ?? 'none')
+      return false
+    }
     try {
       socket.send(JSON.stringify(response))
+      return true
     } catch (error) {
-      loggerError('Failed to send OneBot response:', error)
+      loggerError('Failed to send OneBot response: %s', error instanceof Error ? error.message : String(error))
+      return false
     }
   }
 
