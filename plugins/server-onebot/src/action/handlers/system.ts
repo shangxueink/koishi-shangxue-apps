@@ -8,481 +8,481 @@ import { resolve } from 'node:path'
 import { getRecentSessions, sessionToOneBotEvent, encodeChannelId, encodeStringId } from '../../utils'
 
 export function createSystemHandlers(ctx: Context, config?: { selfId: string, appName?: string, groupname?: string }, botFinder?: BotFinder): Record<string, ActionHandler> {
-    // 如果没有传入 botFinder，则创建一个新的
-    const finder = botFinder || new BotFinder(ctx)
 
-    // 读取 package.json 获取版本信息
-    let packageInfo: { name?: string; version?: string } = {}
-    try {
-        const packagePath = resolve(__dirname, '../../../package.json')
-        const packageContent = readFileSync(packagePath, 'utf-8')
-        packageInfo = JSON.parse(packageContent)
-    } catch (error) {
-        loggerError('Failed to read package.json:', error)
-    }
+  const finder = botFinder || new BotFinder(ctx)
 
-    return {
-        // 获取版本信息
-        get_version_info: async (params: {}, clientState: ClientState) => {
-            return {
-                app_name: config?.appName || packageInfo.name.replace('koishi-plugin-', '') || 'server-onebot',
-                app_version: packageInfo.version || '1.0.0',
-                protocol_version: 'v11',
-                runtime_version: process.version,
-                runtime_os: process.platform,
-            } as VersionInfo
-        },
 
-        // 获取状态
-        get_status: async (params: {}, clientState: ClientState) => {
-            const bot = await finder.findBot(params, clientState)
+  let packageInfo: { name?: string; version?: string } = {}
+  try {
+    const packagePath = resolve(__dirname, '../../../package.json')
+    const packageContent = readFileSync(packagePath, 'utf-8')
+    packageInfo = JSON.parse(packageContent)
+  } catch (error) {
+    loggerError('Failed to read package.json:', error)
+  }
 
-            return {
-                online: bot ? bot.status === Universal.Status.ONLINE : false,
-                good: bot ? bot.status === Universal.Status.ONLINE : false,
-                stat: {
-                    packet_received: 0,
-                    packet_sent: 0,
-                    packet_lost: 0,
-                    message_received: 0,
-                    message_sent: 0,
-                    disconnect_times: 0,
-                    lost_times: 0,
+  return {
+
+    get_version_info: async (params: {}, clientState: ClientState) => {
+      return {
+        app_name: config?.appName || packageInfo.name.replace('koishi-plugin-', '') || 'server-onebot',
+        app_version: packageInfo.version || '1.0.0',
+        protocol_version: 'v11',
+        runtime_version: process.version,
+        runtime_os: process.platform,
+      } as VersionInfo
+    },
+
+
+    get_status: async (params: {}, clientState: ClientState) => {
+      const bot = await finder.findBot(params, clientState)
+
+      return {
+        online: bot ? bot.status === Universal.Status.ONLINE : false,
+        good: bot ? bot.status === Universal.Status.ONLINE : false,
+        stat: {
+          packet_received: 0,
+          packet_sent: 0,
+          packet_lost: 0,
+          message_received: 0,
+          message_sent: 0,
+          disconnect_times: 0,
+          lost_times: 0,
+        }
+      } as StatusInfo
+    },
+
+
+    set_restart: async (params: {
+      delay?: number
+    }, clientState: ClientState) => {
+
+      return {}
+    },
+
+
+    clean_cache: async (params: {}, clientState: ClientState) => {
+
+      return {}
+    },
+
+
+    can_send_image: async (params: {}, clientState: ClientState) => {
+      return { yes: true }
+    },
+
+
+    can_send_record: async (params: {}, clientState: ClientState) => {
+      return { yes: true }
+    },
+
+
+    get_online_clients: async (params: {
+      no_cache?: boolean
+    }, clientState: ClientState) => {
+
+      return {
+        clients: []
+      }
+    },
+
+
+    check_url_safely: async (params: {
+      url: string
+    }, clientState: ClientState) => {
+
+      return {
+        level: 1
+      }
+    },
+
+
+    get_word_slices: async (params: {
+      content: string
+    }, clientState: ClientState) => {
+
+      return {
+        slices: params.content.split(/\s+/).filter(word => word.length > 0)
+      }
+    },
+
+
+    ocr_image: async (params: {
+      image: string
+    }, clientState: ClientState) => {
+
+      return {
+        texts: [],
+        language: 'unknown'
+      }
+    },
+
+
+    get_image: async (params: {
+      file: string
+    }, clientState: ClientState) => {
+
+      return {
+        size: 0,
+        filename: params.file,
+        url: params.file
+      }
+    },
+
+
+    get_record: async (params: {
+      file: string
+      out_format: string
+      full_path?: boolean
+    }, clientState: ClientState) => {
+
+      return {
+        file: params.file
+      }
+    },
+
+
+    get_cookies: async (params: {
+      domain?: string
+    }, clientState: ClientState) => {
+
+      return {
+        cookies: ''
+      }
+    },
+
+
+    get_csrf_token: async (params: {}, clientState: ClientState) => {
+
+      return {
+        token: Math.floor(Math.random() * 1000000)
+      }
+    },
+
+
+    get_credentials: async (params: {
+      domain?: string
+    }, clientState: ClientState) => {
+
+      return {
+        cookies: '',
+        csrf_token: Math.floor(Math.random() * 1000000)
+      }
+    },
+
+
+    download_file: async (params: {
+      url: string
+      headers?: string | string[]
+      thread_count?: number
+    }, clientState: ClientState) => {
+
+      return {
+        file: params.url
+      }
+    },
+
+
+    upload_image: async (params: {
+      file: string
+    }, clientState: ClientState) => {
+
+      return params.file
+    },
+
+
+    get_guild_service_profile: async (params: {}, clientState: ClientState) => {
+
+      throw new Error('Unknown action: get_guild_service_profile')
+    },
+
+
+    mark_msg_as_read: async (params: {
+      message_id: string | number
+    }, clientState: ClientState) => {
+      const bot = await finder.findBot(params, clientState)
+      if (!bot) {
+        throw new Error('Bot not found')
+      }
+
+      return {}
+    },
+
+
+    get_group_file_system_info: async (params: {
+      group_id: string | number
+    }, clientState: ClientState) => {
+      return {
+        file_count: 0,
+        limit_count: 100,
+        used_space: 0,
+        total_space: 1073741824,
+      }
+    },
+
+
+    get_group_root_files: async (params: {
+      group_id: string | number
+    }, clientState: ClientState) => {
+      return {
+        files: [],
+        folders: [],
+      }
+    },
+
+
+    get_group_files_by_folder: async (params: {
+      group_id: string | number
+      folder_id: string
+    }, clientState: ClientState) => {
+      return {
+        files: [],
+        folders: [],
+      }
+    },
+
+
+    upload_group_file: async (params: {
+      group_id: string | number
+      file: string
+      name: string
+      folder?: string
+    }, clientState: ClientState) => {
+
+      return {}
+    },
+
+
+    delete_group_file: async (params: {
+      group_id: string | number
+      file_id: string
+      busid: number
+    }, clientState: ClientState) => {
+      return {}
+    },
+
+
+    create_group_file_folder: async (params: {
+      group_id: string | number
+      name: string
+      parent_id?: string
+    }, clientState: ClientState) => {
+      return {}
+    },
+
+
+    delete_group_folder: async (params: {
+      group_id: string | number
+      folder_id: string
+    }, clientState: ClientState) => {
+      return {}
+    },
+
+
+    get_group_file_url: async (params: {
+      group_id: string | number
+      file_id: string
+      busid: number
+    }, clientState: ClientState) => {
+      return {
+        url: ''
+      }
+    },
+
+
+    upload_private_file: async (params: {
+      user_id: string | number
+      file: string
+      name: string
+    }, clientState: ClientState) => {
+      return {}
+    },
+
+
+    get_essence_msg_list: async (params: {
+      group_id: string | number
+    }, clientState: ClientState) => {
+      return []
+    },
+
+
+    set_essence_msg: async (params: {
+      message_id: string | number
+    }, clientState: ClientState) => {
+      return {}
+    },
+
+
+    delete_essence_msg: async (params: {
+      message_id: string | number
+    }, clientState: ClientState) => {
+      return {}
+    },
+
+
+    _send_group_notice: async (params: {
+      group_id: string | number
+      content: string
+      image?: string
+    }, clientState: ClientState) => {
+      return {}
+    },
+
+
+    _get_group_notice: async (params: {
+      group_id: string | number
+    }, clientState: ClientState) => {
+      return []
+    },
+
+
+    _del_group_notice: async (params: {
+      group_id: string | number
+      notice_id: string
+    }, clientState: ClientState) => {
+      return {}
+    },
+
+
+    set_group_portrait: async (params: {
+      group_id: string | number
+      file: string
+      cache?: number
+    }, clientState: ClientState) => {
+      return {}
+    },
+
+
+    _get_model_show: async (params: {
+      model: string
+    }, clientState: ClientState) => {
+      return {
+        variants: []
+      }
+    },
+
+
+    _set_model_show: async (params: {
+      model: string
+      model_show: string
+    }, clientState: ClientState) => {
+      return {}
+    },
+
+
+    get_group_msg_history: async (params: {
+      message_seq?: number
+      group_id: string | number
+    }, clientState: ClientState) => {
+      const recentSessions = getRecentSessions()
+      const messages = []
+
+
+      let targetEncodedGroupId = null
+      try {
+
+        if (typeof params.group_id === 'number') {
+          targetEncodedGroupId = params.group_id
+        } else {
+
+          targetEncodedGroupId = await encodeChannelId(params.group_id.toString(), ctx)
+        }
+      } catch (error) {
+        loggerError('Error encoding group_id:', error)
+      }
+
+
+      for (const sessionData of recentSessions) {
+        const session = sessionData.session
+
+        if (!session.isDirect && (session.guildId || session.channelId)) {
+          const groupId = session.guildId || session.channelId
+          try {
+
+            const encodedGroupId = await encodeChannelId(groupId, ctx)
+
+
+            if (encodedGroupId && targetEncodedGroupId && encodedGroupId === targetEncodedGroupId) {
+              const oneBotEvent = await sessionToOneBotEvent(session, ctx, config?.selfId)
+              if (oneBotEvent) {
+
+                if (oneBotEvent.message_type === 'group') {
+
+                  if (!oneBotEvent.group_name && config?.groupname) {
+                    oneBotEvent.group_name = config.groupname
+                  }
+                  messages.push(oneBotEvent)
                 }
-            } as StatusInfo
-        },
-
-        // 重启 OneBot 实现
-        set_restart: async (params: {
-            delay?: number
-        }, clientState: ClientState) => {
-            // 这个功能通常不在插件中实现，返回成功
-            return {}
-        },
-
-        // 清理缓存
-        clean_cache: async (params: {}, clientState: ClientState) => {
-            // 成功
-            return {}
-        },
-
-        // 检查是否可以发送图片
-        can_send_image: async (params: {}, clientState: ClientState) => {
-            return { yes: true }
-        },
-
-        // 检查是否可以发送语音
-        can_send_record: async (params: {}, clientState: ClientState) => {
-            return { yes: true }
-        },
-
-        // 获取运行状态
-        get_online_clients: async (params: {
-            no_cache?: boolean
-        }, clientState: ClientState) => {
-            // 返回在线客户端列表，这里返回空数组
-            return {
-                clients: []
+              }
             }
-        },
+          } catch (error) {
+            loggerError('Error processing group session:', error)
+          }
+        }
+      }
 
-        // 检查链接安全性
-        check_url_safely: async (params: {
-            url: string
-        }, clientState: ClientState) => {
-            // 简单的 URL 安全检查，这里返回安全
-            return {
-                level: 1 // 1 表示安全
-            }
-        },
 
-        // 获取中文分词
-        get_word_slices: async (params: {
-            content: string
-        }, clientState: ClientState) => {
-            // 简单的分词实现，按空格分割
-            return {
-                slices: params.content.split(/\s+/).filter(word => word.length > 0)
-            }
-        },
+      messages.sort((a, b) => b.time - a.time)
 
-        // OCR 图片识别
-        ocr_image: async (params: {
-            image: string
-        }, clientState: ClientState) => {
-            // OCR 功能需要特殊的服务支持，这里返回空结果
-            return {
-                texts: [],
-                language: 'unknown'
-            }
-        },
+      return {
+        messages
+      }
+    },
 
-        // 获取图片信息
-        get_image: async (params: {
-            file: string
-        }, clientState: ClientState) => {
-            // 返回图片信息，这里返回基本信息
-            return {
-                size: 0,
-                filename: params.file,
-                url: params.file
-            }
-        },
 
-        // 获取语音信息
-        get_record: async (params: {
-            file: string
-            out_format: string
-            full_path?: boolean
-        }, clientState: ClientState) => {
-            // 返回语音信息
-            return {
-                file: params.file
-            }
-        },
+    get_friend_msg_history: async (params: {
+      user_id: string | number
+      message_seq?: number
+    }, clientState: ClientState) => {
+      const recentSessions = getRecentSessions()
+      const messages = []
 
-        // 获取 Cookies
-        get_cookies: async (params: {
-            domain?: string
-        }, clientState: ClientState) => {
-            // 返回空的 cookies
-            return {
-                cookies: ''
-            }
-        },
 
-        // 获取 CSRF Token
-        get_csrf_token: async (params: {}, clientState: ClientState) => {
-            // 返回随机的 CSRF token
-            return {
-                token: Math.floor(Math.random() * 1000000)
-            }
-        },
+      let targetEncodedUserId = null
+      try {
 
-        // 获取凭证
-        get_credentials: async (params: {
-            domain?: string
-        }, clientState: ClientState) => {
-            // 返回空的凭证
-            return {
-                cookies: '',
-                csrf_token: Math.floor(Math.random() * 1000000)
-            }
-        },
+        if (typeof params.user_id === 'number') {
+          targetEncodedUserId = params.user_id
+        } else {
 
-        // 下载文件
-        download_file: async (params: {
-            url: string
-            headers?: string | string[]
-            thread_count?: number
-        }, clientState: ClientState) => {
-            // 文件下载功能，这里返回 URL 本身
-            return {
-                file: params.url
-            }
-        },
+          targetEncodedUserId = await encodeStringId(params.user_id.toString(), ctx)
+        }
+      } catch (error) {
+        loggerError('Error encoding user_id:', error)
+      }
 
-        // 上传图片
-        upload_image: async (params: {
-            file: string
-        }, clientState: ClientState) => {
-            // 图片上传功能，返回原始文件路径
-            return params.file
-        },
 
-        // 获取频道服务资料
-        get_guild_service_profile: async (params: {}, clientState: ClientState) => {
-            // 这个 API 在大多数实现中都不支持，应该返回 404 错误
-            throw new Error('Unknown action: get_guild_service_profile')
-        },
+      for (const sessionData of recentSessions) {
+        const session = sessionData.session
 
-        // 标记消息已读
-        mark_msg_as_read: async (params: {
-            message_id: string | number
-        }, clientState: ClientState) => {
-            const bot = await finder.findBot(params, clientState)
-            if (!bot) {
-                throw new Error('Bot not found')
-            }
-            // 大成功
-            return {}
-        },
+        if (session.isDirect && session.userId) {
+          try {
 
-        // 获取群文件系统信息
-        get_group_file_system_info: async (params: {
-            group_id: string | number
-        }, clientState: ClientState) => {
-            return {
-                file_count: 0,
-                limit_count: 100,
-                used_space: 0,
-                total_space: 1073741824, // 1GB
-            }
-        },
+            const encodedUserId = await encodeStringId(session.userId, ctx)
 
-        // 获取群根目录文件列表
-        get_group_root_files: async (params: {
-            group_id: string | number
-        }, clientState: ClientState) => {
-            return {
-                files: [],
-                folders: [],
-            }
-        },
 
-        // 获取群子目录文件列表
-        get_group_files_by_folder: async (params: {
-            group_id: string | number
-            folder_id: string
-        }, clientState: ClientState) => {
-            return {
-                files: [],
-                folders: [],
-            }
-        },
+            if (encodedUserId && targetEncodedUserId && encodedUserId === targetEncodedUserId) {
+              const oneBotEvent = await sessionToOneBotEvent(session, ctx, config?.selfId)
+              if (oneBotEvent) {
 
-        // 上传群文件
-        upload_group_file: async (params: {
-            group_id: string | number
-            file: string
-            name: string
-            folder?: string
-        }, clientState: ClientState) => {
-            // 文件上传功能需要特殊实现，这里返回成功
-            return {}
-        },
-
-        // 删除群文件
-        delete_group_file: async (params: {
-            group_id: string | number
-            file_id: string
-            busid: number
-        }, clientState: ClientState) => {
-            return {}
-        },
-
-        // 创建群文件夹
-        create_group_file_folder: async (params: {
-            group_id: string | number
-            name: string
-            parent_id?: string
-        }, clientState: ClientState) => {
-            return {}
-        },
-
-        // 删除群文件夹
-        delete_group_folder: async (params: {
-            group_id: string | number
-            folder_id: string
-        }, clientState: ClientState) => {
-            return {}
-        },
-
-        // 获取群文件资源链接
-        get_group_file_url: async (params: {
-            group_id: string | number
-            file_id: string
-            busid: number
-        }, clientState: ClientState) => {
-            return {
-                url: ''
-            }
-        },
-
-        // 上传私聊文件
-        upload_private_file: async (params: {
-            user_id: string | number
-            file: string
-            name: string
-        }, clientState: ClientState) => {
-            return {}
-        },
-
-        // 获取精华消息列表
-        get_essence_msg_list: async (params: {
-            group_id: string | number
-        }, clientState: ClientState) => {
-            return []
-        },
-
-        // 设置精华消息
-        set_essence_msg: async (params: {
-            message_id: string | number
-        }, clientState: ClientState) => {
-            return {}
-        },
-
-        // 移出精华消息
-        delete_essence_msg: async (params: {
-            message_id: string | number
-        }, clientState: ClientState) => {
-            return {}
-        },
-
-        // 发送群公告
-        _send_group_notice: async (params: {
-            group_id: string | number
-            content: string
-            image?: string
-        }, clientState: ClientState) => {
-            return {}
-        },
-
-        // 获取群公告
-        _get_group_notice: async (params: {
-            group_id: string | number
-        }, clientState: ClientState) => {
-            return []
-        },
-
-        // 删除群公告
-        _del_group_notice: async (params: {
-            group_id: string | number
-            notice_id: string
-        }, clientState: ClientState) => {
-            return {}
-        },
-
-        // 设置群头像
-        set_group_portrait: async (params: {
-            group_id: string | number
-            file: string
-            cache?: number
-        }, clientState: ClientState) => {
-            return {}
-        },
-
-        // 获取模型显示
-        _get_model_show: async (params: {
-            model: string
-        }, clientState: ClientState) => {
-            return {
-                variants: []
-            }
-        },
-
-        // 设置模型显示
-        _set_model_show: async (params: {
-            model: string
-            model_show: string
-        }, clientState: ClientState) => {
-            return {}
-        },
-
-        // 获取群消息历史记录
-        get_group_msg_history: async (params: {
-            message_seq?: number
-            group_id: string | number
-        }, clientState: ClientState) => {
-            const recentSessions = getRecentSessions()
-            const messages = []
-            
-            // 获取要匹配的群组ID的编码值
-            let targetEncodedGroupId = null
-            try {
-                // 如果传入的是数字，直接使用；如果是字符串，需要编码
-                if (typeof params.group_id === 'number') {
-                    targetEncodedGroupId = params.group_id
-                } else {
-                    // 尝试将字符串ID编码为数字ID进行匹配
-                    targetEncodedGroupId = await encodeChannelId(params.group_id.toString(), ctx)
+                if (oneBotEvent.message_type === 'private') {
+                  messages.push(oneBotEvent)
                 }
-            } catch (error) {
-                loggerError('Error encoding group_id:', error)
+              }
             }
-            
-            // 过滤出群消息
-            for (const sessionData of recentSessions) {
-                const session = sessionData.session
-                // 检查是否为群消息
-                if (!session.isDirect && (session.guildId || session.channelId)) {
-                    const groupId = session.guildId || session.channelId
-                    try {
-                        // 编码当前session的群组ID
-                        const encodedGroupId = await encodeChannelId(groupId, ctx)
-                        
-                        // 检查是否匹配目标群组
-                        if (encodedGroupId && targetEncodedGroupId && encodedGroupId === targetEncodedGroupId) {
-                            const oneBotEvent = await sessionToOneBotEvent(session, ctx, config?.selfId)
-                            if (oneBotEvent) {
-                                // 确保是群消息类型并添加群组信息
-                                if (oneBotEvent.message_type === 'group') {
-                                    // 添加群组名称（如果需要）
-                                    if (!oneBotEvent.group_name && config?.groupname) {
-                                        oneBotEvent.group_name = config.groupname
-                                    }
-                                    messages.push(oneBotEvent)
-                                }
-                            }
-                        }
-                    } catch (error) {
-                        loggerError('Error processing group session:', error)
-                    }
-                }
-            }
-            
-            // 按时间排序，最新的在前面
-            messages.sort((a, b) => b.time - a.time)
-            
-            return {
-                messages
-            }
-        },
+          } catch (error) {
+            loggerError('Error processing private session:', error)
+          }
+        }
+      }
 
-        // 获取好友消息历史记录
-        get_friend_msg_history: async (params: {
-            user_id: string | number
-            message_seq?: number
-        }, clientState: ClientState) => {
-            const recentSessions = getRecentSessions()
-            const messages = []
-            
-            // 获取要匹配的用户ID的编码值
-            let targetEncodedUserId = null
-            try {
-                // 如果传入的是数字，直接使用；如果是字符串，需要编码
-                if (typeof params.user_id === 'number') {
-                    targetEncodedUserId = params.user_id
-                } else {
-                    // 尝试将字符串ID编码为数字ID进行匹配
-                    targetEncodedUserId = await encodeStringId(params.user_id.toString(), ctx)
-                }
-            } catch (error) {
-                loggerError('Error encoding user_id:', error)
-            }
-            
-            // 过滤出私聊消息
-            for (const sessionData of recentSessions) {
-                const session = sessionData.session
-                // 检查是否为私聊消息
-                if (session.isDirect && session.userId) {
-                    try {
-                        // 编码当前session的用户ID
-                        const encodedUserId = await encodeStringId(session.userId, ctx)
-                        
-                        // 检查是否匹配目标用户
-                        if (encodedUserId && targetEncodedUserId && encodedUserId === targetEncodedUserId) {
-                            const oneBotEvent = await sessionToOneBotEvent(session, ctx, config?.selfId)
-                            if (oneBotEvent) {
-                                // 确保是私聊消息类型
-                                if (oneBotEvent.message_type === 'private') {
-                                    messages.push(oneBotEvent)
-                                }
-                            }
-                        }
-                    } catch (error) {
-                        loggerError('Error processing private session:', error)
-                    }
-                }
-            }
-            
-            // 按时间排序，最新的在前面
-            messages.sort((a, b) => b.time - a.time)
-            
-            return {
-                messages
-            }
-        },
 
-    }
+      messages.sort((a, b) => b.time - a.time)
+
+      return {
+        messages
+      }
+    },
+
+  }
 }

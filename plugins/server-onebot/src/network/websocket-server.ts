@@ -63,15 +63,18 @@ export class WebSocketServer {
       const clientInfo = this.getClientInfo(socket)
       loggerInfo('OneBot WebSocket client connected: %s (selfId: %s)', clientInfo, selfId)
 
-      socket.addEventListener('message', async (event) => {
-        await this.handleMessage(socket, client, event.data.toString(), selfId)
+      socket.on('message', async (data) => {
+        try {
+          await this.handleMessage(socket, client, data.toString(), selfId)
+        } catch (error) {
+          loggerError('Unhandled forward WebSocket message error: %s', error instanceof Error ? error.message : String(error))
+        }
       })
 
-      socket.addEventListener('close', () => {
+      socket.on('close', () => {
         loggerInfo('OneBot WebSocket client disconnected: %s', clientInfo)
       })
-
-      socket.addEventListener('error', (error) => {
+      socket.on('error', (error) => {
         loggerError('OneBot WebSocket error:', error)
       })
     })
@@ -109,7 +112,7 @@ export class WebSocketServer {
     }
 
     const context = this.createContext(request, client, selfId)
-    logInfo('[onebot:forward-request] Action: %s, Echo: %s', request.action, request.echo || 'none')
+    loggerInfo('[onebot:forward-request] Action: %s, Echo: %s', request.action, request.echo || 'none')
     const startedAt = Date.now()
     const response = await this.dispatch(request, context)
     this.recentRequests.set(requestKey, { timestamp: Date.now(), response })

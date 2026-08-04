@@ -2,41 +2,41 @@
 
 [![npm](https://img.shields.io/npm/v/koishi-plugin-server-onebot?style=flat-square)](https://www.npmjs.com/package/koishi-plugin-server-onebot)
 
-用于 Koishi 框架的简易 OneBot v11 服务器实现。
+A lightweight OneBot v11 server implementation for Koishi.
 
-> 目前仅为初步实现
+> This project is under active development.
 
 <hr>
 
 <table border="1" cellpadding="8" cellspacing="0" width="100%">
   <tr>
     <td align="center" width="18%">
-      <b>OneBot客户端</b><br>
-      Nonebot2、Yunzai<br>
-      AstrBot等
+      <b>OneBot clients</b><br>
+      NoneBot2, Yunzai<br>
+      AstrBot and others
     </td>
     <td align="center" width="10%">
       <b>OneBot</b><br>
-      ←→
+      &lt;-&gt;
     </td>
     <td align="center" width="18%">
       <b>server-onebot</b><br>
-      协议转换<br>
-      消息路由
+      Protocol conversion<br>
+      Message routing
     </td>
     <td align="center" width="10%">
       <b>Satori</b><br>
-      ←→
+      &lt;-&gt;
     </td>
     <td align="center" width="18%">
       <b>Koishi Core</b><br>
       adapter-iirose<br>
-      adapter-bilibili等
+      adapter-bilibili and others
     </td>
     <td align="center" width="16%">
-      <b>目标平台</b><br>
-      iirose、bilibili<br>
-      qq等
+      <b>Target platforms</b><br>
+      iirose, bilibili<br>
+      QQ and others
     </td>
   </tr>
 </table>
@@ -44,77 +44,50 @@
 <hr>
 
 <details>
-<summary>点击展开：跨实例功能调用场景</summary>
+<summary>Cross-instance function calls</summary>
 
-> 通过 `adapter-satori` + `server-onebot` + `server-satori` 实现跨实例功能调用
+> Use `adapter-satori` + `server-onebot` + `server-satori` to call functions across Koishi instances.
 
 <table border="1" cellpadding="6" cellspacing="0" width="100%">
   <tr>
-    <td align="center" width="10%">
-      <b>OneBot客户端</b><br>
-    </td>
-    <td align="center" width="4%">
-      →
-    </td>
-    <td align="center" width="10%">
-      <b>server-onebot</b><br>
-      Koishi A接入
-    </td>
-    <td align="center" width="4%">
-      →
-    </td>
-    <td align="center" width="10%">
-      <b>Koishi A</b><br>
-      adapter-satori
-    </td>
-    <td align="center" width="4%">
-      →
-    </td>
-    <td align="center" width="10%">
-      <b>server-satori</b><br>
-      Koishi B开启
-    </td>
-    <td align="center" width="4%">
-      →
-    </td>
-    <td align="center" width="10%">
-      <b>Koishi B</b><br>
-      adapter-iirose等
-    </td>
-    <td align="center" width="4%">
-      →
-    </td>
-    <td align="center" width="30%">
-      <b>目标平台</b><br>
-      iirose等
-    </td>
+    <td align="center" width="10%"><b>OneBot client</b></td>
+    <td align="center" width="4%">-&gt;</td>
+    <td align="center" width="10%"><b>server-onebot</b><br>Koishi A</td>
+    <td align="center" width="4%">-&gt;</td>
+    <td align="center" width="10%"><b>Koishi A</b><br>adapter-satori</td>
+    <td align="center" width="4%">-&gt;</td>
+    <td align="center" width="10%"><b>server-satori</b><br>Koishi B</td>
+    <td align="center" width="4%">-&gt;</td>
+    <td align="center" width="10%"><b>Koishi B</b><br>adapter-iirose</td>
+    <td align="center" width="4%">-&gt;</td>
+    <td align="center" width="30%"><b>Target platform</b><br>iirose and others</td>
   </tr>
 </table>
 
-- **Koishi A**：开启 `adapter-satori` + `server-onebot`，OneBot客户端接入 A 实例
-- **Koishi B**：开启 `server-satori`，A 实例的 `adapter-satori` 连接到 B 实例的 `server-satori`
+- **Koishi A** enables `adapter-satori` and `server-onebot`; the OneBot client connects to A.
+- **Koishi B** enables `server-satori`; A's `adapter-satori` connects to B's `server-satori`.
 
-**实现效果**：在 Koishi B 实例中可以直接调用 OneBot客户端 的所有功能，就像 OneBot客户端 直接连接到 Koishi B 一样。
+**Result:** Koishi B can call all functions exposed by the OneBot client as if the client were connected directly to Koishi B.
 
 </details>
 
 <hr>
 
-### 消息格式转换
+### Message format conversion
 
-处理 Satori 和 OneBot 消息格式之间的转换：
+The plugin converts messages between Satori and OneBot formats.
 
-### Satori → OneBot
+### Satori to OneBot
 
 ```javascript
-// Satori 格式
+
 [
   { type: 'text', attrs: { content: 'Hello ' } },
   { type: 'at', attrs: { id: '123456', name: 'user' } },
   { type: 'image', attrs: { src: 'https://example.com/image.jpg' } }
 ]
 
-// 转换为 OneBot 格式
+
 [
   { type: 'text', data: { text: 'Hello ' } },
   { type: 'at', data: { qq: '123456', name: 'user' } },
@@ -122,17 +95,17 @@
 ]
 ```
 
-### OneBot → Satori
+### OneBot to Satori
 
 ```javascript
-// OneBot 格式
+
 [
   { type: 'text', data: { text: 'Hello ' } },
   { type: 'at', data: { qq: 'all' } },
   { type: 'face', data: { id: '123' } }
 ]
 
-// 转换为 Satori 格式
+
 [
   h.text('Hello '),
   h('at', { type: 'all' }),
@@ -140,15 +113,15 @@
 ]
 ```
 
-## 许可证
+## License
 
 MIT
 
-## 扩展 OneBot 动作
+## Extending OneBot actions
 
-`server-onebot` 在启用时是一个完整的 OneBot v11 实现。它会启动配置的 WebSocket 服务器和/或反向 WebSocket 客户端，注册内置动作，将 Koishi 事件转换为 OneBot 事件，并分发传入的 OneBot 请求。
+When enabled, `server-onebot` is a complete OneBot v11 implementation. It starts the configured WebSocket server and/or reverse WebSocket clients, registers built-in actions, converts Koishi events into OneBot events, and dispatches incoming OneBot requests.
 
-该实现以 `onebot` Koishi 服务的形式暴露。其他插件可以注入它并添加协议扩展：
+The implementation is exposed as the `onebot` Koishi service. Other plugins can inject it and add protocol extensions:
 
 ```ts
 import { Context } from 'koishi'
@@ -176,10 +149,10 @@ export function apply(ctx: Context) {
 }
 ```
 
-`registerAction()` 返回一个注销函数。现有动作默认受保护；仅在有意替换内置实现时传入 `{ override: true }`。`invoke()` 在内部调用相同的动作注册表，不通过 WebSocket，直接返回动作数据：
+`registerAction()` returns an unregister function. Existing actions are protected by default; pass `{ override: true }` only when intentionally replacing a built-in action. `invoke()` uses the same action registry without WebSocket transport:
 
 ```ts
 const status = await ctx.onebot.invoke('get_custom_status')
 ```
 
-正向 WebSocket 连接和反向 WebSocket 连接使用相同的动作注册表和分发器。处理程序通过其第三个参数接收原始请求、连接状态和端点元数据。
+Forward WebSocket connections and reverse WebSocket connections use the same action registry and dispatcher. Handlers receive the original request, connection state, and endpoint metadata.

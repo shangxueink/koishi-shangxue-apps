@@ -86,25 +86,29 @@ export class WebSocketClient {
       }
 
       this.socket = new WebSocket(this.config.url, { headers })
-      this.socket.addEventListener('open', () => {
+      this.socket.on('open', () => {
         this.isConnecting = false
         this.reconnectAttempts = 0
         loggerInfo('Reverse WebSocket connected successfully to: %s', this.getDisplayName())
         this.sendLifecycleEvent('connect')
       })
-      this.socket.addEventListener('message', async (event) => {
-        await this.handleMessage(event.data.toString())
+      this.socket.on('message', async (data) => {
+        try {
+          await this.handleMessage(data.toString())
+        } catch (error) {
+          loggerError('Unhandled reverse WebSocket message error: %s', this.getErrorMessage(error))
+        }
       })
-      this.socket.addEventListener('close', (event) => {
+      this.socket.on('close', (code, reason) => {
         this.isConnecting = false
         this.socket = null
         loggerInfo(
           'Reverse WebSocket disconnected from: %s (code: %d, reason: %s)',
-          this.getDisplayName(), event.code, event.reason || 'none',
+          this.getDisplayName(), code, reason?.toString() || 'none',
         )
         this.scheduleReconnect()
       })
-      this.socket.addEventListener('error', (error) => {
+      this.socket.on('error', (error) => {
         this.isConnecting = false
         loggerError('Reverse WebSocket connection error for %s: %o', this.getDisplayName(), error)
       })
@@ -166,7 +170,7 @@ export class WebSocketClient {
       client.lastMessageId = String(request.params.message_id)
     }
 
-    logInfo('[onebot:reverse-request] Action: %s, Echo: %s', request.action, request.echo || 'none')
+    loggerInfo('[onebot:reverse-request] Action: %s, Echo: %s', request.action, request.echo || 'none')
 
     const requestKey = this.getRequestKey(request)
     const cached = this.recentRequests.get(requestKey)

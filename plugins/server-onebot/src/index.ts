@@ -101,7 +101,7 @@ export const Config: Schema<Config> = Schema.intersect([
 ])
 
 export function apply(ctx: Context, config: Config) {
-  // 初始化全局函数
+
   logInfo = (message: any, ...args: any[]) => {
     if (config.loggerinfo) {
       ctx.logger.info(message, ...args);
@@ -114,25 +114,25 @@ export function apply(ctx: Context, config: Config) {
     ctx.logger.error(message, ...args);
   };
 
-  // 扩展 binding 表 - botselfid 字段
+
   ctx.model.extend('binding', {
     botselfid: 'string'
   })
 
-  // 检查配置是否有效
+
   const hasValidConfig = checkConfiguration(config)
 
   if (!hasValidConfig && ctx.notifier) {
-    // 如果配置无效且有 notifier，启动自动关闭流程
+
     startAutoShutdown(ctx)
     return
   }
 
-  // OneBotService is a real Koishi service. It registers the built-in
-  // actions, exposes ctx.onebot, and starts configured transports on ready.
+
+
   ctx.plugin(OneBotService, config)
   if (config.statuscommand) {
-    ctx.command('onebot.status', '查看 OneBot 服务器状态')
+    ctx.command('onebot.status', ' OneBot ')
       .action(() => {
         const status = ctx.onebot.getStatus()
         let result = `OneBot Server Status:
@@ -157,11 +157,11 @@ Reverse WebSocket Clients: ${status.wsClients.enabled ? `${status.wsClients.conn
 
 }
 
-/**
- * 检查配置是否有效
- */
+
+
+
 function checkConfiguration(config: Config): boolean {
-  // 检查是否至少启用了一种连接方式
+
   const wsServerEnabled = config.enabledWs === true
   const wsReverseEnabled = config.enabledWsReverse === true
 
@@ -169,13 +169,13 @@ function checkConfiguration(config: Config): boolean {
     return false
   }
 
-  // 如果启用了反向连接，检查是否有有效的连接配置
+
   if (wsReverseEnabled) {
     if (!config.connections || config.connections.length === 0) {
       return false
     }
 
-    // 检查是否有启用的连接
+
     const enabledConnections = config.connections.filter(conn =>
       conn && conn.enabled && conn.url && conn.url.trim() !== ''
     )
@@ -188,38 +188,38 @@ function checkConfiguration(config: Config): boolean {
   return true
 }
 
-/**
- * 启动自动关闭流程
- */
+
+
+
 async function startAutoShutdown(ctx: Context): Promise<void> {
   const notifier = ctx.notifier?.create()
 
   if (!notifier) {
-    logInfo('OneBot Server: 配置无效且 notifier 不可用，插件将立即关闭')
+    logInfo('OneBot Server: notifier is unavailable, stopping the plugin.')
     ctx.scope.dispose()
     return
   }
 
-  let countdown = 4 // 秒
+  let countdown = 4
 
   const updateNotification = () => {
-    notifier.update(`检测到连接配置无效，插件将在 ${countdown} 秒后自动关闭...`)
+    notifier.update(`Invalid connection settings. The plugin will stop in ${countdown} seconds...`)
   }
 
-  // 开始倒计时
+
   while (countdown > 0) {
     updateNotification()
     try {
       await ctx.sleep(1000)
       countdown--
     } catch {
-      // 如果插件被手动停止，直接返回
+
       return
     }
   }
 
-  // 倒计时结束，关闭插件
-  loggerInfo('OneBot Server: 连接配置无效，自动关闭...')
+
+  loggerInfo('OneBot Server: invalid connection settings, stopping...')
   ctx.scope.dispose()
 }
 

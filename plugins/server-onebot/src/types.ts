@@ -1,6 +1,6 @@
 import { h } from 'koishi'
 
-// OneBot v11 基础类型
+
 export interface OneBotEvent {
   id: string
   time: number
@@ -85,7 +85,7 @@ export class OneBotActionError extends Error {
   }
 }
 
-// 消息相关类型
+
 export interface OneBotMessage {
   type: string
   data: Record<string, any>
@@ -106,7 +106,7 @@ export interface OneBotMessageEvent extends OneBotEvent {
   group_id?: string
 }
 
-// 通知事件类型
+
 export interface OneBotNoticeEvent extends OneBotEvent {
   type: 'notice'
   user_id: string
@@ -114,7 +114,7 @@ export interface OneBotNoticeEvent extends OneBotEvent {
   operator_id?: string
 }
 
-// 请求事件类型
+
 export interface OneBotRequestEvent extends OneBotEvent {
   type: 'request'
   user_id: string
@@ -123,7 +123,7 @@ export interface OneBotRequestEvent extends OneBotEvent {
   group_id?: string
 }
 
-// 元事件类型
+
 export interface OneBotMetaEvent extends OneBotEvent {
   type: 'meta'
   meta_event_type: 'lifecycle' | 'heartbeat'
@@ -134,7 +134,7 @@ export interface OneBotMetaEvent extends OneBotEvent {
   interval?: number
 }
 
-// WebSocket 客户端状态
+
 export interface ClientState {
   authorized: boolean
   platform?: string
@@ -143,20 +143,20 @@ export interface ClientState {
   lastMessageId?: string
 }
 
-// 动作处理器类型
+
 export type ActionHandler = (
   params: any,
   clientState: ClientState,
   context?: OneBotRequestContext,
 ) => Promise<any>
 
-// CQ 码相关类型
+
 export interface CQCode {
   type: string
   data: Record<string, any>
 }
 
-// 用户信息类型
+
 export interface UserInfo {
   user_id: string | number
   nickname: string
@@ -169,7 +169,7 @@ export interface UserInfo {
   title?: string
 }
 
-// 群组信息类型
+
 export interface GroupInfo {
   group_id: string | number
   group_name: string
@@ -177,14 +177,14 @@ export interface GroupInfo {
   max_member_count?: number
 }
 
-// 好友信息类型
+
 export interface FriendInfo {
   user_id: string | number
   nickname: string
   remark: string
 }
 
-// 版本信息类型
+
 export interface VersionInfo {
   app_name: string
   app_version: string
@@ -192,14 +192,14 @@ export interface VersionInfo {
   [key: string]: any
 }
 
-// 状态信息类型
+
 export interface StatusInfo {
   online: boolean
   good: boolean
   [key: string]: any
 }
 
-// 消息段类型映射
+
 export type MessageSegmentType =
   | 'text'
   | 'face'
@@ -222,7 +222,7 @@ export type MessageSegmentType =
   | 'xml'
   | 'json'
 
-// Koishi 元素到 OneBot 消息段的映射
+
 export interface ElementToSegmentMap {
   text: { text: string }
   at: { qq: string | 'all', name?: string }

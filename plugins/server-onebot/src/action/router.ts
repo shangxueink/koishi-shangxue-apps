@@ -198,7 +198,7 @@ export class ActionRouter implements OneBotActionDispatcher {
   }
 }
 
-// Middleware is intentionally typed locally to avoid coupling the reducer to the public interface.
+
 type ActionNext = () => Promise<OneBotActionResponse>
 
 export * from './handlers'
