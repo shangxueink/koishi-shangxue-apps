@@ -1,0 +1,24 @@
+{
+  "name": "koishi-plugin-auto-config-on-install",
+  "description": "安装插件后自动创建一份 Koishi 配置",
+  "version": "0.1.0",
+  "main": "lib/index.js",
+  "typings": "lib/index.d.ts",
+  "files": [
+    "lib",
+    "src"
+  ],
+  "license": "MIT",
+  "keywords": [
+    "chatbot",
+    "koishi",
+    "plugin",
+    "market",
+    "config"
+  ],
+  "peerDependencies": {
+    "@koishijs/plugin-config": "^2.8.6",
+    "@koishijs/plugin-market": "^2.11.11",
+    "koishi": "^4.18.11"
+  }
+}
