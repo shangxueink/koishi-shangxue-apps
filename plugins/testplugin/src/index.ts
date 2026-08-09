@@ -1120,6 +1120,16 @@ https://ti.qq.com/new_open_qq/index.html?appid=64&url=mqqapi%3A%2F%2Fqqrobotaio%
       return;
     });
 
+  command
+    .subcommand('.网络图片')
+    .action(async ({ session }) => {
+
+      if (!session) return;
+      const aaa = h.image("https://koishi.chat/logo.png");
+      ctx.logger.info(aaa);
+      await session.send(aaa);
+      return;
+    });
 
   command
     .subcommand('.html视频')
