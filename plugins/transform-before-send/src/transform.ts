@@ -48,13 +48,18 @@ async function toAssetsElements(
     return null
   }
 
+  const ref = getResourceRef(element)
+  if (!ref) return null
+
   try {
-    const transformed = await ctx.assets.transform(element.toString())
+    const fileUrl = /^file:\/\//i.test(ref.source) ? ref.source : pathToFileURL(localPath).href
+    const sourceElement = h(element.type, { ...element.attrs, src: fileUrl, [ref.key]: fileUrl })
+    const transformed = await ctx.assets.transform(sourceElement.toString())
+    logger.debug(`assets 转换输入: ${fileUrl}`)
     logger.debug(`assets 转换结果: ${transformed.slice(0, 200)}`)
     const parsed = h.parse(transformed)
     if (!parsed.length) return null
 
-    const ref = getResourceRef(element)
     if (parsed.length === 1 && parsed[0].type === 'text' && ref) {
       element.attrs[ref.key] = transformed.trim()
       return [element]
