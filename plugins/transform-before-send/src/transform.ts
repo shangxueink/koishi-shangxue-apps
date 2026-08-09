@@ -50,6 +50,7 @@ async function toAssetsElements(
 
   try {
     const transformed = await ctx.assets.transform(element.toString())
+    logger.debug(`assets 转换结果: ${transformed.slice(0, 200)}`)
     const parsed = h.parse(transformed)
     if (!parsed.length) return null
 
@@ -93,7 +94,8 @@ async function transformElements(
     if (ref && isLocalResource(ref.source)) {
       const localPath = resolveLocalPath(ref.source, ctx.baseDir)
       if (localPath) {
-        logger.debug(`转换本地资源: ${element.type} -> ${localPath}`)
+        logger.debug(`转换本地资源: ${element.type} src=${ref.source}`)
+        logger.debug(`解析本地路径: ${localPath}`)
 
         // 默认 assets 服务只处理 img/audio/video，文件元素回退为 base64
         if (config.mode === 'assets' && assetsSupportedTypes.has(element.type)) {
@@ -102,6 +104,7 @@ async function transformElements(
             elements.splice(index, 1, ...replaced)
             index += replaced.length - 1
             state.changed = true
+            logger.debug(`转换完成: ${element.type} ${ref.key}=${element.attrs[ref.key]}`)
             continue
           }
         } else {
