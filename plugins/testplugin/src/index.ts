@@ -39,6 +39,16 @@ export function apply(ctx: Context) {
   });
 
   command
+    .subcommand('.selfrole')
+    .action(async ({ session }) => {
+
+      if (!session) return;
+      ctx.logger.info(session.bot.user.role);
+      return;
+    });
+
+
+  command
     .subcommand('.下班提醒')
     .action(async ({ session }) => {
 
@@ -229,6 +239,18 @@ export function apply(ctx: Context) {
   ctx.platform('qq').on("message", async (session) => {
     ctx.logger.info("quote内容： ", session.quote);
   });
+
+  ctx.platform('qq').on('guild-member-request', async (session) => {
+    if (!session.messageId) return
+
+    try {
+      // 自动同意入群申请
+      await session.bot.handleGuildMemberRequest(session.messageId, true)
+      ctx.logger.info('已自动同意入群申请: %s', session.messageId)
+    } catch (error) {
+      ctx.logger.warn('自动同意入群申请失败: %o', error)
+    }
+  })
 
   // ctx.platform('onebot').on('guild-member-added', async (session) => {
   //   ctx.logger.info('[guild-member-added] %o', session);
@@ -1215,6 +1237,21 @@ https://ti.qq.com/new_open_qq/index.html?appid=64&url=mqqapi%3A%2F%2Fqqrobotaio%
       return;
     });
 
+  command
+    .subcommand('.禁言')
+    .action(async ({ session }) => {
+      // 只处理群聊场景
+      if (!session?.guildId || !session.userId) {
+        return '请先在群聊中使用'
+      }
+
+      try {
+        await session.bot.muteGuildMember(session.guildId, session.userId, 30_000)
+        return '已禁言 30 秒'
+      } catch (error) {
+        return `禁言失败：${error.message}`
+      }
+    })
   command
     .subcommand('.at [...at]')
     .action(async ({ session }, ...at) => {
