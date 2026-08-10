@@ -42,7 +42,7 @@ export const command4Config = Schema.union([
 export function applyCommand4(ctx: Context, config: any, loggerinfo: (...args: any[]) => void, extractImageUrl: (session: Session, input: string) => Promise<string>) {
   if (!config.enablecommand4) return
 
-  ctx.command(`patina/${config.enablecommand4Name} <img1> <img2>`, `制作${config.enablecommand4Name}坦克图片`)
+  ctx.command(`patina/${config.enablecommand4Name} [img1] [img2]`, `制作${config.enablecommand4Name}坦克图片`)
     .example(`${config.enablecommand4Name}`)
     .example(`${config.enablecommand4Name} [图片]`)
     .example(`${config.enablecommand4Name} [图片] [图片]`)
@@ -85,15 +85,20 @@ export function applyCommand4(ctx: Context, config: any, loggerinfo: (...args: a
       loggerinfo(`里图URL: ${img1}`)
       loggerinfo(`表图URL: ${img2}`)
 
+      // 交互阶段只收集链接，等两张图都拿到后再统一下载
+      const innerUrl = img1
+      const coverUrl = img2
       const tempDir = await createTempDirectory('patina-prism')
       try {
+        const [innerImage, coverImage] = await Promise.all([
+          prepareStaticImage(ctx, innerUrl, tempDir),
+          prepareStaticImage(ctx, coverUrl, tempDir),
+        ])
+        loggerinfo(`里图 MIME: ${innerImage.mime}${innerImage.isGif ? ' (GIF首帧)' : ''}`)
+        loggerinfo(`表图 MIME: ${coverImage.mime}${coverImage.isGif ? ' (GIF首帧)' : ''}`)
+
         const page = await ctx.puppeteer.page()
         try {
-          const innerImage = await prepareStaticImage(ctx, img1, tempDir)
-          const coverImage = await prepareStaticImage(ctx, img2, tempDir)
-          loggerinfo(`里图 MIME: ${innerImage.mime}${innerImage.isGif ? ' (GIF首帧)' : ''}`)
-          loggerinfo(`表图 MIME: ${coverImage.mime}${coverImage.isGif ? ' (GIF首帧)' : ''}`)
-
           await page.goto(nodeurl.pathToFileURL(prismhtml).href, { waitUntil: 'networkidle2' })
 
           await page.click('#encodeButton')
@@ -220,7 +225,7 @@ export function applyCommand4(ctx: Context, config: any, loggerinfo: (...args: a
       }
     })
 
-  ctx.command(`patina/${config.enablecommand4Name2} <img>`, `从${config.enablecommand4Name}坦克图片中取出里图`)
+  ctx.command(`patina/${config.enablecommand4Name2} [img]`, `从${config.enablecommand4Name}坦克图片中取出里图`)
     .example(`${config.enablecommand4Name2}`)
     .example(`${config.enablecommand4Name2} [图片]`)
     .example(`${config.enablecommand4Name2} QQ号`)
@@ -252,11 +257,11 @@ export function applyCommand4(ctx: Context, config: any, loggerinfo: (...args: a
 
       const tempDir = await createTempDirectory('patina-decode')
       try {
+        const preparedImage = await prepareStaticImage(ctx, img, tempDir)
+        loggerinfo(`取图输入 MIME: ${preparedImage.mime}${preparedImage.isGif ? ' (GIF首帧)' : ''}`)
+
         const page = await ctx.puppeteer.page()
         try {
-          const preparedImage = await prepareStaticImage(ctx, img, tempDir)
-          loggerinfo(`取图输入 MIME: ${preparedImage.mime}${preparedImage.isGif ? ' (GIF首帧)' : ''}`)
-
           await page.goto(nodeurl.pathToFileURL(prismhtml).href, { waitUntil: 'networkidle2' })
 
           await page.click('#decodeButton')

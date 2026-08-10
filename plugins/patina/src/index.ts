@@ -17,7 +17,7 @@ export const inject = {
 export const usage = `
 <details>
 <summary>点击此处查看——幻影坦克</summary>
-<p>如果你需要更详细地了解这个项目，请前往 
+<p>如果你需要更详细地了解这个项目，请前往
 <a href="https://uyanide.github.io/Mirage_Colored/" target="_blank">https://uyanide.github.io/Mirage_Colored/</a>
 <h2>功能示例</h2>
 <ul>
@@ -43,7 +43,7 @@ export const usage = `
 
 <details>
 <summary>点击此处查看——像素化</summary>
-<p>如果你需要更详细地了解这个项目，请前往 
+<p>如果你需要更详细地了解这个项目，请前往
 <a href="https://lab.miguelmota.com/pixelate/example/" target="_blank">https://lab.miguelmota.com/pixelate/example/</a>
 <h2>功能示例</h2>
 <ul>
@@ -82,7 +82,7 @@ export const usage = `
 
 <details>
 <summary>点击此处查看——光棱坦克</summary>
-<p>如果你需要更详细地了解这个项目，请前往 
+<p>如果你需要更详细地了解这个项目，请前往
 <a href="https://prism.uyanide.com/" target="_blank">https://prism.uyanide.com/</a>
 <h2>功能示例</h2>
 <ul>
@@ -141,31 +141,37 @@ export const usage = `
 ---
 </body>
 </html>
+
+---
+
+此插件所需依赖 puppeteer、ffmpeg、canvas 服务
+
+---
 `;
 
 export const Config = Schema.intersect([
   Schema.object({
-    enablecommand1: Schema.boolean().description("是否启用此功能<br>`此指令需要puppeteer服务`").default(true),
+    enablecommand1: Schema.boolean().description("是否启用此功能").default(true),
   }).description('幻影坦克生成器'),
   command1Config,
 
   Schema.object({
-    enablecommand2: Schema.boolean().description("是否启用此功能<br>`此指令需要puppeteer服务`").default(true),
+    enablecommand2: Schema.boolean().description("是否启用此功能").default(true),
   }).description('像素化'),
   command2Config,
 
   Schema.object({
-    enablecommand3: Schema.boolean().description("是否启用此功能<br>`此指令需要puppeteer服务`").default(true),
+    enablecommand3: Schema.boolean().description("是否启用此功能").default(true),
   }).description('相机镜框滤镜'),
   command3Config,
 
   Schema.object({
-    enablecommand4: Schema.boolean().description("是否启用此功能<br>`此指令需要puppeteer服务`").default(true),
+    enablecommand4: Schema.boolean().description("是否启用此功能").default(true),
   }).description('光棱坦克生成器'),
   command4Config,
 
   Schema.object({
-    enablecommand5: Schema.boolean().description("是否启用此功能<br>`此指令需要ffmpeg、canvas服务`<br>此指令仅限onebot平台使用，且受限于手机qq显示。").default(true),
+    enablecommand5: Schema.boolean().description("是否启用此功能<br>此指令仅限onebot平台使用，且受限于手机qq显示。").default(true),
   }).description('原图坦克生成器'),
   command5Config,
 

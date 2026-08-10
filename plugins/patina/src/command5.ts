@@ -63,11 +63,14 @@ export function applyCommand5(ctx: Context, config: any, loggerinfo: (...args: a
 
       await session.send("正在处理图片，请稍候...");
 
+      // 两个链接都已拿到后再开始下载和处理
       const tempDir = await createTempDirectory('patina-original-tank');
       try {
         // 两张输入都统一转成静态图片，GIF 会先取第一帧再合成
-        const image1 = await prepareStaticImage(ctx, image1Url, tempDir);
-        const image2 = await prepareStaticImage(ctx, image2Url, tempDir);
+        const [image1, image2] = await Promise.all([
+          prepareStaticImage(ctx, image1Url, tempDir),
+          prepareStaticImage(ctx, image2Url, tempDir),
+        ]);
         loggerinfo(`第一张图片 MIME: ${image1.mime}${image1.isGif ? ' (GIF首帧)' : ''}`);
         loggerinfo(`第二张图片 MIME: ${image2.mime}${image2.isGif ? ' (GIF首帧)' : ''}`);
 

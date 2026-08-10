@@ -17,7 +17,7 @@ export const command2Config = Schema.union([
 export function applyCommand2(ctx: Context, config: any, loggerinfo: (...args: any[]) => void, extractImageUrl: (session: Session, input: string) => Promise<string>) {
   if (!config.enablecommand2) return;
 
-  ctx.command(`patina/${config.enablecommand2Name} <image>`, `${config.enablecommand2Name}一张图`)
+  ctx.command(`patina/${config.enablecommand2Name} [image]`, `${config.enablecommand2Name}一张图`)
     .example(`${config.enablecommand2Name}`)
     .example(`${config.enablecommand2Name} [图片]`)
     .example(`${config.enablecommand2Name} QQ号`)

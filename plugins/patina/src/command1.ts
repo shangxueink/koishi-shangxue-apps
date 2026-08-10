@@ -21,7 +21,7 @@ export const command1Config = Schema.union([
 export function applyCommand1(ctx: Context, config: any, loggerinfo: (...args: any[]) => void, extractImageUrl: (session: Session, input: string) => Promise<string>) {
   if (!config.enablecommand1) return;
 
-  ctx.command(`patina/${config.enablecommand1Name} <img1> <img2>`, `制作${config.enablecommand1Name}坦克图片`)
+  ctx.command(`patina/${config.enablecommand1Name} [img1] [img2]`, `制作${config.enablecommand1Name}坦克图片`)
     .example(`${config.enablecommand1Name}`)
     .example(`${config.enablecommand1Name} [图片]`)
     .example(`${config.enablecommand1Name} [图片] [图片]`)
@@ -61,11 +61,16 @@ export function applyCommand1(ctx: Context, config: any, loggerinfo: (...args: a
       loggerinfo(`图片URL1: ${img1}`);
       loggerinfo(`图片URL2: ${img2}`);
 
+      // 交互阶段只收集链接，等两张图都拿到后再统一下载
+      const coverUrl = img1;
+      const innerUrl = img2;
       const tempDir = await createTempDirectory('patina-mirage');
       try {
         // 统一先转成静态图片，GIF 会在这里提取第一帧
-        const coverImage = await prepareStaticImage(ctx, img1, tempDir);
-        const innerImage = await prepareStaticImage(ctx, img2, tempDir);
+        const [coverImage, innerImage] = await Promise.all([
+          prepareStaticImage(ctx, coverUrl, tempDir),
+          prepareStaticImage(ctx, innerUrl, tempDir),
+        ]);
         loggerinfo(`表图 MIME: ${coverImage.mime}${coverImage.isGif ? ' (GIF首帧)' : ''}`);
         loggerinfo(`里图 MIME: ${innerImage.mime}${innerImage.isGif ? ' (GIF首帧)' : ''}`);
 
@@ -140,7 +145,7 @@ export function applyCommand1(ctx: Context, config: any, loggerinfo: (...args: a
       }
     });
 
-  ctx.command(`patina/${config.enablecommand1Name2} <img>`, `将${config.enablecommand1Name}坦克图片拆成黑底和白底两张图`)
+  ctx.command(`patina/${config.enablecommand1Name2} [img]`, `将${config.enablecommand1Name}坦克图片拆成黑底和白底两张图`)
     .example(`${config.enablecommand1Name2}`)
     .example(`${config.enablecommand1Name2} [图片]`)
     .example(`${config.enablecommand1Name2} QQ号`)
@@ -168,11 +173,11 @@ export function applyCommand1(ctx: Context, config: any, loggerinfo: (...args: a
 
       const tempDir = await createTempDirectory('patina-mirage-split');
       try {
+        const preparedImage = await prepareStaticImage(ctx, img, tempDir);
+        loggerinfo(`拆分输入 MIME: ${preparedImage.mime}${preparedImage.isGif ? ' (GIF首帧)' : ''}`);
+
         const page = await ctx.puppeteer.page();
         try {
-          const preparedImage = await prepareStaticImage(ctx, img, tempDir);
-          loggerinfo(`拆分输入 MIME: ${preparedImage.mime}${preparedImage.isGif ? ' (GIF首帧)' : ''}`);
-
           await page.goto(nodeurl.pathToFileURL(splitHtml).href, { waitUntil: 'networkidle2' });
 
           // 通过 file chooser 传入本地原始文件，避免 data URL 或聊天转码破坏透明通道

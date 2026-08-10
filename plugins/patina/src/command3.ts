@@ -22,7 +22,7 @@ export const command3Config = Schema.union([
 export function applyCommand3(ctx: Context, config: any, loggerinfo: (...args: any[]) => void, extractImageUrl: (session: Session, input: string) => Promise<string>) {
   if (!config.enablecommand3) return;
 
-  ctx.command(`patina/${config.enablecommand3Name} <image>`, `为图片添加${config.enablecommand3Name}`)
+  ctx.command(`patina/${config.enablecommand3Name} [image]`, `为图片添加${config.enablecommand3Name}`)
     .example(`${config.enablecommand3Name}`)
     .example(`${config.enablecommand3Name} [图片]`)
     .example(`${config.enablecommand3Name} QQ号`)
