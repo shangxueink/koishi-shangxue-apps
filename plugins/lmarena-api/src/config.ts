@@ -72,8 +72,8 @@ export const Config: Schema<Config> = Schema.intersect([
   }).description("完整指令配置"),
 
   Schema.object({
-    loggerinfo: Schema.boolean().default(false).description("日志调试模式"),
     extraBodyCompat: Schema.boolean().default(false).description("extra_body字段兼容模式<br>开启后 generations 请求会把 image / response_format 放到 extra_body 中"),
+    loggerinfo: Schema.boolean().default(false).description("日志调试模式"),
   }).description("调试设置"),
 ]) as Schema<Config>
 
