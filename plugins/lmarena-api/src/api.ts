@@ -61,7 +61,7 @@ export async function callImageApi(ctx: Context, files: ImageFile[], prompt: str
       const responseContentType = response.headers.get("content-type") || ""
       if (responseContentType.includes("application/json")) {
         try {
-          options.log.info("API响应:", await response.clone().json())
+          options.log.info("API响应:", sanitizeApiResponse(await response.clone().json()))
         } catch {}
       }
     }
@@ -163,14 +163,14 @@ function logRequest(options: ImageApiOptions, mode: string, files: ImageFile[], 
 
   const params: Record<string, unknown> = { ...options.apiParams }
   const imageKey = Object.keys(params).find(key => params[key] === "{{inputimage}}")
-  if (imageKey) params[imageKey] = `[${files.length} 张 base64]`
+  if (imageKey) params[imageKey] = `[${files.length}张base64]`
   if (params.prompt === "{{prompt}}") {
     params.prompt = prompt.substring(0, 100) + (prompt.length > 100 ? "..." : "")
   }
   if (mode === "generations") {
     delete params.type
     if (options.extraBodyCompat) {
-      const imageValue = imageKey ? params[imageKey] : `[${files.length} 张 base64]`
+      const imageValue = imageKey ? params[imageKey] : `[${files.length}张base64]`
       params.extra_body = {
         image: imageValue,
         response_format: params.response_format || "b64_json",
@@ -187,6 +187,24 @@ function logRequest(options: ImageApiOptions, mode: string, files: ImageFile[], 
     mode,
     ...params,
   })
+}
+
+// 日志脱敏：响应里的 base64 内容只保留占位符，避免刷屏
+function sanitizeApiResponse(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map(item => sanitizeApiResponse(item))
+  }
+  if (!value || typeof value !== "object") return value
+
+  const result: Record<string, unknown> = {}
+  for (const [key, item] of Object.entries(value)) {
+    if ((key === "b64_json" || key === "image") && typeof item === "string") {
+      result[key] = item ? "[1张base64]" : item
+      continue
+    }
+    result[key] = sanitizeApiResponse(item)
+  }
+  return result
 }
 
 // agnes 的 extra_body 文档使用带 MIME 前缀的 data URI
