@@ -256,6 +256,26 @@ export class BilibiliParser {
     }
 
     // 实际处理单个视频任务
+    // 生成带后缀的视频文件名，QQ 超限转文件时保留扩展名
+    private getVideoFileName(title: string, source: string, mimeType?: string): string {
+        const extensionMap: Record<string, string> = {
+            'video/mp4': 'mp4',
+            'video/webm': 'webm',
+            'video/quicktime': 'mov',
+            'video/x-flv': 'flv',
+            'video/ogg': 'ogv',
+            'video/x-matroska': 'mkv',
+        };
+        const mimeKey = mimeType ? mimeType.split(';')[0].trim() : '';
+        const urlExtMatch = source.startsWith('data:') ? null : /\.([a-z0-9]+)(?:\?|#|$)/i.exec(source);
+        const extension = extensionMap[mimeKey] || (urlExtMatch ? urlExtMatch[1].toLowerCase() : '') || 'mp4';
+        const safeTitle = (title || 'bilibili-video')
+            .replace(/[\\/:*?"<>|\r\n]+/g, '_')
+            .replace(/[. ]+$/g, '')
+            .slice(0, 80);
+        return `${safeTitle || 'bilibili-video'}.${extension}`;
+    }
+
     private async processVideoTask(session: Session, ret: string, options: { video?: boolean; audio?: boolean; link?: boolean } = { video: true }) {
         const lastretUrl = this.extractLastUrl(ret);
         this.logInfo(`处理视频: ${lastretUrl}`);
@@ -311,6 +331,8 @@ export class BilibiliParser {
 
                 if (responseData.code === 0 && responseData.msg === "video" && responseData.data) {
                     const { bvid, cid, video } = responseData.data;
+                    const videoTitle = responseData.data?.title || responseData.data?.video?.title || bvid || 'bilibili-video';
+                    let videoName = this.getVideoFileName(videoTitle, video.url);
                     const bilibiliUrl = `https://api.bilibili.com/x/player/playurl?fnval=80&cid=${cid}&bvid=${bvid}`;
                     const playData: any = await this.ctx.http.get(bilibiliUrl);
 
@@ -407,6 +429,7 @@ export class BilibiliParser {
                                         // 获取 MIME 类型
                                         const contentType = response.headers.get('content-type');
                                         const mimeType = contentType ? contentType.split(';')[0].trim() : 'video/mp4';
+                                        videoName = this.getVideoFileName(videoTitle, video.url, mimeType);
 
                                         this.logInfo(`[下载] 读取响应体...`);
                                         // 读取响应体并转换
@@ -459,7 +482,7 @@ export class BilibiliParser {
                                         videoElements.push(h.text(video.url));
                                     }
                                     if (this.config.videoParseComponents.includes('video')) {
-                                        videoElements.push(h.video(videoData));
+                                        videoElements.push(h.video(videoData, { name: videoName, title: videoName }));
                                     }
                                 }
                             } else {
