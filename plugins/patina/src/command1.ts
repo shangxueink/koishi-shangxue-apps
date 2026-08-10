@@ -45,16 +45,24 @@ export function applyCommand1(ctx: Context, config: any, loggerinfo: (...args: a
         await session.send("请发送一张图片作为【表图】：");
         img1 = await session.prompt(30000);
       }
-      img1 = await extractImageUrl(session, img1);
 
       // 获取里图
       if (!img2) {
         await session.send("请发送一张图片作为【里图】：");
         img2 = await session.prompt(30000);
       }
-      img2 = await extractImageUrl(session, img2);
 
       if (!img1 || !img2) {
+        await session.send("未检测到有效的图片，请重试。");
+        return;
+      }
+
+      // 两张图都收到后再提取链接，交互阶段不下载图片
+      const [coverUrl, innerUrl] = await Promise.all([
+        extractImageUrl(session, img1),
+        extractImageUrl(session, img2),
+      ]);
+      if (!coverUrl || !innerUrl) {
         await session.send("未检测到有效的图片，请重试。");
         return;
       }
@@ -62,8 +70,6 @@ export function applyCommand1(ctx: Context, config: any, loggerinfo: (...args: a
       loggerinfo(`图片URL2: ${img2}`);
 
       // 交互阶段只收集链接，等两张图都拿到后再统一下载
-      const coverUrl = img1;
-      const innerUrl = img2;
       const tempDir = await createTempDirectory('patina-mirage');
       try {
         // 统一先转成静态图片，GIF 会在这里提取第一帧

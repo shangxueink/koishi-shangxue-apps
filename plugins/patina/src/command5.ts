@@ -44,21 +44,24 @@ export function applyCommand5(ctx: Context, config: any, loggerinfo: (...args: a
         img1 = await session.prompt(30000);
       }
 
-      const image1Url = await extractImageUrl(session, img1);
-      if (!image1Url) {
-        return "未检测到有效的图片，请重试。";
-      }
-      loggerinfo(`第一张图片（表图）URL: ${image1Url}`);
-
       if (!img2) {
         await session.send("请发送第二张图片（里图）");
         img2 = await session.prompt(30000);
       }
 
-      const image2Url = await extractImageUrl(session, img2);
-      if (!image2Url) {
+      if (!img1 || !img2) {
         return "未检测到有效的图片，请重试。";
       }
+
+      // 两张图都收到后再提取链接，交互阶段不下载图片
+      const [image1Url, image2Url] = await Promise.all([
+        extractImageUrl(session, img1),
+        extractImageUrl(session, img2),
+      ]);
+      if (!image1Url || !image2Url) {
+        return "未检测到有效的图片，请重试。";
+      }
+      loggerinfo(`第一张图片（表图）URL: ${image1Url}`);
       loggerinfo(`第二张图片（里图）URL: ${image2Url}`);
 
       await session.send("正在处理图片，请稍候...");

@@ -70,15 +70,23 @@ export function applyCommand4(ctx: Context, config: any, loggerinfo: (...args: a
         await session.send("请发送一张图片作为【里图】：")
         img1 = await session.prompt(30000)
       }
-      img1 = await extractImageUrl(session, img1)
 
       if (!img2) {
         await session.send("请发送一张图片作为【表图】：")
         img2 = await session.prompt(30000)
       }
-      img2 = await extractImageUrl(session, img2)
 
       if (!img1 || !img2) {
+        await session.send("未检测到有效的图片，请重试。")
+        return
+      }
+
+      // 两张图都收到后再提取链接，交互阶段不下载图片
+      const [innerUrl, coverUrl] = await Promise.all([
+        extractImageUrl(session, img1),
+        extractImageUrl(session, img2),
+      ])
+      if (!innerUrl || !coverUrl) {
         await session.send("未检测到有效的图片，请重试。")
         return
       }
@@ -86,8 +94,6 @@ export function applyCommand4(ctx: Context, config: any, loggerinfo: (...args: a
       loggerinfo(`表图URL: ${img2}`)
 
       // 交互阶段只收集链接，等两张图都拿到后再统一下载
-      const innerUrl = img1
-      const coverUrl = img2
       const tempDir = await createTempDirectory('patina-prism')
       try {
         const [innerImage, coverImage] = await Promise.all([
