@@ -23,6 +23,7 @@ export interface Config {
   currency: string
   monetaryCost: number
   commandAuthority: number
+  extraBodyCompat: boolean
 }
 
 export const Config: Schema<Config> = Schema.intersect([
@@ -72,6 +73,7 @@ export const Config: Schema<Config> = Schema.intersect([
 
   Schema.object({
     loggerinfo: Schema.boolean().default(false).description("日志调试模式"),
+    extraBodyCompat: Schema.boolean().default(false).description("extra_body字段兼容模式<br>开启后 generations 请求会把 image / response_format 放到 extra_body 中"),
   }).description("调试设置"),
 ]) as Schema<Config>
 

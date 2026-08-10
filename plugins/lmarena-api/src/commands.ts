@@ -130,6 +130,7 @@ export function registerCommands(ctx: Context, config: Config, log: AppLogger): 
               apiKey: config.apiKey,
               apiMode: config.apiMode,
               apiParams: config.apiParams,
+              extraBodyCompat: config.extraBodyCompat,
               log,
             })
 

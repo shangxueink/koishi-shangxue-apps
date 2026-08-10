@@ -13,6 +13,7 @@ export interface ImageApiOptions {
   apiKey: string
   apiMode: ApiMode
   apiParams: Record<string, string>
+  extraBodyCompat: boolean
   log: AppLogger
 }
 
@@ -39,7 +40,7 @@ interface ApiErrorResponse {
 export async function callImageApi(ctx: Context, files: ImageFile[], prompt: string, options: ImageApiOptions): Promise<string[] | string | null> {
   const mode = resolveApiMode(options.apiMode, options.apiUrl)
   const body = mode === "generations"
-    ? JSON.stringify(buildJsonBody(files, prompt, options.apiParams))
+    ? JSON.stringify(buildJsonBody(files, prompt, options.apiParams, options.extraBodyCompat))
     : buildFormBody(files, prompt, options.apiParams)
 
   logRequest(options, mode, files, prompt)
@@ -89,16 +90,25 @@ function resolveApiMode(mode: ApiMode, apiUrl: string): "edits" | "generations" 
   return "edits"
 }
 
-// generations 接口要求 JSON body，image 占位符替换为不带 data: 前缀的 base64 数组
-function buildJsonBody(files: ImageFile[], prompt: string, apiParams: Record<string, string>): Record<string, unknown> {
+// generations 接口要求 JSON body；extraBodyCompat 模式下按 agnes 文档把 image/response_format 放入 extra_body
+function buildJsonBody(files: ImageFile[], prompt: string, apiParams: Record<string, string>, extraBodyCompat: boolean): Record<string, unknown> {
   const body: Record<string, unknown> = {}
+  const extraBody: Record<string, unknown> = {}
 
   for (const key in apiParams) {
     const value = apiParams[key]
-    // agnes 等 generations 模型不接受 response_format / type，省略后仍会把返回 URL 转成 Base64
-    if (key === "response_format" || key === "type") continue
+    // type 是旧配置遗留参数，generations 协议不需要
+    if (key === "type") continue
     if (value === "{{inputimage}}") {
-      body[key] = files.map(file => Buffer.from(file.data).toString("base64"))
+      if (extraBodyCompat) {
+        extraBody.image = files.map(file => toDataUri(file))
+      } else {
+        body[key] = files.map(file => Buffer.from(file.data).toString("base64"))
+      }
+      continue
+    }
+    if (key === "response_format") {
+      if (extraBodyCompat) extraBody.response_format = value
       continue
     }
     if (value === "{{prompt}}") {
@@ -106,6 +116,14 @@ function buildJsonBody(files: ImageFile[], prompt: string, apiParams: Record<str
       continue
     }
     body[key] = normalizeJsonValue(value)
+  }
+
+  if (extraBodyCompat) {
+    if (files.length > 0 && !extraBody.image) {
+      extraBody.image = files.map(file => toDataUri(file))
+    }
+    extraBody.response_format = extraBody.response_format || "b64_json"
+    body.extra_body = extraBody
   }
 
   return body
@@ -143,15 +161,25 @@ function normalizeJsonValue(value: string): string | number | boolean {
 function logRequest(options: ImageApiOptions, mode: string, files: ImageFile[], prompt: string) {
   if (!options.log.enabled) return
 
-  const params = { ...options.apiParams }
+  const params: Record<string, unknown> = { ...options.apiParams }
   const imageKey = Object.keys(params).find(key => params[key] === "{{inputimage}}")
   if (imageKey) params[imageKey] = `[${files.length} 张 base64]`
   if (params.prompt === "{{prompt}}") {
     params.prompt = prompt.substring(0, 100) + (prompt.length > 100 ? "..." : "")
   }
   if (mode === "generations") {
-    delete params.response_format
     delete params.type
+    if (options.extraBodyCompat) {
+      const imageValue = imageKey ? params[imageKey] : `[${files.length} 张 base64]`
+      params.extra_body = {
+        image: imageValue,
+        response_format: params.response_format || "b64_json",
+      }
+      if (imageKey) delete params[imageKey]
+      delete params.response_format
+    } else {
+      delete params.response_format
+    }
   }
 
   options.log.info("API请求参数:", {
@@ -159,6 +187,11 @@ function logRequest(options: ImageApiOptions, mode: string, files: ImageFile[], 
     mode,
     ...params,
   })
+}
+
+// agnes 的 extra_body 文档使用带 MIME 前缀的 data URI
+function toDataUri(file: ImageFile): string {
+  return `data:${file.mime};base64,${Buffer.from(file.data).toString("base64")}`
 }
 
 async function parseImageResponse(ctx: Context, response: Response, log: AppLogger): Promise<string[] | string | null> {
