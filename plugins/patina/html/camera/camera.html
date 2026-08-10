@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+body { margin: 0; }
+#container {
+position: relative;
+width: 1080px;
+height: 2400px;
+}
+#userImage {
+position: absolute;
+top: 9.82%;
+left: 0;
+width: 100%;
+height: 70%;
+object-fit: __OBJECT_FIT_STYLE__;
+z-index: 1;
+}
+#cameraFrame {
+position: absolute;
+top: 0;
+left: 0;
+width: 100%;
+height: 100%;
+z-index: 2;
+}
+</style>
+</head>
+<body>
+<div id="container">
+<img id="userImage" src="__USER_IMAGE_SRC__" />
+<img id="cameraFrame" src="__CAMERA_FRAME_SRC__" />
+</div>
+</body>
+</html>
