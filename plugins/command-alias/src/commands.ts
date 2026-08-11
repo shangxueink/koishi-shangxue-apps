@@ -60,12 +60,14 @@ export function registerCommands(
   ).userFields(['authority']).action(async ({ session }, raw, alias) => {
     const groupId = getGroupId(session)
     if (!groupId) return '无法获取当前群组信息'
-    if (!hasManagePermission(session, config)) return '您没有权限执行此操作'
-    if (containsMedia(session)) return '别名设置只允许文字参数，不能包含图片'
+    if (!hasManagePermission(session, config)) return '你没有权限设置别名'
 
     let rawName = normalizeCommandName(raw)
     const aliasName = normalizeCommandName(alias)
-    if (!rawName || !aliasName) return '请提供原始指令名称和别名名称'
+    if (!rawName || !aliasName) {
+      return `请使用以下指令进行别名设置【${config.baseCommand}.${config.addCommand} 原指令 别名】`
+    }
+    if (containsMedia(session)) return '别名设置只允许文字参数，不能包含图片'
     if (isKnownCommandName(ctx, aliasName)) return '别名不能与已有指令或指令别名重名'
 
     const excluded = getCommandNames(config)
@@ -88,12 +90,14 @@ export function registerCommands(
   ).userFields(['authority']).action(async ({ session }, raw, alias) => {
     const groupId = getGroupId(session)
     if (!groupId) return '无法获取当前群组信息'
-    if (!hasManagePermission(session, config)) return '您没有权限执行此操作'
-    if (containsMedia(session)) return '别名设置只允许文字参数，不能包含图片'
+    if (!hasManagePermission(session, config)) return '你没有权限删除别名'
 
     const rawName = normalizeCommandName(raw)
     const aliasName = normalizeCommandName(alias)
-    if (!rawName || !aliasName) return '请提供原始指令名称和别名名称'
+    if (!rawName || !aliasName) {
+      return `请使用以下指令进行别名删除【${config.baseCommand}.${config.removeCommand} 原指令 别名】`
+    }
+    if (containsMedia(session)) return '别名设置只允许文字参数，不能包含图片'
 
     const original = findOriginalCommand(ctx, getCommandNames(config), rawName)
     if (!original) return '未找到原始指令，无法删除对应别名'

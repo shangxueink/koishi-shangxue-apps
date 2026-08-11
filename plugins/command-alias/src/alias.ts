@@ -1,4 +1,4 @@
-import { Context, Session } from 'koishi'
+import { Context } from 'koishi'
 
 import { normalizeCommandName } from './command-info'
 import type { Config } from './config'
@@ -10,15 +10,33 @@ function normalizePrefixes(value: string | string[]): string[] {
   return Array.isArray(value) ? value : [value]
 }
 
-function isAliasMatch(session: Session, prefixes: string[], alias: string, currentCommand: string): boolean {
-  const normalizedAlias = normalizeCommandName(alias)
-  const normalizedCurrent = normalizeCommandName(currentCommand)
+interface ChannelWithAssignee {
+  assignee?: string
+}
 
-  if (session.isDirect && normalizedCurrent === normalizedAlias) {
-    return true
+function resolveAlias(
+  store: AliasStore,
+  platform: string,
+  groupId: string,
+  prefixes: string[],
+  currentCommand: string,
+): string | undefined {
+  const normalizedCurrent = normalizeCommandName(currentCommand)
+  const direct = store.resolve(platform, groupId, normalizedCurrent)
+  if (direct) return direct
+
+  for (const prefix of prefixes) {
+    if (!prefix) continue
+    const normalizedPrefix = normalizeCommandName(prefix)
+    if (!normalizedCurrent.startsWith(normalizedPrefix)) continue
+
+    const alias = normalizedCurrent.slice(normalizedPrefix.length)
+    if (!alias) continue
+    const rawCommand = store.resolve(platform, groupId, alias)
+    if (rawCommand) return rawCommand
   }
 
-  return prefixes.some((prefix) => normalizedCurrent === normalizeCommandName(prefix + alias))
+  return undefined
 }
 
 export function registerAliasMiddleware(
@@ -42,27 +60,20 @@ export function registerAliasMiddleware(
     const rawPrefixes = session.resolve(ctx.root.config.prefix ?? [])
     const prefixes = normalizePrefixes(rawPrefixes)
 
-    const entry = store.list(session.platform, groupId).find((item) => {
-      return isAliasMatch(session, prefixes, item.alias, currentCommand)
-    })
-
-    if (!entry) return next()
+    const rawCommand = resolveAlias(store, session.platform, groupId, prefixes, currentCommand)
+    if (!rawCommand) return next()
     if (hasAt && !atSelf) return next()
 
-    try {
-      const channel = await session.observeChannel(['assignee'])
-      if (channel.assignee && session.selfId !== channel.assignee) return next()
-    } catch (error) {
-      logger.warn('获取频道 assignee 信息失败', error)
-    }
+    const channel = session.channel as ChannelWithAssignee | undefined
+    if (channel?.assignee && session.selfId !== channel.assignee) return next()
 
-    const target = `${entry.rawCommand} ${remainingArgs}`.trim()
-    logger.debug(`用户 ${session.userId} 在群组 ${groupId} 触发别名 ${entry.alias} -> ${target}`)
+    const target = `${rawCommand} ${remainingArgs}`.trim()
+    logger.debug(`用户 ${session.userId} 在群组 ${groupId} 触发别名 ${currentCommand} -> ${target}`)
 
     try {
       await session.execute(target)
     } catch (error) {
-      logger.error(`执行别名 ${entry.alias} 对应的指令失败`, error)
+      logger.error(`执行别名 ${currentCommand} 对应的指令失败`, error)
     }
   }, true)
 }

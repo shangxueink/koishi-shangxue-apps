@@ -9,7 +9,7 @@ export interface AliasEntry {
 }
 
 export class AliasStore {
-  private entries = new Map<string, AliasEntry[]>()
+  private entries = new Map<string, Map<string, string>>()
 
   constructor(
     private readonly ctx: Context,
@@ -32,19 +32,25 @@ export class AliasStore {
   }
 
   list(platform: string, groupId: string): AliasEntry[] {
-    return this.entries.get(this.getKey(platform, groupId)) ?? []
+    const group = this.entries.get(this.getKey(platform, groupId))
+    if (!group) return []
+    return [...group].map(([alias, rawCommand]) => ({ rawCommand, alias }))
+  }
+
+  resolve(platform: string, groupId: string, alias: string): string | undefined {
+    return this.entries.get(this.getKey(platform, groupId))?.get(alias)
   }
 
   async load(): Promise<void> {
     try {
       const rows = await this.ctx.database.get(TABLE_NAME, {})
-      const grouped = new Map<string, AliasEntry[]>()
+      const grouped = new Map<string, Map<string, string>>()
 
       for (const row of rows) {
         const key = this.getKey(row.platform, row.groupId)
-        const list = grouped.get(key) ?? []
-        list.push({ rawCommand: row.rawCommand, alias: row.alias })
-        grouped.set(key, list)
+        const group = grouped.get(key) ?? new Map<string, string>()
+        group.set(row.alias, row.rawCommand)
+        grouped.set(key, group)
       }
 
       this.entries = grouped
@@ -55,15 +61,16 @@ export class AliasStore {
 
   async add(platform: string, groupId: string, rawCommand: string, alias: string): Promise<string> {
     const key = this.getKey(platform, groupId)
-    const current = this.list(platform, groupId)
+    const group = this.entries.get(key) ?? new Map<string, string>()
 
-    if (current.some((entry) => entry.alias === alias)) {
+    if (group.has(alias)) {
       return `别名「${alias}」已在当前群组存在`
     }
 
     try {
       await this.ctx.database.create(TABLE_NAME, { platform, groupId, rawCommand, alias })
-      this.entries.set(key, [...current, { rawCommand, alias }])
+      group.set(alias, rawCommand)
+      this.entries.set(key, group)
       return `已添加别名：${alias} -> ${rawCommand}`
     } catch (error) {
       this.logger.error('添加指令别名失败', error)
@@ -73,18 +80,21 @@ export class AliasStore {
 
   async remove(platform: string, groupId: string, rawCommand: string, alias: string): Promise<string> {
     const key = this.getKey(platform, groupId)
-    const current = this.list(platform, groupId)
-    const target = current.find((entry) => {
-      return entry.alias === alias && entry.rawCommand === rawCommand
-    })
+    const group = this.entries.get(key)
+    const currentRawCommand = group?.get(alias)
 
-    if (!target) {
+    if (!group || currentRawCommand !== rawCommand) {
       return `未找到别名：${alias} -> ${rawCommand}`
     }
 
     try {
       await this.ctx.database.remove(TABLE_NAME, { platform, groupId, alias })
-      this.entries.set(key, current.filter((entry) => entry !== target))
+      group.delete(alias)
+      if (group.size === 0) {
+        this.entries.delete(key)
+      } else {
+        this.entries.set(key, group)
+      }
       return `已删除别名：${alias} -> ${rawCommand}`
     } catch (error) {
       this.logger.error('删除指令别名失败', error)

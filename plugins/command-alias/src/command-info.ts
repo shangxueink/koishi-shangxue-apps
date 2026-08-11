@@ -5,8 +5,8 @@ export interface OriginalCommandInfo {
   aliases: string[]
 }
 
-export function normalizeCommandName(name: string): string {
-  return Command.normalize(name.trim())
+export function normalizeCommandName(name: string | null | undefined): string {
+  return Command.normalize((name ?? '').trim())
 }
 
 export function collectOriginalCommands(ctx: Context, excluded: ReadonlySet<string>): OriginalCommandInfo[] {
