@@ -31,6 +31,14 @@ function containsMedia(session: Session): boolean {
 }
 
 function formatAvailableCommands(ctx: Context, config: Config): string {
+  const overrideCommands = config.overrideCommands
+    .split(/\r?\n/)
+    .map((command) => command.trim())
+    .filter(Boolean)
+  if (overrideCommands.length > 0) {
+    return `可设置别名的原始指令：\n${overrideCommands.join('\n')}`
+  }
+
   const commands = collectOriginalCommands(ctx, getCommandNames(config))
   if (commands.length === 0) {
     return '当前没有可设置别名的原始指令'

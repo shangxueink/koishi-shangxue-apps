@@ -11,6 +11,7 @@ export interface Config {
   availableCommand: string
   permissionMode: PermissionMode
   authorityThreshold: number
+  overrideCommands: string
   loggerinfo: boolean
 }
 
@@ -32,6 +33,10 @@ export const Config: Schema<Config> = Schema.intersect([
     authorityThreshold: Schema.number().min(0).max(5).step(1).default(2)
       .description('authority 大于该数值的人可以管理别名'),
   }).description('权限设置'),
+  Schema.object({
+    overrideCommands: Schema.string().role('textarea', { rows: [2, 4] })
+      .description('覆盖【指令别名.可用指令】指令输出：每行一个指令；留空时输出全部真实指令'),
+  }).description('覆盖指令输出'),
   Schema.object({
     loggerinfo: Schema.boolean().default(false).description('调试日志开关').experimental(),
   }).description('调试设置'),
