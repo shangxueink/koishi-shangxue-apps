@@ -1,0 +1,28 @@
+{
+  "name": "koishi-plugin-command-alias",
+  "description": "按频道配置指令别名，并通过中间件触发原始指令",
+  "version": "0.1.0",
+  "main": "lib/index.js",
+  "typings": "lib/index.d.ts",
+  "files": [
+    "lib",
+    "src"
+  ],
+  "license": "MIT",
+  "keywords": [
+    "bot",
+    "chatbot",
+    "koishi",
+    "plugin",
+    "command",
+    "alias",
+    "指令别名"
+  ],
+  "homepage": "https://github.com/koishi-shangxue-plugins/koishi-shangxue-apps/tree/main/",
+  "bugs": {
+    "url": "https://github.com/koishi-shangxue-plugins/koishi-shangxue-apps/issues"
+  },
+  "peerDependencies": {
+    "koishi": "^4.18.0"
+  }
+}

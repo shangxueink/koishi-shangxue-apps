@@ -784,7 +784,7 @@ https://ti.qq.com/new_open_qq/index.html?appid=64&url=mqqapi%3A%2F%2Fqqrobotaio%
       const rawData = session.event._data;
       const username = rawData?.d?.author?.username;
       ctx.logger.info(username);
-      // ctx.logger.info(session.bot.ctx.koishi.config.autoAuthorize);
+      // ctx.logger.info(session.bot.ctx.root.config.autoAuthorize);
       return;
     });
 
