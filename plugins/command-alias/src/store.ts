@@ -9,7 +9,7 @@ export interface AliasEntry {
 }
 
 export class AliasStore {
-  private entries = new Map<string, Map<string, string>>()
+  private entries = new Map<string, Map<string, string[]>>()
 
   constructor(
     private readonly ctx: Context,
@@ -34,22 +34,32 @@ export class AliasStore {
   list(platform: string, groupId: string): AliasEntry[] {
     const group = this.entries.get(this.getKey(platform, groupId))
     if (!group) return []
-    return [...group].map(([alias, rawCommand]) => ({ rawCommand, alias }))
+    const entries: AliasEntry[] = []
+    for (const [alias, rawCommands] of group) {
+      for (const rawCommand of rawCommands) {
+        entries.push({ rawCommand, alias })
+      }
+    }
+    return entries
   }
 
-  resolve(platform: string, groupId: string, alias: string): string | undefined {
-    return this.entries.get(this.getKey(platform, groupId))?.get(alias)
+  resolveAll(platform: string, groupId: string, alias: string): string[] {
+    return this.entries.get(this.getKey(platform, groupId))?.get(alias) ?? []
   }
 
   async load(): Promise<void> {
     try {
       const rows = await this.ctx.database.get(TABLE_NAME, {})
-      const grouped = new Map<string, Map<string, string>>()
+      const grouped = new Map<string, Map<string, string[]>>()
 
       for (const row of rows) {
         const key = this.getKey(row.platform, row.groupId)
-        const group = grouped.get(key) ?? new Map<string, string>()
-        group.set(row.alias, row.rawCommand)
+        const group = grouped.get(key) ?? new Map<string, string[]>()
+        const rawCommands = group.get(row.alias) ?? []
+        if (!rawCommands.includes(row.rawCommand)) {
+          rawCommands.push(row.rawCommand)
+        }
+        group.set(row.alias, rawCommands)
         grouped.set(key, group)
       }
 
@@ -61,15 +71,17 @@ export class AliasStore {
 
   async add(platform: string, groupId: string, rawCommand: string, alias: string): Promise<string> {
     const key = this.getKey(platform, groupId)
-    const group = this.entries.get(key) ?? new Map<string, string>()
+    const group = this.entries.get(key) ?? new Map<string, string[]>()
 
-    if (group.has(alias)) {
-      return `别名「${alias}」已在当前群组存在`
+    const rawCommands = group.get(alias) ?? []
+    if (rawCommands.includes(rawCommand)) {
+      return `原指令「${rawCommand}」已绑定别名「${alias}」`
     }
 
     try {
       await this.ctx.database.create(TABLE_NAME, { platform, groupId, rawCommand, alias })
-      group.set(alias, rawCommand)
+      rawCommands.push(rawCommand)
+      group.set(alias, rawCommands)
       this.entries.set(key, group)
       return `已添加别名：${alias} -> ${rawCommand}`
     } catch (error) {
@@ -81,15 +93,20 @@ export class AliasStore {
   async remove(platform: string, groupId: string, rawCommand: string, alias: string): Promise<string> {
     const key = this.getKey(platform, groupId)
     const group = this.entries.get(key)
-    const currentRawCommand = group?.get(alias)
+    const rawCommands = group?.get(alias)
 
-    if (!group || currentRawCommand !== rawCommand) {
+    if (!group || !rawCommands?.includes(rawCommand)) {
       return `未找到别名：${alias} -> ${rawCommand}`
     }
 
     try {
-      await this.ctx.database.remove(TABLE_NAME, { platform, groupId, alias })
-      group.delete(alias)
+      await this.ctx.database.remove(TABLE_NAME, { platform, groupId, alias, rawCommand })
+      rawCommands.splice(rawCommands.indexOf(rawCommand), 1)
+      if (rawCommands.length === 0) {
+        group.delete(alias)
+      } else {
+        group.set(alias, rawCommands)
+      }
       if (group.size === 0) {
         this.entries.delete(key)
       } else {

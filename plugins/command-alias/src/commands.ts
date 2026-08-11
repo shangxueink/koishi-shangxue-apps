@@ -55,20 +55,20 @@ export function registerCommands(
   ctx.command(config.baseCommand, '管理当前频道的指令别名')
 
   ctx.command(
-    `${config.baseCommand}.${config.addCommand} <raw:string> <alias:string>`,
+    `${config.baseCommand}.${config.addCommand} <alias:string> <raw:string>`,
     '为当前群组添加指令别名',
-  ).userFields(['authority']).action(async ({ session }, raw, alias) => {
+  ).userFields(['authority']).action(async ({ session }, alias, raw) => {
     const groupId = getGroupId(session)
     if (!groupId) return '无法获取当前群组信息'
     if (!hasManagePermission(session, config)) return '你没有权限设置别名'
 
-    let rawName = normalizeCommandName(raw)
     const aliasName = normalizeCommandName(alias)
-    if (!rawName || !aliasName) {
-      return `请使用以下指令进行别名设置【${config.baseCommand}.${config.addCommand} 原指令 别名】`
+    let rawName = normalizeCommandName(raw)
+    if (!aliasName || !rawName) {
+      return `请使用以下指令进行别名设置【${config.baseCommand}.${config.addCommand} 别名 指令名称】`
     }
     if (containsMedia(session)) return '别名设置只允许文字参数，不能包含图片'
-    if (isKnownCommandName(ctx, aliasName)) return '别名不能与已有指令或指令别名重名'
+    if (isKnownCommandName(ctx, aliasName)) return '别名不能与【已有的指令名称】重名'
 
     const excluded = getCommandNames(config)
     if (isKnownCommandName(ctx, rawName)) {
@@ -85,19 +85,33 @@ export function registerCommands(
   })
 
   ctx.command(
-    `${config.baseCommand}.${config.removeCommand} <raw:string> <alias:string>`,
-    '删除当前群组的指令别名',
-  ).userFields(['authority']).action(async ({ session }, raw, alias) => {
+    `${config.baseCommand}.${config.removeCommand} [alias:string] [raw:string]`,
+    '查看或删除当前群组的指令别名',
+  ).userFields(['authority']).action(async ({ session }, alias, raw) => {
     const groupId = getGroupId(session)
     if (!groupId) return '无法获取当前群组信息'
     if (!hasManagePermission(session, config)) return '你没有权限删除别名'
 
-    const rawName = normalizeCommandName(raw)
     const aliasName = normalizeCommandName(alias)
-    if (!rawName || !aliasName) {
-      return `请使用以下指令进行别名删除【${config.baseCommand}.${config.removeCommand} 原指令 别名】`
+    if (!aliasName) {
+      return `请使用以下指令进行别名删除【${config.baseCommand}.${config.removeCommand} 别名】`
     }
     if (containsMedia(session)) return '别名设置只允许文字参数，不能包含图片'
+
+    const rawName = normalizeCommandName(raw)
+    const boundRawCommands = store.resolveAll(session.platform, groupId, aliasName)
+    if (!rawName) {
+      if (boundRawCommands.length === 0) {
+        return `该别名未绑定任何原始指令`
+      }
+      const lines = boundRawCommands.map((rawCommand) => `${rawCommand} ： ${aliasName}`).join('\n')
+      const fullCommands = boundRawCommands.map((rawCommand) => {
+        return `${config.baseCommand}.${config.removeCommand} ${aliasName} ${rawCommand}`
+      })
+      const exampleCommand = fullCommands[0]
+      const moreSuffix = fullCommands.length > 1 ? '等' : ''
+      return `该别名绑定了以下原指令：\n${lines}\n请使用完整指令【${exampleCommand}】${moreSuffix}进行删除`
+    }
 
     const original = findOriginalCommand(ctx, getCommandNames(config), rawName)
     if (!original) return '未找到原始指令，无法删除对应别名'

@@ -14,16 +14,16 @@ interface ChannelWithAssignee {
   assignee?: string
 }
 
-function resolveAlias(
+function resolveAliases(
   store: AliasStore,
   platform: string,
   groupId: string,
   prefixes: string[],
   currentCommand: string,
-): string | undefined {
+): string[] {
   const normalizedCurrent = normalizeCommandName(currentCommand)
-  const direct = store.resolve(platform, groupId, normalizedCurrent)
-  if (direct) return direct
+  const direct = store.resolveAll(platform, groupId, normalizedCurrent)
+  if (direct.length > 0) return direct
 
   for (const prefix of prefixes) {
     if (!prefix) continue
@@ -32,11 +32,11 @@ function resolveAlias(
 
     const alias = normalizedCurrent.slice(normalizedPrefix.length)
     if (!alias) continue
-    const rawCommand = store.resolve(platform, groupId, alias)
-    if (rawCommand) return rawCommand
+    const rawCommands = store.resolveAll(platform, groupId, alias)
+    if (rawCommands.length > 0) return rawCommands
   }
 
-  return undefined
+  return []
 }
 
 export function registerAliasMiddleware(
@@ -60,20 +60,22 @@ export function registerAliasMiddleware(
     const rawPrefixes = session.resolve(ctx.root.config.prefix ?? [])
     const prefixes = normalizePrefixes(rawPrefixes)
 
-    const rawCommand = resolveAlias(store, session.platform, groupId, prefixes, currentCommand)
-    if (!rawCommand) return next()
+    const rawCommands = resolveAliases(store, session.platform, groupId, prefixes, currentCommand)
+    if (rawCommands.length === 0) return next()
     if (hasAt && !atSelf) return next()
 
     const channel = session.channel as ChannelWithAssignee | undefined
     if (channel?.assignee && session.selfId !== channel.assignee) return next()
 
-    const target = `${rawCommand} ${remainingArgs}`.trim()
-    logger.debug(`用户 ${session.userId} 在群组 ${groupId} 触发别名 ${currentCommand} -> ${target}`)
+    for (const rawCommand of rawCommands) {
+      const target = `${rawCommand} ${remainingArgs}`.trim()
+      logger.debug(`用户 ${session.userId} 在群组 ${groupId} 触发别名 ${currentCommand} -> ${target}`)
 
-    try {
-      await session.execute(target)
-    } catch (error) {
-      logger.error(`执行别名 ${currentCommand} 对应的指令失败`, error)
+      try {
+        await session.execute(target)
+      } catch (error) {
+        logger.error(`执行别名 ${currentCommand} 对应的指令失败`, error)
+      }
     }
   }, true)
 }
