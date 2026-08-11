@@ -1,7 +1,7 @@
 {
   "name": "koishi-plugin-scheduled-session",
   "description": "定时触发假 session，被动执行指令或发送消息",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "main": "lib/index.js",
   "typings": "lib/index.d.ts",
   "files": [
