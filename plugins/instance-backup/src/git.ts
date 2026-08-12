@@ -6,9 +6,10 @@ import type { PluginLogger } from './logger'
 
 function runGit(args: string[], cwd?: string): Promise<string> {
   return new Promise((resolve, reject) => {
-    execFile('git', args, { cwd, windowsHide: true }, (error, stdout) => {
+    execFile('git', args, { cwd, windowsHide: true }, (error, stdout, stderr) => {
       if (error) {
-        reject(error)
+        const detail = new Error(stderr ? `${error.message}\n${stderr.trim()}` : error.message)
+        reject(detail)
         return
       }
       resolve(stdout)

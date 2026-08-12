@@ -13,8 +13,9 @@ export function createBackupRunner(
 ): BackupRunner {
   let gitAvailable: boolean | null = null
   const gitDetection = isGitAvailable(logger)
+  let activeRun: Promise<BackupRunResult> | null = null
 
-  return async (): Promise<BackupRunResult> => {
+  const performBackup = async (): Promise<BackupRunResult> => {
     // 启动插件时即开始检测 Git 环境，首次备份时等待检测结果
     if (gitAvailable === null) {
       gitAvailable = await gitDetection
@@ -50,5 +51,18 @@ export function createBackupRunner(
       logger.error('备份失败：', error)
       return { ok: false, message: '备份失败，请查看日志' }
     }
+  }
+
+  return async (): Promise<BackupRunResult> => {
+    // 短时间内重复触发时复用正在执行的备份，避免 Git 索引锁冲突
+    if (activeRun) {
+      logger.debug('已有备份任务正在执行，本次指令将复用当前备份结果')
+      return activeRun
+    }
+
+    activeRun = performBackup().finally(() => {
+      activeRun = null
+    })
+    return activeRun
   }
 }

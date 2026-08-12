@@ -1,6 +1,8 @@
 import { Schema } from 'koishi'
 
 export interface Config {
+  /** 是否允许通过指令触发备份 */
+  enableBackupCommand: boolean
   /** 需要备份的文件或目录，相对 ctx.baseDir */
   backupList: string[]
   /** 备份存储目录，可填绝对路径或相对 ctx.baseDir 的路径 */
@@ -33,6 +35,12 @@ const backupItem = Schema.path({
 })
 
 export const Config: Schema<Config> = Schema.intersect([
+  Schema.object({
+    enableBackupCommand: Schema.boolean()
+      .default(true)
+      .description('是否开启备份指令，开启后可通过指令触发备份'),
+  }).description('备份指令'),
+
   Schema.object({
     backupList: Schema.array(backupItem)
       .role('table')

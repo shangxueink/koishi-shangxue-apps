@@ -16,7 +16,12 @@ export function apply(ctx: Context, config: PluginConfig): void {
   const performBackup = createBackupRunner(ctx, config, logger)
 
   ctx.on('ready', () => {
-    registerBackupCommand(ctx, performBackup)
+    if (config.enableBackupCommand) {
+      registerBackupCommand(ctx, performBackup)
+    } else {
+      logger.debug('备份指令已关闭，不再注册备份命令')
+    }
+
     disposers.push(registerBackupScheduler(ctx, config, performBackup))
 
     if (config.auto_cron && !ctx.cron) {
