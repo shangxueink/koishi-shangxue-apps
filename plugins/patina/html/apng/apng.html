@@ -1,0 +1,712 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <title>APNG 原图坦克</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 24px;
+      font-family: system-ui, sans-serif;
+      background: #f4f6f8;
+      color: #20242a;
+    }
+
+    section {
+      max-width: 760px;
+      margin: 0 auto 24px;
+      padding: 20px;
+      background: #fff;
+      border-radius: 8px;
+    }
+
+    h1, h2 {
+      margin: 0 0 12px;
+    }
+
+    .row {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    button {
+      border: 0;
+      border-radius: 6px;
+      padding: 8px 14px;
+      background: #1f6feb;
+      color: #fff;
+      cursor: pointer;
+    }
+
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .status {
+      margin-top: 12px;
+      min-height: 20px;
+      font-size: 13px;
+      color: #57606a;
+      white-space: pre-wrap;
+    }
+
+    .error {
+      color: #cf222e;
+    }
+  </style>
+</head>
+<body>
+  <h1>APNG 原图坦克</h1>
+
+  <section>
+    <h2>合成</h2>
+    <div class="row">
+      <label for="coverFileInput">选择表图</label>
+      <input id="coverFileInput" type="file" accept="image/*">
+      <label for="innerFileInput">选择里图</label>
+      <input id="innerFileInput" type="file" accept="image/*">
+      <button id="composeButton">合成 APNG</button>
+    </div>
+    <div id="composeStatus" class="status"></div>
+  </section>
+
+  <section>
+    <h2>提取</h2>
+    <div class="row">
+      <label for="apngFileInput">选择 APNG</label>
+      <input id="apngFileInput" type="file" accept="image/png">
+      <button id="extractButton">提取表图和里图</button>
+    </div>
+    <div id="extractStatus" class="status"></div>
+  </section>
+
+  <script>
+    'use strict'
+
+    const PNG_SIGNATURE = Uint8Array.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
+    const LAST_FRAME_DELAY_MS = 10000
+
+    const CRC_TABLE = (() => {
+      const table = new Uint32Array(256)
+      for (let n = 0; n < 256; n++) {
+        let value = n
+        for (let k = 0; k < 8; k++) {
+          value = (value & 1) ? (0xedb88320 ^ (value >>> 1)) : (value >>> 1)
+        }
+        table[n] = value >>> 0
+      }
+      return table
+    })()
+
+    function crc32(bytes) {
+      let crc = 0xffffffff
+      for (let i = 0; i < bytes.length; i++) {
+        crc = CRC_TABLE[(crc ^ bytes[i]) & 0xff] ^ (crc >>> 8)
+      }
+      return (crc ^ 0xffffffff) >>> 0
+    }
+
+    function concatBytes(parts) {
+      let length = 0
+      for (const part of parts) length += part.length
+      const result = new Uint8Array(length)
+      let offset = 0
+      for (const part of parts) {
+        result.set(part, offset)
+        offset += part.length
+      }
+      return result
+    }
+
+    function readU32(bytes, offset) {
+      return new DataView(bytes.buffer, bytes.byteOffset + offset, 4).getUint32(0, false)
+    }
+
+    function readU16(bytes, offset) {
+      return new DataView(bytes.buffer, bytes.byteOffset + offset, 2).getUint16(0, false)
+    }
+
+    function ascii(bytes, offset, length) {
+      let text = ''
+      for (let i = 0; i < length; i++) text += String.fromCharCode(bytes[offset + i])
+      return text
+    }
+
+    function pngChunk(type, data) {
+      const length = new Uint8Array(4)
+      new DataView(length.buffer).setUint32(0, data.length)
+      const typeBytes = Uint8Array.from(type, (char) => char.charCodeAt(0))
+      const crcBytes = new Uint8Array(4)
+      new DataView(crcBytes.buffer).setUint32(0, crc32(concatBytes([typeBytes, data])))
+      return concatBytes([length, typeBytes, data, crcBytes])
+    }
+
+    function parseChunks(bytes) {
+      if (bytes.length < 8) throw new Error('不是有效的 PNG 文件')
+      for (let i = 0; i < 8; i++) {
+        if (bytes[i] !== PNG_SIGNATURE[i]) throw new Error('不是有效的 PNG 文件')
+      }
+
+      const chunks = []
+      let offset = 8
+      while (offset + 12 <= bytes.length) {
+        const length = readU32(bytes, offset)
+        const type = ascii(bytes, offset + 4, 4)
+        const start = offset + 8
+        const end = start + length
+        if (end > bytes.length) throw new Error(`PNG chunk ${type} 数据不完整`)
+        chunks.push({ type, data: bytes.slice(start, end) })
+        offset = end + 4
+      }
+      return chunks
+    }
+
+    function findChunk(chunks, type) {
+      const chunk = chunks.find((item) => item.type === type)
+      if (!chunk) throw new Error(`PNG 缺少 ${type} chunk`)
+      return chunk
+    }
+
+    function parseIhdr(data) {
+      return {
+        width: readU32(data, 0),
+        height: readU32(data, 4),
+        bitDepth: data[8],
+        colorType: data[9],
+        interlace: data[12],
+      }
+    }
+
+    function parseFcTL(data) {
+      return {
+        width: readU32(data, 4),
+        height: readU32(data, 8),
+        xOffset: readU32(data, 12),
+        yOffset: readU32(data, 16),
+        delayNum: readU16(data, 20),
+        delayDen: readU16(data, 22),
+        disposeOp: data[24],
+        blendOp: data[25],
+      }
+    }
+
+    function readPalette(chunks) {
+      const plte = chunks.find((chunk) => chunk.type === 'PLTE')
+      if (!plte) return []
+      const palette = []
+      for (let offset = 0; offset + 2 < plte.data.length; offset += 3) {
+        palette.push([plte.data[offset], plte.data[offset + 1], plte.data[offset + 2]])
+      }
+      return palette
+    }
+
+    function readTrns(chunks) {
+      const trns = chunks.find((chunk) => chunk.type === 'tRNS')
+      return trns ? Array.from(trns.data) : []
+    }
+
+    function channelCount(colorType) {
+      if (colorType === 0 || colorType === 3) return 1
+      if (colorType === 2) return 3
+      if (colorType === 4) return 2
+      if (colorType === 6) return 4
+      throw new Error(`不支持的 PNG 颜色类型: ${colorType}`)
+    }
+
+    function paeth(left, up, upperLeft) {
+      const p = left + up - upperLeft
+      const pa = Math.abs(p - left)
+      const pb = Math.abs(p - up)
+      const pc = Math.abs(p - upperLeft)
+      if (pa <= pb && pa <= pc) return left
+      if (pb <= pc) return up
+      return upperLeft
+    }
+
+    function expandRow(row, output, destOffset, pixelCount, startX, stepX, info, palette, trns) {
+      const channels = channelCount(info.colorType)
+      let bitOffset = 0
+
+      for (let pixel = 0; pixel < pixelCount; pixel++) {
+        const samples = []
+        for (let channel = 0; channel < channels; channel++) {
+          if (info.bitDepth === 16) {
+            samples.push(row[Math.floor(bitOffset / 8)])
+            bitOffset += 16
+          } else if (info.bitDepth === 8) {
+            samples.push(row[Math.floor(bitOffset / 8)])
+            bitOffset += 8
+          } else {
+            const byteIndex = Math.floor(bitOffset / 8)
+            const shift = 8 - info.bitDepth - (bitOffset % 8)
+            const mask = (1 << info.bitDepth) - 1
+            samples.push((row[byteIndex] >> shift) & mask)
+            bitOffset += info.bitDepth
+          }
+        }
+
+        const target = destOffset + (startX + pixel * stepX) * 4
+        if (info.colorType === 0) {
+          output[target] = samples[0]
+          output[target + 1] = samples[0]
+          output[target + 2] = samples[0]
+          output[target + 3] = 255
+        } else if (info.colorType === 2) {
+          output[target] = samples[0]
+          output[target + 1] = samples[1]
+          output[target + 2] = samples[2]
+          output[target + 3] = 255
+        } else if (info.colorType === 3) {
+          const index = samples[0]
+          const color = palette[index] || [0, 0, 0]
+          output[target] = color[0]
+          output[target + 1] = color[1]
+          output[target + 2] = color[2]
+          output[target + 3] = trns[index] === undefined ? 255 : trns[index]
+        } else if (info.colorType === 4) {
+          output[target] = samples[0]
+          output[target + 1] = samples[0]
+          output[target + 2] = samples[0]
+          output[target + 3] = samples[1]
+        } else {
+          output[target] = samples[0]
+          output[target + 1] = samples[1]
+          output[target + 2] = samples[2]
+          output[target + 3] = samples[3]
+        }
+      }
+    }
+
+    function decodeRgba(raw, width, height, info, palette, trns) {
+      const channels = channelCount(info.colorType)
+      const bitsPerPixel = channels * info.bitDepth
+      const bytesPerPixel = Math.max(1, Math.floor(bitsPerPixel / 8))
+      const output = new Uint8Array(width * height * 4)
+      const passes = info.interlace === 1 ? [
+        { x: 0, y: 0, dx: 8, dy: 8 },
+        { x: 4, y: 0, dx: 8, dy: 8 },
+        { x: 0, y: 4, dx: 4, dy: 8 },
+        { x: 2, y: 0, dx: 4, dy: 4 },
+        { x: 0, y: 2, dx: 2, dy: 4 },
+        { x: 1, y: 0, dx: 2, dy: 2 },
+        { x: 0, y: 1, dx: 1, dy: 2 },
+      ] : [{ x: 0, y: 0, dx: 1, dy: 1 }]
+      let offset = 0
+
+      for (const pass of passes) {
+        const passWidth = Math.ceil((width - pass.x) / pass.dx)
+        const passHeight = Math.ceil((height - pass.y) / pass.dy)
+        if (passWidth <= 0 || passHeight <= 0) continue
+
+        const rowBytes = Math.ceil((passWidth * bitsPerPixel) / 8)
+        let previous = new Uint8Array(rowBytes)
+        for (let y = 0; y < passHeight; y++) {
+          const filter = raw[offset++]
+          const row = new Uint8Array(rowBytes)
+          for (let x = 0; x < rowBytes; x++) {
+            const left = x >= bytesPerPixel ? row[x - bytesPerPixel] : 0
+            const up = previous[x]
+            const upperLeft = x >= bytesPerPixel ? previous[x - bytesPerPixel] : 0
+            const value = raw[offset + x]
+            if (filter === 0) {
+              row[x] = value
+            } else if (filter === 1) {
+              row[x] = (value + left) & 0xff
+            } else if (filter === 2) {
+              row[x] = (value + up) & 0xff
+            } else if (filter === 3) {
+              row[x] = (value + Math.floor((left + up) / 2)) & 0xff
+            } else if (filter === 4) {
+              row[x] = (value + paeth(left, up, upperLeft)) & 0xff
+            } else {
+              throw new Error(`不支持的 PNG 滤波类型: ${filter}`)
+            }
+          }
+
+          const destY = pass.y + y * pass.dy
+          expandRow(
+            row,
+            output,
+            destY * width * 4,
+            passWidth,
+            pass.x,
+            pass.dx,
+            info,
+            palette,
+            trns,
+          )
+          previous = row
+          offset += rowBytes
+        }
+      }
+
+      return output
+    }
+
+    async function inflate(data) {
+      const stream = new DecompressionStream('deflate')
+      const writer = stream.writable.getWriter()
+      await writer.write(data)
+      await writer.close()
+
+      const reader = stream.readable.getReader()
+      const parts = []
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        parts.push(value)
+      }
+      return concatBytes(parts)
+    }
+
+    function clearRect(canvas, width, control) {
+      for (let y = 0; y < control.height; y++) {
+        for (let x = 0; x < control.width; x++) {
+          const target = ((control.yOffset + y) * width + control.xOffset + x) * 4
+          canvas[target] = 0
+          canvas[target + 1] = 0
+          canvas[target + 2] = 0
+          canvas[target + 3] = 0
+        }
+      }
+    }
+
+    function blendPixel(canvas, target, source, sourceOffset) {
+      const sa = source[sourceOffset + 3] / 255
+      const da = canvas[target + 3] / 255
+      const outA = sa + da * (1 - sa)
+      if (outA <= 0) {
+        canvas[target] = 0
+        canvas[target + 1] = 0
+        canvas[target + 2] = 0
+        canvas[target + 3] = 0
+        return
+      }
+      for (let channel = 0; channel < 3; channel++) {
+        canvas[target + channel] = Math.round(
+          (source[sourceOffset + channel] * sa + canvas[target + channel] * da * (1 - sa)) / outA,
+        )
+      }
+      canvas[target + 3] = Math.round(outA * 255)
+    }
+
+    function applyFrame(canvas, width, control, frame) {
+      for (let y = 0; y < control.height; y++) {
+        for (let x = 0; x < control.width; x++) {
+          const sourceOffset = (y * control.width + x) * 4
+          const target = ((control.yOffset + y) * width + control.xOffset + x) * 4
+          if (control.blendOp === 1) {
+            blendPixel(canvas, target, frame, sourceOffset)
+          } else {
+            canvas.set(frame.subarray(sourceOffset, sourceOffset + 4), target)
+          }
+        }
+      }
+    }
+
+    function composeFrames(width, height, controls, frameData) {
+      const canvas = new Uint8Array(width * height * 4)
+      const frames = []
+      for (let index = 0; index < controls.length; index++) {
+        const before = canvas.slice()
+        const control = controls[index]
+        applyFrame(canvas, width, control, frameData[index])
+        frames.push({ width, height, rgba: canvas.slice() })
+        if (control.disposeOp === 1) {
+          clearRect(canvas, width, control)
+        } else if (control.disposeOp === 2) {
+          canvas.set(before)
+        }
+      }
+      return frames
+    }
+
+    function defaultFrameControl(info) {
+      return {
+        width: info.width,
+        height: info.height,
+        xOffset: 0,
+        yOffset: 0,
+        delayNum: 1,
+        delayDen: 100,
+        disposeOp: 0,
+        blendOp: 0,
+      }
+    }
+
+    function isApng(bytes) {
+      return parseChunks(bytes).some((chunk) => chunk.type === 'acTL')
+    }
+
+    async function extractApngFrames(bytes) {
+      if (!isApng(bytes)) throw new Error('文件不是 APNG')
+
+      const chunks = parseChunks(bytes)
+      const info = parseIhdr(findChunk(chunks, 'IHDR').data)
+      const palette = readPalette(chunks)
+      const trns = readTrns(chunks)
+      const controls = []
+      const streams = []
+      let frameIndex = -1
+
+      for (const chunk of chunks) {
+        if (chunk.type === 'fcTL') {
+          controls.push(parseFcTL(chunk.data))
+          frameIndex++
+          streams[frameIndex] = new Uint8Array(0)
+        } else if (chunk.type === 'IDAT') {
+          if (frameIndex < 0) {
+            controls.push(defaultFrameControl(info))
+            frameIndex = 0
+            streams[0] = new Uint8Array(0)
+          }
+          streams[frameIndex] = concatBytes([streams[frameIndex], chunk.data])
+        } else if (chunk.type === 'fdAT') {
+          if (frameIndex < 0) throw new Error('fdAT 缺少对应的 fcTL')
+          streams[frameIndex] = concatBytes([streams[frameIndex], chunk.data.slice(4)])
+        }
+      }
+
+      if (controls.length < 2) throw new Error('APNG 帧数量不足，无法提取表图和里图')
+
+      const frameData = []
+      for (let index = 0; index < controls.length; index++) {
+        const raw = await inflate(streams[index])
+        frameData.push(decodeRgba(raw, controls[index].width, controls[index].height, info, palette, trns))
+      }
+      return composeFrames(info.width, info.height, controls, frameData)
+    }
+
+    function rgbaToDataUrl(width, height, rgba) {
+      const canvas = document.createElement('canvas')
+      canvas.width = width
+      canvas.height = height
+      const context = canvas.getContext('2d')
+      const imageData = context.createImageData(width, height)
+      imageData.data.set(rgba)
+      context.putImageData(imageData, 0, 0)
+      return canvas.toDataURL('image/png')
+    }
+
+    async function loadImageFile(file) {
+      if (typeof createImageBitmap === 'function') return createImageBitmap(file)
+      return new Promise((resolve, reject) => {
+        const url = URL.createObjectURL(file)
+        const image = new Image()
+        image.onload = () => {
+          URL.revokeObjectURL(url)
+          resolve(image)
+        }
+        image.onerror = () => {
+          URL.revokeObjectURL(url)
+          reject(new Error('图片加载失败'))
+        }
+        image.src = url
+      })
+    }
+
+    function drawContain(canvas, image, background) {
+      const context = canvas.getContext('2d')
+      context.fillStyle = background
+      context.fillRect(0, 0, canvas.width, canvas.height)
+
+      const scale = Math.min(canvas.width / image.width, canvas.height / image.height)
+      const drawWidth = Math.max(1, Math.round(image.width * scale))
+      const drawHeight = Math.max(1, Math.round(image.height * scale))
+      const drawX = Math.round((canvas.width - drawWidth) / 2)
+      const drawY = Math.round((canvas.height - drawHeight) / 2)
+      context.drawImage(image, drawX, drawY, drawWidth, drawHeight)
+    }
+
+    function canvasRgba(canvas) {
+      const context = canvas.getContext('2d')
+      return new Uint8Array(context.getImageData(0, 0, canvas.width, canvas.height).data)
+    }
+
+    async function compress(data) {
+      const stream = new CompressionStream('deflate')
+      const writer = stream.writable.getWriter()
+      await writer.write(data)
+      await writer.close()
+
+      const reader = stream.readable.getReader()
+      const parts = []
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        parts.push(value)
+      }
+      return concatBytes(parts)
+    }
+
+    function ihdrData(width, height) {
+      const data = new Uint8Array(13)
+      new DataView(data.buffer).setUint32(0, width)
+      new DataView(data.buffer).setUint32(4, height)
+      data[8] = 8
+      data[9] = 6
+      return data
+    }
+
+    function frameControlData(sequence, width, height, delayNum, delayDen) {
+      const data = new Uint8Array(26)
+      const view = new DataView(data.buffer)
+      view.setUint32(0, sequence)
+      view.setUint32(4, width)
+      view.setUint32(8, height)
+      view.setUint32(12, 0)
+      view.setUint32(16, 0)
+      view.setUint16(20, delayNum)
+      view.setUint16(22, delayDen)
+      data[24] = 0
+      data[25] = 0
+      return data
+    }
+
+    function encodeRawRows(width, height, rgba) {
+      const stride = width * 4
+      const raw = new Uint8Array((stride + 1) * height)
+      for (let y = 0; y < height; y++) {
+        raw[y * (stride + 1)] = 0
+        raw.set(rgba.subarray(y * stride, (y + 1) * stride), y * (stride + 1) + 1)
+      }
+      return raw
+    }
+
+    function splitIdat(compressed) {
+      const chunks = []
+      for (let offset = 0; offset < compressed.length; offset += 32768) {
+        chunks.push(pngChunk('IDAT', compressed.slice(offset, offset + 32768)))
+      }
+      return chunks
+    }
+
+    function splitFdat(compressed, firstSequence) {
+      const chunks = []
+      let sequence = firstSequence
+      for (let offset = 0; offset < compressed.length; offset += 32768) {
+        const payload = compressed.slice(offset, offset + 32768)
+        const data = new Uint8Array(payload.length + 4)
+        new DataView(data.buffer).setUint32(0, sequence)
+        data.set(payload, 4)
+        chunks.push(pngChunk('fdAT', data))
+        sequence++
+      }
+      return chunks
+    }
+
+    function delayFields(delayMs) {
+      return [Math.min(65535, Math.max(1, Math.round(delayMs))), 1000]
+    }
+
+    async function createApng(coverRgba, innerRgba, firstFrameDelayMs) {
+      const width = Math.min(innerRgba.width, coverRgba.width)
+      const height = Math.min(innerRgba.height, coverRgba.height)
+      if (coverRgba.width !== innerRgba.width || coverRgba.height !== innerRgba.height) {
+        throw new Error('两帧尺寸不一致')
+      }
+
+      const acTL = new Uint8Array(8)
+      new DataView(acTL.buffer).setUint32(0, 2)
+      new DataView(acTL.buffer).setUint32(4, 1)
+
+      const firstDelay = delayFields(firstFrameDelayMs)
+      const secondDelay = delayFields(LAST_FRAME_DELAY_MS)
+      const coverStream = await compress(encodeRawRows(width, height, coverRgba.data))
+      const innerStream = await compress(encodeRawRows(width, height, innerRgba.data))
+
+      return concatBytes([
+        PNG_SIGNATURE,
+        pngChunk('IHDR', ihdrData(width, height)),
+        pngChunk('acTL', acTL),
+        pngChunk('fcTL', frameControlData(0, width, height, firstDelay[0], firstDelay[1])),
+        ...splitIdat(coverStream),
+        pngChunk('fcTL', frameControlData(1, width, height, secondDelay[0], secondDelay[1])),
+        ...splitFdat(innerStream, 2),
+        pngChunk('IEND', new Uint8Array(0)),
+      ])
+    }
+
+    function bytesToBase64(bytes) {
+      let binary = ''
+      for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i])
+      return btoa(binary)
+    }
+
+    const composeStatus = document.getElementById('composeStatus')
+    const extractStatus = document.getElementById('extractStatus')
+    const composeButton = document.getElementById('composeButton')
+    const extractButton = document.getElementById('extractButton')
+
+    composeButton.addEventListener('click', async () => {
+      window.__apngResult = null
+      window.__apngError = null
+      composeStatus.textContent = '正在合成...'
+      composeButton.disabled = true
+      try {
+        const coverFile = document.getElementById('coverFileInput').files[0]
+        const innerFile = document.getElementById('innerFileInput').files[0]
+        if (!coverFile || !innerFile) throw new Error('请先选择表图和里图')
+
+        const [coverImage, innerImage] = await Promise.all([
+          loadImageFile(coverFile),
+          loadImageFile(innerFile),
+        ])
+        composeStatus.textContent = '正在绘制表图和里图...'
+        const width = innerImage.width
+        const height = innerImage.height
+
+        const coverCanvas = document.createElement('canvas')
+        coverCanvas.width = width
+        coverCanvas.height = height
+        drawContain(coverCanvas, coverImage, window.__background || '#ffffff')
+
+        const innerCanvas = document.createElement('canvas')
+        innerCanvas.width = width
+        innerCanvas.height = height
+        innerCanvas.getContext('2d').drawImage(innerImage, 0, 0, width, height)
+
+        const coverRgba = { width, height, data: canvasRgba(coverCanvas) }
+        const innerRgba = { width, height, data: canvasRgba(innerCanvas) }
+        composeStatus.textContent = '正在编码 APNG...'
+        const apng = await createApng(coverRgba, innerRgba, window.__firstFrameDelay || 10)
+        composeStatus.textContent = '正在导出结果...'
+        window.__apngResult = bytesToBase64(apng)
+        composeStatus.textContent = `合成完成：${width}x${height}`
+      } catch (error) {
+        window.__apngError = error instanceof Error ? error.message : String(error)
+        composeStatus.textContent = window.__apngError
+        composeStatus.className = 'status error'
+      } finally {
+        composeButton.disabled = false
+      }
+    })
+
+    extractButton.addEventListener('click', async () => {
+      window.__extractResults = []
+      window.__extractError = null
+      extractStatus.textContent = '正在提取...'
+      extractButton.disabled = true
+      try {
+        const file = document.getElementById('apngFileInput').files[0]
+        if (!file) throw new Error('请先选择 APNG 文件')
+        const bytes = new Uint8Array(await file.arrayBuffer())
+        const frames = await extractApngFrames(bytes)
+        window.__extractResults = frames.slice(0, 2).map((frame) => (
+          rgbaToDataUrl(frame.width, frame.height, frame.rgba)
+        ))
+        extractStatus.textContent = `提取完成：${frames.length} 帧`
+      } catch (error) {
+        window.__extractError = error instanceof Error ? error.message : String(error)
+        extractStatus.textContent = window.__extractError
+        extractStatus.className = 'status error'
+      } finally {
+        extractButton.disabled = false
+      }
+    })
+  </script>
+</body>
+</html>
