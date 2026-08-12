@@ -68,8 +68,8 @@ export const Config: Schema<Config> = Schema.intersect([
       .default(false)
       .description('启用后使用 cron 服务定时备份，需要已安装并启用 cron 插件'),
     cronvalue: Schema.string()
-      .default('0 0 * * *')
-      .description('cron 表达式，默认每天 0 点执行'),
+      .default('0 5 * * *')
+      .description('cron 表达式，默认每天凌晨 5 点执行'),
   }).description('定时备份'),
 
   Schema.object({
