@@ -200,8 +200,7 @@ export function apply(ctx: Context, config: PatinaConfig) {
 
   function loggerinfo(...args: unknown[]) {
     if (config.loggerinfo) {
-      const info: (...args: unknown[]) => void = ctx.logger.info;
-      info(...args);
+      ctx.logger.info.apply(ctx.logger, args);
     }
   }
 
