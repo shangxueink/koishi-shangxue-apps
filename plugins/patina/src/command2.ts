@@ -1,7 +1,8 @@
-import { Schema, h, Context, Session } from "koishi";
+import { Schema, h, Context } from "koishi";
 import { readFile, rm } from 'node:fs/promises';
 import path from 'node:path';
 import { createTempDirectory, prepareStaticImage } from './media';
+import { Command2Config, ExtractImageUrl, LoggerInfo } from './types';
 
 export const command2Config = Schema.union([
   Schema.object({
@@ -14,7 +15,7 @@ export const command2Config = Schema.union([
   }),
 ]);
 
-export function applyCommand2(ctx: Context, config: any, loggerinfo: (...args: any[]) => void, extractImageUrl: (session: Session, input: string) => Promise<string>) {
+export function applyCommand2(ctx: Context, config: Command2Config, loggerinfo: LoggerInfo, extractImageUrl: ExtractImageUrl) {
   if (!config.enablecommand2) return;
 
   ctx.command(`patina/${config.enablecommand2Name} [image]`, `${config.enablecommand2Name}一张图`)

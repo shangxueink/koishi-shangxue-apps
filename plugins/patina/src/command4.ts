@@ -1,8 +1,9 @@
-import { Schema, h, Context, Session, sleep } from 'koishi'
+import { Schema, h, Context, sleep } from 'koishi'
 import { rm } from 'node:fs/promises'
 import path from 'node:path'
 import nodeurl from 'node:url'
 import { createTempDirectory, prepareStaticImage } from './media'
+import { Command4Config, ExtractImageUrl, LoggerInfo } from './types'
 
 export const command4Config = Schema.union([
   Schema.object({
@@ -39,7 +40,7 @@ export const command4Config = Schema.union([
   }),
 ])
 
-export function applyCommand4(ctx: Context, config: any, loggerinfo: (...args: any[]) => void, extractImageUrl: (session: Session, input: string) => Promise<string>) {
+export function applyCommand4(ctx: Context, config: Command4Config, loggerinfo: LoggerInfo, extractImageUrl: ExtractImageUrl) {
   if (!config.enablecommand4) return
 
   ctx.command(`patina/${config.enablecommand4Name} [img1] [img2]`, `制作${config.enablecommand4Name}坦克图片`)

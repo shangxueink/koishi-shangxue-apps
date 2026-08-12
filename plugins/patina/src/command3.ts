@@ -1,7 +1,8 @@
-import { Schema, h, Context, Session } from "koishi";
+import { Schema, h, Context } from "koishi";
 import { readFile, rm } from 'node:fs/promises';
 import path from 'node:path';
 import { createTempDirectory, prepareStaticImage } from './media';
+import { Command3Config, ExtractImageUrl, LoggerInfo } from './types';
 
 export const command3Config = Schema.union([
   Schema.object({
@@ -19,7 +20,7 @@ export const command3Config = Schema.union([
   }),
 ]);
 
-export function applyCommand3(ctx: Context, config: any, loggerinfo: (...args: any[]) => void, extractImageUrl: (session: Session, input: string) => Promise<string>) {
+export function applyCommand3(ctx: Context, config: Command3Config, loggerinfo: LoggerInfo, extractImageUrl: ExtractImageUrl) {
   if (!config.enablecommand3) return;
 
   ctx.command(`patina/${config.enablecommand3Name} [image]`, `为图片添加${config.enablecommand3Name}`)

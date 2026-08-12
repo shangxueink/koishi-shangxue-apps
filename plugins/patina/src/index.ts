@@ -6,6 +6,8 @@ import { command2Config, applyCommand2 } from "./command2";
 import { command3Config, applyCommand3 } from "./command3";
 import { command4Config, applyCommand4 } from "./command4";
 import { command5Config, applyCommand5 } from "./command5";
+import { command6Config, applyCommand6 } from "./command6";
+import { PatinaConfig } from "./types";
 
 export const name = "patina";
 
@@ -176,11 +178,16 @@ export const Config = Schema.intersect([
   command5Config,
 
   Schema.object({
+    enablecommand6: Schema.boolean().description("是否启用此功能").default(true),
+  }).description('APNG 原图坦克'),
+  command6Config,
+
+  Schema.object({
     loggerinfo: Schema.boolean().default(false).description("日志调试模式"),
   }).description('调试设置'),
 ]);
 
-export function apply(ctx: Context, config: any) {
+export function apply(ctx: Context, config: PatinaConfig) {
 
   ctx.command("patina", "网页小合集")
 
@@ -189,14 +196,16 @@ export function apply(ctx: Context, config: any) {
   applyCommand3(ctx, config, loggerinfo, extractImageUrl);
   applyCommand4(ctx, config, loggerinfo, extractImageUrl);
   applyCommand5(ctx, config, loggerinfo, extractImageUrl);
+  applyCommand6(ctx, config, loggerinfo, extractImageUrl);
 
-  function loggerinfo(...args: any[]) {
+  function loggerinfo(...args: unknown[]) {
     if (config.loggerinfo) {
-      (ctx.logger.info as (...args: any[]) => void)(...args);
+      const info: (...args: unknown[]) => void = ctx.logger.info;
+      info(...args);
     }
   }
 
-  async function extractImageUrl(session: Session, input: string) {
+  async function extractImageUrl(session: Session, input: string): Promise<string> {
     const parsedElements = h.parse(input);
     // 遍历解析后的元素
     for (const element of parsedElements) {

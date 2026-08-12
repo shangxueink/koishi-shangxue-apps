@@ -1,8 +1,9 @@
-import { Schema, h, Context, Session } from "koishi";
+import { Schema, h, Context } from "koishi";
 import { writeFile, rm } from "fs/promises";
 import { join } from "path";
 import { pathToFileURL } from "node:url";
 import { createTempDirectory, prepareStaticImage } from "./media";
+import { Command5Config, ExtractImageUrl, LoggerInfo } from "./types";
 import { } from 'koishi-plugin-ffmpeg'
 import { } from 'koishi-plugin-canvas'
 
@@ -19,7 +20,7 @@ export const command5Config = Schema.union([
   }),
 ]);
 
-export function applyCommand5(ctx: Context, config: any, loggerinfo: (...args: any[]) => void, extractImageUrl: (session: Session, input: string) => Promise<string>) {
+export function applyCommand5(ctx: Context, config: Command5Config, loggerinfo: LoggerInfo, extractImageUrl: ExtractImageUrl) {
   if (!config.enablecommand5) return;
 
   ctx.command(`patina/${config.enablecommand5Name || '原图坦克'}`, '将两张图片合成为GIF')
