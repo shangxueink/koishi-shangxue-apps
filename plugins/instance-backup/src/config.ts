@@ -54,7 +54,7 @@ export const Config: Schema<Config> = Schema.intersect([
       .description('选择备份的触发方式'),
     cronvalue: Schema.string()
       .default('0 5 * * *')
-      .description('cron 表达式，默认每天凌晨 5 点执行；定时触发或指令加定时触发时生效'),
+      .description('cron 表达式，默认每天凌晨 5 点执行；`定时触发`或`指令加定时触发`时生效<br>需要cron服务支持，未检测到cron服务时会输出警告'),
   }).description('触发方式'),
 
   Schema.object({

@@ -23,10 +23,9 @@ export function registerBackupScheduler(
   ctx.inject(['cron'], (childCtx) => {
     if (disposed) return
 
-    const cron = childCtx.cron
-    if (!cron) return
+    if (!childCtx.cron) return
 
-    const dispose = cron(config.cronvalue, () => {
+    const dispose = childCtx.cron(config.cronvalue, () => {
       void runner()
     })
     disposers.add(dispose)
