@@ -24,25 +24,30 @@ export function createBackupRunner(
     try {
       const backupDir = resolveBackupDirectory(ctx.baseDir, config)
       const gitReady = gitAvailable ? await ensureGitRepository(backupDir, logger) : false
+      const snapshotTime = new Date().toISOString()
 
       // 覆盖前先提交当前快照，覆盖后再提交新快照
-      if (gitReady) {
-        await commitBackupSnapshot(backupDir, '备份前快照', logger)
-      }
+      const preResult = gitReady
+        ? await commitBackupSnapshot(backupDir, `备份前快照 ${snapshotTime}`, logger)
+        : null
 
       const localResult = await createLocalBackup(ctx, config, logger)
       logger.debug(`本地备份目录：${localResult.backupDir}`)
 
-      const committed = gitReady
-        ? await commitBackupSnapshot(backupDir, `备份后快照 ${new Date().toISOString()}`, logger)
-        : false
+      const postResult = gitReady
+        ? await commitBackupSnapshot(backupDir, `备份后快照 ${snapshotTime}`, logger)
+        : null
+      const committed = Boolean(preResult?.committed || postResult?.committed)
+      const changed = Boolean(preResult?.changed || postResult?.changed)
 
       if (localResult.skipped.length > 0) {
         logger.debug(`已跳过 ${localResult.skipped.length} 个备份路径`)
       }
 
       const gitMessage = gitReady
-        ? committed ? '，Git 版本历史已记录' : '，Git 记录未生成'
+        ? committed ? '，Git 版本历史已记录'
+          : changed ? '，Git 记录未生成'
+            : '，未发现更改内容。'
         : gitAvailable ? '，Git 仓库不可用' : '，未使用 Git 版本控制'
       const message = `备份完成${gitMessage}`
       logger.info(message)

@@ -48,17 +48,22 @@ export async function ensureGitRepository(backupDir: string, logger: PluginLogge
   }
 }
 
+export interface GitCommitResult {
+  committed: boolean
+  changed: boolean
+}
+
 export async function commitBackupSnapshot(
   backupDir: string,
   message: string,
   logger: PluginLogger,
-): Promise<boolean> {
+): Promise<GitCommitResult> {
   try {
     await runGit(['add', '-A'], backupDir)
 
     // 没有变更时不生成空提交
     const status = await runGit(['status', '--porcelain'], backupDir)
-    if (!status.trim()) return false
+    if (!status.trim()) return { committed: false, changed: false }
 
     await runGit([
       '-c', 'user.name=Koishi Backup',
@@ -68,9 +73,9 @@ export async function commitBackupSnapshot(
       '-m', message,
     ], backupDir)
     logger.debug(`Git 提交完成：${message}`)
-    return true
+    return { committed: true, changed: true }
   } catch (error) {
     logger.warn(`Git 提交失败：${message}`, error)
-    return false
+    return { committed: false, changed: true }
   }
 }
