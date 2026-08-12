@@ -7,10 +7,10 @@ import { Command4Config, ExtractImageUrl, LoggerInfo } from './types'
 
 export const command4Config = Schema.union([
   Schema.object({
-    enablecommand4: Schema.const(false).required(),
+    enablecommand4: Schema.const(false),
   }),
   Schema.object({
-    enablecommand4: Schema.const(true),
+    enablecommand4: Schema.const(true).required(),
     enablecommand4Name: Schema.string().default('光棱').description("指令名称"),
     enablecommand4Name2: Schema.string().default('光棱取图').description("指令名称"),
     Full_color_output: Schema.boolean().default(true).description("全彩输出，关闭后变成黑白图"),

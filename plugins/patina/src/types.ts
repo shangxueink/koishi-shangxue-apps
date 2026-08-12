@@ -55,8 +55,6 @@ export interface Command6Config {
   extractName?: string
   composeName?: string
   firstFrameDelay?: number
-  secondFrameDelay?: number
-  loopCount?: number
   background?: string
 }
 

@@ -6,10 +6,10 @@ import { Command3Config, ExtractImageUrl, LoggerInfo } from './types';
 
 export const command3Config = Schema.union([
   Schema.object({
-    enablecommand3: Schema.const(false).required(),
+    enablecommand3: Schema.const(false),
   }),
   Schema.object({
-    enablecommand3: Schema.const(true),
+    enablecommand3: Schema.const(true).required(),
     enablecommand3Name: Schema.string().default('相机镜框').description("指令名称"),
     cameraAlignmentLogic: Schema.union([
       Schema.const('居中填充').description('居中填充'),

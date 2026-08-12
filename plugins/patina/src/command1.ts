@@ -7,10 +7,10 @@ import { Command1Config, ExtractImageUrl, LoggerInfo } from './types';
 
 export const command1Config = Schema.union([
   Schema.object({
-    enablecommand1: Schema.const(false).required(),
+    enablecommand1: Schema.const(false),
   }),
   Schema.object({
-    enablecommand1: Schema.const(true),
+    enablecommand1: Schema.const(true).required(),
     enablecommand1Name: Schema.string().default('幻影').description("指令名称"),
     enablecommand1Name2: Schema.string().default('幻影解图').description("解图指令名称"),
     Full_color_output: Schema.boolean().default(false).description("全彩输出，关闭后变成黑白图<br>黑白可能效果更好  可以前往 https://uyanide.github.io/Mirage_Colored/ 体验"),

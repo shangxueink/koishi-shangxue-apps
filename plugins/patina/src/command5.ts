@@ -9,10 +9,10 @@ import { } from 'koishi-plugin-canvas'
 
 export const command5Config = Schema.union([
   Schema.object({
-    enablecommand5: Schema.const(false).required(),
+    enablecommand5: Schema.const(false),
   }),
   Schema.object({
-    enablecommand5: Schema.const(true),
+    enablecommand5: Schema.const(true).required(),
     enablecommand5Name: Schema.string().default('原图坦克').description("指令名称"),
     sendAsFile: Schema.boolean().default(true).description("是否以群文件形式发送GIF（开启则发送文件，关闭则发送图片）<br>发群文件才有效。直接发图片看不出效果"),
     loopCount: Schema.number().default(1).description("GIF循环次数").hidden(),

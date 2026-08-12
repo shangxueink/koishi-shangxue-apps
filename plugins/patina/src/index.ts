@@ -153,32 +153,32 @@ export const usage = `
 
 export const Config = Schema.intersect([
   Schema.object({
-    enablecommand1: Schema.boolean().description("是否启用此功能").default(true),
+    enablecommand1: Schema.boolean().description("是否启用此功能").default(false),
   }).description('幻影坦克生成器'),
   command1Config,
 
   Schema.object({
-    enablecommand2: Schema.boolean().description("是否启用此功能").default(true),
+    enablecommand2: Schema.boolean().description("是否启用此功能").default(false),
   }).description('像素化'),
   command2Config,
 
   Schema.object({
-    enablecommand3: Schema.boolean().description("是否启用此功能").default(true),
+    enablecommand3: Schema.boolean().description("是否启用此功能").default(false),
   }).description('相机镜框滤镜'),
   command3Config,
 
   Schema.object({
-    enablecommand4: Schema.boolean().description("是否启用此功能").default(true),
+    enablecommand4: Schema.boolean().description("是否启用此功能").default(false),
   }).description('光棱坦克生成器'),
   command4Config,
 
   Schema.object({
-    enablecommand5: Schema.boolean().description("是否启用此功能<br>此指令仅限onebot平台使用，且受限于手机qq显示。").default(true),
+    enablecommand5: Schema.boolean().description("是否启用此功能<br>此指令仅限onebot平台使用，且受限于手机qq显示。").default(false),
   }).description('原图坦克生成器'),
   command5Config,
 
   Schema.object({
-    enablecommand6: Schema.boolean().description("是否启用此功能").default(true),
+    enablecommand6: Schema.boolean().description("是否启用此功能").default(false),
   }).description('APNG 原图坦克'),
   command6Config,
 

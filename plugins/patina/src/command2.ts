@@ -6,10 +6,10 @@ import { Command2Config, ExtractImageUrl, LoggerInfo } from './types';
 
 export const command2Config = Schema.union([
   Schema.object({
-    enablecommand2: Schema.const(false).required(),
+    enablecommand2: Schema.const(false),
   }),
   Schema.object({
-    enablecommand2: Schema.const(true),
+    enablecommand2: Schema.const(true).required(),
     enablecommand2Name: Schema.string().default('像素化').description("指令名称"),
     pixelate: Schema.number().role('slider').min(0).max(100).step(1).default(80).description("默认${config.enablecommand2Name}百分比<br>原项目地址 https://lab.miguelmota.com/pixelate/example/"),
   }),
