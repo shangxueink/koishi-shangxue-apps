@@ -89,7 +89,12 @@ interface CopyOptions {
 function shouldSkipDirectory(sourcePath: string, options: CopyOptions): boolean {
   const name = path.basename(sourcePath)
   if (isPathInside(options.backupDir, sourcePath)) return true
-  if (path.resolve(sourcePath) === path.resolve(options.storageRoot)) return true
+
+  // 备份存储根目录下的子目录也跳过，避免旧备份被再次复制；根目录本身仍允许进入
+  const storageRoot = path.resolve(options.storageRoot)
+  const currentPath = path.resolve(sourcePath)
+  if (currentPath !== storageRoot && isPathInside(options.storageRoot, sourcePath)) return true
+
   if (IGNORED_DIRECTORY_NAMES.has(name)) return true
   return false
 }
@@ -157,11 +162,10 @@ export async function createLocalBackup(
       throw error
     }
 
-    // 跳过备份目录自身和备份存储根目录，避免重复复制或无限递归
+    // 只跳过当前备份目录自身，避免备份内容被反复复制
     const sourceInsideBackup = isPathInside(backupDir, sourcePath)
-    const sourceIsStorageRoot = path.resolve(sourcePath) === path.resolve(storageRoot)
 
-    if (sourceInsideBackup || sourceIsStorageRoot) {
+    if (sourceInsideBackup) {
       logger.warn(`备份源包含本地备份目录，已跳过：${item}`)
       skipped.push(item)
       continue

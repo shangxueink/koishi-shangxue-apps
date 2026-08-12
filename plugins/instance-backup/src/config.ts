@@ -38,7 +38,7 @@ export const Config: Schema<Config> = Schema.intersect([
       .role('table')
       .default(['koishi.yml', 'package.json', 'data/koishi.db', 'data/database'])
       .description('需要备份的文件或目录（相对 koishi 根目录）<br>默认包含 koishi.yml、package.json、data/koishi.db、data/database；不存在的路径会自动跳过<br>选择文件夹时会跳过 node_modules、.git、dist、build 等常见冗余目录'),
-  }).description('备份内容'),
+  }).description('备份对象'),
 
   Schema.object({
     areapath: Schema.path({ filters: ['directory'], allowCreate: true })
@@ -47,7 +47,7 @@ export const Config: Schema<Config> = Schema.intersect([
     ParentFolderName: Schema.string()
       .default('instance_backup')
       .description('固定备份目录名称，会创建在 areapath 下'),
-  }).description('本地备份'),
+  }).description('备份到本地'),
 
   Schema.object({
     skip_nonexistent_films: Schema.boolean()
