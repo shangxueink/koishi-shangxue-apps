@@ -2,13 +2,13 @@ import { Schema } from 'koishi'
 
 export interface Config {
   /** 需要备份的文件或目录，相对 ctx.baseDir */
-  BackupList: string[]
+  backupList: string[]
   /** 备份存储目录，可填绝对路径或相对 ctx.baseDir 的路径 */
   areapath: string
   /** 固定备份目录名，放在 areapath 下 */
   ParentFolderName: string
   /** 遇到不存在的源路径时是否跳过 */
-  Skip_nonexistent_films: boolean
+  skip_nonexistent_films: boolean
   /** 是否使用 cron 自动备份 */
   auto_cron: boolean
   /** cron 表达式 */
@@ -34,10 +34,10 @@ const backupItem = Schema.path({
 
 export const Config: Schema<Config> = Schema.intersect([
   Schema.object({
-    BackupList: Schema.array(backupItem)
+    backupList: Schema.array(backupItem)
       .role('table')
-      .default(['data/koishi.db'])
-      .description('需要备份的文件或目录（相对 koishi 根目录）<br>支持数据库文件、普通文件和目录'),
+      .default(['koishi.yml', 'package.json', 'data/koishi.db', 'data/database'])
+      .description('需要备份的文件或目录（相对 koishi 根目录）<br>默认包含 koishi.yml、package.json、data/koishi.db、data/database；不存在的路径会自动跳过<br>选择文件夹时会跳过 node_modules、.git、dist、build 等常见冗余目录'),
   }).description('备份内容'),
 
   Schema.object({
@@ -50,8 +50,8 @@ export const Config: Schema<Config> = Schema.intersect([
   }).description('本地备份'),
 
   Schema.object({
-    Skip_nonexistent_films: Schema.boolean()
-      .default(false)
+    skip_nonexistent_films: Schema.boolean()
+      .default(true)
       .description('自动跳过不存在的文件或目录；关闭时遇到缺失路径会视为备份失败'),
   }).description('进阶设置'),
 
