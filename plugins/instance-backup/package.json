@@ -1,5 +1,5 @@
 {
-  "name": "@shangxueink/koishi-plugin-instance-backup",
+  "name": "koishi-plugin-instance-backup",
   "description": "Backup for Koishi",
   "version": "2.0.0",
   "main": "lib/index.js",
