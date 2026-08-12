@@ -349,17 +349,19 @@
     async function inflate(data) {
       const stream = new DecompressionStream('deflate')
       const writer = stream.writable.getWriter()
+      const reader = stream.readable.getReader()
+      const readPromise = (async () => {
+        const parts = []
+        while (true) {
+          const { done, value } = await reader.read()
+          if (done) break
+          parts.push(value)
+        }
+        return concatBytes(parts)
+      })()
       await writer.write(data)
       await writer.close()
-
-      const reader = stream.readable.getReader()
-      const parts = []
-      while (true) {
-        const { done, value } = await reader.read()
-        if (done) break
-        parts.push(value)
-      }
-      return concatBytes(parts)
+      return await readPromise
     }
 
     function clearRect(canvas, width, control) {
@@ -529,17 +531,19 @@
     async function compress(data) {
       const stream = new CompressionStream('deflate')
       const writer = stream.writable.getWriter()
+      const reader = stream.readable.getReader()
+      const readPromise = (async () => {
+        const parts = []
+        while (true) {
+          const { done, value } = await reader.read()
+          if (done) break
+          parts.push(value)
+        }
+        return concatBytes(parts)
+      })()
       await writer.write(data)
       await writer.close()
-
-      const reader = stream.readable.getReader()
-      const parts = []
-      while (true) {
-        const { done, value } = await reader.read()
-        if (done) break
-        parts.push(value)
-      }
-      return concatBytes(parts)
+      return await readPromise
     }
 
     function ihdrData(width, height) {
@@ -615,7 +619,9 @@
 
       const firstDelay = delayFields(firstFrameDelayMs)
       const secondDelay = delayFields(LAST_FRAME_DELAY_MS)
+      composeStatus.textContent = '正在压缩第一帧...'
       const coverStream = await compress(encodeRawRows(width, height, coverRgba.data))
+      composeStatus.textContent = '正在压缩第二帧...'
       const innerStream = await compress(encodeRawRows(width, height, innerRgba.data))
 
       return concatBytes([

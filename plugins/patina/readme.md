@@ -1,9 +1,8 @@
 # koishi-plugin-patina
 
-
 <details>
 <summary>点击此处查看——幻影坦克</summary>
-<p>如果你需要更详细地了解这个项目，请前往 
+<p>如果你需要更详细地了解这个项目，请前往
 <a href="https://uyanide.github.io/Mirage_Colored/" target="_blank">https://uyanide.github.io/Mirage_Colored/</a>
 <h2>功能示例</h2>
 <ul>
@@ -26,10 +25,9 @@
 <p>如果不指定参数，将使用默认配置。</p>
 </details>
 
-
 <details>
 <summary>点击此处查看——像素化</summary>
-<p>如果你需要更详细地了解这个项目，请前往 
+<p>如果你需要更详细地了解这个项目，请前往
 <a href="https://lab.miguelmota.com/pixelate/example/" target="_blank">https://lab.miguelmota.com/pixelate/example/</a>
 <h2>功能示例</h2>
 <ul>
