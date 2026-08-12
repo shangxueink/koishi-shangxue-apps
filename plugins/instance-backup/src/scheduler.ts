@@ -1,6 +1,6 @@
 import { Context } from 'koishi'
 
-import type { Config } from './config'
+import { isScheduleTrigger, type Config } from './config'
 import type { BackupRunner } from './commands'
 
 export function registerBackupScheduler(
@@ -18,7 +18,7 @@ export function registerBackupScheduler(
     disposers.clear()
   }
 
-  if (!config.auto_cron) return disposeAll
+  if (!isScheduleTrigger(config.triggerMode)) return disposeAll
 
   ctx.inject(['cron'], (childCtx) => {
     if (disposed) return

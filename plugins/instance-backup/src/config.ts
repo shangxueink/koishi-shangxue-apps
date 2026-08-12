@@ -1,8 +1,10 @@
 import { Schema } from 'koishi'
 
+export type TriggerMode = 'command' | 'schedule' | 'both'
+
 export interface Config {
-  /** 是否允许通过指令触发备份 */
-  enableBackupCommand: boolean
+  /** 备份触发方式 */
+  triggerMode: TriggerMode
   /** 需要备份的文件或目录，相对 ctx.baseDir */
   backupList: string[]
   /** 备份存储目录，可填绝对路径或相对 ctx.baseDir 的路径 */
@@ -11,12 +13,18 @@ export interface Config {
   ParentFolderName: string
   /** 遇到不存在的源路径时是否跳过 */
   skip_nonexistent_films: boolean
-  /** 是否使用 cron 自动备份 */
-  auto_cron: boolean
   /** cron 表达式 */
   cronvalue: string
   /** 调试日志开关 */
   loggerinfo: boolean
+}
+
+export function isCommandTrigger(mode: TriggerMode): boolean {
+  return mode === 'command' || mode === 'both'
+}
+
+export function isScheduleTrigger(mode: TriggerMode): boolean {
+  return mode === 'schedule' || mode === 'both'
 }
 
 export const name = 'instance-backup'
@@ -36,16 +44,24 @@ const backupItem = Schema.path({
 
 export const Config: Schema<Config> = Schema.intersect([
   Schema.object({
-    enableBackupCommand: Schema.boolean()
-      .default(true)
-      .description('是否开启备份指令，开启后可通过指令触发备份'),
-  }).description('备份指令'),
+    triggerMode: Schema.union([
+      Schema.const('command').description('指令触发'),
+      Schema.const('schedule').description('定时触发'),
+      Schema.const('both').description('指令加定时触发'),
+    ])
+      .role('radio')
+      .default('command')
+      .description('选择备份的触发方式'),
+    cronvalue: Schema.string()
+      .default('0 5 * * *')
+      .description('cron 表达式，默认每天凌晨 5 点执行；定时触发或指令加定时触发时生效'),
+  }).description('触发方式'),
 
   Schema.object({
     backupList: Schema.array(backupItem)
       .role('table')
       .default(['koishi.yml', 'package.json', 'data/koishi.db', 'data/database'])
-      .description('需要备份的文件或目录（相对 koishi 根目录）<br>默认包含 koishi.yml、package.json、data/koishi.db、data/database；不存在的路径会自动跳过<br>选择文件夹时会跳过 node_modules、.git、dist、build 等常见冗余目录'),
+      .description('需要备份的文件或目录（相对 koishi 根目录）<br>不存在的路径会自动跳过<br>选择文件夹时会跳过 node_modules、.git、dist、build 等常见冗余目录'),
   }).description('备份对象'),
 
   Schema.object({
@@ -62,15 +78,6 @@ export const Config: Schema<Config> = Schema.intersect([
       .default(true)
       .description('自动跳过不存在的文件或目录；关闭时遇到缺失路径会视为备份失败'),
   }).description('进阶设置'),
-
-  Schema.object({
-    auto_cron: Schema.boolean()
-      .default(false)
-      .description('启用后使用 cron 服务定时备份，需要已安装并启用 cron 插件'),
-    cronvalue: Schema.string()
-      .default('0 5 * * *')
-      .description('cron 表达式，默认每天凌晨 5 点执行'),
-  }).description('定时备份'),
 
   Schema.object({
     loggerinfo: Schema.boolean()

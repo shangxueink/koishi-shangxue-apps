@@ -1,6 +1,6 @@
 import { Context } from 'koishi'
 
-import { Config, inject, name, usage } from './config'
+import { Config, inject, isCommandTrigger, isScheduleTrigger, name, usage } from './config'
 import type { Config as PluginConfig } from './config'
 import { createPluginLogger } from './logger'
 import { registerBackupCommand } from './commands'
@@ -16,7 +16,7 @@ export function apply(ctx: Context, config: PluginConfig): void {
   const performBackup = createBackupRunner(ctx, config, logger)
 
   ctx.on('ready', () => {
-    if (config.enableBackupCommand) {
+    if (isCommandTrigger(config.triggerMode)) {
       registerBackupCommand(ctx, performBackup)
     } else {
       logger.debug('备份指令已关闭，不再注册备份命令')
@@ -24,7 +24,7 @@ export function apply(ctx: Context, config: PluginConfig): void {
 
     disposers.push(registerBackupScheduler(ctx, config, performBackup))
 
-    if (config.auto_cron && !ctx.cron) {
+    if (isScheduleTrigger(config.triggerMode) && !ctx.cron) {
       logger.warn('未检测到 cron 服务，自动备份不会执行；请安装并启用 cron 插件')
     }
   })
