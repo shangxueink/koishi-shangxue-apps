@@ -3,6 +3,7 @@ import { readFile, rm } from 'node:fs/promises';
 import path from 'node:path';
 import { createTempDirectory, prepareStaticImage } from './media';
 import { Command3Config, ExtractImageUrl, LoggerInfo } from './types';
+import { createPage } from './browser';
 
 export const command3Config = Schema.union([
   Schema.object({
@@ -20,7 +21,7 @@ export const command3Config = Schema.union([
   }),
 ]);
 
-export function applyCommand3(ctx: Context, config: Command3Config, loggerinfo: LoggerInfo, extractImageUrl: ExtractImageUrl) {
+export function applyCommand3(ctx: Context, config: Command3Config, loggerinfo: LoggerInfo, extractImageUrl: ExtractImageUrl, browserTimeout: number) {
   if (!config.enablecommand3) return;
 
   ctx.command(`patina/${config.enablecommand3Name} [image]`, `为图片添加${config.enablecommand3Name}`)
@@ -68,7 +69,7 @@ export function applyCommand3(ctx: Context, config: Command3Config, loggerinfo: 
           .replace(/__CAMERA_FRAME_SRC__/g, cameraFrameBase64)
           .replace(/__OBJECT_FIT_STYLE__/g, objectFitStyle);
 
-        const page = await ctx.puppeteer.page();
+        const page = await createPage(ctx, browserTimeout);
         try {
           await page.setContent(htmlContent, { waitUntil: 'networkidle2' });
 

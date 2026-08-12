@@ -4,6 +4,7 @@ import path from 'node:path';
 import nodeurl from 'node:url';
 import { createTempDirectory, prepareStaticImage } from './media';
 import { Command1Config, ExtractImageUrl, LoggerInfo } from './types';
+import { createPage } from './browser';
 
 export const command1Config = Schema.union([
   Schema.object({
@@ -19,7 +20,7 @@ export const command1Config = Schema.union([
   }),
 ]);
 
-export function applyCommand1(ctx: Context, config: Command1Config, loggerinfo: LoggerInfo, extractImageUrl: ExtractImageUrl) {
+export function applyCommand1(ctx: Context, config: Command1Config, loggerinfo: LoggerInfo, extractImageUrl: ExtractImageUrl, browserTimeout: number) {
   if (!config.enablecommand1) return;
 
   ctx.command(`patina/${config.enablecommand1Name} [img1] [img2]`, `制作${config.enablecommand1Name}坦克图片`)
@@ -81,7 +82,7 @@ export function applyCommand1(ctx: Context, config: Command1Config, loggerinfo: 
         loggerinfo(`表图 MIME: ${coverImage.mime}${coverImage.isGif ? ' (GIF首帧)' : ''}`);
         loggerinfo(`里图 MIME: ${innerImage.mime}${innerImage.isGif ? ' (GIF首帧)' : ''}`);
 
-        const page = await ctx.puppeteer.page();
+        const page = await createPage(ctx, browserTimeout);
         try {
           await page.goto(nodeurl.pathToFileURL(miragehtml).href, { waitUntil: 'networkidle2' });
 
@@ -129,7 +130,7 @@ export function applyCommand1(ctx: Context, config: Command1Config, loggerinfo: 
           await innerFileChooser.accept([innerImage.path]);
 
           // 等待生成的输出图像
-          await page.waitForSelector('#outputCanvas', { timeout: 10000 });
+          await page.waitForSelector('#outputCanvas');
 
           const outputImageBase64 = await page.evaluate(() => {
             const canvas = document.getElementById('outputCanvas') as HTMLCanvasElement;
@@ -183,7 +184,7 @@ export function applyCommand1(ctx: Context, config: Command1Config, loggerinfo: 
         const preparedImage = await prepareStaticImage(ctx, img, tempDir);
         loggerinfo(`拆分输入 MIME: ${preparedImage.mime}${preparedImage.isGif ? ' (GIF首帧)' : ''}`);
 
-        const page = await ctx.puppeteer.page();
+        const page = await createPage(ctx, browserTimeout);
         try {
           await page.goto(nodeurl.pathToFileURL(splitHtml).href, { waitUntil: 'networkidle2' });
 
@@ -198,7 +199,7 @@ export function applyCommand1(ctx: Context, config: Command1Config, loggerinfo: 
             const black = document.getElementById('black') as HTMLCanvasElement;
             const white = document.getElementById('white') as HTMLCanvasElement;
             return black.width > 0 && white.width > 0;
-          }, { timeout: 10000 });
+          });
 
           const blackHandle = await page.$('#black');
           const whiteHandle = await page.$('#white');

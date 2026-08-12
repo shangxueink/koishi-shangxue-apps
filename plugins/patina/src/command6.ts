@@ -4,7 +4,7 @@ import path from 'node:path'
 import nodeurl from 'node:url'
 import { createTempDirectory, prepareStaticImage } from './media'
 import { Command6Config, ExtractImageUrl, LoggerInfo } from './types'
-import { } from 'koishi-plugin-puppeteer'
+import { createPage } from './browser'
 
 export const command6Config = Schema.union([
   Schema.object({
@@ -39,6 +39,7 @@ export function applyCommand6(
   config: Command6Config,
   loggerinfo: LoggerInfo,
   extractImageUrl: ExtractImageUrl,
+  browserTimeout: number,
 ) {
   if (!config.enablecommand6) return
 
@@ -89,7 +90,7 @@ export function applyCommand6(
         loggerinfo(`表图 MIME: ${coverPrepared.mime}${coverPrepared.isGif ? ' (GIF首帧)' : ''}`)
         loggerinfo(`里图 MIME: ${innerPrepared.mime}${innerPrepared.isGif ? ' (GIF首帧)' : ''}`)
 
-        const page = await ctx.puppeteer.page()
+        const page = await createPage(ctx, browserTimeout)
         try {
           await page.goto(nodeurl.pathToFileURL(apngHtml).href, { waitUntil: 'networkidle2' })
           await page.evaluate(({ delay, background }) => {
@@ -119,7 +120,7 @@ export function applyCommand6(
           await page.waitForFunction(() => {
             const target = globalThis as unknown as ApngPageWindow
             return target.__apngResult !== null || target.__apngError !== null
-          }, { timeout: 60000 })
+          })
 
           const result = await page.evaluate(() => {
             const target = globalThis as unknown as ApngPageWindow
@@ -168,7 +169,7 @@ export function applyCommand6(
         const apngPath = path.join(tempDir, 'input.apng')
         await downloadToFile(ctx, imageUrl, apngPath)
 
-        const page = await ctx.puppeteer.page()
+        const page = await createPage(ctx, browserTimeout)
         try {
           await page.goto(nodeurl.pathToFileURL(apngHtml).href, { waitUntil: 'networkidle2' })
           await page.evaluate(() => {
@@ -187,7 +188,7 @@ export function applyCommand6(
           await page.waitForFunction(() => {
             const target = globalThis as unknown as ApngPageWindow
             return target.__extractResults.length >= 2 || target.__extractError !== null
-          }, { timeout: 60000 })
+          })
 
           const result = await page.evaluate(() => {
             const target = globalThis as unknown as ApngPageWindow

@@ -59,5 +59,6 @@ export interface Command6Config {
 }
 
 export interface PatinaConfig extends Command1Config, Command2Config, Command3Config, Command4Config, Command5Config, Command6Config {
+  browserTimeout: number
   loggerinfo: boolean
 }

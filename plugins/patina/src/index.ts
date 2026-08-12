@@ -183,6 +183,10 @@ export const Config = Schema.intersect([
   command6Config,
 
   Schema.object({
+    browserTimeout: Schema.number().default(180).description("浏览器操作超时时间（秒）"),
+  }).description('浏览器设置'),
+
+  Schema.object({
     loggerinfo: Schema.boolean().default(false).description("日志调试模式"),
   }).description('调试设置'),
 ]);
@@ -191,12 +195,12 @@ export function apply(ctx: Context, config: PatinaConfig) {
 
   ctx.command("patina", "网页小合集")
 
-  applyCommand1(ctx, config, loggerinfo, extractImageUrl);
-  applyCommand2(ctx, config, loggerinfo, extractImageUrl);
-  applyCommand3(ctx, config, loggerinfo, extractImageUrl);
-  applyCommand4(ctx, config, loggerinfo, extractImageUrl);
+  applyCommand1(ctx, config, loggerinfo, extractImageUrl, config.browserTimeout);
+  applyCommand2(ctx, config, loggerinfo, extractImageUrl, config.browserTimeout);
+  applyCommand3(ctx, config, loggerinfo, extractImageUrl, config.browserTimeout);
+  applyCommand4(ctx, config, loggerinfo, extractImageUrl, config.browserTimeout);
   applyCommand5(ctx, config, loggerinfo, extractImageUrl);
-  applyCommand6(ctx, config, loggerinfo, extractImageUrl);
+  applyCommand6(ctx, config, loggerinfo, extractImageUrl, config.browserTimeout);
 
   function loggerinfo(...args: unknown[]) {
     if (config.loggerinfo) {

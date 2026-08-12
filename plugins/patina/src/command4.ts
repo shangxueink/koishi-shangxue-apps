@@ -4,6 +4,7 @@ import path from 'node:path'
 import nodeurl from 'node:url'
 import { createTempDirectory, prepareStaticImage } from './media'
 import { Command4Config, ExtractImageUrl, LoggerInfo } from './types'
+import { createPage } from './browser'
 
 export const command4Config = Schema.union([
   Schema.object({
@@ -40,7 +41,7 @@ export const command4Config = Schema.union([
   }),
 ])
 
-export function applyCommand4(ctx: Context, config: Command4Config, loggerinfo: LoggerInfo, extractImageUrl: ExtractImageUrl) {
+export function applyCommand4(ctx: Context, config: Command4Config, loggerinfo: LoggerInfo, extractImageUrl: ExtractImageUrl, browserTimeout: number) {
   if (!config.enablecommand4) return
 
   ctx.command(`patina/${config.enablecommand4Name} [img1] [img2]`, `制作${config.enablecommand4Name}坦克图片`)
@@ -104,15 +105,15 @@ export function applyCommand4(ctx: Context, config: Command4Config, loggerinfo: 
         loggerinfo(`里图 MIME: ${innerImage.mime}${innerImage.isGif ? ' (GIF首帧)' : ''}`)
         loggerinfo(`表图 MIME: ${coverImage.mime}${coverImage.isGif ? ' (GIF首帧)' : ''}`)
 
-        const page = await ctx.puppeteer.page()
+        const page = await createPage(ctx, browserTimeout)
         try {
           await page.goto(nodeurl.pathToFileURL(prismhtml).href, { waitUntil: 'networkidle2' })
 
           await page.click('#encodeButton')
           await sleep(1000)
 
-          await page.waitForSelector('#innerSourceFileInput', { timeout: 10000 })
-          await page.waitForSelector('#coverSourceFileInput', { timeout: 10000 })
+          await page.waitForSelector('#innerSourceFileInput')
+          await page.waitForSelector('#coverSourceFileInput')
 
           const [innerFileChooser] = await Promise.all([
             page.waitForFileChooser(),
@@ -208,7 +209,7 @@ export function applyCommand4(ctx: Context, config: Command4Config, loggerinfo: 
             }
           }, method)
 
-          await page.waitForSelector('#outputCanvas', { timeout: 15000 })
+          await page.waitForSelector('#outputCanvas')
           await sleep(3000)
 
           const outputImageBase64 = await page.evaluate(() => {
@@ -267,7 +268,7 @@ export function applyCommand4(ctx: Context, config: Command4Config, loggerinfo: 
         const preparedImage = await prepareStaticImage(ctx, img, tempDir)
         loggerinfo(`取图输入 MIME: ${preparedImage.mime}${preparedImage.isGif ? ' (GIF首帧)' : ''}`)
 
-        const page = await ctx.puppeteer.page()
+        const page = await createPage(ctx, browserTimeout)
         try {
           await page.goto(nodeurl.pathToFileURL(prismhtml).href, { waitUntil: 'networkidle2' })
 
@@ -289,7 +290,7 @@ export function applyCommand4(ctx: Context, config: Command4Config, loggerinfo: 
           ])
           await fileChooser.accept([preparedImage.path])
 
-          await page.waitForSelector('#decodeCanvas', { timeout: 10000 })
+          await page.waitForSelector('#decodeCanvas')
           await sleep(2000)
 
           const threshold = options?.threshold !== undefined ? options.threshold : config.Decode_Threshold

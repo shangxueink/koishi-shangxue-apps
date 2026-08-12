@@ -3,6 +3,7 @@ import { readFile, rm } from 'node:fs/promises';
 import path from 'node:path';
 import { createTempDirectory, prepareStaticImage } from './media';
 import { Command2Config, ExtractImageUrl, LoggerInfo } from './types';
+import { createPage } from './browser';
 
 export const command2Config = Schema.union([
   Schema.object({
@@ -15,7 +16,7 @@ export const command2Config = Schema.union([
   }),
 ]);
 
-export function applyCommand2(ctx: Context, config: Command2Config, loggerinfo: LoggerInfo, extractImageUrl: ExtractImageUrl) {
+export function applyCommand2(ctx: Context, config: Command2Config, loggerinfo: LoggerInfo, extractImageUrl: ExtractImageUrl, browserTimeout: number) {
   if (!config.enablecommand2) return;
 
   ctx.command(`patina/${config.enablecommand2Name} [image]`, `${config.enablecommand2Name}一张图`)
@@ -50,7 +51,7 @@ export function applyCommand2(ctx: Context, config: Command2Config, loggerinfo: 
         const pixelateHtml = await readFile(path.join(__dirname, './../html/pixelate/pixelate.html'), 'utf8');
         const htmlContent = pixelateHtml.replace(/__IMAGE_SRC__/g, imageBase64);
 
-        const page = await ctx.puppeteer.page();
+        const page = await createPage(ctx, browserTimeout);
         try {
           await page.setContent(htmlContent, { waitUntil: 'networkidle2' });
 
@@ -65,7 +66,7 @@ export function applyCommand2(ctx: Context, config: Command2Config, loggerinfo: 
             }
           }, pixelateValue);
 
-          await page.waitForSelector('canvas', { timeout: 10000 });
+          await page.waitForSelector('canvas');
 
           const outputImageBase64 = await page.evaluate(() => {
             const canvases = document.querySelectorAll('canvas');
