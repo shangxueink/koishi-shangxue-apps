@@ -74,7 +74,7 @@ function openNextChat() {
   const protocol = window.location.protocol;
   const host = window.location.host;
 
-  let nextchatBaseUrl = config.value?.NextChat_host || 'https://www.happieapi.top/#/chat';
+  let nextchatBaseUrl = config.value?.NextChat_host || 'https://www.hpapi.top/#/chat';
 
   try {
     const url = new URL(nextchatBaseUrl);

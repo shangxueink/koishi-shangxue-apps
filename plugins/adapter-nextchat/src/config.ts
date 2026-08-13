@@ -91,7 +91,7 @@ export const ConfigSchema: Schema<Config> = Schema.intersect([
   }).description('Session设置'),
 
   Schema.object({
-    NextChat_host: Schema.string().default('https://www.happieapi.top/#/chat').description('NextChat webUI 的 **URL地址**').role('link'),
+    NextChat_host: Schema.string().default('https://www.hpapi.top/#/chat').description('NextChat webUI 的 **URL地址**').role('link'),
   }).description('NextChat设置'),
 
 
