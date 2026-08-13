@@ -78,6 +78,7 @@ export interface Config {
   filebuffer: boolean;
   MaximumFileSizeMB: number;
   middleware: boolean;
+  preventSingleUserListAttack: boolean;
   userAgent: string;
   pageclose: boolean;
   loggerinfo: boolean;
@@ -176,6 +177,10 @@ export const Config = Schema.intersect([
         bufferDelay: Schema.number().default(5).description("消息接收缓冲延迟（秒）<br>收到链接后等待指定时间，收集同时发送的多个链接后再逐个处理").min(0).max(30),
         middleware: Schema.boolean().default(false).description("前置中间件模式"),
       }).description('高级功能设置'),
+      // 频率限制设置
+      Schema.object({
+        preventSingleUserListAttack: Schema.boolean().default(true).description("是否禁止单用户列表攻击<br>关闭后就没有解析频率限制。"),
+      }).description('频率限制设置'),
       // 网络请求设置
       Schema.object({
         userAgent: Schema.string().description("所有 API 请求所用的 User-Agent").default("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"),
@@ -203,6 +208,7 @@ export const Config = Schema.intersect([
 
 export function apply(ctx: Context, config: Config) {
   const bilibiliParser = new BilibiliParser(ctx, config, logger);
+  ctx.on('dispose', () => bilibiliParser.dispose());
 
   if (config.enablebilianalysis) {
     ctx.middleware(async (session, next) => {
@@ -237,7 +243,14 @@ export function apply(ctx: Context, config: Config) {
       const links = await bilibiliParser.isProcessLinks(sessioncontent);
       if (links) {
         // 直接将整个 session 加入队列，在队列中串行处理
-        await bilibiliParser.queueSession(session, sessioncontent);
+        const reason = await bilibiliParser.queueSession(session, sessioncontent, links.length);
+        if (reason) {
+          const reasonText = {
+            'channel-video-limit': '同一频道同时解析视频数超过限制，已跳过解析',
+            'user-video-limit': '同一用户短时间发送视频达到警戒线，已停止后续解析',
+          }[reason];
+          bilibiliParser.logInfo(`[频率限制] ${reasonText}`);
+        }
       }
 
       return next();

@@ -1,5 +1,6 @@
 import { Schema, Logger, h, Context, Session } from "koishi";
 import type { Config } from './index';
+import { VideoRateLimiter, type BlockReason } from './rate-limiter';
 
 // 队列任务接口
 interface QueueTask {
@@ -20,6 +21,7 @@ interface BufferTask {
 interface SessionTask {
     session: Session;
     sessioncontent: string;
+    linkCount: number;
     timestamp: number;
 }
 
@@ -28,14 +30,35 @@ export class BilibiliParser {
     private processingQueue: QueueTask[] = []; // 待处理队列
     private isProcessing: boolean = false; // 是否正在处理
     private bufferQueue: BufferTask[] = []; // 缓冲队列
-    private bufferTimer: NodeJS.Timeout | null = null; // 缓冲定时器
+    private bufferTimer: (() => void) | null = null; // 缓冲定时器
 
     // Session 级别的队列控制
     private sessionQueue: SessionTask[] = []; // Session 缓冲队列
-    private sessionTimer: NodeJS.Timeout | null = null; // Session 缓冲定时器
     private isProcessingSession: boolean = false; // 是否正在处理 Session
+    private rateLimiter: VideoRateLimiter;
+    private disposed = false;
 
-    constructor(private ctx: Context, private config: Config, private logger: Logger) { }
+    constructor(private ctx: Context, private config: Config, private logger: Logger) {
+        this.rateLimiter = new VideoRateLimiter(ctx, config);
+    }
+
+    public dispose() {
+        if (this.disposed) {
+            return;
+        }
+        this.disposed = true;
+        if (this.bufferTimer) {
+            this.bufferTimer();
+            this.bufferTimer = null;
+        }
+        this.rateLimiter.dispose();
+        this.sessionQueue = [];
+        this.bufferQueue = [];
+        this.processingQueue = [];
+        this.lastProcessedUrls = {};
+        this.isProcessing = false;
+        this.isProcessingSession = false;
+    }
 
     public logInfo(...args: any[]) {
         if (this.config.loggerinfo) {
@@ -88,6 +111,14 @@ export class BilibiliParser {
         const lastretUrl = this.extractLastUrl(ret); // 提取 ret 最后一个 http 链接作为解析目标
         const currentTime = Date.now();
 
+        // 顺带清理已过期的链接记录，避免这个 Map 无限增长
+        const intervalMs = this.config.MinimumTimeInterval * 1000;
+        for (const key of Object.keys(this.lastProcessedUrls)) {
+            if (currentTime - this.lastProcessedUrls[key] >= intervalMs) {
+                delete this.lastProcessedUrls[key];
+            }
+        }
+
         //  channelId 作为 key 的一部分，分频道鉴别
         const channelKey = `${channelId}:${lastretUrl}`;
 
@@ -105,39 +136,56 @@ export class BilibiliParser {
     }
 
     // 添加 session 到缓冲队列（middleware 入口调用）
-    public async queueSession(session: Session, sessioncontent: string) {
-        // 将 session 加入缓冲队列
-        this.sessionQueue.push({ session, sessioncontent, timestamp: Date.now() });
-        this.logInfo(`收到消息，Session缓冲区任务数: ${this.sessionQueue.length}`);
-
-        // 清除之前的定时器
-        if (this.sessionTimer) {
-            clearTimeout(this.sessionTimer);
+    public async queueSession(session: Session, sessioncontent: string, linkCount: number): Promise<BlockReason | null> {
+        if (this.disposed) {
+            return null;
         }
 
-        // 设置新的定时器，等待配置的延迟时间后处理
-        this.sessionTimer = setTimeout(() => {
-            this.flushSessionBuffer();
-        }, this.config.bufferDelay * 1000);
+        const reason = this.rateLimiter.checkNewMessage(session.channelId, session.userId, linkCount);
+        if (reason) {
+            if (reason === 'user-video-limit') {
+                if (!this.rateLimiter.isUserBlocked(session.channelId, session.userId)) {
+                    this.rateLimiter.blockUser(session.channelId, session.userId);
+                }
+                this.clearSessionQueueByUser(session.channelId, session.userId);
+            }
+            return reason;
+        }
+
+        // 将 session 加入流式处理队列
+        this.rateLimiter.reserveMessage(session.channelId, session.userId, linkCount);
+        this.sessionQueue.push({ session, sessioncontent, linkCount, timestamp: Date.now() });
+        this.logInfo(`收到消息，Session缓冲区任务数: ${this.sessionQueue.length}`);
+        this.processSessionQueue();
+
+        return null;
     }
 
-    // 将 session 缓冲区的任务转移到处理队列
-    private flushSessionBuffer() {
-        if (this.sessionQueue.length === 0) {
-            return;
+    // 列表攻击被拦截时，丢弃同一频道尚未处理的解析任务
+    private clearSessionQueueByChannel(channelId: string) {
+        const remaining: SessionTask[] = [];
+        for (const task of this.sessionQueue) {
+            if (task.session.channelId !== channelId) {
+                remaining.push(task);
+            }
         }
+        this.sessionQueue = remaining;
+    }
 
-        this.logInfo(`Session缓冲时间结束，开始处理 ${this.sessionQueue.length} 个消息`);
-
-        // 启动 session 队列处理
-        if (!this.isProcessingSession) {
-            this.processSessionQueue();
+    // 用户短时频率超限时，丢弃同一用户尚未处理的解析任务
+    private clearSessionQueueByUser(channelId: string, userId: string) {
+        const remaining: SessionTask[] = [];
+        for (const task of this.sessionQueue) {
+            if (task.session.channelId !== channelId || task.session.userId !== userId) {
+                remaining.push(task);
+            }
         }
+        this.sessionQueue = remaining;
     }
 
     // 处理 session 队列中的任务
     private async processSessionQueue() {
-        if (this.isProcessingSession || this.sessionQueue.length === 0) {
+        if (this.disposed || this.isProcessingSession || this.sessionQueue.length === 0) {
             return;
         }
 
@@ -145,11 +193,20 @@ export class BilibiliParser {
         this.logInfo(`开始处理Session队列，总任务数: ${this.sessionQueue.length}`);
 
         while (this.sessionQueue.length > 0) {
+            if (this.disposed) {
+                return;
+            }
+
             const task = this.sessionQueue.shift();
             this.logInfo(`处理Session (剩余: ${this.sessionQueue.length})`);
 
+            if (this.rateLimiter.isUserBlocked(task.session.channelId, task.session.userId)) {
+                this.logInfo(`[队列] 用户已触发列表攻击，跳过剩余解析任务`);
+                continue;
+            }
+
             try {
-                await this.processSessionTask(task.session, task.sessioncontent);
+                await this.processSessionTask(task.session, task.sessioncontent, task.linkCount);
             } catch (error) {
                 this.logger.error('处理Session任务时发生错误:', error);
             }
@@ -157,11 +214,23 @@ export class BilibiliParser {
 
         this.isProcessingSession = false;
         this.logInfo('Session队列处理完成');
+        if (this.sessionQueue.length > 0) {
+            this.processSessionQueue();
+        }
     }
 
     // 实际处理单个 session 任务
-    private async processSessionTask(session: Session, sessioncontent: string) {
+    private async processSessionTask(session: Session, sessioncontent: string, linkCount: number) {
+        if (this.disposed) {
+            return;
+        }
+
         this.logInfo(`[队列] 开始处理消息: ${sessioncontent.substring(0, 50)}...`);
+
+        if (this.rateLimiter.isUserBlocked(session.channelId, session.userId)) {
+            this.logInfo(`[队列] 用户已触发列表攻击，跳过本次任务`);
+            return;
+        }
 
         const links = await this.isProcessLinks(sessioncontent);
         if (!links) {
@@ -169,21 +238,42 @@ export class BilibiliParser {
             return;
         }
 
+        const isMultiLinkMessage = linkCount > 1;
         this.logInfo(`[队列] 检测到 ${links.length} 个链接`);
 
-        // 逐个处理链接
+        // 逐个处理链接，达到警戒线时停止该用户剩余链接
         for (let i = 0; i < links.length; i++) {
+            if (!this.rateLimiter.canProcessUserVideo(session.channelId, session.userId, isMultiLinkMessage)) {
+                this.logInfo(`[队列] 用户达到警戒线，停止后续链接`);
+                this.clearSessionQueueByUser(session.channelId, session.userId);
+                break;
+            }
+
+            if (!this.rateLimiter.canStartChannelVideo(session.channelId)) {
+                this.logInfo(`[队列] 频道处理中视频数达到上限，停止后续任务`);
+                this.clearSessionQueueByChannel(session.channelId);
+                break;
+            }
+
             const link = links[i];
             this.logInfo(`[队列] 处理第 ${i + 1}/${links.length} 个链接`);
+            this.rateLimiter.startChannelVideo(session.channelId);
+            try {
+                const ret = await this.extractLinks(session, [link]);
+                if (ret && !this.isLinkProcessedRecently(ret, session.channelId)) {
+                    this.logInfo(`[队列] 开始下载视频`);
+                    // 直接处理，不再使用视频级别的缓冲
+                    await this.processVideoTask(session, ret, { video: true });
+                    this.logInfo(`[队列] 视频处理完成`);
+                } else {
+                    this.logInfo(`[队列] 链接已处理过，跳过`);
+                }
+            } finally {
+                this.rateLimiter.endChannelVideo(session.channelId);
+            }
 
-            const ret = await this.extractLinks(session, [link]);
-            if (ret && !this.isLinkProcessedRecently(ret, session.channelId)) {
-                this.logInfo(`[队列] 开始下载视频`);
-                // 直接处理，不再使用视频级别的缓冲
-                await this.processVideoTask(session, ret, { video: true });
-                this.logInfo(`[队列] 视频处理完成`);
-            } else {
-                this.logInfo(`[队列] 链接已处理过，跳过`);
+            if (isMultiLinkMessage) {
+                this.rateLimiter.recordProcessedVideo(session.channelId, session.userId);
             }
         }
 
@@ -192,24 +282,29 @@ export class BilibiliParser {
 
     // 添加任务到缓冲区（已废弃，保留兼容性）
     public async processVideoFromLink(session: Session, ret: string, options: { video?: boolean; audio?: boolean; link?: boolean } = { video: true }) {
+        if (this.disposed) {
+            return;
+        }
+
         // 将任务加入缓冲队列
         this.bufferQueue.push({ session, ret, options, timestamp: Date.now() });
         this.logInfo(`收到解析请求，缓冲区任务数: ${this.bufferQueue.length}`);
 
         // 清除之前的定时器
         if (this.bufferTimer) {
-            clearTimeout(this.bufferTimer);
+            this.bufferTimer();
         }
 
         // 设置新的定时器，等待配置的延迟时间后处理
-        this.bufferTimer = setTimeout(() => {
+        this.bufferTimer = this.ctx.setTimeout(() => {
+            this.bufferTimer = null;
             this.flushBuffer();
         }, this.config.bufferDelay * 1000);
     }
 
     // 将缓冲区的任务转移到处理队列
     private flushBuffer() {
-        if (this.bufferQueue.length === 0) {
+        if (this.disposed || this.bufferQueue.length === 0) {
             return;
         }
 
@@ -233,7 +328,7 @@ export class BilibiliParser {
 
     // 处理队列中的任务
     private async processQueue() {
-        if (this.isProcessing || this.processingQueue.length === 0) {
+        if (this.disposed || this.isProcessing || this.processingQueue.length === 0) {
             return;
         }
 
@@ -241,6 +336,10 @@ export class BilibiliParser {
         this.logInfo(`开始处理队列，总任务数: ${this.processingQueue.length}`);
 
         while (this.processingQueue.length > 0) {
+            if (this.disposed) {
+                return;
+            }
+
             const task = this.processingQueue.shift();
             this.logInfo(`处理任务 (剩余: ${this.processingQueue.length})`);
 
@@ -277,6 +376,10 @@ export class BilibiliParser {
     }
 
     private async processVideoTask(session: Session, ret: string, options: { video?: boolean; audio?: boolean; link?: boolean } = { video: true }) {
+        if (this.disposed) {
+            return;
+        }
+
         const lastretUrl = this.extractLastUrl(ret);
         this.logInfo(`处理视频: ${lastretUrl}`);
 
@@ -504,7 +607,7 @@ export class BilibiliParser {
         // 准备发送的所有元素
         let allElements = [...textElements, ...videoElements];
 
-        if (allElements.length === 0) {
+        if (this.disposed || allElements.length === 0) {
             return;
         }
 
