@@ -1,6 +1,6 @@
 import { Context } from 'koishi'
 
-import type { Config } from './index'
+import type { Config } from './config'
 
 export type DebugLogger = (message: unknown, ...args: unknown[]) => void
 

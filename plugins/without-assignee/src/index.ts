@@ -1,5 +1,6 @@
-import { Context, Schema } from 'koishi'
+import { Context } from 'koishi'
 
+import type { Config as PluginConfig } from './config'
 import { createDebugLogger } from './logger'
 import { registerAssigneeBypass } from './reassign'
 
@@ -10,6 +11,9 @@ export const filter = false
 export const inject = {
   optional: ['database'],
 }
+
+export { Config } from './config'
+export type { PluginConfig }
 
 export const usage = `
 ---
@@ -24,15 +28,7 @@ export const usage = `
 ---
 `
 
-export interface Config {
-  loggerinfo: boolean
-}
-
-export const Config: Schema<Config> = Schema.object({
-  loggerinfo: Schema.boolean().default(false).description('输出调试日志').experimental(),
-}).description('调试设置')
-
-export function apply(ctx: Context, config: Config) {
+export function apply(ctx: Context, config: PluginConfig) {
   const logDebug = createDebugLogger(ctx, config)
-  registerAssigneeBypass(ctx, logDebug)
+  registerAssigneeBypass(ctx, config.assigneeMode, logDebug)
 }
