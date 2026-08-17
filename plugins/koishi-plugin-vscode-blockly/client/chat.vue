@@ -40,14 +40,11 @@
 
 <script setup lang="ts">
 import { onBeforeUnmount, ref } from 'vue'
-import { receive, send } from '@koishijs/client'
+import { send } from '@koishijs/client'
 import type {
-  ChatChunkPayload,
-  ChatDonePayload,
-  ChatErrorPayload,
   ChatMessage,
   ChatStartRequest,
-  ChatToolPayload,
+  ChatStatus,
 } from './types'
 import { errorMessage, extractCode } from './utils'
 
@@ -62,47 +59,14 @@ const input = ref('')
 const activeId = ref('')
 const error = ref('')
 const toolStatus = ref('')
+let pollTimer: number | undefined
 
 const loading = ref(false)
 
-receive<ChatChunkPayload>('vscode-blockly/chat-chunk', ({ id, delta }) => {
-  const message = messages.value.find(item => item.id === id)
-  if (message) {
-    message.content += delta
-    saveMessages()
-  }
-})
-
-receive<ChatDonePayload>('vscode-blockly/chat-done', ({ id, content }) => {
-  const message = messages.value.find(item => item.id === id)
-  if (message) message.content = content
-  if (activeId.value === id) {
-    activeId.value = ''
-    loading.value = false
-  }
+onBeforeUnmount(() => {
+  stopPolling()
   saveMessages()
 })
-
-receive<ChatErrorPayload>('vscode-blockly/chat-error', ({ id, error: message }) => {
-  const target = messages.value.find(item => item.id === id)
-  if (target) target.content += `\n\n生成失败: ${message}`
-  if (activeId.value === id) {
-    activeId.value = ''
-    loading.value = false
-  }
-  error.value = message
-  saveMessages()
-})
-
-receive<ChatToolPayload>('vscode-blockly/chat-tool', ({ tool }) => {
-  toolStatus.value = tool === 'write_file'
-    ? '正在写入文件...'
-    : tool === 'create_file'
-      ? '正在新建文件...'
-      : `正在调用 ${tool}...`
-})
-
-onBeforeUnmount(() => saveMessages())
 
 async function sendMessage() {
   const content = input.value.trim()
@@ -122,10 +86,53 @@ async function sendMessage() {
       messages: messages.value.filter(item => item.role !== 'system'),
     }
     await send('vscode-blockly/chat/start', payload)
+    pollStatus(id)
   } catch (caught) {
     error.value = errorMessage(caught)
     activeId.value = ''
     loading.value = false
+    stopPolling()
+  }
+}
+
+async function pollStatus(id: string) {
+  stopPolling()
+  pollTimer = window.setInterval(async () => {
+    try {
+      const status = await send<ChatStatus>('vscode-blockly/chat/status', id)
+      const message = messages.value.find(item => item.id === id)
+      if (message) message.content = status.content
+      toolStatus.value = status.tool === 'write_file'
+        ? '正在写入文件...'
+        : status.tool === 'create_file'
+          ? '正在新建文件...'
+          : status.tool
+            ? `正在调用 ${status.tool}...`
+            : ''
+      saveMessages()
+      if (status.done) {
+        stopPolling()
+        if (activeId.value === id) {
+          activeId.value = ''
+          loading.value = false
+        }
+        if (status.error) error.value = status.error
+      }
+    } catch (caught) {
+      stopPolling()
+      if (activeId.value === id) {
+        activeId.value = ''
+        loading.value = false
+      }
+      error.value = errorMessage(caught)
+    }
+  }, 250)
+}
+
+function stopPolling() {
+  if (pollTimer) {
+    window.clearInterval(pollTimer)
+    pollTimer = undefined
   }
 }
 
@@ -138,6 +145,7 @@ function applyNew(content: string) {
 }
 
 function clear() {
+  stopPolling()
   messages.value = []
   error.value = ''
   activeId.value = ''

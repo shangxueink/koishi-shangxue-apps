@@ -1,6 +1,6 @@
 import { Context } from 'koishi'
 import { } from '@koishijs/plugin-console'
-import { startChatStream } from './ai'
+import { getChatTask, startChatStream } from './ai'
 import {
   createScript,
   deleteScript,
@@ -17,6 +17,7 @@ import {
   ChatRequest,
   ChatStartRequest,
   ChatResponse,
+  ChatStatus,
   FileNode,
   ReloadResult,
   RuntimeConfig,
@@ -37,6 +38,7 @@ declare module '@koishijs/plugin-console' {
     'vscode-blockly/config/set'(config: RuntimeConfig): Promise<void>
     'vscode-blockly/chat'(request: ChatRequest): Promise<ChatResponse>
     'vscode-blockly/chat/start'(request: ChatStartRequest): Promise<string>
+    'vscode-blockly/chat/status'(id: string): Promise<ChatStatus>
     'vscode-blockly/search'(query: string): Promise<SearchMatch[]>
     'vscode-blockly/root'(): Promise<string>
     'vscode-blockly/enabled'(path: string, enabled: boolean): Promise<ReloadResult>
@@ -73,6 +75,7 @@ export function registerConsoleEvents(ctx: Context, store: Store, runtime: Scrip
     setDebug(config.debug)
   }, { authority: 4 })
   ctx.console.addListener('vscode-blockly/chat/start', async (request) => startChatStream(ctx, store, runtime, request.id, request), { authority: 4 })
+  ctx.console.addListener('vscode-blockly/chat/status', async (id) => getChatTask(id), { authority: 4 })
   ctx.console.addListener('vscode-blockly/search', async (query) => searchScripts(ctx, store, query), { authority: 4 })
   ctx.console.addListener('vscode-blockly/root', async () => store.scriptsRoot, { authority: 4 })
   ctx.console.addListener('vscode-blockly/enabled', async (path, enabled) => {

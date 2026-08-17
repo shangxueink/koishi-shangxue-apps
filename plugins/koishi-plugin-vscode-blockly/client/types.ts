@@ -42,6 +42,13 @@ export interface ChatStartRequest {
   messages: ChatMessage[]
 }
 
+export interface ChatStatus {
+  content: string
+  done: boolean
+  error?: string
+  tool?: string
+}
+
 export interface ReloadResult {
   ok: boolean
   error?: string
@@ -51,24 +58,4 @@ export interface SearchMatch {
   path: string
   line: number
   content: string
-}
-
-export interface ChatChunkPayload {
-  id: string
-  delta: string
-}
-
-export interface ChatDonePayload {
-  id: string
-  content: string
-}
-
-export interface ChatErrorPayload {
-  id: string
-  error: string
-}
-
-export interface ChatToolPayload {
-  id: string
-  tool: string
 }

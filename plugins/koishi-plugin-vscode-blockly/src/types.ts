@@ -42,6 +42,13 @@ export interface ChatStartRequest {
   messages: ChatMessage[]
 }
 
+export interface ChatStatus {
+  content: string
+  done: boolean
+  error?: string
+  tool?: string
+}
+
 export interface ChatResponse {
   content: string
 }

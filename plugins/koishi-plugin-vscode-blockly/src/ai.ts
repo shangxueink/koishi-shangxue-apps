@@ -3,7 +3,11 @@ import { createScript, listScripts, readScript, writeScript } from './files'
 import { logDebug } from './logger'
 import { ScriptManager } from './runtime'
 import { Store } from './store'
-import { ChatRequest } from './types'
+import { ChatRequest, ChatStatus } from './types'
+
+interface ChatTask extends ChatStatus {}
+
+const tasks = new Map<string, ChatTask>()
 
 interface ToolCall {
   id: string
@@ -127,8 +131,21 @@ export async function startChatStream(
   id: string,
   request: ChatRequest,
 ) {
-  void runChatStream(ctx, store, runtime, request, id)
+  const task: ChatTask = { content: '', done: false }
+  tasks.set(id, task)
+  void runChatStream(ctx, store, runtime, request, task)
   return id
+}
+
+export function getChatTask(id: string): ChatStatus {
+  const task = tasks.get(id)
+  if (!task) return { content: '', done: true, error: '对话任务不存在或已过期' }
+  return {
+    content: task.content,
+    done: task.done,
+    error: task.error,
+    tool: task.tool,
+  }
 }
 
 async function runChatStream(
@@ -136,7 +153,7 @@ async function runChatStream(
   store: Store,
   runtime: ScriptManager,
   request: ChatRequest,
-  id: string,
+  task: ChatTask,
 ) {
   try {
     const config = await store.getConfig()
@@ -181,10 +198,7 @@ async function runChatStream(
             tool_call_id: call.id,
             content: result,
           })
-          ctx.console.broadcast('vscode-blockly/chat-tool', {
-            id,
-            tool: call.function.name,
-          }).catch(() => {})
+          task.tool = call.function.name
         }
         continue
       }
@@ -194,11 +208,14 @@ async function runChatStream(
     }
 
     if (!content) content = '已完成工具调用，但没有生成可显示内容。'
-    ctx.console.broadcast('vscode-blockly/chat-chunk', { id, delta: content }).catch(() => {})
-    ctx.console.broadcast('vscode-blockly/chat-done', { id, content }).catch(() => {})
+    task.content = content
+    task.done = true
+    task.tool = undefined
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
-    ctx.console.broadcast('vscode-blockly/chat-error', { id, error: message }).catch(() => {})
+    task.error = message
+    task.done = true
+    task.tool = undefined
   }
 }
 
