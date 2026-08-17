@@ -10,7 +10,6 @@ export type {
   ChatResponse,
   ChatStartRequest,
   FileNode,
-  GitStatus,
   ReloadResult,
   RuntimeConfig,
   RuntimeState,

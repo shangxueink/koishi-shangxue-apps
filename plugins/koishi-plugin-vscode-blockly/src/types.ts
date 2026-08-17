@@ -67,12 +67,6 @@ export interface SearchMatch {
   content: string
 }
 
-export interface GitStatus {
-  available: boolean
-  branch: string
-  status: string[]
-  error?: string
-}
 
 export interface ReloadResult {
   ok: boolean

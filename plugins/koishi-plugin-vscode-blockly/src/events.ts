@@ -10,7 +10,6 @@ import {
   searchScripts,
   writeScript,
 } from './files'
-import { getGitStatus } from './git'
 import { setDebug } from './logger'
 import { ScriptManager } from './runtime'
 import { Store } from './store'
@@ -19,7 +18,6 @@ import {
   ChatStartRequest,
   ChatResponse,
   FileNode,
-  GitStatus,
   ReloadResult,
   RuntimeConfig,
   ScriptContent,
@@ -40,7 +38,6 @@ declare module '@koishijs/plugin-console' {
     'vscode-blockly/chat'(request: ChatRequest): Promise<ChatResponse>
     'vscode-blockly/chat/start'(request: ChatStartRequest): Promise<string>
     'vscode-blockly/search'(query: string): Promise<SearchMatch[]>
-    'vscode-blockly/git/status'(): Promise<GitStatus>
     'vscode-blockly/root'(): Promise<string>
     'vscode-blockly/enabled'(path: string, enabled: boolean): Promise<ReloadResult>
     'vscode-blockly/reload'(path?: string): Promise<ReloadResult>
@@ -77,7 +74,6 @@ export function registerConsoleEvents(ctx: Context, store: Store, runtime: Scrip
   }, { authority: 4 })
   ctx.console.addListener('vscode-blockly/chat/start', async (request) => startChatStream(ctx, store, request.id, request), { authority: 4 })
   ctx.console.addListener('vscode-blockly/search', async (query) => searchScripts(ctx, store, query), { authority: 4 })
-  ctx.console.addListener('vscode-blockly/git/status', async () => getGitStatus(store.scriptsRoot), { authority: 4 })
   ctx.console.addListener('vscode-blockly/root', async () => store.scriptsRoot, { authority: 4 })
   ctx.console.addListener('vscode-blockly/enabled', async (path, enabled) => {
     await store.setEnabled(path, enabled)

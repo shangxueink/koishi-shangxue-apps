@@ -37,7 +37,6 @@
             @delete="deleteFile"
           />
           <search-panel v-show="view === 'search'" @open="openSearchResult" />
-          <source-panel v-show="view === 'source'" />
           <extension-panel
             v-show="view === 'extensions'"
             :files="files"
@@ -86,11 +85,9 @@ import Editor from './editor.vue'
 import Explorer from './explorer.vue'
 import SettingsPanel from './settings.vue'
 import SearchPanel from './search.vue'
-import SourcePanel from './source.vue'
 import ExtensionPanel from './extensions.vue'
 import FilesIcon from './icons/files.vue'
 import SearchIcon from './icons/search.vue'
-import SourceIcon from './icons/source.vue'
 import ExtensionsIcon from './icons/extensions.vue'
 import ChatIcon from './icons/chat.vue'
 import SettingsIcon from './icons/settings.vue'
@@ -98,7 +95,7 @@ import type { Component } from 'vue'
 import type { FileNode, ReloadResult, ScriptContent, WriteResult } from './types'
 import { errorMessage, flattenFiles, normalizeScriptName } from './utils'
 
-type View = 'files' | 'search' | 'source' | 'extensions' | 'chat' | 'settings'
+type View = 'files' | 'search' | 'extensions' | 'chat' | 'settings'
 
 interface ActivityItem {
   key: View
@@ -124,7 +121,6 @@ let resizeStart: { x: number; width: number } | null = null
 const activityItems: ActivityItem[] = [
   { key: 'files', label: '资源管理器', icon: FilesIcon },
   { key: 'search', label: '搜索', icon: SearchIcon },
-  { key: 'source', label: '源代码管理', icon: SourceIcon },
   { key: 'extensions', label: '扩展', icon: ExtensionsIcon },
   { key: 'chat', label: 'AI 对话', icon: ChatIcon },
   { key: 'settings', label: '设置', icon: SettingsIcon },
@@ -153,7 +149,7 @@ function updateMobile() {
 }
 
 function switchActivity(key: View) {
-  const sidebarViews: View[] = ['files', 'search', 'source', 'extensions', 'chat']
+  const sidebarViews: View[] = ['files', 'search', 'extensions', 'chat']
   if (isMobile.value && view.value === key && sidebarViews.includes(key)) {
     sidebarOpen.value = !sidebarOpen.value
     return
