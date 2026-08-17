@@ -1,0 +1,22 @@
+{
+  "compilerOptions": {
+    "baseUrl": "../../../..",
+    "paths": {
+      "@koishijs/*": [
+        "node_modules/@koishijs/*"
+      ]
+    },
+    "rootDir": ".",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "jsx": "preserve",
+    "types": [
+      "@koishijs/client/global"
+    ],
+    "skipLibCheck": true,
+    "strict": false
+  },
+  "include": [
+    "."
+  ]
+}

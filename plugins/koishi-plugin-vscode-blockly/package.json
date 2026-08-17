@@ -1,0 +1,47 @@
+{
+  "name": "koishi-plugin-vscode-blockly",
+  "description": "VSCode style AI coding studio for Koishi plugins",
+  "version": "0.1.0",
+  "main": "lib/index.js",
+  "typings": "lib/index.d.ts",
+  "files": [
+    "client",
+    "dist",
+    "lib",
+    "src"
+  ],
+  "license": "MIT",
+  "keywords": [
+    "chatbot",
+    "koishi",
+    "plugin",
+    "vscode",
+    "ai",
+    "blockly",
+    "code-editor"
+  ],
+  "koishi": {
+    "description": {
+      "zh": "在 Koishi 控制台中使用 VSCode 风格的编辑器开发并启停 TS/JS 插件",
+      "en": "Develop and control Koishi TS/JS plugins in a VSCode-style editor"
+    },
+    "browser": true,
+    "service": {
+      "required": [
+        "console"
+      ]
+    }
+  },
+  "peerDependencies": {
+    "@koishijs/plugin-console": "^5.30.0",
+    "koishi": "^4.18.0"
+  },
+  "devDependencies": {
+    "@koishijs/client": "^5.30.0",
+    "@types/node": "^25.0.0",
+    "typescript": "^5.9.0"
+  },
+  "dependencies": {
+    "typescript": "^5.9.0"
+  }
+}

@@ -1,0 +1,71 @@
+export interface FileNode {
+  name: string
+  path: string
+  type: 'file' | 'directory'
+  enabled?: boolean
+  children?: FileNode[]
+}
+
+export interface ScriptContent {
+  path: string
+  name: string
+  content: string
+  language: 'typescript' | 'javascript'
+  enabled: boolean
+}
+
+export interface RuntimeConfig {
+  apiBase: string
+  apiKey: string
+  model: string
+  temperature: number
+  debug: boolean
+}
+
+export interface ChatMessage {
+  id?: string
+  role: 'system' | 'user' | 'assistant'
+  content: string
+}
+
+export interface ChatResponse {
+  content: string
+}
+
+export interface ChatStartRequest {
+  id: string
+  messages: ChatMessage[]
+}
+
+export interface ReloadResult {
+  ok: boolean
+  error?: string
+}
+
+export interface SearchMatch {
+  path: string
+  line: number
+  content: string
+}
+
+export interface GitStatus {
+  available: boolean
+  branch: string
+  status: string[]
+  error?: string
+}
+
+export interface ChatChunkPayload {
+  id: string
+  delta: string
+}
+
+export interface ChatDonePayload {
+  id: string
+  content: string
+}
+
+export interface ChatErrorPayload {
+  id: string
+  error: string
+}
