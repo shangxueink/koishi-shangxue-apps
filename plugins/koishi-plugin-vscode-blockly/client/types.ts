@@ -14,6 +14,11 @@ export interface ScriptContent {
   enabled: boolean
 }
 
+export interface WriteResult {
+  path: string
+  disabled: boolean
+}
+
 export interface RuntimeConfig {
   apiBase: string
   apiKey: string

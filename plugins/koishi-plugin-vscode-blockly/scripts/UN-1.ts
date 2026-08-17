@@ -1,16 +1,7 @@
-import { Context, Schema } from 'koishi'
+import { Context } from 'koishi'
 
-export const name = 'demo'
-
-export interface Config {
-  prefix: string
-}
-
- const Config: Schema<Config> = Schema.object({
-  prefix:.string().default('Hello').description('消息前缀'),
-})
-
-export apply(ctx: Context,: Config) {
- ctx.command('demo []', '一个简单的演示指令')
-   action((_, name) => `${config.prefix}, ${name ?? 'world'}!`)
+export function apply(ctx: Context) {
+  ctx.setInterval(() => {
+    ctx.logger('script').info('tick')
+  }, 60000)
 }

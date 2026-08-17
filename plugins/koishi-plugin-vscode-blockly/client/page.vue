@@ -95,7 +95,7 @@ import ExtensionsIcon from './icons/extensions.vue'
 import ChatIcon from './icons/chat.vue'
 import SettingsIcon from './icons/settings.vue'
 import type { Component } from 'vue'
-import type { FileNode, ReloadResult, ScriptContent } from './types'
+import type { FileNode, ReloadResult, ScriptContent, WriteResult } from './types'
 import { errorMessage, flattenFiles, normalizeScriptName } from './utils'
 
 type View = 'files' | 'search' | 'source' | 'extensions' | 'chat' | 'settings'
@@ -222,10 +222,16 @@ async function openFile(path: string) {
 async function saveFile(content: string) {
   if (!currentPath.value || !currentScript.value) return
   try {
-    await send('vscode-blockly/write', currentPath.value, content)
+    const result = await send<WriteResult>('vscode-blockly/write', currentPath.value, content)
     currentScript.value = { ...currentScript.value, content }
     dirty.value = false
-    status.value = '已保存'
+    if (result.disabled) {
+      currentScript.value = { ...currentScript.value, enabled: false }
+      status.value = '已保存并关闭插件，请手动重新开启'
+    } else {
+      status.value = '已保存'
+    }
+    await refreshFiles()
   } catch (error) {
     status.value = errorMessage(error)
   }

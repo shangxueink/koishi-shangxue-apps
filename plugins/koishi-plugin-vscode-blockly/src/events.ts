@@ -24,13 +24,14 @@ import {
   RuntimeConfig,
   ScriptContent,
   SearchMatch,
+  WriteResult,
 } from './types'
 
 declare module '@koishijs/plugin-console' {
   interface Events {
     'vscode-blockly/list'(): Promise<FileNode[]>
     'vscode-blockly/read'(path: string): Promise<ScriptContent>
-    'vscode-blockly/write'(path: string, content: string): Promise<string>
+    'vscode-blockly/write'(path: string, content: string): Promise<WriteResult>
     'vscode-blockly/create'(path: string, content?: string): Promise<string>
     'vscode-blockly/rename'(oldPath: string, newPath: string): Promise<string>
     'vscode-blockly/delete'(path: string): Promise<string>
@@ -49,7 +50,16 @@ declare module '@koishijs/plugin-console' {
 export function registerConsoleEvents(ctx: Context, store: Store, runtime: ScriptManager) {
   ctx.console.addListener('vscode-blockly/list', async () => listScripts(ctx, store), { authority: 4 })
   ctx.console.addListener('vscode-blockly/read', async (path) => readScript(ctx, store, path), { authority: 4 })
-  ctx.console.addListener('vscode-blockly/write', async (path, content) => writeScript(ctx, store, path, content), { authority: 4 })
+  ctx.console.addListener('vscode-blockly/write', async (path, content) => {
+    const result = await writeScript(ctx, store, path, content)
+    const state = await store.getState()
+    const wasEnabled = state.enabled.includes(path)
+    if (wasEnabled) {
+      await store.setEnabled(path, false)
+      await runtime.stop(path)
+    }
+    return { path: result, disabled: wasEnabled }
+  }, { authority: 4 })
   ctx.console.addListener('vscode-blockly/create', async (path, content) => createScript(ctx, store, path, content), { authority: 4 })
   ctx.console.addListener('vscode-blockly/rename', async (oldPath, newPath) => {
     const result = await renameScript(ctx, store, oldPath, newPath)
