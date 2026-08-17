@@ -1,5 +1,11 @@
 <template>
   <div class="vscode-blockly-root vb-shell" :class="{ 'is-mobile': isMobile }">
+    <div class="vb-topbar">
+      <div class="vb-topbar-title">VSCode Blockly</div>
+      <button class="vb-ai-toggle" :class="{ active: aiOpen }" @click="aiOpen = !aiOpen">
+        AI 对话
+      </button>
+    </div>
     <div class="vb-workspace">
       <aside class="vb-activity">
         <button
@@ -37,17 +43,6 @@
             @delete="deleteFile"
           />
           <search-panel v-show="view === 'search'" @open="openSearchResult" />
-          <extension-panel
-            v-show="view === 'extensions'"
-            :files="files"
-            @open="openSearchResult"
-            @toggle="setExtensionEnabled"
-          />
-          <chat
-            v-show="view === 'chat'"
-            @apply-current="applyToCurrent"
-            @apply-new="createFromChat"
-          />
         </div>
         <div v-if="!isMobile" class="vb-resizer" @pointerdown="startResize"></div>
       </aside>
@@ -64,6 +59,15 @@
           @change="dirty = true"
         />
       </main>
+
+      <aside
+        class="vb-ai-panel"
+        :class="{ open: aiOpen && view !== 'settings' }"
+        :style="aiPanelStyle"
+      >
+        <div v-if="!isMobile" class="vb-ai-resizer" @pointerdown="startAiResize"></div>
+        <chat @apply-current="applyToCurrent" @apply-new="createFromChat" />
+      </aside>
     </div>
 
     <footer class="vb-statusbar">
@@ -85,17 +89,14 @@ import Editor from './editor.vue'
 import Explorer from './explorer.vue'
 import SettingsPanel from './settings.vue'
 import SearchPanel from './search.vue'
-import ExtensionPanel from './extensions.vue'
 import FilesIcon from './icons/files.vue'
 import SearchIcon from './icons/search.vue'
-import ExtensionsIcon from './icons/extensions.vue'
-import ChatIcon from './icons/chat.vue'
 import SettingsIcon from './icons/settings.vue'
 import type { Component } from 'vue'
 import type { FileNode, ReloadResult, ScriptContent, WriteResult } from './types'
 import { errorMessage, flattenFiles, normalizeScriptName } from './utils'
 
-type View = 'files' | 'search' | 'extensions' | 'chat' | 'settings'
+type View = 'files' | 'search' | 'settings'
 
 interface ActivityItem {
   key: View
@@ -112,17 +113,19 @@ const status = ref('就绪')
 const scriptsRoot = ref('')
 const isMobile = ref(false)
 const sidebarOpen = ref(true)
+const aiOpen = ref(false)
 
 const media = window.matchMedia('(max-width: 760px)')
 const savedWidth = Number(window.localStorage.getItem('vb-sidebar-width') || 260)
 const sidebarWidth = ref(Number.isFinite(savedWidth) && savedWidth >= 180 && savedWidth <= 420 ? savedWidth : 260)
 let resizeStart: { x: number; width: number } | null = null
+const savedAiWidth = Number(window.localStorage.getItem('vb-ai-width') || 360)
+const aiWidth = ref(Number.isFinite(savedAiWidth) && savedAiWidth >= 280 && savedAiWidth <= 640 ? savedAiWidth : 360)
+let aiResizeStart: { x: number; width: number } | null = null
 
 const activityItems: ActivityItem[] = [
   { key: 'files', label: '资源管理器', icon: FilesIcon },
   { key: 'search', label: '搜索', icon: SearchIcon },
-  { key: 'extensions', label: '扩展', icon: ExtensionsIcon },
-  { key: 'chat', label: 'AI 对话', icon: ChatIcon },
   { key: 'settings', label: '设置', icon: SettingsIcon },
 ]
 
@@ -133,6 +136,14 @@ const sidebarStyle = computed(() => {
   return {
     width: `${sidebarWidth.value}px`,
     flexBasis: `${sidebarWidth.value}px`,
+  }
+})
+
+const aiPanelStyle = computed(() => {
+  if (isMobile.value) return {}
+  return {
+    width: `${aiWidth.value}px`,
+    flexBasis: `${aiWidth.value}px`,
   }
 })
 
@@ -149,7 +160,7 @@ function updateMobile() {
 }
 
 function switchActivity(key: View) {
-  const sidebarViews: View[] = ['files', 'search', 'extensions', 'chat']
+  const sidebarViews: View[] = ['files', 'search']
   if (isMobile.value && view.value === key && sidebarViews.includes(key)) {
     sidebarOpen.value = !sidebarOpen.value
     return
@@ -180,6 +191,26 @@ function stopResize() {
   window.removeEventListener('pointerup', stopResize)
 }
 
+function startAiResize(event: PointerEvent) {
+  event.preventDefault()
+  aiResizeStart = { x: event.clientX, width: aiWidth.value }
+  window.addEventListener('pointermove', handleAiResize)
+  window.addEventListener('pointerup', stopAiResize)
+}
+
+function handleAiResize(event: PointerEvent) {
+  if (!aiResizeStart) return
+  const next = Math.min(640, Math.max(280, aiResizeStart.width - (event.clientX - aiResizeStart.x)))
+  aiWidth.value = next
+  window.localStorage.setItem('vb-ai-width', String(next))
+}
+
+function stopAiResize() {
+  aiResizeStart = null
+  window.removeEventListener('pointermove', handleAiResize)
+  window.removeEventListener('pointerup', stopAiResize)
+}
+
 onMounted(async () => {
   updateMobile()
   media.addEventListener('change', updateMobile)
@@ -194,6 +225,7 @@ onMounted(async () => {
 onBeforeUnmount(() => {
   media.removeEventListener('change', updateMobile)
   stopResize()
+  stopAiResize()
 })
 
 async function refreshFiles() {
@@ -358,6 +390,38 @@ async function createFromChat(code: string) {
   font-size: 13px;
 }
 
+.vb-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 36px;
+  flex: 0 0 36px;
+  padding: 0 12px;
+  background: #252526;
+  border-bottom: 1px solid #3c3c3c;
+}
+
+.vb-topbar-title {
+  color: #d4d4d4;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.vb-ai-toggle {
+  height: 26px;
+  padding: 0 12px;
+  color: #ffffff;
+  background: #0e639c;
+  border: 1px solid #1177bb;
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+.vb-ai-toggle:hover,
+.vb-ai-toggle.active {
+  background: #1177bb;
+}
+
 .vb-workspace {
   position: relative;
   display: flex;
@@ -491,6 +555,33 @@ async function createFromChat(code: string) {
   min-width: 0;
   min-height: 0;
   background: var(--vb-bg);
+}
+
+.vb-ai-panel {
+  display: none;
+  width: 360px;
+  flex: 0 0 360px;
+  background: #252526;
+  border-left: 1px solid #3c3c3c;
+  overflow: hidden;
+}
+
+.vb-ai-resizer {
+  position: absolute;
+  top: 0;
+  left: -3px;
+  bottom: 0;
+  width: 6px;
+  cursor: col-resize;
+  z-index: 5;
+}
+
+.vb-ai-resizer:hover {
+  background: #0e639c;
+}
+
+.vb-ai-panel.open {
+  display: flex;
 }
 
 .vb-statusbar {
@@ -770,6 +861,17 @@ async function createFromChat(code: string) {
 
   .vb-sidebar.mobile-open {
     transform: translateX(0);
+  }
+
+  .vb-ai-panel {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 21;
+    width: min(86vw, 360px);
+    flex-basis: auto;
+    box-shadow: -8px 0 24px rgba(0, 0, 0, 0.35);
   }
 
   .vb-editor-actions {

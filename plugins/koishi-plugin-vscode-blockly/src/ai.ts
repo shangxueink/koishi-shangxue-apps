@@ -1,20 +1,50 @@
 import { Context } from 'koishi'
-import type { ReadableStream } from 'node:stream/web'
-import { ChatRequest } from './types'
-import { Store } from './store'
+import { createScript, listScripts, readScript, writeScript } from './files'
 import { logDebug } from './logger'
+import { ScriptManager } from './runtime'
+import { Store } from './store'
+import { ChatRequest } from './types'
 
-interface OpenAIStreamChoice {
-  delta?: {
-    content?: string
+interface ToolCall {
+  id: string
+  type: 'function'
+  function: {
+    name: string
+    arguments: string
   }
 }
 
-interface OpenAIStreamResponse {
-  choices?: OpenAIStreamChoice[]
+interface ChatMessageInput {
+  role: string
+  content?: string | null
+  tool_calls?: ToolCall[]
+  tool_call_id?: string
 }
 
-const systemPrompt = `你是 Koishi 插件代码助手。只输出一个可保存为单个 .ts 或 .js 文件的 Koishi 插件脚本。
+interface OpenAIResponse {
+  choices?: Array<{
+    message?: {
+      content?: string | null
+      tool_calls?: ToolCall[]
+    }
+  }>
+}
+
+interface ToolDefinition {
+  type: 'function'
+  function: {
+    name: string
+    description: string
+    parameters: object
+  }
+}
+
+const systemPrompt = `你是 Koishi 插件代码助手。你可以直接调用工具读写本地脚本文件，不要只把代码返回给用户。
+
+## 工具使用
+- 用户要求创建或修改脚本时，优先调用 write_file / create_file 直接写入本地文件。
+- 写入前可以先调用 read_file / list_files 查看当前已有脚本。
+- 写入完成后，只需要在回复中简要说明文件路径和修改内容，不要再重复整段代码。
 
 ## 配置方式
 - 禁止使用 Koishi Schema/Config 配置项。
@@ -33,48 +63,138 @@ const systemPrompt = `你是 Koishi 插件代码助手。只输出一个可保�
 7. 调试日志通过顶部 DEBUG 常量控制，DEBUG 开启时才输出日志。
 8. 不修改 client/index.ts。
 9. 代码要完整、可运行；禁止省略 function；链式调用必须带 .，例如 ctx.command(...).action(...)。
-10. 只输出一个文件，不要拆分模块；若用户要求完整代码，请使用代码块包裹。`
+10. 只输出一个文件，不要拆分模块。`
 
-export async function startChatStream(ctx: Context, store: Store, id: string, request: ChatRequest) {
-  void runChatStream(ctx, store, request, id)
+const tools: ToolDefinition[] = [
+  {
+    type: 'function',
+    function: {
+      name: 'list_files',
+      description: '列出 scripts 目录下的所有 TS/JS 脚本',
+      parameters: { type: 'object', properties: {} },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'read_file',
+      description: '读取一个 TS/JS 脚本文件的内容',
+      parameters: {
+        type: 'object',
+        properties: {
+          path: { type: 'string', description: '脚本相对路径，例如 UN-1.ts' },
+        },
+        required: ['path'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'write_file',
+      description: '覆盖写入一个 TS/JS 脚本文件；如果文件原本已启用，写入后会自动停用',
+      parameters: {
+        type: 'object',
+        properties: {
+          path: { type: 'string', description: '脚本相对路径，例如 UN-1.ts' },
+          content: { type: 'string', description: '完整文件内容' },
+        },
+        required: ['path', 'content'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'create_file',
+      description: '新建一个 TS/JS 脚本文件',
+      parameters: {
+        type: 'object',
+        properties: {
+          path: { type: 'string', description: '脚本相对路径，例如 UN-2.ts' },
+          content: { type: 'string', description: '完整文件内容' },
+        },
+        required: ['path', 'content'],
+      },
+    },
+  },
+]
+
+export async function startChatStream(
+  ctx: Context,
+  store: Store,
+  runtime: ScriptManager,
+  id: string,
+  request: ChatRequest,
+) {
+  void runChatStream(ctx, store, runtime, request, id)
   return id
 }
 
-async function runChatStream(ctx: Context, store: Store, request: ChatRequest, id: string) {
+async function runChatStream(
+  ctx: Context,
+  store: Store,
+  runtime: ScriptManager,
+  request: ChatRequest,
+  id: string,
+) {
   try {
-  const config = await store.getConfig()
-  if (!config.apiKey) throw new Error('请先在设置页面填写 API Key')
-  const base = config.apiBase.trim().replace(/\/+$/, '')
-  if (!base) throw new Error('请先在设置页面填写 API 地址')
-  const endpoint = `${base}/v1/chat/completions`
-  const messages = [
-    { role: 'system' as const, content: systemPrompt },
-    ...request.messages,
-  ]
-  logDebug(`调用 AI: ${endpoint}`)
-  const response = await ctx.http.post<ReadableStream<Uint8Array>>(endpoint, {
-    model: config.model,
-    messages,
-    temperature: config.temperature,
-    stream: true,
-  }, {
-    headers: {
-      Authorization: `Bearer ${config.apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    timeout: 120000,
-    responseType: 'stream',
-  })
+    const config = await store.getConfig()
+    if (!config.apiKey) throw new Error('请先在设置页面填写 API Key')
+    const base = config.apiBase.trim().replace(/\/+$/, '')
+    if (!base) throw new Error('请先在设置页面填写 API 地址')
+    const endpoint = `${base}/v1/chat/completions`
+    const messages: ChatMessageInput[] = [
+      { role: 'system', content: systemPrompt },
+      ...request.messages,
+    ]
+
+    logDebug(`调用 AI: ${endpoint}`)
     let content = ''
-    const reader = response.getReader()
-    const decoder = new TextDecoder()
-    while (true) {
-      const { done, value } = await reader.read()
-      if (done) break
-      const text = decoder.decode(value, { stream: true })
-      content += consumeSse(ctx, id, text)
+    for (let index = 0; index < 8; index++) {
+      const response = await ctx.http.post<OpenAIResponse>(endpoint, {
+        model: config.model,
+        messages,
+        temperature: config.temperature,
+        tools,
+        tool_choice: 'auto',
+      }, {
+        headers: {
+          Authorization: `Bearer ${config.apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        timeout: 120000,
+      })
+      const message = response.choices?.[0]?.message
+      if (!message) throw new Error('AI 返回内容为空')
+
+      if (message.tool_calls?.length) {
+        messages.push({
+          role: 'assistant',
+          content: message.content ?? null,
+          tool_calls: message.tool_calls,
+        })
+        for (const call of message.tool_calls) {
+          const result = await executeTool(ctx, store, runtime, call)
+          messages.push({
+            role: 'tool',
+            tool_call_id: call.id,
+            content: result,
+          })
+          ctx.console.broadcast('vscode-blockly/chat-tool', {
+            id,
+            tool: call.function.name,
+          }).catch(() => {})
+        }
+        continue
+      }
+
+      content = message.content?.trim() ?? ''
+      break
     }
-    content += consumeSse(ctx, id, decoder.decode())
+
+    if (!content) content = '已完成工具调用，但没有生成可显示内容。'
+    ctx.console.broadcast('vscode-blockly/chat-chunk', { id, delta: content }).catch(() => {})
     ctx.console.broadcast('vscode-blockly/chat-done', { id, content }).catch(() => {})
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
@@ -82,24 +202,52 @@ async function runChatStream(ctx: Context, store: Store, request: ChatRequest, i
   }
 }
 
-function consumeSse(ctx: Context, id: string, text: string) {
-  let output = ''
-  for (const rawLine of text.split(/\r?\n/)) {
-    const line = rawLine.trim()
-    if (!line.startsWith('data:')) continue
-    const data = line.slice(5).trim()
-    if (!data || data === '[DONE]') continue
-    try {
-      const parsed: unknown = JSON.parse(data)
-      const payload = parsed as OpenAIStreamResponse
-      const delta = payload.choices?.[0]?.delta?.content
-      if (delta) {
-        output += delta
-        ctx.console.broadcast('vscode-blockly/chat-chunk', { id, delta }).catch(() => {})
-      }
-    } catch {
-      // 忽略不完整的 SSE 分片
+async function executeTool(
+  ctx: Context,
+  store: Store,
+  runtime: ScriptManager,
+  call: ToolCall,
+) {
+  try {
+    const args: unknown = JSON.parse(call.function.arguments)
+    if (!args || typeof args !== 'object') throw new Error('工具参数不是对象')
+    const record = args as Record<string, unknown>
+
+    if (call.function.name === 'list_files') {
+      const files = await listScripts(ctx, store)
+      return JSON.stringify({ ok: true, files })
     }
+
+    if (call.function.name === 'read_file') {
+      const path = String(record.path ?? '')
+      const file = await readScript(ctx, store, path)
+      return JSON.stringify({ ok: true, path, content: file.content })
+    }
+
+    if (call.function.name === 'write_file') {
+      const path = String(record.path ?? '')
+      const content = String(record.content ?? '')
+      await writeScript(ctx, store, path, content)
+      const state = await store.getState()
+      if (state.enabled.includes(path)) {
+        await store.setEnabled(path, false)
+        await runtime.stop(path)
+      }
+      return JSON.stringify({ ok: true, path, disabled: true })
+    }
+
+    if (call.function.name === 'create_file') {
+      const path = String(record.path ?? '')
+      const content = String(record.content ?? '')
+      await createScript(ctx, store, path, content)
+      return JSON.stringify({ ok: true, path, disabled: false })
+    }
+
+    return JSON.stringify({ ok: false, error: `未知工具: ${call.function.name}` })
+  } catch (error) {
+    return JSON.stringify({
+      ok: false,
+      error: error instanceof Error ? error.message : String(error),
+    })
   }
-  return output
 }

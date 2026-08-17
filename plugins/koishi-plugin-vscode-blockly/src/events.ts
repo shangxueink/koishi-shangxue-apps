@@ -72,7 +72,7 @@ export function registerConsoleEvents(ctx: Context, store: Store, runtime: Scrip
     await store.setConfig(config)
     setDebug(config.debug)
   }, { authority: 4 })
-  ctx.console.addListener('vscode-blockly/chat/start', async (request) => startChatStream(ctx, store, request.id, request), { authority: 4 })
+  ctx.console.addListener('vscode-blockly/chat/start', async (request) => startChatStream(ctx, store, runtime, request.id, request), { authority: 4 })
   ctx.console.addListener('vscode-blockly/search', async (query) => searchScripts(ctx, store, query), { authority: 4 })
   ctx.console.addListener('vscode-blockly/root', async () => store.scriptsRoot, { authority: 4 })
   ctx.console.addListener('vscode-blockly/enabled', async (path, enabled) => {

@@ -67,3 +67,8 @@ export interface ChatErrorPayload {
   id: string
   error: string
 }
+
+export interface ChatToolPayload {
+  id: string
+  tool: string
+}

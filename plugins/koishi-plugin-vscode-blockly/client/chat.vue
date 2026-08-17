@@ -4,6 +4,7 @@
       <div class="vb-chat-title">AI 对话</div>
       <button class="vb-text-button" @click="clear">清空</button>
     </div>
+    <div v-if="toolStatus" class="vb-chat-tool">{{ toolStatus }}</div>
     <div class="vb-chat-messages">
       <div v-if="!messages.length" class="vb-chat-empty">开始描述插件需求</div>
       <div
@@ -30,7 +31,9 @@
         placeholder="描述插件需求，Ctrl+Enter 发送"
         @keydown.ctrl.enter.prevent="sendMessage"
       ></textarea>
-      <button class="vb-button primary" :disabled="loading || !input.trim()" @click="sendMessage">发送</button>
+      <div class="vb-chat-send-row">
+        <button class="vb-button primary" :disabled="loading || !input.trim()" @click="sendMessage">发送</button>
+      </div>
     </div>
   </div>
 </template>
@@ -44,6 +47,7 @@ import type {
   ChatErrorPayload,
   ChatMessage,
   ChatStartRequest,
+  ChatToolPayload,
 } from './types'
 import { errorMessage, extractCode } from './utils'
 
@@ -57,6 +61,7 @@ const messages = ref<ChatMessage[]>(loadMessages())
 const input = ref('')
 const activeId = ref('')
 const error = ref('')
+const toolStatus = ref('')
 
 const loading = ref(false)
 
@@ -89,6 +94,14 @@ receive<ChatErrorPayload>('vscode-blockly/chat-error', ({ id, error: message }) 
   saveMessages()
 })
 
+receive<ChatToolPayload>('vscode-blockly/chat-tool', ({ tool }) => {
+  toolStatus.value = tool === 'write_file'
+    ? '正在写入文件...'
+    : tool === 'create_file'
+      ? '正在新建文件...'
+      : `正在调用 ${tool}...`
+})
+
 onBeforeUnmount(() => saveMessages())
 
 async function sendMessage() {
@@ -101,6 +114,7 @@ async function sendMessage() {
   error.value = ''
   activeId.value = id
   loading.value = true
+  toolStatus.value = ''
   saveMessages()
   try {
     const payload: ChatStartRequest = {
@@ -128,6 +142,7 @@ function clear() {
   error.value = ''
   activeId.value = ''
   loading.value = false
+  toolStatus.value = ''
   saveMessages()
 }
 
@@ -163,6 +178,8 @@ function saveMessages() {
 .vb-chat {
   display: flex;
   flex-direction: column;
+  width: 100%;
+  flex: 1;
   height: 100%;
   min-height: 0;
   background: #252526;
@@ -170,6 +187,7 @@ function saveMessages() {
 
 .vb-chat-header {
   display: flex;
+  width: 100%;
   align-items: center;
   justify-content: space-between;
   height: 34px;
@@ -238,10 +256,20 @@ function saveMessages() {
   font-size: 12px;
 }
 
+.vb-chat-tool {
+  padding: 6px 12px;
+  color: #4ec9b0;
+  background: #1e2b2b;
+  border-bottom: 1px solid #3c3c3c;
+  font-size: 12px;
+}
+
 .vb-chat-input {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  width: 100%;
+  box-sizing: border-box;
   padding: 10px;
   border-top: 1px solid #3c3c3c;
 }
@@ -260,8 +288,9 @@ function saveMessages() {
   font-size: 12px;
 }
 
-.vb-chat-input button {
-  align-self: flex-end;
+.vb-chat-send-row {
+  display: flex;
+  justify-content: flex-end;
 }
 
 @keyframes vb-blink {
