@@ -1,5 +1,5 @@
 import { Context } from 'koishi'
-import { copyFile, mkdir, readdir, readFile, rename, writeFile } from 'node:fs/promises'
+import { copyFile, mkdir, readdir, readFile, rename, rm, writeFile } from 'node:fs/promises'
 import { existsSync, readFileSync } from 'node:fs'
 import { dirname, join, relative, resolve, isAbsolute } from 'node:path'
 import { configFileName, dataDirName, packageName, scriptsDirName, stateFileName, defaultConfig } from './constants'
@@ -94,13 +94,15 @@ export class Store {
   private async migrateLegacyScripts() {
     const legacyRoot = resolve(this.ctx.baseDir, 'data', dataDirName, scriptsDirName)
     if (!existsSync(legacyRoot)) return
-    const currentFiles = await readdir(this.scriptsRoot)
-    if (currentFiles.length) return
+    const currentFiles = new Set(await readdir(this.scriptsRoot))
     const entries = await readdir(legacyRoot, { withFileTypes: true })
     for (const entry of entries) {
       if (!entry.isFile()) continue
-      await copyFile(join(legacyRoot, entry.name), join(this.scriptsRoot, entry.name))
+      if (!currentFiles.has(entry.name)) {
+        await copyFile(join(legacyRoot, entry.name), join(this.scriptsRoot, entry.name))
+      }
     }
+    await rm(legacyRoot, { recursive: true, force: true })
   }
 
   private async writeState(state: RuntimeState) {

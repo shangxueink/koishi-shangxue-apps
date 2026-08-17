@@ -578,12 +578,8 @@ async function createFromChat(code: string) {
 }
 
 .vb-tree-actions {
-  display: none;
-  gap: 2px;
-}
-
-.vb-tree-row:hover .vb-tree-actions {
   display: flex;
+  gap: 2px;
 }
 
 .vb-tree-actions button {
