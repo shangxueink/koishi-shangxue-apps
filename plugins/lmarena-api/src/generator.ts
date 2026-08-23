@@ -56,15 +56,23 @@ export async function generateImage(
       h.text(session.text(`commands.${config.basename}.messages.processing`)),
     ])
 
-    const files = await Promise.all(
-      images.map(src => ctx.http.file(src).catch(error => {
-        log.error(`下载图片失败: ${src}`, error)
-        return null
-      })),
-    ).then(results => results.filter((file): file is NonNullable<typeof file> => file !== null))
+    const files = images.length > 0
+      ? await Promise.all(
+        images.map(src => ctx.http.file(src).catch(error => {
+          log.error(`下载图片失败: ${src}`, error)
+          return null
+        })),
+      ).then(results => results.filter((file): file is NonNullable<typeof file> => file !== null))
+      : []
 
-    if (files.length === 0) {
+    if (files.length === 0 && images.length > 0) {
       await session.send(h.text(session.text(`commands.${config.basename}.messages.invalidimage`)))
+      await deleteProcessingMessage(session, processingMessageId, log)
+      return false
+    }
+
+    if (files.length === 0 && config.apiMode !== "generations") {
+      await session.send(h.text(session.text(`commands.${config.basename}.messages.editsNeedImage`)))
       await deleteProcessingMessage(session, processingMessageId, log)
       return false
     }

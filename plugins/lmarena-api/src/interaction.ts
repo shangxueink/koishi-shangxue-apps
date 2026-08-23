@@ -33,8 +33,9 @@ export async function collectImages(
   let text = textParts.filter(Boolean).join(" ").trim()
 
   if (images.length === 0) {
+    const useOptionalImage = config.apiMode === "generations"
     const [needImagesMessageId] = await session.send(
-      h.text(session.text(`commands.${config.basename}.messages.needimages`)),
+      h.text(session.text(`commands.${config.basename}.messages.${useOptionalImage ? "needimagesOptional" : "needimages"}`)),
     )
 
     try {
@@ -44,14 +45,27 @@ export async function collectImages(
         return null
       }
 
-      images.push(...extractImagesFromMessage(reply))
-      if (!text) text = extractTextFromMessage(reply)
+      const replyImages = extractImagesFromMessage(reply)
+      const replyText = extractTextFromMessage(reply)
 
-      if (images.length === 0) {
-        await session.send(h.text(session.text(`commands.${config.basename}.messages.noImagesInPrompt`)))
+      if (replyImages.length === 0) {
+        await deleteHintMessage(session, needImagesMessageId, log, "图片交互提示")
+        if (useOptionalImage && replyText) {
+          if (!text) text = replyText
+          await session.send(h.text(session.text(`commands.${config.basename}.messages.textToImageHint`)))
+          log.info("未检测到参考图片，将按文字提示词生成")
+          return { images: [...new Set(images)], text }
+        }
+        if (useOptionalImage) {
+          await session.send(h.text(session.text(`commands.${config.basename}.messages.noImagesInPrompt`)))
+        } else {
+          await session.send(h.text(session.text(`commands.${config.basename}.messages.editsNeedImage`)))
+        }
         return null
       }
 
+      images.push(...replyImages)
+      if (!text) text = replyText
       await deleteHintMessage(session, needImagesMessageId, log, "图片交互提示")
       log.info(`通过交互模式收集到 ${images.length} 张图片:`, images)
     } catch (error) {
@@ -104,21 +118,9 @@ export async function collectParentInput(
   }
 
   if (images.length === 0) {
-    const [needImagesMessageId] = await session.send(
-      h.text(session.text(`commands.${config.basename}.messages.needimages`)),
-    )
-    const reply = await waitForInput(session, config, log)
-    if (!reply) return null
-
-    const replyImages = extractImagesFromMessage(reply)
-    if (replyImages.length === 0) {
-      await deleteHintMessage(session, needImagesMessageId, log, "图片交互提示")
-      await session.send(h.text(session.text(`commands.${config.basename}.messages.noImagesInPrompt`)))
-      return null
-    }
-
-    images.push(...replyImages)
-    await deleteHintMessage(session, needImagesMessageId, log, "图片交互提示")
+    const collection = await collectImages(session, "", config, log)
+    if (!collection) return null
+    images.push(...collection.images)
   }
 
   const uniqueImages = [...new Set(images)]

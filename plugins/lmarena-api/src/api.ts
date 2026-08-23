@@ -122,10 +122,12 @@ function buildJsonBody(files: ImageFile[], prompt: string, apiParams: Record<str
     // type 是旧配置遗留参数，generations 协议不需要
     if (key === "type") continue
     if (value === "{{inputimage}}") {
-      if (extraBodyCompat) {
-        extraBody.image = files.map(file => toDataUri(file))
-      } else {
-        body[key] = files.map(file => Buffer.from(file.data).toString("base64"))
+      if (files.length > 0) {
+        if (extraBodyCompat) {
+          extraBody.image = files.map(file => toDataUri(file))
+        } else {
+          body[key] = files.map(file => Buffer.from(file.data).toString("base64"))
+        }
       }
       continue
     }
@@ -186,7 +188,9 @@ function logRequest(options: ImageApiOptions, mode: string, files: ImageFile[], 
   const params: Record<string, unknown> = { ...options.apiParams }
   const imageKey = Object.keys(params).find(key => params[key] === "{{inputimage}}")
   if (imageKey) {
-    params[imageKey] = files.map(file => `${file.mime}:${file.data.byteLength}B`).join(",")
+    params[imageKey] = files.length > 0
+      ? files.map(file => `${file.mime}:${file.data.byteLength}B`).join(",")
+      : "无图片"
   }
   if (params.prompt === "{{prompt}}") {
     params.prompt = prompt.substring(0, 100) + (prompt.length > 100 ? "..." : "")
@@ -196,7 +200,7 @@ function logRequest(options: ImageApiOptions, mode: string, files: ImageFile[], 
     if (options.extraBodyCompat) {
       const imageValue = imageKey ? params[imageKey] : `[${files.length}张base64]`
       params.extra_body = {
-        image: imageValue,
+        ...(files.length > 0 ? { image: imageValue } : {}),
         response_format: params.response_format || "b64_json",
       }
       if (imageKey) delete params[imageKey]
