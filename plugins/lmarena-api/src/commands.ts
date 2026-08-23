@@ -1,7 +1,7 @@
 import { Context } from "koishi"
 import type { Config } from "./config"
 import type { AppLogger } from "./logger"
-import { collectImages, collectPrompt } from "./interaction"
+import { collectImages, collectParentInput } from "./interaction"
 import { checkCurrency, generateImage } from "./generator"
 
 // 注册父级交互绘图、预设子命令与 i18n
@@ -17,8 +17,9 @@ export function registerCommands(ctx: Context, config: Config, log: AppLogger): 
             failed: "图片生成失败，请稍后重试。",
             error: "处理过程中发生错误: {0}",
             needimages: "请发送图片：",
-            needPrompt: "请输入自定义指令或提示词：",
-            needPromptWithPresets: "请输入自定义指令或提示词，或回复编号使用预设：\n{0}",
+            needPrompt: "请发送画图提示词：",
+            needPromptWithPresets: "请发送画图提示词，或回复编号使用预设：\n{0}",
+            needInput: "未检测到图片或提示词，请重新发送。",
             noPrompt: "未检测到有效提示词，请重新输入。",
             insufficientCurrency: "余额不足！当前余额: {0} {1}，需要: {2} {1}",
             currencyDeducted: "成功扣除 {0} {1}，当前余额: {2} {1}",
@@ -43,13 +44,10 @@ export function registerCommands(ctx: Context, config: Config, log: AppLogger): 
           if (!(await checkCurrency(ctx, session, config, log))) return
 
           const extraContent = promptArgs.join(" ")
-          const images = await collectImages(session, extraContent, config, log)
-          if (!images) return
+          const input = await collectParentInput(session, extraContent, config, log)
+          if (!input) return
 
-          const promptSelection = await collectPrompt(session, images.text || extraContent, config, log)
-          if (!promptSelection) return
-
-          await generateImage(ctx, session, images.images, promptSelection.prompt, config, log)
+          await generateImage(ctx, session, input.images, input.prompt, config, log)
         })
     }
 

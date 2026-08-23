@@ -12,12 +12,12 @@ export interface ImageCollection {
   text: string
 }
 
-export interface PromptSelection {
+export interface ParentInput {
+  images: string[]
   prompt: string
-  presetName: string | null
 }
 
-// 先收集当前消息或交互回复中的图片；text 用于父级指令直接复用为提示词
+// 先收集当前消息或交互回复中的图片；text 用于子命令固定提示词场景
 export async function collectImages(
   session: Session,
   extraContent: string,
@@ -70,55 +70,78 @@ export async function collectImages(
   return { images: uniqueImages, text }
 }
 
-// 父级指令继续收集自定义提示词，支持直接输入或回复编号选择预设
-export async function collectPrompt(
+// 父级指令：图片和提示词可以按任意顺序、分多次输入，缺哪项就继续问哪项
+export async function collectParentInput(
   session: Session,
-  suppliedPrompt: string,
+  extraContent: string,
   config: Config,
   log: AppLogger,
-): Promise<PromptSelection | null> {
+): Promise<ParentInput | null> {
   const presets = config.customCommands.filter(command => command.enabled)
-  const input = suppliedPrompt.trim()
+  const suppliedPrompt = extractTextFromMessage(extraContent)
+  const initialImages = [
+    ...extractImagesFromSession(session),
+    ...extractImagesFromMessage(extraContent),
+  ]
+  const images = [...new Set(initialImages)]
+  let prompt = suppliedPrompt
+    ? resolvePromptInput(suppliedPrompt, presets)?.prompt ?? ""
+    : ""
+  let hintMessageId: string | undefined
 
-  if (input) {
-    const selection = resolvePromptInput(input, presets)
-    if (selection) {
-      log.info(`父级交互使用提示词来源: ${selection.presetName ?? "自定义"}`)
-      return selection
+  while (images.length === 0 || !prompt) {
+    const needImages = images.length === 0
+    const [sentMessageId] = await session.send(
+      needImages
+        ? h.text(session.text(`commands.${config.basename}.messages.needimages`))
+        : buildPromptHint(session, config, presets),
+    )
+    hintMessageId = sentMessageId
+
+    let reply: string | undefined
+    try {
+      reply = await session.prompt(config.waitTimeout * 1000)
+    } catch (error) {
+      if (isTimeoutError(error)) {
+        await session.send(h.text(session.text(`commands.${config.basename}.messages.promptTimeout`)))
+      } else {
+        log.error("交互式输入失败:", error)
+        await session.send(h.text(session.text(`commands.${config.basename}.messages.promptError`)))
+      }
+      return null
     }
-  }
 
-  const [needPromptMessageId] = await session.send(buildPromptHint(session, config, presets))
-
-  try {
-    const reply = await session.prompt(config.waitTimeout * 1000)
     if (!reply) {
       await session.send(h.text(session.text(`commands.${config.basename}.messages.promptTimeout`)))
       return null
     }
 
-    const selection = resolvePromptInput(reply, presets)
-    if (!selection) {
-      await session.send(h.text(session.text(`commands.${config.basename}.messages.noPrompt`)))
+    const replyImages = extractImagesFromMessage(reply)
+    const replyText = extractTextFromMessage(reply)
+    if (replyImages.length === 0 && !replyText) {
+      await session.send(h.text(session.text(`commands.${config.basename}.messages.needInput`)))
       return null
     }
 
-    await deleteHintMessage(session, needPromptMessageId, log, "提示词交互提示")
-    log.info(`父级交互选择提示词来源: ${selection.presetName ?? "自定义"}`)
-    return selection
-  } catch (error) {
-    if (isTimeoutError(error)) {
-      await session.send(h.text(session.text(`commands.${config.basename}.messages.promptTimeout`)))
-    } else {
-      log.error("交互式提示词输入失败:", error)
-      await session.send(h.text(session.text(`commands.${config.basename}.messages.promptError`)))
+    images.push(...replyImages)
+    if (!prompt) {
+      const selection = resolvePromptInput(replyText, presets)
+      if (selection) prompt = selection.prompt
     }
-    return null
+
+    await deleteHintMessage(session, hintMessageId, log, needImages ? "图片交互提示" : "提示词交互提示")
+    hintMessageId = undefined
   }
+
+  const uniqueImages = [...new Set(images)]
+  log.info(`父级交互收集到 ${uniqueImages.length} 张图片和提示词:`, {
+    prompt: prompt.substring(0, 100),
+  })
+  return { images: uniqueImages, prompt }
 }
 
 // 纯数字且落在预设范围内时按预设处理，否则按自定义提示词处理
-function resolvePromptInput(input: string, presets: Command[]): PromptSelection | null {
+function resolvePromptInput(input: string, presets: Command[]): { prompt: string } | null {
   const trimmed = input.trim()
   if (!trimmed) return null
 
@@ -130,10 +153,10 @@ function resolvePromptInput(input: string, presets: Command[]): PromptSelection 
     && index <= presets.length
   ) {
     const preset = presets[index - 1]
-    return { prompt: preset.prompt, presetName: preset.name }
+    return { prompt: preset.prompt }
   }
 
-  return { prompt: trimmed, presetName: null }
+  return { prompt: trimmed }
 }
 
 function buildPromptHint(session: Session, config: Config, presets: Command[]): h[] {
