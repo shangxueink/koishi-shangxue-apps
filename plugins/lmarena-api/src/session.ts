@@ -23,3 +23,17 @@ export function extractImagesFromMessage(content: string): string[] {
 
   return images
 }
+
+// 从消息内容中提取纯文本，忽略图片、引用等非文本元素
+export function extractTextFromMessage(content: string): string {
+  const parts: string[] = []
+
+  for (const element of h.parse(content)) {
+    if (element.type !== "text") continue
+    const text = element.attrs.content
+    if (typeof text !== "string" || !text.trim()) continue
+    parts.push(text.trim())
+  }
+
+  return parts.join(" ").trim()
+}

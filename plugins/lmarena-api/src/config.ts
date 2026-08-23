@@ -12,6 +12,7 @@ export interface Command {
 
 export interface Config {
   basename: string
+  parentCommandEnabled: boolean
   apiMode: ApiMode
   apiUrl: string
   apiKey: string
@@ -29,6 +30,7 @@ export interface Config {
 export const Config: Schema<Config> = Schema.intersect([
   Schema.object({
     basename: Schema.string().default("imagen").description("父级指令名称"),
+    parentCommandEnabled: Schema.boolean().default(true).description("启用父级指令交互绘图：可交互输入图片和自定义提示词"),
     waitTimeout: Schema.number().default(60).max(200).min(10).step(1).description("等待用户输入图片的最大时间（秒）"),
   }).description("基础配置"),
 
