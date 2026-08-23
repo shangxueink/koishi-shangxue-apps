@@ -18,8 +18,6 @@ export function registerCommands(ctx: Context, config: Config, log: AppLogger): 
             error: "处理过程中发生错误: {0}",
             needimages: "请发送图片：",
             needPrompt: "请发送画图提示词：",
-            needPromptWithPresets: "请发送画图提示词，或回复编号使用预设：\n{0}",
-            needInput: "未检测到图片或提示词，请重新发送。",
             noPrompt: "未检测到有效提示词，请重新输入。",
             insufficientCurrency: "余额不足！当前余额: {0} {1}，需要: {2} {1}",
             currencyDeducted: "成功扣除 {0} {1}，当前余额: {2} {1}",

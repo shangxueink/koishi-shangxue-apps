@@ -1,5 +1,5 @@
 import { h, Session } from "koishi"
-import type { Command, Config } from "./config"
+import type { Config } from "./config"
 import type { AppLogger } from "./logger"
 import {
   extractImagesFromMessage,
@@ -70,67 +70,55 @@ export async function collectImages(
   return { images: uniqueImages, text }
 }
 
-// 父级指令：图片和提示词可以按任意顺序、分多次输入，缺哪项就继续问哪项
+// 父级指令固定顺序：先收集提示词，再收集图片，避免用户误解流程
 export async function collectParentInput(
   session: Session,
   extraContent: string,
   config: Config,
   log: AppLogger,
 ): Promise<ParentInput | null> {
-  const presets = config.customCommands.filter(command => command.enabled)
-  const suppliedPrompt = extractTextFromMessage(extraContent)
   const initialImages = [
     ...extractImagesFromSession(session),
     ...extractImagesFromMessage(extraContent),
   ]
   const images = [...new Set(initialImages)]
-  let prompt = suppliedPrompt
-    ? resolvePromptInput(suppliedPrompt, presets)?.prompt ?? ""
-    : ""
-  let hintMessageId: string | undefined
+  let prompt = extractTextFromMessage(extraContent).trim()
 
-  while (images.length === 0 || !prompt) {
-    const needImages = images.length === 0
-    const [sentMessageId] = await session.send(
-      needImages
-        ? h.text(session.text(`commands.${config.basename}.messages.needimages`))
-        : buildPromptHint(session, config, presets),
+  if (!prompt) {
+    const [needPromptMessageId] = await session.send(
+      h.text(session.text(`commands.${config.basename}.messages.needPrompt`)),
     )
-    hintMessageId = sentMessageId
+    const reply = await waitForInput(session, config, log)
+    if (!reply) return null
 
-    let reply: string | undefined
-    try {
-      reply = await session.prompt(config.waitTimeout * 1000)
-    } catch (error) {
-      if (isTimeoutError(error)) {
-        await session.send(h.text(session.text(`commands.${config.basename}.messages.promptTimeout`)))
-      } else {
-        log.error("交互式输入失败:", error)
-        await session.send(h.text(session.text(`commands.${config.basename}.messages.promptError`)))
-      }
+    const replyText = extractTextFromMessage(reply)
+    if (!replyText) {
+      await deleteHintMessage(session, needPromptMessageId, log, "提示词交互提示")
+      await session.send(h.text(session.text(`commands.${config.basename}.messages.noPrompt`)))
       return null
     }
 
-    if (!reply) {
-      await session.send(h.text(session.text(`commands.${config.basename}.messages.promptTimeout`)))
-      return null
-    }
+    prompt = replyText
+    images.push(...extractImagesFromMessage(reply))
+    await deleteHintMessage(session, needPromptMessageId, log, "提示词交互提示")
+  }
+
+  if (images.length === 0) {
+    const [needImagesMessageId] = await session.send(
+      h.text(session.text(`commands.${config.basename}.messages.needimages`)),
+    )
+    const reply = await waitForInput(session, config, log)
+    if (!reply) return null
 
     const replyImages = extractImagesFromMessage(reply)
-    const replyText = extractTextFromMessage(reply)
-    if (replyImages.length === 0 && !replyText) {
-      await session.send(h.text(session.text(`commands.${config.basename}.messages.needInput`)))
+    if (replyImages.length === 0) {
+      await deleteHintMessage(session, needImagesMessageId, log, "图片交互提示")
+      await session.send(h.text(session.text(`commands.${config.basename}.messages.noImagesInPrompt`)))
       return null
     }
 
     images.push(...replyImages)
-    if (!prompt) {
-      const selection = resolvePromptInput(replyText, presets)
-      if (selection) prompt = selection.prompt
-    }
-
-    await deleteHintMessage(session, hintMessageId, log, needImages ? "图片交互提示" : "提示词交互提示")
-    hintMessageId = undefined
+    await deleteHintMessage(session, needImagesMessageId, log, "图片交互提示")
   }
 
   const uniqueImages = [...new Set(images)]
@@ -140,33 +128,27 @@ export async function collectParentInput(
   return { images: uniqueImages, prompt }
 }
 
-// 纯数字且落在预设范围内时按预设处理，否则按自定义提示词处理
-function resolvePromptInput(input: string, presets: Command[]): { prompt: string } | null {
-  const trimmed = input.trim()
-  if (!trimmed) return null
-
-  const index = Number(trimmed)
-  if (
-    presets.length > 0
-    && Number.isInteger(index)
-    && index >= 1
-    && index <= presets.length
-  ) {
-    const preset = presets[index - 1]
-    return { prompt: preset.prompt }
+async function waitForInput(
+  session: Session,
+  config: Config,
+  log: AppLogger,
+): Promise<string | null> {
+  try {
+    const reply = await session.prompt(config.waitTimeout * 1000)
+    if (!reply) {
+      await session.send(h.text(session.text(`commands.${config.basename}.messages.promptTimeout`)))
+      return null
+    }
+    return reply
+  } catch (error) {
+    if (isTimeoutError(error)) {
+      await session.send(h.text(session.text(`commands.${config.basename}.messages.promptTimeout`)))
+    } else {
+      log.error("交互式输入失败:", error)
+      await session.send(h.text(session.text(`commands.${config.basename}.messages.promptError`)))
+    }
+    return null
   }
-
-  return { prompt: trimmed }
-}
-
-function buildPromptHint(session: Session, config: Config, presets: Command[]): h[] {
-  const list = presets.map((command, index) => `${index + 1}. ${command.name}`).join("\n")
-  if (!list) {
-    return [h.text(session.text(`commands.${config.basename}.messages.needPrompt`))]
-  }
-  return [
-    h.text(session.text(`commands.${config.basename}.messages.needPromptWithPresets`, [list])),
-  ]
 }
 
 async function deleteHintMessage(

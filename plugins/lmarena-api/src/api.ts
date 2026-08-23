@@ -190,7 +190,9 @@ function logRequest(options: ImageApiOptions, mode: string, files: ImageFile[], 
 
   const params: Record<string, unknown> = { ...options.apiParams }
   const imageKey = Object.keys(params).find(key => params[key] === "{{inputimage}}")
-  if (imageKey) params[imageKey] = `[${files.length}张base64]`
+  if (imageKey) {
+    params[imageKey] = files.map(file => `${file.mime}:${file.data.byteLength}B`).join(",")
+  }
   if (params.prompt === "{{prompt}}") {
     params.prompt = prompt.substring(0, 100) + (prompt.length > 100 ? "..." : "")
   }
