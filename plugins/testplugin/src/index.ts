@@ -43,6 +43,7 @@ export function apply(ctx: Context) {
     .action(async ({ session }) => {
 
       if (!session) return;
+      // @ts-ignore
       ctx.logger.info(session.bot.user.role);
       return;
     });
@@ -241,16 +242,16 @@ export function apply(ctx: Context) {
   });
 
   ctx.platform('qq').on('guild-member-request', async (session) => {
-    if (!session.messageId) return
+    if (!session.messageId) return;
 
     try {
       // 自动同意入群申请
-      await session.bot.handleGuildMemberRequest(session.messageId, true)
-      ctx.logger.info('已自动同意入群申请: %s', session.messageId)
+      await session.bot.handleGuildMemberRequest(session.messageId, true);
+      ctx.logger.info('已自动同意入群申请: %s', session.messageId);
     } catch (error) {
-      ctx.logger.warn('自动同意入群申请失败: %o', error)
+      ctx.logger.warn('自动同意入群申请失败: %o', error);
     }
-  })
+  });
 
   // ctx.platform('onebot').on('guild-member-added', async (session) => {
   //   ctx.logger.info('[guild-member-added] %o', session);
@@ -388,38 +389,38 @@ export function apply(ctx: Context) {
     });
 
   async function sendMenuMessage(session: Session, message: unknown): Promise<void> {
-    const sess = session as any
-    const guildId = sess.event.guild?.id
-    const userId = sess.event.user?.id
+    const sess = session as any;
+    const guildId = sess.event.guild?.id;
+    const userId = sess.event.user?.id;
 
     if (guildId) {
       if (sess.qq) {
-        await sess.qq.sendMessage(sess.channelId, message)
-        return
+        await sess.qq.sendMessage(sess.channelId, message);
+        return;
       }
 
       if (sess.qqguild) {
-        await sess.qqguild.sendMessage(sess.channelId, message)
-        return
+        await sess.qqguild.sendMessage(sess.channelId, message);
+        return;
       }
     }
 
     if (userId && sess.qq) {
-      await sess.qq.sendPrivateMessage(userId, message)
-      return
+      await sess.qq.sendPrivateMessage(userId, message);
+      return;
     }
 
-    throw new Error('当前会话没有可用的发送目标。')
+    throw new Error('当前会话没有可用的发送目标。');
   }
   ctx.on('interaction/button', async (session: Session) => {
-    ctx.logger.info(`接收到回调按钮内容： `, session)
-  })
+    ctx.logger.info(`接收到回调按钮内容： `, session);
+  });
 
   command
     .subcommand('.QQ回调按钮')
     .action(async ({ session }) => {
-      if (!session) return 'no session'
-      if (session.platform !== 'qq') return 'only qq'
+      if (!session) return 'no session';
+      if (session.platform !== 'qq') return 'only qq';
 
       const message = {
         msg_type: 2,
@@ -451,11 +452,11 @@ export function apply(ctx: Context) {
             ],
           },
         },
-      }
+      };
 
-      await sendMenuMessage(session, message as any)
-      return
-    })
+      await sendMenuMessage(session, message as any);
+      return;
+    });
 
   command
     .subcommand('.fork')
@@ -1242,16 +1243,16 @@ https://ti.qq.com/new_open_qq/index.html?appid=64&url=mqqapi%3A%2F%2Fqqrobotaio%
     .action(async ({ session }) => {
       // 只处理群聊场景
       if (!session?.guildId || !session.userId) {
-        return '请先在群聊中使用'
+        return '请先在群聊中使用';
       }
 
       try {
-        await session.bot.muteGuildMember(session.guildId, session.userId, 30_000)
-        return '已禁言 30 秒'
+        await session.bot.muteGuildMember(session.guildId, session.userId, 30_000);
+        return '已禁言 30 秒';
       } catch (error) {
-        return `禁言失败：${error.message}`
+        return `禁言失败：${error.message}`;
       }
-    })
+    });
   command
     .subcommand('.at [...at]')
     .action(async ({ session }, ...at) => {
@@ -1306,5 +1307,347 @@ https://ti.qq.com/new_open_qq/index.html?appid=64&url=mqqapi%3A%2F%2Fqqrobotaio%
       if (!session) return;
       ctx.logger.info('用户输入的json表单内容为：', jsoninput);
       return 'Hello from !';
+    });
+
+  // iirose API 测试指令
+  const iiroseCmd = ctx.command('iirose');
+
+  iiroseCmd
+    .subcommand('.join <roomId:text> [password:text]')
+    .action(async ({ session }, roomId, password) => {
+      if (!session || session.bot.platform !== 'iirose') return '仅支持 iirose';
+      if (!roomId) return '请输入 roomId';
+      await session.bot.internal.joinRoom({ roomId, roomPassword: password });
+      return `已发送加入房间: ${roomId}`;
+    });
+
+  iiroseCmd
+    .subcommand('.move <roomId:text> [password:text]')
+    .action(async ({ session }, roomId, password) => {
+      if (!session || session.bot.platform !== 'iirose') return '仅支持 iirose';
+      if (!roomId) return '请输入 roomId';
+      await session.bot.internal.moveRoom(roomId, password);
+      return `已发送移动房间: ${roomId}`;
+    });
+
+  iiroseCmd
+    .subcommand('.requestUserList')
+    .action(async ({ session }) => {
+      if (!session || session.bot.platform !== 'iirose') return '仅支持 iirose';
+      session.bot.internal.requestUserList();
+      return '已请求用户列表';
+    });
+
+  iiroseCmd
+    .subcommand('.self')
+    .action(async ({ session }) => {
+      if (!session || session.bot.platform !== 'iirose') return '仅支持 iirose';
+      const data = await session.bot.internal.getSelfInfo();
+      return data ? JSON.stringify(data, null, 2) : '未获取到自身信息';
+    });
+
+  iiroseCmd
+    .subcommand('.getUserByName <name:text>')
+    .action(async ({ session }, name) => {
+      if (!session || session.bot.platform !== 'iirose') return '仅支持 iirose';
+      if (!name) return '请输入用户名';
+      const user = await session.bot.internal.getUserByName(name);
+      return user ? JSON.stringify(user, null, 2) : '未找到用户';
+    });
+
+  iiroseCmd
+    .subcommand('.getProfile <name:text>')
+    .action(async ({ session }, name) => {
+      if (!session || session.bot.platform !== 'iirose') return '仅支持 iirose';
+      if (!name) return '请输入用户名';
+      const data = await session.bot.internal.getUserProfileByName(name);
+      return data ? JSON.stringify(data, null, 2) : '未获取到用户资料';
+    });
+
+  iiroseCmd
+    .subcommand('.getFullProfile <name:text>')
+    .action(async ({ session }, name) => {
+      if (!session || session.bot.platform !== 'iirose') return '仅支持 iirose';
+      if (!name) return '请输入用户名';
+      const data = await session.bot.internal.getFullUserProfileByName(name);
+      return data ? JSON.stringify(data, null, 2) : '未获取到完整用户资料';
+    });
+
+  iiroseCmd
+    .subcommand('.getUserList')
+    .action(async ({ session }) => {
+      if (!session || session.bot.platform !== 'iirose') return '仅支持 iirose';
+      const data = await session.bot.internal.getUserListFile();
+      return data ? JSON.stringify(data, null, 2) : '用户列表为空';
+    });
+
+  iiroseCmd
+    .subcommand('.getRoomId')
+    .action(async ({ session }) => {
+      if (!session || session.bot.platform !== 'iirose') return '仅支持 iirose';
+      return session.bot.internal.getRoomId();
+    });
+
+  iiroseCmd
+    .subcommand('.getRoomList')
+    .action(async ({ session }) => {
+      if (!session || session.bot.platform !== 'iirose') return '仅支持 iirose';
+      const data = await session.bot.internal.getRoomList();
+      return data ? JSON.stringify(data, null, 2) : '房间列表为空';
+    });
+
+  iiroseCmd
+    .subcommand('.getRoomState')
+    .action(async ({ session }) => {
+      if (!session || session.bot.platform !== 'iirose') return '仅支持 iirose';
+      const data = await session.bot.internal.getRoomStateFile();
+      return data ? JSON.stringify(data, null, 2) : '房间状态为空';
+    });
+
+  iiroseCmd
+    .subcommand('.broadcast <message:text>')
+    .action(async ({ session }, message) => {
+      if (!session || session.bot.platform !== 'iirose') return '仅支持 iirose';
+      if (!message) return '请输入广播内容';
+      session.bot.internal.broadcast({ message, color: 'ffffff' });
+      return '已发送广播';
+    });
+
+  iiroseCmd
+    .subcommand('.sendLike <uid:text> [message:text]')
+    .action(async ({ session }, uid, message) => {
+      if (!session || session.bot.platform !== 'iirose') return '仅支持 iirose';
+      if (!uid) return '请输入 uid';
+      session.bot.internal.sendLike(uid, message);
+      return `已给 ${uid} 点赞`;
+    });
+
+  iiroseCmd
+    .subcommand('.follow <uid:text>')
+    .action(async ({ session }, uid) => {
+      if (!session || session.bot.platform !== 'iirose') return '仅支持 iirose';
+      if (!uid) return '请输入 uid';
+      session.bot.internal.followUser(uid);
+      return `已关注 ${uid}`;
+    });
+
+  iiroseCmd
+    .subcommand('.grade <uid:text> <score:number>')
+    .action(async ({ session }, uid, score) => {
+      if (!session || session.bot.platform !== 'iirose') return '仅支持 iirose';
+      if (!uid || !score) return '请输入 uid 和分数';
+      const data = await session.bot.internal.gradeUser(uid, score);
+      return data ? JSON.stringify(data, null, 2) : '打分失败';
+    });
+
+  iiroseCmd
+    .subcommand('.getBalance')
+    .action(async ({ session }) => {
+      if (!session || session.bot.platform !== 'iirose') return '仅支持 iirose';
+      const data = await session.bot.internal.getBalance();
+      return data === null ? '余额为空' : `余额: ${data}`;
+    });
+
+  iiroseCmd
+    .subcommand('.stock')
+    .action(async ({ session }) => {
+      if (!session || session.bot.platform !== 'iirose') return '仅支持 iirose';
+      const data = await session.bot.internal.stockGet();
+      return data ? JSON.stringify(data, null, 2) : '股票信息为空';
+    });
+
+  iiroseCmd
+    .subcommand('.bank')
+    .action(async ({ session }) => {
+      if (!session || session.bot.platform !== 'iirose') return '仅支持 iirose';
+      const data = await session.bot.internal.bankGet();
+      return data ? JSON.stringify(data, null, 2) : '银行信息为空';
+    });
+
+  iiroseCmd
+    .subcommand('.getForum')
+    .action(async ({ session }) => {
+      if (!session || session.bot.platform !== 'iirose') return '仅支持 iirose';
+      const data = await session.bot.internal.getForum();
+      return data ? JSON.stringify(data, null, 2) : '论坛信息为空';
+    });
+
+  iiroseCmd
+    .subcommand('.getTasks')
+    .action(async ({ session }) => {
+      if (!session || session.bot.platform !== 'iirose') return '仅支持 iirose';
+      const data = await session.bot.internal.getTasks();
+      return data ? JSON.stringify(data, null, 2) : '任务信息为空';
+    });
+
+  iiroseCmd
+    .subcommand('.getMoments')
+    .action(async ({ session }) => {
+      if (!session || session.bot.platform !== 'iirose') return '仅支持 iirose';
+      const data = await session.bot.internal.getMoments();
+      return data ? JSON.stringify(data, null, 2) : '动态信息为空';
+    });
+
+  iiroseCmd
+    .subcommand('.getLeaderboard')
+    .action(async ({ session }) => {
+      if (!session || session.bot.platform !== 'iirose') return '仅支持 iirose';
+      const data = await session.bot.internal.getLeaderboard();
+      return data ? JSON.stringify(data, null, 2) : '排行榜为空';
+    });
+
+  iiroseCmd
+    .subcommand('.getStore')
+    .action(async ({ session }) => {
+      if (!session || session.bot.platform !== 'iirose') return '仅支持 iirose';
+      const data = await session.bot.internal.getStore();
+      return data ? JSON.stringify(data, null, 2) : '商店信息为空';
+    });
+
+  iiroseCmd
+    .subcommand('.getSellerCenter')
+    .action(async ({ session }) => {
+      if (!session || session.bot.platform !== 'iirose') return '仅支持 iirose';
+      const data = await session.bot.internal.getSellerCenter();
+      return data ? JSON.stringify(data, null, 2) : '卖家中心为空';
+    });
+
+  iiroseCmd
+    .subcommand('.getMusicList')
+    .action(async ({ session }) => {
+      if (!session || session.bot.platform !== 'iirose') return '仅支持 iirose';
+      const data = await session.bot.internal.getMusicList();
+      return data ? JSON.stringify(data, null, 2) : '歌单为空';
+    });
+
+  iiroseCmd
+    .subcommand('.summonDice <diceId:number>')
+    .action(async ({ session }, diceId) => {
+      if (!session || session.bot.platform !== 'iirose') return '仅支持 iirose';
+      session.bot.internal.summonDice(diceId);
+      return `已投掷骰子: ${diceId}`;
+    });
+
+  iiroseCmd
+    .subcommand('.getChangelog')
+    .action(async ({ session }) => {
+      if (!session || session.bot.platform !== 'iirose') return '仅支持 iirose';
+      const data = await session.bot.internal.getChangelog();
+      return data ? JSON.stringify(data, null, 2) : '更新日志为空';
+    });
+
+  iiroseCmd
+    .subcommand('.subscribe <roomId:text>')
+    .action(async ({ session }, roomId) => {
+      if (!session || session.bot.platform !== 'iirose') return '仅支持 iirose';
+      if (!roomId) return '请输入 roomId';
+      session.bot.internal.subscribeRoom(roomId);
+      return `已订阅房间: ${roomId}`;
+    });
+
+  iiroseCmd
+    .subcommand('.unsubscribe <roomId:text>')
+    .action(async ({ session }, roomId) => {
+      if (!session || session.bot.platform !== 'iirose') return '仅支持 iirose';
+      if (!roomId) return '请输入 roomId';
+      session.bot.internal.unsubscribeRoom(roomId);
+      return `已取消订阅房间: ${roomId}`;
+    });
+
+  iiroseCmd
+    .subcommand('.getMediaWhitelist')
+    .action(async ({ session }) => {
+      if (!session || session.bot.platform !== 'iirose') return '仅支持 iirose';
+      const data = await session.bot.internal.getMediaWhitelist();
+      return data ? JSON.stringify(data, null, 2) : '媒体白名单为空';
+    });
+
+  iiroseCmd
+    .subcommand('.getMuteList')
+    .action(async ({ session }) => {
+      if (!session || session.bot.platform !== 'iirose') return '仅支持 iirose';
+      const data = await session.bot.internal.getMuteList();
+      return data ? JSON.stringify(data, null, 2) : '禁言列表为空';
+    });
+
+  iiroseCmd
+    .subcommand('.getBlacklist')
+    .action(async ({ session }) => {
+      if (!session || session.bot.platform !== 'iirose') return '仅支持 iirose';
+      const data = await session.bot.internal.getBlacklist();
+      return data ? JSON.stringify(data, null, 2) : '黑名单为空';
+    });
+
+  iiroseCmd
+    .subcommand('.mute <userId:text> [duration:number] [reason:text]')
+    .action(async ({ session }, userId, duration, reason) => {
+      if (!session || session.bot.platform !== 'iirose') return '仅支持 iirose';
+      if (!userId) return '请输入 userId';
+      if (!session.guildId) return '缺少 guildId';
+      const muteDuration = duration === undefined ? 30 * 60 * 1000 : duration;
+      await session.bot.muteGuildMember(session.guildId, userId, muteDuration, reason);
+      return muteDuration === 0
+        ? `已解除禁言: ${userId}`
+        : `已禁言 ${userId} ${muteDuration}ms`;
+    });
+
+  iiroseCmd
+    .subcommand('.whitelist <username:text> [duration:number] [intro:text]')
+    .action(async ({ session }, username, duration, intro) => {
+      if (!session || session.bot.platform !== 'iirose') return '仅支持 iirose';
+      if (!username) return '请输入用户名';
+      session.bot.internal.whiteList({
+        username,
+        time: duration === undefined ? 30 * 60 * 1000 : duration,
+        intro,
+      });
+      return `已添加白名单: ${username}`;
+    });
+
+  iiroseCmd
+    .subcommand('.blacklist <username:text> [duration:number] [intro:text]')
+    .action(async ({ session }, username, duration, intro) => {
+      if (!session || session.bot.platform !== 'iirose') return '仅支持 iirose';
+      if (!username) return '请输入用户名';
+      await session.bot.internal.addBlacklist(
+        username,
+        duration === undefined ? 30 * 60 * 1000 : duration,
+        intro ?? '',
+      );
+      return `已添加黑名单: ${username}`;
+    });
+
+  iiroseCmd
+    .subcommand('.mediaWhitelist <username:text> [duration:number] [intro:text]')
+    .action(async ({ session }, username, duration, intro) => {
+      if (!session || session.bot.platform !== 'iirose') return '仅支持 iirose';
+      if (!username) return '请输入用户名';
+      await session.bot.internal.addMediaWhitelist(
+        username,
+        duration === undefined ? 30 * 60 * 1000 : duration,
+        intro ?? '',
+      );
+      return `已添加媒体白名单: ${username}`;
+    });
+
+  iiroseCmd
+    .subcommand('.call <method:text> [...args:text]')
+    .action(async ({ session }, method, ...args) => {
+      if (!session || session.bot.platform !== 'iirose') return '仅支持 iirose';
+      if (!method) return '请输入方法名';
+
+      const internal = session.bot.internal as unknown as Record<string, (...args: unknown[]) => unknown>;
+      const fn = internal[method];
+      if (typeof fn !== 'function') return `未找到方法: ${method}`;
+
+      const parsed = args.map((arg) => {
+        try {
+          return JSON.parse(arg);
+        } catch {
+          return arg;
+        }
+      });
+      const result = await fn(...parsed);
+      return result === undefined ? '调用成功' : JSON.stringify(result, null, 2);
     });
 }
