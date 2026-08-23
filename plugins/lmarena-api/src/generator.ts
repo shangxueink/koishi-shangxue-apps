@@ -1,7 +1,7 @@
 import { Context, h, Session } from "koishi"
 import type { Config } from "./config"
 import type { AppLogger } from "./logger"
-import { callImageApi } from "./api"
+import { API_URL_HTML_ERROR, callImageApi } from "./api"
 import { getUserCurrency, updateUserCurrency } from "./currency"
 
 // 货币功能开启时先检查余额，余额不足时直接返回 false
@@ -110,9 +110,14 @@ export async function generateImage(
     return true
   } catch (error) {
     log.error("处理图片时发生错误:", error)
-    await session.send(h.text(session.text(`commands.${config.basename}.messages.error`, [
-      error instanceof Error ? error.message : String(error),
-    ])))
+    const errorText = error instanceof Error ? error.message : String(error)
+    if (errorText === API_URL_HTML_ERROR) {
+      await session.send(h.text(session.text(`commands.${config.basename}.messages.invalidApiUrl`)))
+    } else if (isNotFoundError(errorText)) {
+      await session.send(h.text(session.text(`commands.${config.basename}.messages.apiModeHint`)))
+    } else {
+      await session.send(h.text(session.text(`commands.${config.basename}.messages.error`, [errorText])))
+    }
     return false
   }
 }
@@ -128,4 +133,9 @@ async function deleteProcessingMessage(
   } catch (error) {
     log.warn("删除处理中提示消息失败:", error)
   }
+}
+
+function isNotFoundError(message: string): boolean {
+  const lower = message.toLowerCase()
+  return lower.includes("not found") || /(^|\D)404(\D|$)/.test(message)
 }

@@ -2,6 +2,8 @@ import { Context } from "koishi"
 import type { ApiMode } from "./config"
 import type { AppLogger } from "./logger"
 
+export const API_URL_HTML_ERROR = "api_url_html_error"
+
 export interface ImageFile {
   data: ArrayBuffer
   mime: string
@@ -237,6 +239,10 @@ function toDataUri(file: ImageFile): string {
 async function parseImageResponse(ctx: Context, response: Response, log: AppLogger): Promise<string[] | string | null> {
   const contentType = response.headers.get("content-type") || ""
 
+  if (contentType.includes("text/html")) {
+    throw new Error(API_URL_HTML_ERROR)
+  }
+
   if (contentType.includes("application/json")) {
     const result = await response.json() as ApiSuccessResponse
     if (Array.isArray(result.data)) {
@@ -285,6 +291,10 @@ async function toUrlDataUrl(ctx: Context, source: string, log: AppLogger): Promi
 async function parseErrorMessage(response: Response): Promise<string> {
   const text = await response.text()
   if (!text) return `HTTP error! status: ${response.status}`
+
+  if (/^\s*(<!doctype html|<html)/i.test(text)) {
+    return API_URL_HTML_ERROR
+  }
 
   try {
     const data = JSON.parse(text) as ApiErrorResponse

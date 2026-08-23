@@ -19,6 +19,8 @@ export function registerCommands(ctx: Context, config: Config, log: AppLogger): 
             needimages: "请发送图片：",
             needPrompt: "请发送画图提示词：",
             noPrompt: "未检测到有效提示词，请重新输入。",
+            apiModeHint: "接口地址或接口协议可能配置错误，请检查 apiMode 是否与 API 地址匹配（edits 使用 multipart，generations 使用 JSON body）。",
+            invalidApiUrl: "apiUrl 可能填成了网页地址，请填写 API 接口地址（例如 https://.../v1/images/edits 或 https://.../v1/images/generations）。",
             insufficientCurrency: "余额不足！当前余额: {0} {1}，需要: {2} {1}",
             currencyDeducted: "成功扣除 {0} {1}，当前余额: {2} {1}",
             noImagesInPrompt: "未检测到图片，请稍后重新交互。",
