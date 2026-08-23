@@ -47,6 +47,7 @@ export interface ChatStatus {
   done: boolean
   error?: string
   tool?: string
+  changedPath?: string
 }
 
 export interface ChatResponse {

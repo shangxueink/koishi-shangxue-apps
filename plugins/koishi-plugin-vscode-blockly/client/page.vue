@@ -66,7 +66,11 @@
         :style="aiPanelStyle"
       >
         <div v-if="!isMobile" class="vb-ai-resizer" @pointerdown="startAiResize"></div>
-        <chat @apply-current="applyToCurrent" @apply-new="createFromChat" />
+        <chat
+          @apply-current="applyToCurrent"
+          @apply-new="createFromChat"
+          @file-changed="handleAiFileChanged"
+        />
       </aside>
     </div>
 
@@ -375,6 +379,18 @@ async function createFromChat(code: string) {
     status.value = errorMessage(error)
   }
 }
+
+async function handleAiFileChanged(path: string) {
+  try {
+    await refreshFiles()
+    if (!currentPath.value || currentPath.value === path) {
+      await openFile(path)
+    }
+    status.value = `AI 已更新 ${path}`
+  } catch (error) {
+    status.value = errorMessage(error)
+  }
+}
 </script>
 
 <style>
@@ -571,13 +587,51 @@ async function createFromChat(code: string) {
   top: 0;
   left: -3px;
   bottom: 0;
-  width: 6px;
+  width: 8px;
   cursor: col-resize;
+  touch-action: none;
   z-index: 5;
 }
 
 .vb-ai-resizer:hover {
   background: #0e639c;
+}
+
+.vb-sidebar-content,
+.vb-chat-messages,
+.vb-search-results,
+.vb-editor-body,
+.vb-settings-body {
+  scrollbar-width: thin;
+  scrollbar-color: #424242 transparent;
+}
+
+.vb-sidebar-content::-webkit-scrollbar,
+.vb-chat-messages::-webkit-scrollbar,
+.vb-search-results::-webkit-scrollbar,
+.vb-editor-body::-webkit-scrollbar,
+.vb-settings-body::-webkit-scrollbar {
+  width: 10px;
+}
+
+.vb-sidebar-content::-webkit-scrollbar-thumb,
+.vb-chat-messages::-webkit-scrollbar-thumb,
+.vb-search-results::-webkit-scrollbar-thumb,
+.vb-editor-body::-webkit-scrollbar-thumb,
+.vb-settings-body::-webkit-scrollbar-thumb {
+  background: #424242;
+  border-radius: 5px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+
+.vb-sidebar-content::-webkit-scrollbar-thumb:hover,
+.vb-chat-messages::-webkit-scrollbar-thumb:hover,
+.vb-search-results::-webkit-scrollbar-thumb:hover,
+.vb-editor-body::-webkit-scrollbar-thumb:hover,
+.vb-settings-body::-webkit-scrollbar-thumb:hover {
+  background: #4f4f4f;
+  background-clip: content-box;
 }
 
 .vb-ai-panel.open {

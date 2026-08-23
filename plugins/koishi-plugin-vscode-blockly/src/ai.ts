@@ -192,7 +192,7 @@ async function runChatStream(
           tool_calls: message.tool_calls,
         })
         for (const call of message.tool_calls) {
-          const result = await executeTool(ctx, store, runtime, call)
+          const result = await executeTool(ctx, store, runtime, call, task)
           messages.push({
             role: 'tool',
             tool_call_id: call.id,
@@ -224,6 +224,7 @@ async function executeTool(
   store: Store,
   runtime: ScriptManager,
   call: ToolCall,
+  task: ChatTask,
 ) {
   try {
     const args: unknown = JSON.parse(call.function.arguments)
@@ -245,6 +246,7 @@ async function executeTool(
       const path = String(record.path ?? '')
       const content = String(record.content ?? '')
       await writeScript(ctx, store, path, content)
+      task.changedPath = path
       const state = await store.getState()
       if (state.enabled.includes(path)) {
         await store.setEnabled(path, false)
@@ -257,6 +259,7 @@ async function executeTool(
       const path = String(record.path ?? '')
       const content = String(record.content ?? '')
       await createScript(ctx, store, path, content)
+      task.changedPath = path
       return JSON.stringify({ ok: true, path, disabled: false })
     }
 

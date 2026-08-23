@@ -14,7 +14,7 @@
         :class="message.role"
       >
         <div class="vb-chat-message-content">
-          {{ message.content }}
+          <k-markdown :source="message.content" />
           <span v-if="loading && message.id === activeId" class="vb-chat-cursor">▍</span>
         </div>
         <div v-if="message.role === 'assistant' && !loading && message.content" class="vb-chat-actions">
@@ -51,6 +51,7 @@ import { errorMessage, extractCode } from './utils'
 const emit = defineEmits<{
   applyCurrent: [code: string]
   applyNew: [code: string]
+  fileChanged: [path: string]
 }>()
 
 const storageKey = 'vscode-blockly-chat'
@@ -59,6 +60,7 @@ const input = ref('')
 const activeId = ref('')
 const error = ref('')
 const toolStatus = ref('')
+const lastChangedPath = ref('')
 let pollTimer: number | undefined
 
 const loading = ref(false)
@@ -102,6 +104,10 @@ async function pollStatus(id: string) {
       const status = await send<ChatStatus>('vscode-blockly/chat/status', id)
       const message = messages.value.find(item => item.id === id)
       if (message) message.content = status.content
+      if (status.changedPath && status.changedPath !== lastChangedPath.value) {
+        lastChangedPath.value = status.changedPath
+        emit('fileChanged', status.changedPath)
+      }
       toolStatus.value = status.tool === 'write_file'
         ? '正在写入文件...'
         : status.tool === 'create_file'
@@ -151,6 +157,7 @@ function clear() {
   activeId.value = ''
   loading.value = false
   toolStatus.value = ''
+  lastChangedPath.value = ''
   saveMessages()
 }
 
@@ -243,8 +250,41 @@ function saveMessages() {
   color: #d4d4d4;
   font-size: 12px;
   line-height: 1.5;
-  white-space: pre-wrap;
+  white-space: normal;
   word-break: break-word;
+}
+
+.vb-chat-message-content :deep(table) {
+  width: 100%;
+  margin: 8px 0;
+  border-collapse: collapse;
+}
+
+.vb-chat-message-content :deep(th),
+.vb-chat-message-content :deep(td) {
+  padding: 5px 8px;
+  border: 1px solid #454545;
+  text-align: left;
+}
+
+.vb-chat-message-content :deep(th) {
+  background: #333333;
+}
+
+.vb-chat-message-content :deep(pre) {
+  padding: 8px;
+  overflow: auto;
+  background: #1e1e1e;
+  border: 1px solid #3c3c3c;
+  border-radius: 3px;
+}
+
+.vb-chat-message-content :deep(code) {
+  font-family: Consolas, "Courier New", monospace;
+}
+
+.vb-chat-message-content :deep(img) {
+  max-width: 100%;
 }
 
 .vb-chat-cursor {
