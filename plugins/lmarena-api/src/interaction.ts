@@ -5,6 +5,7 @@ import {
   extractImagesFromMessage,
   extractImagesFromSession,
   extractTextFromMessage,
+  resolveAvatarImages,
 } from "./session"
 
 export interface ImageCollection {
@@ -25,9 +26,14 @@ export async function collectImages(
   log: AppLogger,
 ): Promise<ImageCollection | null> {
   const images = extractImagesFromSession(session)
+  images.push(...await resolveAvatarImages(session, session.stripped.content))
+  if (session.quote) {
+    images.push(...await resolveAvatarImages(session, session.quote.content))
+  }
   const textParts: string[] = []
   if (extraContent) {
     images.push(...extractImagesFromMessage(extraContent))
+    images.push(...await resolveAvatarImages(session, extraContent))
     textParts.push(extractTextFromMessage(extraContent))
   }
   let text = textParts.filter(Boolean).join(" ").trim()
@@ -45,7 +51,10 @@ export async function collectImages(
         return null
       }
 
-      const replyImages = extractImagesFromMessage(reply)
+      const replyImages = [
+        ...extractImagesFromMessage(reply),
+        ...await resolveAvatarImages(session, reply),
+      ]
       const replyText = extractTextFromMessage(reply)
 
       if (replyImages.length === 0) {
@@ -121,6 +130,8 @@ export async function collectParentInput(
   const initialImages = [
     ...extractImagesFromSession(session),
     ...extractImagesFromMessage(extraContent),
+    ...await resolveAvatarImages(session, session.stripped.content),
+    ...await resolveAvatarImages(session, extraContent),
   ]
   const images = [...new Set(initialImages)]
   let prompt = extractTextFromMessage(extraContent).trim()
@@ -140,7 +151,10 @@ export async function collectParentInput(
     }
 
     prompt = replyText
-    images.push(...extractImagesFromMessage(reply))
+    images.push(
+      ...extractImagesFromMessage(reply),
+      ...await resolveAvatarImages(session, reply),
+    )
     await deleteHintMessage(session, needPromptMessageId, log, "提示词交互提示")
   }
 

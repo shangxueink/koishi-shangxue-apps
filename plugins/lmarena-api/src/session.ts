@@ -24,6 +24,27 @@ export function extractImagesFromMessage(content: string): string[] {
   return images
 }
 
+// 把消息里的 @用户 元素解析为用户头像，作为参考图片使用
+export async function resolveAvatarImages(session: Session, content: string): Promise<string[]> {
+  const avatars: string[] = []
+  const ids = new Set<string>()
+
+  for (const element of h.parse(content)) {
+    if (element.type !== "at") continue
+    const id = element.attrs.id
+    if (typeof id !== "string" || !id || ids.has(id)) continue
+    ids.add(id)
+
+    try {
+      if (typeof session.bot.getUser !== "function") continue
+      const user = await session.bot.getUser(id)
+      if (user?.avatar) avatars.push(user.avatar)
+    } catch {}
+  }
+
+  return avatars
+}
+
 // 从消息内容中提取纯文本，忽略图片、引用等非文本元素
 export function extractTextFromMessage(content: string): string {
   const parts: string[] = []
