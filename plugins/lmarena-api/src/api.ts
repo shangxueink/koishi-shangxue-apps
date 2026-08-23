@@ -39,11 +39,12 @@ interface ApiErrorResponse {
 // 按配置或 URL 自动选择 edits(multipart) / generations(JSON) 协议
 export async function callImageApi(ctx: Context, files: ImageFile[], prompt: string, options: ImageApiOptions): Promise<string[] | string | null> {
   const mode = resolveApiMode(options.apiMode, options.apiUrl)
+  const resolvedUrl = resolveApiUrl(options.apiUrl, mode)
   const body = mode === "generations"
     ? JSON.stringify(buildJsonBody(files, prompt, options.apiParams, options.extraBodyCompat))
     : buildFormBody(files, prompt, options.apiParams)
 
-  logRequest(options, mode, files, prompt)
+  logRequest(options, mode, files, prompt, resolvedUrl)
 
   try {
     const headers: Record<string, string> = {
@@ -51,7 +52,7 @@ export async function callImageApi(ctx: Context, files: ImageFile[], prompt: str
     }
     if (mode === "generations") headers["Content-Type"] = "application/json"
 
-    const response = await fetch(options.apiUrl, {
+    const response = await fetch(resolvedUrl, {
       method: "POST",
       headers,
       body,
@@ -88,6 +89,32 @@ function resolveApiMode(mode: ApiMode, apiUrl: string): "edits" | "generations" 
   } catch {}
 
   return "edits"
+}
+
+// 兼容完整接口地址和 /v1/、/v1、根地址等基础地址，默认补全到 images/edits
+function resolveApiUrl(apiUrl: string, mode: "edits" | "generations"): string {
+  try {
+    const url = new URL(apiUrl)
+    const segment = mode === "generations" ? "generations" : "edits"
+    const path = url.pathname.replace(/\/+$/, "")
+    const parts = path.split("/")
+    const last = parts[parts.length - 1] || ""
+    let nextPath = path
+
+    if (last === "edits" || last === "generations") {
+      parts[parts.length - 1] = segment
+      nextPath = parts.join("/")
+    } else if (path.endsWith("/v1/images") || path.endsWith("/images")) {
+      nextPath = `${path}/${segment}`
+    } else if (path.endsWith("/v1") || path === "") {
+      nextPath = path ? `${path}/images/${segment}` : `/v1/images/${segment}`
+    }
+
+    url.pathname = nextPath
+    return url.toString()
+  } catch {
+    return apiUrl
+  }
 }
 
 // generations 接口要求 JSON body；extraBodyCompat 模式下按 agnes 文档把 image/response_format 放入 extra_body
@@ -158,7 +185,7 @@ function normalizeJsonValue(value: string): string | number | boolean {
   return value
 }
 
-function logRequest(options: ImageApiOptions, mode: string, files: ImageFile[], prompt: string) {
+function logRequest(options: ImageApiOptions, mode: string, files: ImageFile[], prompt: string, url: string) {
   if (!options.log.enabled) return
 
   const params: Record<string, unknown> = { ...options.apiParams }
@@ -183,7 +210,7 @@ function logRequest(options: ImageApiOptions, mode: string, files: ImageFile[], 
   }
 
   options.log.info("API请求参数:", {
-    url: options.apiUrl,
+    url,
     mode,
     ...params,
   })
