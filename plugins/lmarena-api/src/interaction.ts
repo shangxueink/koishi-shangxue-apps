@@ -52,7 +52,6 @@ export async function collectImages(
         await deleteHintMessage(session, needImagesMessageId, log, "图片交互提示")
         if (useOptionalImage && replyText) {
           if (!text) text = replyText
-          // await session.send(h.text(session.text(`commands.${config.basename}.messages.textToImageHint`)))
           log.info("未检测到参考图片，将按文字提示词生成")
           return { images: [...new Set(images)], text }
         }
@@ -82,6 +81,34 @@ export async function collectImages(
   const uniqueImages = [...new Set(images)]
   log.info(`收集到 ${uniqueImages.length} 张图片:`, uniqueImages)
   return { images: uniqueImages, text }
+}
+
+// -d 模式只收集提示词，不询问参考图片
+export async function collectDirectPrompt(
+  session: Session,
+  extraContent: string,
+  config: Config,
+  log: AppLogger,
+): Promise<string | null> {
+  const prompt = extractTextFromMessage(extraContent).trim()
+  if (prompt) return prompt
+
+  const [needPromptMessageId] = await session.send(
+    h.text(session.text(`commands.${config.basename}.messages.needPrompt`)),
+  )
+  const reply = await waitForInput(session, config, log)
+  if (!reply) return null
+
+  const replyText = extractTextFromMessage(reply)
+  if (!replyText) {
+    await deleteHintMessage(session, needPromptMessageId, log, "提示词交互提示")
+    await session.send(h.text(session.text(`commands.${config.basename}.messages.noPrompt`)))
+    return null
+  }
+
+  await deleteHintMessage(session, needPromptMessageId, log, "提示词交互提示")
+  log.info("-d 模式收集到直接生成提示词")
+  return replyText
 }
 
 // 父级指令固定顺序：先收集提示词，再收集图片，避免用户误解流程
