@@ -36,7 +36,7 @@ export const Config: Schema<Config> = Schema.intersect([
 
   Schema.object({
     apiMode: Schema.union(["edits", "generations"] as const).default("edits").description("接口协议：edits 使用 multipart，generations 使用 JSON body"),
-    apiUrl: Schema.string().default("https://cn.happyapi.org/v1").role("link").description("API 服务器地址<br>支持完整接口地址，也支持 /v1/、/v1、根地址等基础地址<br>基础地址会根据 apiMode 自动补全为 /v1/images/edits 或 /v1/images/generations"),
+    apiUrl: Schema.string().default("https://moyuu.cc/v1").role("link").description("API 服务器地址<br>基础地址会根据 apiMode 自动补全为 /v1/images/edits（图生图） 或 /v1/images/generations（文生图）"),
     apiKey: Schema.string().role("secret").required().description("API 密钥"),
     apiParams: Schema.dict(String).role('table').description("API请求参数<br>POST请求的body参数<br>generations 模式下 image 占位符会替换为 base64 字符串数组").default({
       "model": "gpt-image-2",
