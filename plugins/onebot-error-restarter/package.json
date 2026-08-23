@@ -1,0 +1,22 @@
+{
+  "name": "koishi-plugin-onebot-error-restarter",
+  "description": "捕获 OneBot `_request is not a function` 错误并自动重启对应适配器",
+  "version": "0.1.0",
+  "main": "lib/index.js",
+  "typings": "lib/index.d.ts",
+  "files": [
+    "lib",
+    "src"
+  ],
+  "license": "MIT",
+  "keywords": [
+    "chatbot",
+    "koishi",
+    "plugin",
+    "onebot",
+    "restart"
+  ],
+  "peerDependencies": {
+    "koishi": "^4.18.9"
+  }
+}
