@@ -52,7 +52,7 @@ export async function collectImages(
         await deleteHintMessage(session, needImagesMessageId, log, "图片交互提示")
         if (useOptionalImage && replyText) {
           if (!text) text = replyText
-          await session.send(h.text(session.text(`commands.${config.basename}.messages.textToImageHint`)))
+          // await session.send(h.text(session.text(`commands.${config.basename}.messages.textToImageHint`)))
           log.info("未检测到参考图片，将按文字提示词生成")
           return { images: [...new Set(images)], text }
         }

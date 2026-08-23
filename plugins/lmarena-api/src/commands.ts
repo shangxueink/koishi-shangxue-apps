@@ -18,7 +18,7 @@ export function registerCommands(ctx: Context, config: Config, log: AppLogger): 
             error: "处理过程中发生错误: {0}",
             needimages: "请发送图片：",
             needimagesOptional: "请发送参考图片（可选），也可以直接发送任意文字继续文生图：",
-            textToImageHint: "未检测到参考图片，将直接根据你的提示词进行文生图。",
+            // textToImageHint: "未检测到参考图片，将直接根据你的提示词进行文生图。",
             editsNeedImage: "当前接口为 edits 图片编辑模式，必须发送参考图片才能生成。",
             needPrompt: "请发送画图提示词：",
             noPrompt: "未检测到有效提示词，请重新输入。",
