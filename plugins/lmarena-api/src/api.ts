@@ -36,9 +36,9 @@ interface ApiErrorResponse {
   }
 }
 
-// 按配置或 URL 自动选择 edits(multipart) / generations(JSON) 协议
+// 按配置选择 edits(multipart) / generations(JSON) 协议
 export async function callImageApi(ctx: Context, files: ImageFile[], prompt: string, options: ImageApiOptions): Promise<string[] | string | null> {
-  const mode = resolveApiMode(options.apiMode, options.apiUrl)
+  const mode = resolveApiMode(options.apiMode)
   const resolvedUrl = resolveApiUrl(options.apiUrl, mode)
   const body = mode === "generations"
     ? JSON.stringify(buildJsonBody(files, prompt, options.apiParams, options.extraBodyCompat))
@@ -80,15 +80,8 @@ export async function callImageApi(ctx: Context, files: ImageFile[], prompt: str
   }
 }
 
-function resolveApiMode(mode: ApiMode, apiUrl: string): "edits" | "generations" {
-  if (mode === "edits" || mode === "generations") return mode
-
-  try {
-    const pathname = new URL(apiUrl).pathname
-    if (pathname.includes("/images/generations")) return "generations"
-  } catch {}
-
-  return "edits"
+function resolveApiMode(mode: ApiMode): "edits" | "generations" {
+  return mode === "generations" ? "generations" : "edits"
 }
 
 // 兼容完整接口地址和 /v1/、/v1、根地址等基础地址，默认补全到 images/edits
