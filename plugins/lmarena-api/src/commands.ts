@@ -54,7 +54,7 @@ export function registerCommands(ctx: Context, config: Config, log: AppLogger): 
             generationsNoImage: "当前配置为 generations 文生图节点，不能传入参考图片；如需图生图，请把 apiUrl 改为基础地址并使用 auto 模式。",
             needPrompt: "请发送画图提示词：",
             noPrompt: "未检测到有效提示词，请重新输入。",
-            apiModeHint: "接口地址或接口协议可能配置错误，请检查 apiMode 与 API 地址是否匹配（auto 自动选择，edits 使用 multipart，generations 使用 JSON body）。",
+            apiModeHint: "接口地址或接口协议可能配置错误，请检查 apiUrl 是否为完整 API 地址，或改为基础地址自动选择图生图/文生图。",
             invalidApiUrl: "apiUrl 可能填成了网页地址，请填写 API 接口地址（例如 https://.../v1/images/edits 或 https://.../v1/images/generations）。",
             directOnlyGenerations: "当前接口不是 generations 文生图模式，不能使用 -d 直接生成。",
             insufficientCurrency: "余额不足！当前余额: {0} {1}，需要: {2} {1}",

@@ -2,8 +2,6 @@ import { Schema } from "koishi"
 import { readFileSync } from "node:fs"
 import { resolve } from "node:path"
 
-export type ApiMode = "auto" | "edits" | "generations"
-
 export interface Command {
   name: string
   prompt: string
@@ -13,7 +11,6 @@ export interface Command {
 export interface Config {
   basename: string
   parentCommandEnabled: boolean
-  apiMode: ApiMode
   apiUrl: string
   apiKey: string
   waitTimeout: number
@@ -37,8 +34,7 @@ export const Config: Schema<Config> = Schema.intersect([
   }).description("基础配置"),
 
   Schema.object({
-    apiMode: Schema.union(["auto", "edits", "generations"] as const).default("auto").description("接口协议：auto 根据是否有参考图片自动选择 generations/edits；edits 使用 multipart；generations 使用 JSON body"),
-    apiUrl: Schema.string().default("https://moyuu.cc/v1").role("link").description("API 服务器地址<br>基础地址会根据 apiMode 自动补全为 /v1/images/edits（图生图） 或 /v1/images/generations（文生图）"),
+    apiUrl: Schema.string().default("https://moyuu.cc/v1").role("link").description("API 服务器地址<br>基础地址会根据是否传入参考图片自动补全为 /v1/images/edits（图生图） 或 /v1/images/generations（文生图）"),
     apiKey: Schema.string().role("secret").default("").description("API 密钥"),
     apiParams: Schema.dict(String).role('table').description("API请求参数<br>POST请求的body参数<br>generations 模式下 image 占位符会替换为 base64 字符串数组").default({
       "model": "gpt-image-2",
