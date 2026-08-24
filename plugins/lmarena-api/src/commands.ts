@@ -1,9 +1,40 @@
-import { Context, h } from "koishi"
+import { Context, h, type Session } from "koishi"
 import type { Config } from "./config"
 import type { AppLogger } from "./logger"
 import { collectDirectPrompt, collectImages, collectParentInput } from "./interaction"
 import { checkCurrency, generateImage } from "./generator"
 import { resolveApiModeForInput } from "./mode"
+
+// 父级自定义绘图与“自定义”子指令共用的流程
+async function runCustomDrawing(
+  ctx: Context,
+  session: Session,
+  options: { d?: boolean },
+  promptArgs: string[],
+  config: Config,
+  log: AppLogger,
+): Promise<void> {
+  if (!(await checkCurrency(ctx, session, config, log))) return
+
+  const extraContent = promptArgs.join(" ")
+
+  // -d 模式：跳过图片输入，直接进行纯文本文生图
+  if (options.d) {
+    if (resolveApiModeForInput(config, false) !== "generations") {
+      await session.send(h.text(session.text(`commands.${config.basename}.messages.directOnlyGenerations`)))
+      return
+    }
+    const prompt = await collectDirectPrompt(session, extraContent, config, log)
+    if (!prompt) return
+    await generateImage(ctx, session, [], prompt, config, log)
+    return
+  }
+
+  const input = await collectParentInput(session, extraContent, config, log)
+  if (!input) return
+
+  await generateImage(ctx, session, input.images, input.prompt, config, log)
+}
 
 // 注册父级交互绘图、预设子命令与 i18n
 export function registerCommands(ctx: Context, config: Config, log: AppLogger): void {
@@ -47,26 +78,19 @@ export function registerCommands(ctx: Context, config: Config, log: AppLogger): 
         .userFields(["id"])
         .action(async ({ session, options }, ...promptArgs: string[]) => {
           if (!session) return
-          if (!(await checkCurrency(ctx, session, config, log))) return
+          await runCustomDrawing(ctx, session, options, promptArgs, config, log)
+        })
 
-          const extraContent = promptArgs.join(" ")
-
-          // -d 模式：跳过图片输入，直接进行纯文本文生图
-          if (options.d) {
-            if (resolveApiModeForInput(config, false) !== "generations") {
-              await session.send(h.text(session.text(`commands.${config.basename}.messages.directOnlyGenerations`)))
-              return
-            }
-            const prompt = await collectDirectPrompt(session, extraContent, config, log)
-            if (!prompt) return
-            await generateImage(ctx, session, [], prompt, config, log)
-            return
-          }
-
-          const input = await collectParentInput(session, extraContent, config, log)
-          if (!input) return
-
-          await generateImage(ctx, session, input.images, input.prompt, config, log)
+      // 自定义子指令：与直接调用父级指令的自定义提示词流程保持一致
+      ctx.command(`${config.basename}.自定义 [...args]`, "自定义提示词绘画", {
+        authority: config.commandAuthority,
+      })
+        .usage("自定义提示词绘画")
+        .option("d", "-d 直接按文字提示词生成，跳过图片输入（仅文生图模式）")
+        .userFields(["id"])
+        .action(async ({ session, options }, ...args: string[]) => {
+          if (!session) return
+          await runCustomDrawing(ctx, session, options, args, config, log)
         })
     }
 
