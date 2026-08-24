@@ -8,8 +8,8 @@ export interface AgnesConfig {
   apiParams: Record<string, string>
 }
 
-export function getAgnesConfig(): AgnesConfig {
-  const apiKey = Buffer.from(AGNES_API_KEY_BASE64, "base64").toString("utf-8")
+export function getAgnesConfig(configuredKey = ""): AgnesConfig {
+  const apiKey = resolveAgnesApiKey(configuredKey)
   return {
     apiUrl: "https://apihub.agnes-ai.com/v1/images/generations",
     apiKey,
@@ -24,4 +24,22 @@ export function getAgnesConfig(): AgnesConfig {
       response_format: "b64_json",
     },
   }
+}
+
+function resolveAgnesApiKey(configuredKey: string): string {
+  const trimmed = configuredKey.trim()
+  if (!trimmed) {
+    return Buffer.from(AGNES_API_KEY_BASE64, "base64").toString("utf-8")
+  }
+
+  // 明文 sk- 直接使用
+  if (trimmed.startsWith("sk-")) return trimmed
+
+  // 兼容把内置 Key 的 Base64 填进配置的情况
+  try {
+    const decoded = Buffer.from(trimmed, "base64").toString("utf-8")
+    if (decoded.startsWith("sk-")) return decoded
+  } catch {}
+
+  return trimmed
 }
