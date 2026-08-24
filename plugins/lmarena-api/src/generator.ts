@@ -54,7 +54,7 @@ export async function generateImage(
 
   try {
     const mode = resolveApiModeForInput(config, images.length > 0)
-    const agnes = config.agnesMode ? getAgnesConfig(config.agnesAPIkey) : undefined
+    const agnes = config.agnesMode ? getAgnesConfig(config.agnesAPIkey, config.apiParams) : undefined
     const apiUrl = agnes?.apiUrl ?? config.apiUrl
     const apiKey = agnes?.apiKey ?? config.apiKey
     const apiParams = agnes?.apiParams ?? config.apiParams

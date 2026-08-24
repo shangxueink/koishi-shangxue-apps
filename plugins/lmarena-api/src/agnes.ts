@@ -8,21 +8,16 @@ export interface AgnesConfig {
   apiParams: Record<string, string>
 }
 
-export function getAgnesConfig(configuredKey: string | null | undefined = null): AgnesConfig {
+export function getAgnesConfig(
+  configuredKey: string | null | undefined = null,
+  configuredParams: Record<string, string> = {},
+): AgnesConfig {
   const apiKey = resolveAgnesApiKey(configuredKey)
   return {
     apiUrl: "https://apihub.agnes-ai.com/v1/images/generations",
     apiKey,
     model: "agnes-image-2.1-flash",
-    apiParams: {
-      model: "agnes-image-2.1-flash",
-      image: "{{inputimage}}",
-      prompt: "{{prompt}}",
-      size: "1024x1024",
-      n: "1",
-      type: "normal",
-      response_format: "b64_json",
-    },
+    apiParams: { ...configuredParams, model: "agnes-image-2.1-flash" },
   }
 }
 
