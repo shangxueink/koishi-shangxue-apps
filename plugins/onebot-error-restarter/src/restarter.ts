@@ -1,3 +1,4 @@
+import {} from '@koishijs/loader'
 import { Bot, Context, Universal } from 'koishi'
 
 import type { Config } from './config'
@@ -27,13 +28,12 @@ export function registerRestarter(ctx: Context, config: Config, log: DebugLogger
     const dispose = ctx.setTimeout(() => {
       pending.delete(bot.sid)
       lastRestart.set(bot.sid, Date.now())
-      if (!bot.ctx.scope.isActive) return
 
-      log('restarting OneBot adapter', bot.sid)
+      log('restarting Koishi', bot.sid)
       try {
-        bot.ctx.scope.restart()
+        ctx.loader.fullReload()
       } catch (error) {
-        log('failed to restart OneBot adapter', error)
+        log('failed to restart Koishi', error)
       }
     }, config.restartDelay)
     pending.set(bot.sid, dispose)

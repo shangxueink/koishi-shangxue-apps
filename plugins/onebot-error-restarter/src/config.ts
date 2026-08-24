@@ -11,7 +11,7 @@ export interface Config {
 export const Config: Schema<Config> = Schema.intersect([
   Schema.object({
     restartDelay: Schema.natural().role('ms').default(1000)
-      .description('检测到错误后延迟重启 OneBot 适配器的时间'),
+      .description('检测到错误后延迟重启 Koishi 的时间'),
     cooldown: Schema.natural().role('ms').default(Time.minute)
       .description('同一机器人两次自动重启的最小间隔'),
     checkInterval: Schema.natural().role('ms').default(Time.minute)
