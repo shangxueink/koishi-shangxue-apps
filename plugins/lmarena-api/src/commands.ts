@@ -3,6 +3,7 @@ import type { Config } from "./config"
 import type { AppLogger } from "./logger"
 import { collectDirectPrompt, collectImages, collectParentInput } from "./interaction"
 import { checkCurrency, generateImage } from "./generator"
+import { resolveApiModeForInput } from "./mode"
 
 // 注册父级交互绘图、预设子命令与 i18n
 export function registerCommands(ctx: Context, config: Config, log: AppLogger): void {
@@ -17,11 +18,11 @@ export function registerCommands(ctx: Context, config: Config, log: AppLogger): 
             failed: "图片生成失败，请稍后重试。",
             error: "处理过程中发生错误: {0}",
             needimages: "请发送图片：",
-            needimagesOptional: "请发送参考图片（可选），也可以直接发送任意文字继续文生图：",
             editsNeedImage: "当前接口为 edits 图片编辑模式，必须发送参考图片才能生成。",
+            generationsNoImage: "当前配置为 generations 文生图节点，不能传入参考图片；如需图生图，请把 apiUrl 改为基础地址并使用 auto 模式。",
             needPrompt: "请发送画图提示词：",
             noPrompt: "未检测到有效提示词，请重新输入。",
-            apiModeHint: "接口地址或接口协议可能配置错误，请检查 apiMode 是否与 API 地址匹配（edits 使用 multipart，generations 使用 JSON body）。",
+            apiModeHint: "接口地址或接口协议可能配置错误，请检查 apiMode 与 API 地址是否匹配（auto 自动选择，edits 使用 multipart，generations 使用 JSON body）。",
             invalidApiUrl: "apiUrl 可能填成了网页地址，请填写 API 接口地址（例如 https://.../v1/images/edits 或 https://.../v1/images/generations）。",
             directOnlyGenerations: "当前接口不是 generations 文生图模式，不能使用 -d 直接生成。",
             insufficientCurrency: "余额不足！当前余额: {0} {1}，需要: {2} {1}",
@@ -41,7 +42,7 @@ export function registerCommands(ctx: Context, config: Config, log: AppLogger): 
     // 父级指令：交互收集图片和自定义提示词后绘图
     if (config.parentCommandEnabled) {
       parent
-        .option("d", "-d 直接按文字提示词生成，跳过图片输入（仅 generations 模式）")
+        .option("d", "-d 直接按文字提示词生成，跳过图片输入（仅文生图模式）")
         .userFields(["id"])
         .action(async ({ session, options }, ...promptArgs: string[]) => {
           if (!session) return
@@ -51,7 +52,7 @@ export function registerCommands(ctx: Context, config: Config, log: AppLogger): 
 
           // -d 模式：跳过图片输入，直接进行纯文本文生图
           if (options.d) {
-            if (config.apiMode !== "generations") {
+            if (resolveApiModeForInput(config, false) !== "generations") {
               await session.send(h.text(session.text(`commands.${config.basename}.messages.directOnlyGenerations`)))
               return
             }

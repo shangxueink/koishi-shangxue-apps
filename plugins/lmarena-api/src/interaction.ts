@@ -1,6 +1,7 @@
 import { h, Session } from "koishi"
 import type { Config } from "./config"
 import type { AppLogger } from "./logger"
+import { resolveApiModeForInput } from "./mode"
 import {
   extractImagesFromMessage,
   extractImagesFromSession,
@@ -38,10 +39,21 @@ export async function collectImages(
   }
   let text = textParts.filter(Boolean).join(" ").trim()
 
+  const mode = resolveApiModeForInput(config, images.length > 0)
+
+  if (images.length > 0 && mode === "generations" && !config.agnesMode) {
+    await session.send(h.text(session.text(`commands.${config.basename}.messages.generationsNoImage`)))
+    return null
+  }
+
   if (images.length === 0) {
-    const useOptionalImage = config.apiMode === "generations"
+    if (mode === "generations") {
+      log.info("未检测到参考图片，将按提示词直接文生图")
+      return { images: [], text }
+    }
+
     const [needImagesMessageId] = await session.send(
-      h.text(session.text(`commands.${config.basename}.messages.${useOptionalImage ? "needimagesOptional" : "needimages"}`)),
+      h.text(session.text(`commands.${config.basename}.messages.needimages`)),
     )
 
     try {
@@ -59,16 +71,7 @@ export async function collectImages(
 
       if (replyImages.length === 0) {
         await deleteHintMessage(session, needImagesMessageId, log, "图片交互提示")
-        if (useOptionalImage && replyText) {
-          if (!text) text = replyText
-          log.info("未检测到参考图片，将按文字提示词生成")
-          return { images: [...new Set(images)], text }
-        }
-        if (useOptionalImage) {
-          await session.send(h.text(session.text(`commands.${config.basename}.messages.noImagesInPrompt`)))
-        } else {
-          await session.send(h.text(session.text(`commands.${config.basename}.messages.editsNeedImage`)))
-        }
+        await session.send(h.text(session.text(`commands.${config.basename}.messages.editsNeedImage`)))
         return null
       }
 
@@ -159,9 +162,20 @@ export async function collectParentInput(
   }
 
   if (images.length === 0) {
-    const collection = await collectImages(session, "", config, log)
-    if (!collection) return null
-    images.push(...collection.images)
+    const mode = resolveApiModeForInput(config, false)
+    if (mode === "edits") {
+      const collection = await collectImages(session, "", config, log)
+      if (!collection) return null
+      images.push(...collection.images)
+    } else {
+      log.info("未检测到参考图片，将按提示词直接文生图")
+    }
+  }
+
+  const finalMode = resolveApiModeForInput(config, images.length > 0)
+  if (images.length > 0 && finalMode === "generations" && !config.agnesMode) {
+    await session.send(h.text(session.text(`commands.${config.basename}.messages.generationsNoImage`)))
+    return null
   }
 
   const uniqueImages = [...new Set(images)]

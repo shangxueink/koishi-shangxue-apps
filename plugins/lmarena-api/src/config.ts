@@ -2,7 +2,7 @@ import { Schema } from "koishi"
 import { readFileSync } from "node:fs"
 import { resolve } from "node:path"
 
-export type ApiMode = "edits" | "generations"
+export type ApiMode = "auto" | "edits" | "generations"
 
 export interface Command {
   name: string
@@ -24,7 +24,7 @@ export interface Config {
   currency: string
   monetaryCost: number
   commandAuthority: number
-  extraBodyCompat: boolean
+  agnesMode: boolean
 }
 
 export const Config: Schema<Config> = Schema.intersect([
@@ -35,9 +35,9 @@ export const Config: Schema<Config> = Schema.intersect([
   }).description("基础配置"),
 
   Schema.object({
-    apiMode: Schema.union(["edits", "generations"] as const).default("edits").description("接口协议：edits 使用 multipart，generations 使用 JSON body"),
+    apiMode: Schema.union(["auto", "edits", "generations"] as const).default("auto").description("接口协议：auto 根据是否有参考图片自动选择 generations/edits；edits 使用 multipart；generations 使用 JSON body"),
     apiUrl: Schema.string().default("https://moyuu.cc/v1").role("link").description("API 服务器地址<br>基础地址会根据 apiMode 自动补全为 /v1/images/edits（图生图） 或 /v1/images/generations（文生图）"),
-    apiKey: Schema.string().role("secret").required().description("API 密钥"),
+    apiKey: Schema.string().role("secret").default("").description("API 密钥"),
     apiParams: Schema.dict(String).role('table').description("API请求参数<br>POST请求的body参数<br>generations 模式下 image 占位符会替换为 base64 字符串数组").default({
       "model": "gpt-image-2",
       "image": "{{inputimage}}",
@@ -74,7 +74,7 @@ export const Config: Schema<Config> = Schema.intersect([
   }).description("完整指令配置"),
 
   Schema.object({
-    extraBodyCompat: Schema.boolean().default(false).description("extra_body字段兼容模式<br>开启后 generations 请求会把 image / response_format 放到 extra_body 中"),
+    agnesMode: Schema.boolean().default(false).description("是否一键开启 apihub.agnes-ai.com 站点模式<br>开启后忽略上方 API 地址、密钥、模型和请求参数，固定使用 agnes generations 接口"),
     loggerinfo: Schema.boolean().default(false).description("日志调试模式"),
   }).description("调试设置"),
 ]) as Schema<Config>

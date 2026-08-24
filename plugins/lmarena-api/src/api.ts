@@ -1,6 +1,6 @@
 import { Context } from "koishi"
-import type { ApiMode } from "./config"
 import type { AppLogger } from "./logger"
+import type { ResolvedApiMode } from "./mode"
 
 export const API_URL_HTML_ERROR = "api_url_html_error"
 
@@ -13,9 +13,9 @@ export interface ImageFile {
 export interface ImageApiOptions {
   apiUrl: string
   apiKey: string
-  apiMode: ApiMode
+  apiMode: ResolvedApiMode
   apiParams: Record<string, string>
-  extraBodyCompat: boolean
+  agnesMode: boolean
   log: AppLogger
 }
 
@@ -40,10 +40,10 @@ interface ApiErrorResponse {
 
 // 按配置选择 edits(multipart) / generations(JSON) 协议
 export async function callImageApi(ctx: Context, files: ImageFile[], prompt: string, options: ImageApiOptions): Promise<string[] | string | null> {
-  const mode = resolveApiMode(options.apiMode)
+  const mode = options.apiMode
   const resolvedUrl = resolveApiUrl(options.apiUrl, mode)
   const body = mode === "generations"
-    ? JSON.stringify(buildJsonBody(files, prompt, options.apiParams, options.extraBodyCompat))
+    ? JSON.stringify(buildJsonBody(files, prompt, options.apiParams, options.agnesMode))
     : buildFormBody(files, prompt, options.apiParams)
 
   logRequest(options, mode, files, prompt, resolvedUrl)
@@ -82,10 +82,6 @@ export async function callImageApi(ctx: Context, files: ImageFile[], prompt: str
   }
 }
 
-function resolveApiMode(mode: ApiMode): "edits" | "generations" {
-  return mode === "generations" ? "generations" : "edits"
-}
-
 // 兼容完整接口地址和 /v1/、/v1、根地址等基础地址，默认补全到 images/edits
 function resolveApiUrl(apiUrl: string, mode: "edits" | "generations"): string {
   try {
@@ -112,8 +108,8 @@ function resolveApiUrl(apiUrl: string, mode: "edits" | "generations"): string {
   }
 }
 
-// generations 接口要求 JSON body；extraBodyCompat 模式下按 agnes 文档把 image/response_format 放入 extra_body
-function buildJsonBody(files: ImageFile[], prompt: string, apiParams: Record<string, string>, extraBodyCompat: boolean): Record<string, unknown> {
+// generations 接口要求 JSON body；agnesMode 下按 agnes 文档把 image/response_format 放入 extra_body
+function buildJsonBody(files: ImageFile[], prompt: string, apiParams: Record<string, string>, agnesMode: boolean): Record<string, unknown> {
   const body: Record<string, unknown> = {}
   const extraBody: Record<string, unknown> = {}
 
@@ -123,7 +119,7 @@ function buildJsonBody(files: ImageFile[], prompt: string, apiParams: Record<str
     if (key === "type") continue
     if (value === "{{inputimage}}") {
       if (files.length > 0) {
-        if (extraBodyCompat) {
+        if (agnesMode) {
           extraBody.image = files.map(file => toDataUri(file))
         } else {
           body[key] = files.map(file => Buffer.from(file.data).toString("base64"))
@@ -132,7 +128,11 @@ function buildJsonBody(files: ImageFile[], prompt: string, apiParams: Record<str
       continue
     }
     if (key === "response_format") {
-      if (extraBodyCompat) extraBody.response_format = value
+      if (agnesMode) {
+        extraBody.response_format = value
+      } else {
+        body[key] = value
+      }
       continue
     }
     if (value === "{{prompt}}") {
@@ -142,7 +142,7 @@ function buildJsonBody(files: ImageFile[], prompt: string, apiParams: Record<str
     body[key] = normalizeJsonValue(value)
   }
 
-  if (extraBodyCompat) {
+  if (agnesMode) {
     if (files.length > 0 && !extraBody.image) {
       extraBody.image = files.map(file => toDataUri(file))
     }
@@ -197,15 +197,13 @@ function logRequest(options: ImageApiOptions, mode: string, files: ImageFile[], 
   }
   if (mode === "generations") {
     delete params.type
-    if (options.extraBodyCompat) {
+    if (options.agnesMode) {
       const imageValue = imageKey ? params[imageKey] : `[${files.length}张base64]`
       params.extra_body = {
         ...(files.length > 0 ? { image: imageValue } : {}),
         response_format: params.response_format || "b64_json",
       }
       if (imageKey) delete params[imageKey]
-      delete params.response_format
-    } else {
       delete params.response_format
     }
   }

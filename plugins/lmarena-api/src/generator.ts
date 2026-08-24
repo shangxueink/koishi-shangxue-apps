@@ -3,6 +3,8 @@ import type { Config } from "./config"
 import type { AppLogger } from "./logger"
 import { API_URL_HTML_ERROR, callImageApi } from "./api"
 import { getUserCurrency, updateUserCurrency } from "./currency"
+import { getAgnesConfig } from "./agnes"
+import { resolveApiModeForInput } from "./mode"
 
 // 货币功能开启时先检查余额，余额不足时直接返回 false
 export async function checkCurrency(
@@ -51,6 +53,12 @@ export async function generateImage(
   const quote = h.quote(session.messageId)
 
   try {
+    const mode = resolveApiModeForInput(config, images.length > 0)
+    const agnes = config.agnesMode ? getAgnesConfig() : undefined
+    const apiUrl = agnes?.apiUrl ?? config.apiUrl
+    const apiKey = agnes?.apiKey ?? config.apiKey
+    const apiParams = agnes?.apiParams ?? config.apiParams
+
     const [processingMessageId] = await session.send([
       quote,
       h.text(session.text(`commands.${config.basename}.messages.processing`)),
@@ -71,18 +79,24 @@ export async function generateImage(
       return false
     }
 
-    if (files.length === 0 && config.apiMode !== "generations") {
+    if (files.length === 0 && mode === "edits") {
       await session.send(h.text(session.text(`commands.${config.basename}.messages.editsNeedImage`)))
       await deleteProcessingMessage(session, processingMessageId, log)
       return false
     }
 
+    if (files.length > 0 && mode === "generations" && !config.agnesMode) {
+      await session.send(h.text(session.text(`commands.${config.basename}.messages.generationsNoImage`)))
+      await deleteProcessingMessage(session, processingMessageId, log)
+      return false
+    }
+
     const result = await callImageApi(ctx, files, prompt, {
-      apiUrl: config.apiUrl,
-      apiKey: config.apiKey,
-      apiMode: config.apiMode,
-      apiParams: config.apiParams,
-      extraBodyCompat: config.extraBodyCompat,
+      apiUrl,
+      apiKey,
+      apiMode: mode,
+      apiParams,
+      agnesMode: config.agnesMode,
       log,
     })
 
