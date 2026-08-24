@@ -34,9 +34,9 @@ export const Config: Schema<Config> = Schema.intersect([
   }).description("基础配置"),
 
   Schema.object({
-    apiUrl: Schema.string().default("https://moyuu.cc/v1").role("link").description("API 服务器地址<br>基础地址会根据是否传入参考图片自动补全为 /v1/images/edits（图生图） 或 /v1/images/generations（文生图）"),
+    apiUrl: Schema.string().default("https://moyuu.cc/v1").role("link").description("API 服务器地址<br>填入地址：`https://域名/v1`，需要兼容openai协议。"),
     apiKey: Schema.string().role("secret").default("").description("API 密钥"),
-    apiParams: Schema.dict(String).role('table').description("API请求参数<br>POST请求的body参数<br>generations 模式下 image 占位符会替换为 base64 字符串数组").default({
+    apiParams: Schema.dict(String).role('table').description("API请求参数<br>POST请求的body参数").default({
       "model": "gpt-image-2",
       "image": "{{inputimage}}",
       "prompt": "{{prompt}}",
@@ -49,6 +49,7 @@ export const Config: Schema<Config> = Schema.intersect([
 
   Schema.object({
     commandAuthority: Schema.number().default(1).max(5).min(0).description("指令所需权限"),
+    disableWaitingTips: Schema.boolean().default(false).description("关闭等待提示语<br>开启后不再发送“正在处理图片，请稍候...”等等待提示，报错提示仍然保留"),
     monetaryCommands: Schema.boolean().default(false).description("调用指令时，消耗货币（需要monetary服务）"),
   }).description("进阶指令功能配置"),
   Schema.union([
@@ -74,7 +75,6 @@ export const Config: Schema<Config> = Schema.intersect([
   Schema.object({
     agnesMode: Schema.boolean().default(false).description("是否一键开启 apihub.agnes-ai.com 站点模式<br>开启后忽略上方 API 地址、密钥、模型和请求参数，固定使用 agnes 接口"),
     agnesAPIkey: Schema.string().role("secret").default(null).description("agnes 专用 API Key（留空使用内置 Key）"),
-    disableWaitingTips: Schema.boolean().default(false).description("关闭等待提示语<br>开启后不再发送“正在处理图片，请稍候...”等等待提示，报错提示仍然保留"),
     loggerinfo: Schema.boolean().default(false).description("日志调试模式"),
   }).description("调试设置"),
 ]) as Schema<Config>
