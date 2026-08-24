@@ -28,3 +28,10 @@ export function getEndpointMode(apiUrl: string): ResolvedApiMode | null {
 
   return null
 }
+
+// agnes / auto 基础地址下允许“图片可选”，纯文本则直接文生图
+export function shouldAskOptionalImage(config: Config): boolean {
+  if (config.agnesMode) return true
+  if (config.apiMode === "auto" && !getEndpointMode(config.apiUrl)) return true
+  return false
+}

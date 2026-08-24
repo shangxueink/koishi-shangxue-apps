@@ -18,6 +18,7 @@ export function registerCommands(ctx: Context, config: Config, log: AppLogger): 
             failed: "图片生成失败，请稍后重试。",
             error: "处理过程中发生错误: {0}",
             needimages: "请发送图片：",
+            needimagesOptional: "请发送图片（输入纯文本则直接文生图）：",
             editsNeedImage: "当前接口为 edits 图片编辑模式，必须发送参考图片才能生成。",
             generationsNoImage: "当前配置为 generations 文生图节点，不能传入参考图片；如需图生图，请把 apiUrl 改为基础地址并使用 auto 模式。",
             needPrompt: "请发送画图提示词：",
