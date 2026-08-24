@@ -25,7 +25,8 @@ export interface Config {
   monetaryCost: number
   commandAuthority: number
   agnesMode: boolean
-  agnesAPIkey: string
+  agnesAPIkey: string | null
+  disableWaitingTips: boolean
 }
 
 export const Config: Schema<Config> = Schema.intersect([
@@ -77,6 +78,7 @@ export const Config: Schema<Config> = Schema.intersect([
   Schema.object({
     agnesMode: Schema.boolean().default(false).description("是否一键开启 apihub.agnes-ai.com 站点模式<br>开启后忽略上方 API 地址、密钥、模型和请求参数，固定使用 agnes generations 接口"),
     agnesAPIkey: Schema.string().role("secret").default(null).description("agnes 专用 API Key（留空使用内置 Key，填写时使用自定义 Key）"),
+    disableWaitingTips: Schema.boolean().default(false).description("关闭等待提示语<br>开启后不再发送“正在处理图片，请稍候...”等等待提示，报错提示仍然保留"),
     loggerinfo: Schema.boolean().default(false).description("日志调试模式"),
   }).description("调试设置"),
 ]) as Schema<Config>

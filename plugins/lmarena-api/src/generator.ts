@@ -59,10 +59,14 @@ export async function generateImage(
     const apiKey = agnes?.apiKey ?? config.apiKey
     const apiParams = agnes?.apiParams ?? config.apiParams
 
-    const [processingMessageId] = await session.send([
-      quote,
-      h.text(session.text(`commands.${config.basename}.messages.processing`)),
-    ])
+    let processingMessageId: string | undefined
+    if (!config.disableWaitingTips) {
+      const [messageId] = await session.send([
+        quote,
+        h.text(session.text(`commands.${config.basename}.messages.processing`)),
+      ])
+      processingMessageId = messageId
+    }
 
     const files = images.length > 0
       ? await Promise.all(

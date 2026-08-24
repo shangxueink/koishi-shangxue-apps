@@ -8,7 +8,7 @@ export interface AgnesConfig {
   apiParams: Record<string, string>
 }
 
-export function getAgnesConfig(configuredKey = ""): AgnesConfig {
+export function getAgnesConfig(configuredKey: string | null | undefined = null): AgnesConfig {
   const apiKey = resolveAgnesApiKey(configuredKey)
   return {
     apiUrl: "https://apihub.agnes-ai.com/v1/images/generations",
@@ -26,8 +26,8 @@ export function getAgnesConfig(configuredKey = ""): AgnesConfig {
   }
 }
 
-function resolveAgnesApiKey(configuredKey: string): string {
-  const trimmed = configuredKey.trim()
+function resolveAgnesApiKey(configuredKey: string | null | undefined): string {
+  const trimmed = (configuredKey ?? "").trim()
   if (!trimmed) {
     return Buffer.from(AGNES_API_KEY_BASE64, "base64").toString("utf-8")
   }
