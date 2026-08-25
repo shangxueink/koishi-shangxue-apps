@@ -38,11 +38,11 @@ export const Config: Schema<Config> = Schema.intersect([
   Schema.object({
     apiUrl: Schema.string().default("https://moyuu.cc/v1").role("link").description("API 服务器地址<br>填入地址：`https://域名/v1`，需要兼容openai协议。"),
     apiKey: Schema.string().role("secret").default("").description("API 密钥"),
-    apiParams: Schema.dict(String).role('table').description("API请求参数<br>POST请求的body参数").default({
+    apiParams: Schema.dict(String).role('table').description("API请求参数<br>POST请求的body参数<br>size 支持 {{dynamic_size}}，会按输入图片比例自动调整").default({
       "model": "gpt-image-2",
       "image": "{{inputimage}}",
       "prompt": "{{prompt}}",
-      "size": "1024x1024",
+      "size": "{{dynamic_size}}",
       "n": "1",
       "type": "normal",
       "response_format": "b64_json"

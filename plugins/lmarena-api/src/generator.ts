@@ -5,6 +5,7 @@ import { API_URL_HTML_ERROR, callImageApi } from "./api"
 import { getUserCurrency, updateUserCurrency } from "./currency"
 import { getAgnesConfig } from "./agnes"
 import { resolveApiModeForInput } from "./mode"
+import { getImageSize, resolveDynamicImageParams, resolveFallbackSize } from "./image-size"
 
 // 货币功能开启时先检查余额，余额不足时直接返回 false
 export async function checkCurrency(
@@ -59,7 +60,7 @@ export async function generateImage(
       : undefined
     const apiUrl = agnes?.apiUrl ?? config.apiUrl
     const apiKey = agnes?.apiKey ?? config.apiKey
-    const apiParams = agnes?.apiParams ?? config.apiParams
+    let apiParams = agnes?.apiParams ?? config.apiParams
 
     let processingMessageId: string | undefined
     if (!config.disableWaitingTips) {
@@ -95,6 +96,32 @@ export async function generateImage(
       await session.send(h.text(session.text(`commands.${config.basename}.messages.generationsNoImage`)))
       await deleteProcessingMessage(session, processingMessageId, log)
       return false
+    }
+
+    if (files.length > 0) {
+      const imageSize = getImageSize(Buffer.from(files[0].data))
+      if (imageSize) {
+        const dynamic = resolveDynamicImageParams(apiParams.size || "", imageSize.width, imageSize.height, config.agnesMode)
+        apiParams = {
+          ...apiParams,
+          size: dynamic.size,
+          ...(dynamic.ratio ? { ratio: dynamic.ratio } : {}),
+        }
+        log.info("根据输入图片动态设置尺寸:", {
+          width: imageSize.width,
+          height: imageSize.height,
+          ...dynamic,
+        })
+      } else {
+        log.warn("无法解析输入图片尺寸，使用默认尺寸")
+      }
+    }
+
+    if (apiParams.size === "{{dynamic_size}}") {
+      apiParams = {
+        ...apiParams,
+        size: resolveFallbackSize(apiParams.size, config.agnesMode),
+      }
     }
 
     const result = await callImageApi(ctx, files, prompt, {
