@@ -87,7 +87,10 @@ function resolveApiUrl(apiUrl: string, mode: "edits" | "generations"): string {
   try {
     const url = new URL(apiUrl)
     const segment = mode === "generations" ? "generations" : "edits"
-    const path = url.pathname.replace(/\/+$/, "")
+    // 用户可能误填完整 generations/edits 地址，这里统一只保留基础地址
+    const path = url.pathname
+      .replace(/\/+$/, "")
+      .replace(/\/images\/(edits|generations)$/i, "")
     const parts = path.split("/")
     const last = parts[parts.length - 1] || ""
     let nextPath = path
@@ -97,7 +100,7 @@ function resolveApiUrl(apiUrl: string, mode: "edits" | "generations"): string {
       nextPath = parts.join("/")
     } else if (path.endsWith("/v1/images") || path.endsWith("/images")) {
       nextPath = `${path}/${segment}`
-    } else if (path.endsWith("/v1") || path === "") {
+    } else if (/(^|\/)v\d+$/.test(path) || path === "") {
       nextPath = path ? `${path}/images/${segment}` : `/v1/images/${segment}`
     }
 

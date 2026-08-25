@@ -39,6 +39,10 @@ export const usage = `
 可选服务：monetary（用于积分系统）
 
 ---
+
+推荐一键开启 agnes 站点模式~~~
+
+---
 `
 
 export { Config }

@@ -1,7 +1,7 @@
 {
   "name": "koishi-plugin-lmarena-api",
-  "description": "lmarena-api。一个简单的AI绘图插件。通过配置 API 使用。设定参考自astrbot_plugin_shoubanhua。",
-  "version": "0.4.7",
+  "description": "rryth系列？一个简单的AI绘图插件。通过配置 API 使用。设定参考自astrbot_plugin_shoubanhua。",
+  "version": "0.4.8",
   "main": "lib/index.js",
   "typings": "lib/index.d.ts",
   "files": [
@@ -14,6 +14,7 @@
     "chatbot",
     "koishi",
     "plugin",
+    "rryth",
     "lmarena-api"
   ],
   "homepage": "https://github.com/koishi-shangxue-plugins/koishi-shangxue-apps",
