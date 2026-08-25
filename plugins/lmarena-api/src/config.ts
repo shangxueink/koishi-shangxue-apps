@@ -22,6 +22,8 @@ export interface Config {
   monetaryCost: number
   commandAuthority: number
   agnesMode: boolean
+  agnesRegion: "cn" | "intl"
+  agnesModel: "agnes-image-2.0-flash" | "agnes-image-2.1-flash"
   agnesAPIkey: string | null
   disableWaitingTips: boolean
 }
@@ -73,8 +75,17 @@ export const Config: Schema<Config> = Schema.intersect([
   }).description("完整指令配置"),
 
   Schema.object({
-    agnesMode: Schema.boolean().default(false).description("是否一键开启 apihub.agnes-ai.com 站点模式<br>开启后忽略上方 API 地址、密钥、模型和请求参数，固定使用 agnes 接口"),
-    agnesAPIkey: Schema.string().role("secret").default(null).description("agnes 专用 API Key（留空使用内置 Key）"),
+    agnesMode: Schema.boolean().default(false).description("是否一键开启 agnes 站点模式<br>开启后忽略上方 API 地址和 Key，固定使用 agnes 接口"),
+    agnesRegion: Schema.union([
+      Schema.const('cn').description('api.agnes-ai.cn（国内站）'),
+      Schema.const('intl').description('apihub.agnes-ai.com（国外站）'),
+    ]).default("intl").role("radio").description("agnes 站点地区"),
+    agnesModel: Schema.union(["agnes-image-2.0-flash", "agnes-image-2.1-flash"] as const).default("agnes-image-2.1-flash").role("radio").description("agnes 模型版本"),
+    agnesAPIkey: Schema.string().role("secret").default(null).description("API Key（留空使用所选地区的内置 Key）"),
+  }).description("特殊站点设置"),
+
+
+  Schema.object({
     loggerinfo: Schema.boolean().default(false).description("日志调试模式"),
   }).description("调试设置"),
 ]) as Schema<Config>

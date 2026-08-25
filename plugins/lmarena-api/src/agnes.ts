@@ -1,30 +1,46 @@
-// apihub.agnes-ai.com 专用站点配置，key 使用 base64 混淆存储
-const AGNES_API_KEY_BASE64 = "c2stU1VldXNjSmtSZkNVU1ZzT0VVM2w1aFFycHBlWnR4QkxwVFl2MGRMemF3SWpQM2JU"
+export type AgnesRegion = "cn" | "intl"
+export type AgnesModel = "agnes-image-2.0-flash" | "agnes-image-2.1-flash"
+
+// agnes 两个地区的内置 Key，使用 base64 混淆存储
+const AGNES_API_KEYS: Record<AgnesRegion, string> = {
+  cn: "c2stQ3A1S0cyTkoxWDRkNlF4Y1UxczZMV0lWQjFGYUJQY0lrRVBKRGdSbm9MWHQwRDE0",
+  intl: "c2stU1VldXNjSmtSZkNVU1ZzT0VVM2w1aFFycHBlWnR4QkxwVFl2MGRMemF3SWpQM2JU",
+}
+
+const AGNES_API_URLS: Record<AgnesRegion, string> = {
+  cn: "https://api.agnes-ai.cn/v1/images/generations",
+  intl: "https://apihub.agnes-ai.com/v1/images/generations",
+}
 
 export interface AgnesConfig {
   apiUrl: string
   apiKey: string
-  model: string
+  model: AgnesModel
   apiParams: Record<string, string>
 }
 
 export function getAgnesConfig(
   configuredKey: string | null | undefined = null,
   configuredParams: Record<string, string> = {},
+  region: AgnesRegion = "intl",
+  model: AgnesModel = "agnes-image-2.1-flash",
 ): AgnesConfig {
-  const apiKey = resolveAgnesApiKey(configuredKey)
+  const apiKey = resolveAgnesApiKey(configuredKey, region)
   return {
-    apiUrl: "https://apihub.agnes-ai.com/v1/images/generations",
+    apiUrl: AGNES_API_URLS[region],
     apiKey,
-    model: "agnes-image-2.1-flash",
-    apiParams: { ...configuredParams, model: "agnes-image-2.1-flash" },
+    model,
+    apiParams: { ...configuredParams, model },
   }
 }
 
-function resolveAgnesApiKey(configuredKey: string | null | undefined): string {
+function resolveAgnesApiKey(
+  configuredKey: string | null | undefined,
+  region: AgnesRegion,
+): string {
   const trimmed = (configuredKey ?? "").trim()
   if (!trimmed) {
-    return Buffer.from(AGNES_API_KEY_BASE64, "base64").toString("utf-8")
+    return Buffer.from(AGNES_API_KEYS[region], "base64").toString("utf-8")
   }
 
   // 明文 sk- 直接使用
