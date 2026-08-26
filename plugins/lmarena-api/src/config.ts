@@ -14,6 +14,7 @@ export interface Config {
   apiUrl: string
   apiKey: string
   waitTimeout: number
+  apiTimeout: number
   apiParams: Record<string, string>
   customCommands: Command[]
   loggerinfo: boolean
@@ -37,8 +38,9 @@ export const Config: Schema<Config> = Schema.intersect([
 
   Schema.object({
     apiUrl: Schema.string().default("https://moyuu.cc/v1").role("link").description("API 服务器地址<br>填入地址：`https://域名/v1`，需要兼容openai协议。"),
-    apiKey: Schema.string().role("secret").default("").description("API 密钥"),
-    apiParams: Schema.dict(String).role('table').description("API请求参数<br>POST请求的body参数<br>size 支持 {{dynamic_size}}，会按输入图片比例自动调整，也可以填入`auto`").default({
+    apiKey: Schema.string().role("secret").default(null).description("API 密钥"),
+    apiTimeout: Schema.number().default(180).max(600).min(10).step(1).description("API 请求超时时间（秒）"),
+    apiParams: Schema.dict(String).role('table').description("API请求参数<br>POST请求的参数<br>size 支持 `{{dynamic_size}}`，会按输入图片比例自动调整，也可以填入`auto`").default({
       "model": "gpt-image-2",
       "image": "{{inputimage}}",
       "prompt": "{{prompt}}",

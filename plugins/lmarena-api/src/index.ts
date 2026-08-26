@@ -40,7 +40,7 @@ export const usage = `
 
 ---
 
-推荐一键开启 agnes 站点模式~~~
+一键配置？开启最下方 agnesMode 配置项即可~~~
 
 ---
 `

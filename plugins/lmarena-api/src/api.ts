@@ -16,6 +16,7 @@ export interface ImageApiOptions {
   apiMode: ResolvedApiMode
   apiParams: Record<string, string>
   agnesMode: boolean
+  timeoutMs: number
   log: AppLogger
 }
 
@@ -54,11 +55,19 @@ export async function callImageApi(ctx: Context, files: ImageFile[], prompt: str
     }
     if (mode === "generations") headers["Content-Type"] = "application/json"
 
-    const response = await fetch(resolvedUrl, {
-      method: "POST",
-      headers,
-      body,
-    })
+    const controller = new AbortController()
+    const timer = ctx.setTimeout(() => controller.abort(), options.timeoutMs)
+    let response: Response
+    try {
+      response = await fetch(resolvedUrl, {
+        method: "POST",
+        headers,
+        body,
+        signal: controller.signal,
+      })
+    } finally {
+      timer()
+    }
 
     if (options.log.enabled) {
       const responseContentType = response.headers.get("content-type") || ""

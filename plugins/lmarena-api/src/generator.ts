@@ -130,6 +130,7 @@ export async function generateImage(
       apiMode: mode,
       apiParams,
       agnesMode: config.agnesMode,
+      timeoutMs: config.apiTimeout * 1000,
       log,
     })
 
@@ -166,7 +167,9 @@ export async function generateImage(
   } catch (error) {
     log.error("处理图片时发生错误:", error)
     const errorText = error instanceof Error ? error.message : String(error)
-    if (errorText === API_URL_HTML_ERROR) {
+    if (error instanceof Error && error.name === "AbortError") {
+      await session.send(h.text(session.text(`commands.${config.basename}.messages.apiTimeout`)))
+    } else if (errorText === API_URL_HTML_ERROR) {
       await session.send(h.text(session.text(`commands.${config.basename}.messages.invalidApiUrl`)))
     } else if (isNotFoundError(errorText)) {
       await session.send(h.text(session.text(`commands.${config.basename}.messages.apiModeHint`)))
