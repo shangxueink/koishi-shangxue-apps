@@ -38,6 +38,11 @@ export function resolveDynamicImageParams(
     }
   }
 
+  // OpenAI 兼容接口支持 auto，用户显式填写 auto 时不要覆盖
+  if (configuredSize.trim().toLowerCase() === "auto") {
+    return { size: "auto" }
+  }
+
   const size = ratio >= 1.2
     ? "1536x1024"
     : ratio <= 0.8
