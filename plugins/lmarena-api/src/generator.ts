@@ -6,6 +6,7 @@ import { getUserCurrency, updateUserCurrency } from "./currency"
 import { getAgnesConfig } from "./agnes"
 import { resolveApiModeForInput } from "./mode"
 import { getImageSize, resolveDynamicImageParams, resolveFallbackSize } from "./image-size"
+import { downloadFileWithTimeout } from "./http"
 
 // 货币功能开启时先检查余额，余额不足时直接返回 false
 export async function checkCurrency(
@@ -73,7 +74,7 @@ export async function generateImage(
 
     const files = images.length > 0
       ? await Promise.all(
-        images.map(src => ctx.http.file(src).catch(error => {
+        images.map(src => downloadFileWithTimeout(ctx, src, config.apiTimeout * 1000).catch(error => {
           log.error(`下载图片失败: ${src}`, error)
           return null
         })),

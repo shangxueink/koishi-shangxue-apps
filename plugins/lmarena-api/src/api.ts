@@ -1,6 +1,7 @@
 import { Context } from "koishi"
 import type { AppLogger } from "./logger"
 import type { ResolvedApiMode } from "./mode"
+import { downloadFileWithTimeout, fetchWithTimeout } from "./http"
 
 export const API_URL_HTML_ERROR = "api_url_html_error"
 
@@ -55,19 +56,11 @@ export async function callImageApi(ctx: Context, files: ImageFile[], prompt: str
     }
     if (mode === "generations") headers["Content-Type"] = "application/json"
 
-    const controller = new AbortController()
-    const timer = ctx.setTimeout(() => controller.abort(), options.timeoutMs)
-    let response: Response
-    try {
-      response = await fetch(resolvedUrl, {
-        method: "POST",
-        headers,
-        body,
-        signal: controller.signal,
-      })
-    } finally {
-      timer()
-    }
+    const response = await fetchWithTimeout(ctx, resolvedUrl, {
+      method: "POST",
+      headers,
+      body,
+    }, options.timeoutMs)
 
     if (options.log.enabled) {
       const responseContentType = response.headers.get("content-type") || ""
@@ -82,7 +75,7 @@ export async function callImageApi(ctx: Context, files: ImageFile[], prompt: str
       throw new Error(await parseErrorMessage(response))
     }
 
-    return await parseImageResponse(ctx, response, options.log)
+    return await parseImageResponse(ctx, response, options.log, options.timeoutMs)
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : String(error)
     options.log.error(`API request failed: ${errorMsg}`, error)
@@ -250,7 +243,7 @@ function toDataUri(file: ImageFile): string {
   return `data:${file.mime};base64,${Buffer.from(file.data).toString("base64")}`
 }
 
-async function parseImageResponse(ctx: Context, response: Response, log: AppLogger): Promise<string[] | string | null> {
+async function parseImageResponse(ctx: Context, response: Response, log: AppLogger, timeoutMs: number): Promise<string[] | string | null> {
   const contentType = response.headers.get("content-type") || ""
 
   if (contentType.includes("text/html")) {
@@ -268,7 +261,7 @@ async function parseImageResponse(ctx: Context, response: Response, log: AppLogg
           images.push(toDataUrl(item.b64_json, mime))
           continue
         }
-        if (item.url) images.push(await toUrlDataUrl(ctx, item.url, log))
+        if (item.url) images.push(await toUrlDataUrl(ctx, item.url, log, timeoutMs))
       }
 
       if (images.length > 0) {
@@ -292,13 +285,13 @@ function toDataUrl(source: string, mime: string): string {
 }
 
 // 若服务端返回公网 URL，下载后转成 data URL，插件只发送 Base64 图片
-async function toUrlDataUrl(ctx: Context, source: string, log: AppLogger): Promise<string> {
+async function toUrlDataUrl(ctx: Context, source: string, log: AppLogger, timeoutMs: number): Promise<string> {
   if (source.startsWith("data:")) return source
   if (!/^https?:\/\//i.test(source)) return source
 
   log.info("转换HTTP URL为Data URL")
-  const file = await ctx.http.file(source)
-  const mime = file.type || file.mime || "application/octet-stream"
+  const file = await downloadFileWithTimeout(ctx, source, timeoutMs)
+  const mime = file.mime
   return `data:${mime};base64,${Buffer.from(file.data).toString("base64")}`
 }
 
