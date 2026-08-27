@@ -57,6 +57,12 @@ export function registerBootstrap(
 
   ctx.console.addListener('chat-patch/contact-cache', async (query: ContactCacheQuery): Promise<ContactCacheResult> => {
     if (query.contacts) {
+      if (query.append) {
+        for (const contact of query.contacts) {
+          await database.appendContact(query.platform, query.selfId, query.type, contact)
+        }
+        return { contacts: await database.getContacts(query.platform, query.selfId, query.type) }
+      }
       await database.setContacts(query.platform, query.selfId, query.type, query.contacts)
       return { contacts: query.contacts }
     }

@@ -71,6 +71,7 @@ import {
     getSessionId,
     getMissingGroupPreviewSessions,
     mergeEarlySessionContacts,
+    normalizeSessionId,
     resolveIncomingSession,
 } from './utils/sessionUtil'
 
@@ -142,10 +143,10 @@ const groupPreviewHydrator = (() => {
                 sessionId !== '' &&
                 !session.time &&
                 !session.raw_msg &&
-                !contactStore.baseOnMsgList.has(sessionId)
+                !contactStore.baseOnMsgList.has(normalizeSessionId(sessionId))
             ) {
                 // userList 与 baseOnMsgList 共享同一个会话对象；历史响应会原地补全预览。
-                contactStore.baseOnMsgList.set(sessionId, session)
+                contactStore.baseOnMsgList.set(normalizeSessionId(sessionId), session)
                 updateLastestHistory(session)
             }
         }
@@ -165,12 +166,12 @@ const groupPreviewHydrator = (() => {
             const settingsStore = useSettingsStore()
             if (settingsStore.sysConfig.session_display_mode !== 'all') return
 
-            const queuedIds = new Set(queue.map((item) => getSessionId(item)))
+            const queuedIds = new Set(queue.map((item) => normalizeSessionId(getSessionId(item))))
             getMissingGroupPreviewSessions(
                 contactStore.userList,
                 contactStore.baseOnMsgList,
             ).forEach((item) => {
-                const sessionId = getSessionId(item)
+                const sessionId = normalizeSessionId(getSessionId(item))
                 if (!queuedIds.has(sessionId)) {
                     queue.push(item)
                     queuedIds.add(sessionId)
@@ -958,10 +959,10 @@ const msgFunctions = {
                         msgPath.message_value,
                     )
                     // 更新消息列表
-                    const onmsg = contactStore.baseOnMsgList.get(id)
+                    const onmsg = contactStore.baseOnMsgList.get(normalizeSessionId(id))
                     if (onmsg && list[0]) {
                         Object.assign(onmsg, formatMessageData(list[0], Boolean(onmsg.group_id)))
-                        contactStore.baseOnMsgList.set(id, onmsg)
+                        contactStore.baseOnMsgList.set(normalizeSessionId(id), onmsg)
                         updateBaseOnMsgList()
                     }
                 }
@@ -997,6 +998,7 @@ const msgFunctions = {
                 if (item.message_id == messageId) {
                     item.message_id = msg.message_id
                     item.fake_msg = false
+                    item.revoke = false
                     return
                 }
             })
@@ -1641,7 +1643,15 @@ function saveUser(msg: { [key: string]: any }, type: string) {
             list,
             contactStore.baseOnMsgList,
         )
-        contactStore.userList = contactStore.userList.concat(list)
+        const existingIds = new Set(
+            contactStore.userList.map((item) => {
+                return String(item.user_id ?? item.group_id ?? '')
+            }),
+        )
+        const freshList = list.filter((item) => {
+            return !existingIds.has(String(item.user_id ?? item.group_id ?? ''))
+        })
+        contactStore.userList = contactStore.userList.concat(freshList)
         if (
             settingsStore.sysConfig.session_display_mode === 'all' ||
             didMergeEarlySessions
@@ -1662,8 +1672,8 @@ function saveUser(msg: { [key: string]: any }, type: string) {
                     if (topList.indexOf(id) >= 0) {
                         item.always_top = true
                         // 判断它在不在消息列表里
-                        if (contactStore.baseOnMsgList.get(id) == undefined) {
-                            contactStore.baseOnMsgList.set(id, item)
+                        if (contactStore.baseOnMsgList.get(normalizeSessionId(id)) == undefined) {
+                            contactStore.baseOnMsgList.set(normalizeSessionId(id), item)
                             // 给它获取一下最新的一条消息
                             // 给置顶的用户刷新最新一条的消息用于显示
                             contactStore.userList.forEach((item) => {
@@ -1816,7 +1826,7 @@ async function saveMsg(msg: any, append = undefined as undefined | string) {
                     item.user_id == chatStore.chatInfo.show.id
                 )
             })
-            const sessionId = Number(chatStore.chatInfo.show.id)
+            const sessionId = normalizeSessionId(chatStore.chatInfo.show.id)
             const session = contactStore.baseOnMsgList.get(sessionId) ?? user
             if (session) {
                 const preview = formatMessageData(
@@ -2322,7 +2332,8 @@ function newMsg(_: string, data: any) {
 
         // 会话状态更新 ============================================
         const sessionId = isTempGroupMessage ? sender : id
-        let session = contactStore.baseOnMsgList.get(sessionId)
+        const normalizedSessionId = normalizeSessionId(sessionId)
+        let session = contactStore.baseOnMsgList.get(normalizedSessionId)
         if (!session) {
             if (isTempGroupMessage) {
                 session = {
@@ -2363,7 +2374,7 @@ function newMsg(_: string, data: any) {
                 if (data.atall) { session.highlight = $t('[@全体]') }
                 if (isImportant) { session.highlight = $t('[特別关心]') }
             }
-            contactStore.baseOnMsgList.set(sessionId, session)
+            contactStore.baseOnMsgList.set(normalizedSessionId, session)
             updateBaseOnMsgList()
         }
 

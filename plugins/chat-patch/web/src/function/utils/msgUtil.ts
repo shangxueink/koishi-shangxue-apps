@@ -21,6 +21,7 @@ import { useChatStore } from '@renderer/state/chat'
 import {
     findSessionContact,
     getSessionId,
+    normalizeSessionId,
 } from './sessionUtil'
 
 const logger = new Logger()
@@ -496,7 +497,7 @@ export function sendMsgRaw(
         chatStore.messageList = chatStore.messageList.concat([showMsg])
 
         // 发送方不一定会上报自身消息事件，先用预发送消息同步会话预览。
-        const sessionId = String(id).split('/')[0]
+        const sessionId = normalizeSessionId(String(id).split('/')[0])
         const session = contactStore.baseOnMsgList.get(sessionId) ??
             findSessionContact(contactStore.userList, sessionId)
         if (session) {
@@ -508,7 +509,7 @@ export function sendMsgRaw(
                 raw_msg_base: raw,
                 time: showMsg.time * 1000,
             })
-            contactStore.baseOnMsgList.set(sessionId, session)
+            contactStore.baseOnMsgList.set(normalizeSessionId(sessionId), session)
             updateBaseOnMsgList()
         }
     }
@@ -617,22 +618,43 @@ function getSessionSortName(item: UserFriendElem & UserGroupElem) {
     return item.py_start ?? getShowName(item.group_name ?? item.nickname ?? '', item.remark ?? '')
 }
 
+function normalizeBaseSessionMap() {
+    const contactStore = useContactStore()
+    let needNormalize = false
+    for (const id of contactStore.baseOnMsgList.keys()) {
+        if (typeof id !== 'string') {
+            needNormalize = true
+            break
+        }
+    }
+    if (!needNormalize) return
+
+    const normalized = new Map<string, UserFriendElem & UserGroupElem>()
+    contactStore.baseOnMsgList.forEach((item, id) => {
+        normalized.set(normalizeSessionId(id), item)
+    })
+    contactStore.baseOnMsgList.clear()
+    for (const [id, item] of normalized) {
+        contactStore.baseOnMsgList.set(id, item)
+    }
+}
+
 function getSessionList() {
     const contactStore = useContactStore()
     const settingsStore = useSettingsStore()
-    const sessionMap = new Map<number | string, UserFriendElem & UserGroupElem>()
+    const sessionMap = new Map<string, UserFriendElem & UserGroupElem>()
 
     if (settingsStore.sysConfig.session_display_mode === 'all') {
         contactStore.userList.forEach((item) => {
-            const id = getSessionId(item)
-            if (id !== 0 && id !== '') {
+            const id = normalizeSessionId(getSessionId(item))
+            if (id !== '0' && id !== '') {
                 sessionMap.set(id, item)
             }
         })
     }
 
     contactStore.baseOnMsgList.forEach((item, id) => {
-        sessionMap.set(id, item)
+        sessionMap.set(normalizeSessionId(id), item)
     })
 
     return [...sessionMap.values()]
@@ -644,6 +666,7 @@ function getSessionList() {
 export function updateBaseOnMsgList() {
     const contactStore = useContactStore()
     const settingsStore = useSettingsStore()
+    normalizeBaseSessionMap()
     const allList = getSessionList()
     // 先更具 item.always_top 是不是 true 拆为两个数组
     const topList = allList.filter((item) => item.always_top)

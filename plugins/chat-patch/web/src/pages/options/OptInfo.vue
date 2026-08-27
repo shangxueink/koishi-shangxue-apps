@@ -136,7 +136,7 @@
                                 'leaveGroup')
                         }
                         // 从消息列表中删除该群聊
-                        contactStore.baseOnMsgList.delete(props.chat.show.id)
+                        contactStore.baseOnMsgList.delete(String(props.chat.show.id))
                         // 关闭群聊窗口
                         chatStore.chatInfo.show.id = 0
                         // 刷新好友/群列表

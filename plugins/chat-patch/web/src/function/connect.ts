@@ -177,21 +177,139 @@ function contactName(item: unknown): string {
   return String(obj.nickname ?? obj.remark ?? obj.group_name ?? obj.name ?? '')
 }
 
+function contactCachePayload(item: unknown): Record<string, unknown> {
+  return {
+    id: contactId(item),
+    name: contactName(item),
+    raw: item,
+  }
+}
+
 async function saveContactCache(action: string, data: unknown) {
   const active = getActiveBot()
   if (!active || !Array.isArray(data)) return
   const type = action === 'get_friend_list' ? 'friend' : 'group'
-  const contacts = data.map((item) => ({
-    id: contactId(item),
-    name: contactName(item),
-    raw: item,
-  }))
+  const contacts = data.map(contactCachePayload)
   await requestConsole('contact-cache', {
     platform: active.platform,
     selfId: active.selfId,
     type,
     contacts,
   })
+}
+
+async function appendContactCache(type: string, item: unknown) {
+  const active = getActiveBot()
+  if (!active) return
+  const contact = contactCachePayload(item)
+  if (!contact.id) return
+  await requestConsole('contact-cache', {
+    platform: active.platform,
+    selfId: active.selfId,
+    type,
+    contacts: [contact],
+    append: true,
+  })
+}
+
+function buildFriendItem(raw: unknown, data: unknown): Record<string, unknown> {
+  const root = getObject(data)
+  const user = getObject(root.user) || getObject(root)
+  const name = String(user.name ?? user.nick ?? '')
+  const avatar = String(user.avatar ?? '')
+  const item: Record<string, unknown> = { ...getObject(raw) }
+  if (name) {
+    item.nickname = name
+    item.remark = name
+  }
+  if (avatar) item.avatar = avatar
+  return item
+}
+
+function contactListIds(list: unknown[]): Set<string> {
+  return new Set(list.map(contactId).filter(Boolean))
+}
+
+async function fetchFriendProfiles(
+  active: { platform: string; selfId: string },
+  friends: unknown[],
+) {
+  const contactStore = useContactStore()
+  for (const raw of friends) {
+    const id = contactId(raw)
+    if (!id) continue
+    let data: unknown = {}
+    try {
+      data = await request('user.get', { user_id: id }, active)
+    } catch {
+      // 资料失败时先保留好友列表里的基础信息
+    }
+    const item = buildFriendItem(raw, data)
+    const existing = contactStore.userList.find((contact) => {
+      return String(contact.user_id) === id
+    })
+    if (existing) {
+      if (item.nickname) existing.nickname = String(item.nickname)
+      if (item.remark) existing.remark = String(item.remark)
+      if (item.avatar) existing.avatar = String(item.avatar)
+      contactStore.userList = [...contactStore.userList]
+    } else {
+      dispatch({ retcode: 0, data: [item] }, 'getFriendList')
+    }
+    try {
+      await appendContactCache('friend', item)
+    } catch {
+      // 单个缓存写入失败不阻塞后续好友
+    }
+    await new Promise((resolve) => setTimeout(resolve, 1000))
+  }
+}
+
+async function refreshFriendList(active: { platform: string; selfId: string }) {
+  const contactStore = useContactStore()
+  const cacheResult = await requestConsole('contact-cache', {
+    platform: active.platform,
+    selfId: active.selfId,
+    type: 'friend',
+  })
+  const cached = Array.isArray(getObject(cacheResult).contacts)
+    ? getObject(cacheResult).contacts as unknown[]
+    : []
+  const cachedIds = contactListIds(cached)
+  const data = await request('friend.list', {}, active)
+  const response = satoriResponseToOneBot('get_friend_list', data)
+  const friends = Array.isArray(response.data) ? response.data : []
+  const allCached = friends.every((item) => {
+    return cachedIds.has(contactId(item))
+  })
+
+  if (allCached) {
+    // 缓存完整时按用户意图全量刷新，好友逐个重新获取并显示。
+    contactStore.userList = contactStore.userList.filter((item) => item.group_id)
+    await fetchFriendProfiles(active, friends)
+    return
+  }
+
+  // 缓存不完整时先恢复已有缓存，再只补请求缺失的好友。
+  if (cached.length > 0) {
+    dispatch({
+      retcode: 0,
+      data: cached.map((contact) => getObject(contact).raw ?? contact),
+    }, 'getFriendList')
+  }
+  const missing = friends.filter((item) => !cachedIds.has(contactId(item)))
+  await fetchFriendProfiles(active, missing)
+}
+
+export async function refreshContacts() {
+  const active = getActiveBot()
+  if (!active) return
+  Connector.send('get_group_list', {}, 'getGroupList')
+  try {
+    await refreshFriendList(active)
+  } catch {
+    // 好友列表刷新失败时保留已有缓存和界面数据
+  }
 }
 
 async function loadContactType(
@@ -299,10 +417,9 @@ export class Connector {
       .then((data) => {
         const response = satoriResponseToOneBot(action, data)
         dispatch(response, echo)
-        if (action === 'get_friend_list' && Array.isArray(response.data)) {
-          // 先落一次初始缓存，避免用户资料还没补全时刷新页面又触发全量请求
-          void saveContactCache(action, response.data)
-          void enrichFriendProfiles(response.data)
+        if (action === 'get_friend_list' && active && Array.isArray(response.data)) {
+          // 好友资料逐个获取，缓存也逐个追加。
+          void fetchFriendProfiles(active, response.data)
         }
         if (action === 'get_group_list' && Array.isArray(response.data)) {
           void saveContactCache(action, response.data)
@@ -333,32 +450,6 @@ export class Connector {
 
 function getObject(value: unknown): Record<string, unknown> {
   return typeof value === 'object' && value !== null ? value as Record<string, unknown> : {}
-}
-
-async function enrichFriendProfiles(friends: unknown[]) {
-  const active = getActiveBot()
-  const contactStore = useContactStore()
-  if (!active) return
-  const ids = friends.map((item) => String(getObject(item).user_id ?? '')).filter(Boolean)
-  for (const id of ids) {
-    try {
-      const data = await request('user.get', { user_id: id }, active)
-      const root = getObject(data)
-      const user = getObject(root.user) || getObject(root)
-      const contact = contactStore.userList.find((item) => String(item.user_id) === id)
-      if (!contact) continue
-      const name = String(user.name ?? user.nick ?? '')
-      const avatar = String(user.avatar ?? '')
-      if (name) contact.nickname = name
-      if (name) contact.remark = name
-      if (avatar) contact.avatar = avatar
-    } catch {
-      // 单个用户资料获取失败不影响其他用户
-    }
-    await new Promise((resolve) => setTimeout(resolve, 1000))
-  }
-  contactStore.userList = [...contactStore.userList]
-  await saveContactCache('get_friend_list', friends)
 }
 
 export function loadConnectionHistory(): ConnectionHistoryItem[] {

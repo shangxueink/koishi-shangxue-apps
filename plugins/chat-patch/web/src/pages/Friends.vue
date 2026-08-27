@@ -167,6 +167,7 @@
     import { reloadUsers } from '@renderer/function/utils/appUtil'
     import { Connector, flushPendingBotEvents, loadContactsFromCache, login as loginInfo } from '@renderer/function/connect'
     import { getActiveBot, getLogins, setActiveBot } from '@renderer/function/satori'
+    import { normalizeSessionId } from '@renderer/function/utils/sessionUtil'
     import { backend } from '@renderer/runtime/backend'
     import { matchPinyin } from '@renderer/function/utils/pinyin'
     import { useUIStore } from '@renderer/state/ui'
@@ -247,7 +248,7 @@
             contactStore.userList = saved.userList
             contactStore.baseOnMsgList.clear()
             for (const [key, value] of saved.baseList) {
-                contactStore.baseOnMsgList.set(key, value)
+                contactStore.baseOnMsgList.set(normalizeSessionId(key), value)
             }
             contactStore.onMsgList = saved.onMsgList
             flushPendingBotEvents(bot.platform, bot.selfId)
@@ -329,7 +330,7 @@
         if (back.id === undefined || back.id === null || String(back.id) === '' || String(back.id) === '0') return
         // 更新聊天框
         emit('userClick', back)
-        contactStore.baseOnMsgList.set(back.id, data)
+        contactStore.baseOnMsgList.set(normalizeSessionId(back.id), data)
         // 获取历史消息
         if(!uiStore.nowGetHistory) {
             emit('loadHistory', back)

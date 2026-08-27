@@ -233,6 +233,7 @@
     import { refreshFavicon } from '@renderer/function/favicon'
     import { backend } from '@renderer/runtime/backend'
     import History from '@renderer/components/History.vue'
+    import { normalizeSessionId } from '@renderer/function/utils/sessionUtil'
     import { useUIStore } from '@renderer/state/ui'
     import { useAuthStore } from '@renderer/state/auth'
     import { useContactStore } from '@renderer/state/contact'
@@ -303,7 +304,7 @@
             contactStore.userList = saved.userList
             contactStore.baseOnMsgList.clear()
             for (const [key, value] of saved.baseList) {
-                contactStore.baseOnMsgList.set(key, value)
+                contactStore.baseOnMsgList.set(normalizeSessionId(key), value)
             }
             contactStore.onMsgList = saved.onMsgList
             flushPendingBotEvents(bot.platform, bot.selfId)
@@ -368,14 +369,14 @@
                 }
             }
             // 清除新消息标记
-            const item = contactStore.baseOnMsgList.get(id)
+            const item = contactStore.baseOnMsgList.get(normalizeSessionId(id))
             if(item) {
                 if(item.new_msg) {
                     item.new_msg = false
                     contactStore.newMsgCount--
                 }
                 item.highlight = undefined
-                contactStore.baseOnMsgList.set(id, item)
+                contactStore.baseOnMsgList.set(normalizeSessionId(id), item)
                 // 关闭所有通知
                 new Notify().closeAll((item.group_id ?? item.user_id).toString())
             }
@@ -439,14 +440,14 @@
      */
     function readMsg(data: UserFriendElem & UserGroupElem) {
         const id = data.group_id ? data.group_id : data.user_id
-        const item = contactStore.baseOnMsgList.get(id)
+        const item = contactStore.baseOnMsgList.get(normalizeSessionId(id))
         if(item) {
             if(item.new_msg) {
                 item.new_msg = false
                 contactStore.newMsgCount--
             }
             item.highlight = undefined
-            contactStore.baseOnMsgList.set(id, item)
+            contactStore.baseOnMsgList.set(normalizeSessionId(id), item)
         }
         // 标记消息已读
         const type = data.group_id ? 'group' : 'user'
@@ -476,7 +477,7 @@
                     )
                     if (topList.indexOf(id) >= 0) {
                         item.always_top = true
-                        contactStore.baseOnMsgList.set(id, item)
+                        contactStore.baseOnMsgList.set(normalizeSessionId(id), item)
                     }
                 })
             }
@@ -516,7 +517,7 @@
                     break
                 case 'remove': {
                     const id = item.user_id ? item.user_id : item.group_id
-                    contactStore.baseOnMsgList.delete(id)
+                    contactStore.baseOnMsgList.delete(normalizeSessionId(id))
                     refreshFavicon()
                     break
                 }

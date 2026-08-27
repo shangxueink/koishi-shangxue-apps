@@ -621,6 +621,7 @@ import {
 import { backend } from '@renderer/runtime/backend'
 import { toBackgroundImageStyle } from '@renderer/function/utils/backgroundUtil'
 import { dbGetBefore, dbGetBeforeByTime, dbSearchMessages } from '@renderer/function/utils/localHistoryUtil'
+import { normalizeSessionId } from '@renderer/function/utils/sessionUtil'
 import Emoji from '@renderer/function/model/emoji'
 import EmojiFace from '@renderer/components/EmojiFace.vue'
 import { Img } from '@renderer/function/model/img'
@@ -1873,8 +1874,8 @@ function forwardMsg(data: UserFriendElem & UserGroupElem) {
         uiStore.popBoxList.push(popInfo)
     }
     cancelForward()
-    if(contactStore.baseOnMsgList.get(id) == undefined) {
-        contactStore.baseOnMsgList.set(id, data)
+    if(contactStore.baseOnMsgList.get(normalizeSessionId(id)) == undefined) {
+        contactStore.baseOnMsgList.set(normalizeSessionId(id), data)
     }
     nextTick(() => {
         const user = document.getElementById('user-' + id)

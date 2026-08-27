@@ -1,5 +1,9 @@
 import type { Session } from '../elements/information'
 
+export function normalizeSessionId(value: number | string): string {
+  return String(value)
+}
+
 export function getSessionId(item: Session): number | string {
     return item.user_id ?? item.group_id ?? 0
 }
@@ -9,7 +13,7 @@ export function findSessionContact(
     sessionId: number | string,
 ) {
     return contacts.find((item) => {
-        return getSessionId(item) === sessionId
+        return normalizeSessionId(getSessionId(item)) === normalizeSessionId(sessionId)
     })
 }
 
@@ -24,7 +28,7 @@ export function getMissingGroupPreviewSessions(
             sessionId !== '' &&
             !item.time &&
             !item.raw_msg &&
-            !knownSessions.has(sessionId)
+            !knownSessions.has(normalizeSessionId(sessionId))
     })
 }
 
@@ -37,16 +41,18 @@ export function resolveIncomingSession(
     const contact = findSessionContact(contacts, sessionId)
     if (contact) return contact
 
+    const normalizedId = normalizeSessionId(sessionId)
+
     // 消息事件可能早于好友/群列表返回。先保留会话动态状态，列表加载后再合并真实资料。
     if (isGroup) {
         return {
-            group_id: sessionId,
-            group_name: String(sessionId),
+            group_id: normalizedId,
+            group_name: normalizedId,
         } as Session
     }
     return {
-        user_id: sessionId,
-        nickname: senderName || String(sessionId),
+        user_id: normalizedId,
+        nickname: senderName || normalizedId,
         remark: '',
     } as Session
 }
@@ -94,7 +100,7 @@ export function mergeEarlySessionContacts(
 ) {
     let didMerge = false
     contacts.forEach((contact) => {
-        const sessionId = getSessionId(contact)
+        const sessionId = normalizeSessionId(getSessionId(contact))
         const currentSession = sessions.get(sessionId)
         if (currentSession && currentSession !== contact) {
             sessions.set(

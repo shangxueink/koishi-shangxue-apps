@@ -142,6 +142,13 @@ export class ChatDatabase {
     await this.db.put(`c:${platform}:${selfId}:${type}`, JSON.stringify(contacts))
   }
 
+  async appendContact(platform: string, selfId: string, type: string, contact: ContactCacheItem) {
+    const contacts = await this.getContacts(platform, selfId, type)
+    const next = contacts.filter((item) => item.id !== contact.id)
+    next.push(contact)
+    await this.setContacts(platform, selfId, type, next)
+  }
+
   private async trimMessages(platform: string, selfId: string, channelId: string) {
     const prefix = messagePrefix(platform, selfId, channelId)
     let count = 0

@@ -566,6 +566,9 @@ async function loadCachedImage(url: string) {
 }
 
 function getImgSrc(url: string): string {
+    if (url.startsWith('base64://')) {
+        return `data:image/png;base64,${url.slice(9)}`
+    }
     return resolvedImages.value[url] ?? backend.proxyUrl(url)
 }
 

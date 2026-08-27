@@ -50,6 +50,7 @@ export interface ContactCacheItem {
   id: string
   name: string
   avatar?: string
+  raw?: unknown
 }
 
 export interface ContactCacheQuery {
@@ -57,6 +58,7 @@ export interface ContactCacheQuery {
   selfId: string
   type: string
   contacts?: ContactCacheItem[]
+  append?: boolean
 }
 
 export interface ContactCacheResult {

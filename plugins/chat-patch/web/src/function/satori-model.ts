@@ -23,6 +23,18 @@ function getNumber(value: unknown): number {
   return Number.isFinite(num) ? num : 0
 }
 
+function normalizeResourceSrc(src: string, type: string): string {
+  if (!src.startsWith('base64://')) return src
+  const mime = type === 'image'
+    ? 'image/png'
+    : type === 'video'
+      ? 'video/mp4'
+      : type === 'audio'
+        ? 'audio/mp3'
+        : 'application/octet-stream'
+  return `data:${mime};base64,${src.slice(9)}`
+}
+
 function decodeEntities(value: string): string {
   return value
     .replace(/&lt;/g, '<')
@@ -69,7 +81,7 @@ function pushParsedTag(
   result: Array<Record<string, unknown>>,
 ) {
   const pushResource = (type: string, fallbackType?: string) => {
-    const src = attrs.src || attrs.url || attrs.file || ''
+    const src = normalizeResourceSrc(attrs.src || attrs.url || attrs.file || '', type)
     result.push({ type, file: src, url: src, name: attrs.name, title: attrs.title })
   }
 
@@ -145,6 +157,25 @@ function childrenText(children: Array<Record<string, unknown>>): string {
   return children.map((item) => getString(item.text) || getString(item.summary) || getString(item.name)).join('')
 }
 
+function containsElementMarkup(source: string): boolean {
+  return /<(img|image|audio|video|file|mface|face|quote|at)(?:\s|\/|>)/i.test(source)
+}
+
+function splitMarkupTextSegments(
+  segments: Array<Record<string, unknown>>,
+): Array<Record<string, unknown>> {
+  const result: Array<Record<string, unknown>> = []
+  for (const segment of segments) {
+    const text = getString(segment.text)
+    if (segment.type === 'text' && containsElementMarkup(text)) {
+      result.push(...parseSatoriMarkup(text))
+    } else {
+      result.push(segment)
+    }
+  }
+  return result
+}
+
 function parseSatoriMarkup(source: string): Array<Record<string, unknown>> {
   const result: Array<Record<string, unknown>> = []
   let index = 0
@@ -201,11 +232,15 @@ function parseSatoriMarkup(source: string): Array<Record<string, unknown>> {
 }
 
 function messageSegments(message: SatoriObject): Array<Record<string, unknown>> {
+  const source = getString(message.content)
+  if (containsElementMarkup(source)) {
+    return parseSatoriMarkup(source)
+  }
   const elements = message.elements
   if (Array.isArray(elements) && elements.length > 0) {
-    return toSegments(elements)
+    return splitMarkupTextSegments(toSegments(elements))
   }
-  return parseSatoriMarkup(getString(message.content))
+  return parseSatoriMarkup(source)
 }
 
 function toSegments(elements: unknown): Array<Record<string, unknown>> {
@@ -223,25 +258,28 @@ function toSegments(elements: unknown): Array<Record<string, unknown>> {
       const id = getString(attrs.id)
       result.push({ type: 'at', qq: id, text: getString(attrs.name) || `@${id}` })
     } else if (type === 'img' || type === 'image') {
-      const src = getString(attrs.src) || getString(attrs.url) || getString(attrs.file)
+      const src = normalizeResourceSrc(getString(attrs.src) || getString(attrs.url) || getString(attrs.file), 'image')
       result.push({ type: 'image', file: src, url: src, summary: getString(attrs.title) })
     } else if (type === 'mface' || type === 'face') {
       const nestedSegments = toSegments(children)
       const nestedImage = nestedSegments.find((segment) => segment.type === 'image')
-      const src = getString(attrs.src) || getString(attrs.url) || getString(attrs.file) || getString(nestedImage?.url)
+      const src = normalizeResourceSrc(
+        getString(attrs.src) || getString(attrs.url) || getString(attrs.file) || getString(nestedImage?.url),
+        'image',
+      )
       if (src) {
         result.push({ type: 'image', file: src, url: src, summary: getString(attrs.name) || getString(attrs.title) })
       } else {
         result.push({ type: 'face', id: getString(attrs.id), text: getString(attrs.name) })
       }
     } else if (type === 'audio') {
-      const src = getString(attrs.src) || getString(attrs.url) || getString(attrs.file)
+      const src = normalizeResourceSrc(getString(attrs.src) || getString(attrs.url) || getString(attrs.file), 'audio')
       result.push({ type: 'record', file: src, url: src })
     } else if (type === 'video') {
-      const src = getString(attrs.src) || getString(attrs.url) || getString(attrs.file)
+      const src = normalizeResourceSrc(getString(attrs.src) || getString(attrs.url) || getString(attrs.file), 'video')
       result.push({ type: 'video', file: src, url: src })
     } else if (type === 'file') {
-      const src = getString(attrs.src) || getString(attrs.url) || getString(attrs.file)
+      const src = normalizeResourceSrc(getString(attrs.src) || getString(attrs.url) || getString(attrs.file), 'file')
       result.push({ type: 'file', file: src, name: getString(attrs.name), url: src })
     } else if (type === 'quote') {
       result.push({ type: 'reply', id: getString(attrs.id) })

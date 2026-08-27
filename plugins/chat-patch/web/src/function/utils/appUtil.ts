@@ -11,7 +11,7 @@ import MealHungryPan from '@renderer/components/notice-component/MealHungryPan.v
 
 import { KeyboardInfo } from '@capacitor/keyboard'
 import { LogType, Logger, PopInfo, PopType } from '@renderer/function/base'
-import { Connector, login } from '@renderer/function/connect'
+import { Connector, login, refreshContacts } from '@renderer/function/connect'
 import { BaseChatInfoElem, MenuEventData } from '@renderer/function/elements/information'
 import { useAuthStore } from '@renderer/state/auth'
 import { useContactStore } from '@renderer/state/contact'
@@ -45,6 +45,7 @@ import { sendMsgRaw } from './msgUtil'
 import { dbGetLatest } from './localHistoryUtil'
 import { parseMsg } from '../sender'
 import { Notify } from '../notify'
+import { normalizeSessionId } from './sessionUtil'
 
 const popInfo = new PopInfo()
 const logger = new Logger()
@@ -171,23 +172,7 @@ export function loadHistoryMessage(
 export function reloadUsers() {
     // 加载用户列表
     if (login.status) {
-        const authStore = useAuthStore()
-        const contactStore = useContactStore()
-        contactStore.userList = []
-        let friendName = 'get_friend_list'
-        let groupName = 'get_group_list'
-        if (authStore.jsonMap.user_list?.name) {
-            friendName = authStore.jsonMap.user_list.name.split('|')[0]
-            groupName = authStore.jsonMap.user_list.name.split('|')[1]
-        } else if (
-            authStore.jsonMap.friend_list?.name &&
-            authStore.jsonMap.group_list?.name
-        ) {
-            friendName = authStore.jsonMap.friend_list.name
-            groupName = authStore.jsonMap.group_list.name
-        }
-        Connector.send(friendName, {}, 'getFriendList')
-        Connector.send(groupName, {}, 'getGroupList')
+        void refreshContacts()
     }
 }
 
@@ -434,14 +419,14 @@ export function createIpc() {
         sendMsgRaw(info.id, info.type,
             parseMsg(info.content, [{ type: 'reply', id: String(info.msg) }], []), true)
         // 去消息列表内寻找，去除新消息标记
-        const item = contactStore.baseOnMsgList.get(info.id)
+        const item = contactStore.baseOnMsgList.get(normalizeSessionId(info.id))
         if (item) {
             if (item.new_msg) {
                 item.new_msg = false
                 contactStore.newMsgCount--
             }
             item.highlight = undefined
-            contactStore.baseOnMsgList.set(String(info.id), item)
+            contactStore.baseOnMsgList.set(normalizeSessionId(info.id), item)
         }
     })
     // 应用功能
