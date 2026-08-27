@@ -258,6 +258,9 @@
 
     watch(() => loginInfo.satoriLogins, (list) => {
         satoriLogins.value = list ?? []
+        if (activeBotId.value && contactStore.userList.length === 0) {
+            void loadContactsFromCache()
+        }
     }, { immediate: true })
 
     const currentBotName = computed(() => {
@@ -335,6 +338,9 @@
 
     onMounted(() => {
         library.add(faCheckToSlot, faThumbTack, faTrashCan, faGripLines, faBroom)
+        if (activeBotId.value && contactStore.userList.length === 0) {
+            void loadContactsFromCache()
+        }
     })
 
     /**

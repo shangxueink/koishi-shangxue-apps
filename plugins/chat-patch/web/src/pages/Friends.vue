@@ -205,6 +205,9 @@
 
     watch(() => loginInfo.satoriLogins, (list) => {
         satoriLogins.value = list ?? []
+        if (activeBotId.value && contactStore.userList.length === 0) {
+            void loadContactsFromCache()
+        }
     }, { immediate: true })
 
     const currentBotName = computed(() => {
@@ -267,6 +270,9 @@
     }
 
     onMounted(() => {
+        if (activeBotId.value && contactStore.userList.length === 0) {
+            void loadContactsFromCache()
+        }
         // 判断 friend-small-search 是否 display none
         const smallSearch = document.getElementById('friend-small-search')
         if(smallSearch) {

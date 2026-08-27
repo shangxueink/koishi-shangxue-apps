@@ -2353,6 +2353,11 @@ function newMsg(_: string, data: any) {
             }
         }
         if (session) {
+            if (isGroupMessage && data.group_name) {
+                if (!session.group_name || session.group_name === String(sessionId)) {
+                    session.group_name = String(data.group_name)
+                }
+            }
             Object.assign(session, formatMessageData(data, isGroupMessage), {
                 channel_id: sessionChannelId || undefined,
                 guild_id: sessionGuildId || undefined,

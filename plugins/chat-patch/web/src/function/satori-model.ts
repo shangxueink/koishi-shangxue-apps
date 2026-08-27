@@ -379,6 +379,7 @@ export function satoriEventToOneBot(event: SatoriObject): Record<string, unknown
       message_id: getString(message.id),
       user_id: isGroup ? userId : directChannelId,
       group_id: groupId,
+      group_name: isGroup ? (getString(guild.name) || getString(channel.name) || undefined) : undefined,
       channel_id: getString(channel.id) || (isGroup ? groupId : `private:${userId}`),
       guild_id: getString(guild.id),
       target_id: selfId,

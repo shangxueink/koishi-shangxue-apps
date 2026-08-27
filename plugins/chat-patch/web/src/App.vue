@@ -298,7 +298,7 @@ import anime from 'animejs'
 import packageInfo from '../package.json'
 
 import { computed, watch, onMounted, onUnmounted, shallowReactive, shallowRef, provide } from 'vue'
-import { Connector, login as loginInfo, loadConnectionHistory, loadConnectionFromHistory, deleteConnectionHistory, decodeStoredToken } from '@renderer/function/connect'
+import { Connector, login as loginInfo, loadConnectionHistory, loadConnectionFromHistory, deleteConnectionHistory, decodeStoredToken, loadContactsFromCache } from '@renderer/function/connect'
 import { Logger, popList, PopInfo, LogType } from '@renderer/function/base'
 import { setLoginWaveTimer } from '@renderer/function/msg'
 import { BaseChatInfoElem } from '@renderer/function/elements/information'
@@ -594,6 +594,9 @@ function changeTab(_: string, view: string, show: boolean) {
     }
     tags.showChat = show
     tags.page = view
+    if (view === 'Messages' || view === 'Friends') {
+        void loadContactsFromCache()
+    }
     // 附加操作
     const optTab = document.getElementsByClassName('opt-main-tab')[0] as HTMLDivElement
     switch (view) {
@@ -673,6 +676,7 @@ function rafLoop() {
  * @param data 切换信息
  */
 function changeChat(data: BaseChatInfoElem) {
+    void loadContactsFromCache()
     // 设置聊天信息
     chatStore.chatInfo = {
         show: data,
