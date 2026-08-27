@@ -92,7 +92,7 @@ function scrollAccount(direction: number) {
 }
 
 function goLogin() {
-    document.getElementById('bar-home')?.click()
+    document.getElementById('bar-msg')?.click()
 }
 </script>
 

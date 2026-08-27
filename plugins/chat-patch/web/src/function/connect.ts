@@ -19,6 +19,7 @@ import {
 } from './satori-model'
 import { Logger, LogType } from './base'
 import { useAuthStore } from '@renderer/state/auth'
+import { useChatStore } from '@renderer/state/chat'
 import { useContactStore } from '@renderer/state/contact'
 import { useSettingsStore } from '@renderer/state/settings'
 import type { ConnectionHistoryItem, LoginCacheElem } from './elements/system'
@@ -120,17 +121,65 @@ function setJsonMap() {
   }
 }
 
-function onSatoriEvent(event: SatoriEvent) {
-  // 非当前机器人事件不能写入当前全局会话，避免 A 机器人列表混入 B 机器人的群组。
-  if (!isCurrentBotEvent(event)) {
-    const key = botEventKey(event.platform, event.selfId)
-    const list = pendingBotEvents.get(key) ?? []
-    if (list.length < 500) list.push(event)
-    pendingBotEvents.set(key, list)
-    return
+function recordBotMessage(platform: string, selfId: string, msg: Record<string, unknown>) {
+  const isGroup = Boolean(msg.group_id) || msg.message_type === 'group'
+  const sessionId = String(msg.group_id ?? msg.user_id ?? '')
+  if (!sessionId || sessionId === '0') return
+  const sender = getObject(msg.sender)
+  const senderId = String(sender.user_id ?? msg.user_id ?? '')
+  const raw = typeof msg.raw_message === 'string' ? msg.raw_message : ''
+  const contactStore = useContactStore()
+  const state = contactStore.botStates.get(selfId) ?? {
+    userList: [],
+    baseList: [],
+    onMsgList: [],
   }
+  const session = {
+    user_id: isGroup ? undefined : sessionId,
+    group_id: isGroup ? sessionId : undefined,
+    group_name: isGroup
+      ? (typeof msg.group_name === 'string' ? msg.group_name : sessionId)
+      : undefined,
+    nickname: isGroup ? '' : String(sender.nickname ?? senderId ?? sessionId),
+    remark: '',
+    raw_msg: raw,
+    raw_msg_base: raw,
+    time: Number(msg.time ?? Date.now() / 1000),
+    message_id: String(msg.message_id ?? ''),
+    new_msg: true,
+    channel_id: typeof msg.channel_id === 'string' ? msg.channel_id : undefined,
+    guild_id: typeof msg.guild_id === 'string' ? msg.guild_id : undefined,
+  }
+  const existing = state.onMsgList.find((item) => {
+    return String(item.user_id ?? item.group_id) === sessionId
+  })
+  if (existing) {
+    Object.assign(existing, session)
+  } else {
+    state.onMsgList.unshift(session)
+  }
+  contactStore.botStates.set(selfId, state)
+
+  const chatStore = useChatStore()
+  const cacheKey = `${platform}:${selfId}:${sessionId}`
+  const messages = chatStore.sessionMessageCache.get(cacheKey) ?? []
+  const messageId = String(msg.message_id ?? '')
+  if (messageId && !messages.some((item) => String(item.message_id) === messageId)) {
+    messages.push(msg)
+    chatStore.sessionMessageCache.set(cacheKey, messages)
+  }
+}
+
+function onSatoriEvent(event: SatoriEvent) {
   const oneBot = satoriEventToOneBot(event.body)
-  if (oneBot) dispatch(oneBot)
+  if (!oneBot) return
+  if (oneBot.post_type === 'message' || oneBot.post_type === 'message_sent') {
+    recordBotMessage(event.platform, event.selfId, oneBot)
+  }
+  // 只有当前机器人写入全局 UI；其他机器人仍在上方实时记录。
+  if (isCurrentBotEvent(event)) {
+    dispatch(oneBot)
+  }
 }
 
 export function flushPendingBotEvents(platform: string, selfId: string) {

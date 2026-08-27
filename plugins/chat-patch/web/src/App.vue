@@ -37,12 +37,6 @@
     <div id="base-app">
         <div class="main-body onloading">
             <ul id="side-bar" class="onloading" :style="{ 'padding-bottom': get('fs_adaptation') > 0 ? `${get('fs_adaptation')}px` : '' }">
-                <li id="bar-home" :class="(tags.page == 'Home' ? 'active' : '') +
-                    (loginInfo.status ? ' hiden-home' : '')"
-                    @click="changeTab('主页', 'Home', false)">
-                    <font-awesome-icon :icon="['fas', 'home']" />
-                    <span>{{ $t('主页') }}</span>
-                </li>
                 <li id="bar-msg" :class="tags.page == 'Messages' ? 'active' : ''"
                     @click="changeTab('信息', 'Messages', true)">
                     <font-awesome-icon :icon="['fas', 'envelope']" />
@@ -100,102 +94,6 @@
                 </li>
             </ul>
             <div :style="{ 'height': get('fs_adaptation') > 0 ? `calc(100% - ${75 + Number(get('fs_adaptation'))}px)` : '' }">
-                <div v-if="tags.page == 'Home'" id="homeTab" name="主页">
-                    <div class="home-body">
-                        <div v-if="!napcat" class="login-pan-card ss-card">
-                            <font-awesome-icon :icon="['fas', 'circle-nodes']" />
-                            <p>{{ $t('连接到 Satori') }}</p>
-                            <form @submit.prevent @submit="connect">
-                                <template v-if="loginInfo.quickLogin == null || loginInfo.quickLogin.length == 0">
-                                    <!-- 地址输入区域 -->
-                                    <div v-if="!sse" class="address-input-container">
-                                        <label class="address-input-wrapper">
-                                            <font-awesome-icon :icon="['fas', 'link']" />
-                                            <input id="sev_address" v-model="loginInfo.address" :placeholder="$t('Satori 端点')"
-                                                class="ss-input" autocomplete="off" @input="onAddressInput">
-                                            <!-- 历史选择按钮 -->
-                                            <div v-if="(loginInfo.connectionHistory || []).length > 0"
-                                                class="history-dropdown-trigger"
-                                                @click="toggleHistoryDropdown($event)">
-                                                <font-awesome-icon :icon="['fas', 'caret-down']" />
-                                            </div>
-                                        </label>
-                                        <!-- 历史下拉列表 -->
-                                        <div v-show="tags.showHistoryDropdown" class="history-dropdown-menu ss-card">
-                                            <div v-for="(item, index) in (loginInfo.connectionHistory || [])"
-                                                :key="index"
-                                                class="history-dropdown-item"
-                                                :class="{ 'selected': tags.selectedHistoryIndex === index }"
-                                                @click="selectHistoryItem(index)">
-                                                <div v-if="item.uin" class="history-item-avatar">
-                                                    <img :src="`https://q1.qlogo.cn/g?b=qq&s=0&nk=${item.uin}`" :alt="item.nickname || '未知用户'">
-                                                </div>
-                                                <div class="history-item-content">
-                                                    <span class="history-item-name">
-                                                        {{ item.nickname ? `${item.nickname}` : $t('未知用户') }}
-                                                    </span>
-                                                    <span class="history-item-detail">
-                                                        {{ item.uin }}
-                                                    </span>
-                                                </div>
-                                                <div class="history-item-delete" @click.stop="deleteHistoryConnection(index, $event)">
-                                                    <font-awesome-icon :icon="['fas', 'trash']" />
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </template>
-                                <div v-else class="ss-card quick-login">
-                                    <div class="title">
-                                        <font-awesome-icon :icon="['fas', 'link']" />
-                                        <span>{{ $t('来自局域网的服务') }}</span>
-                                        <a @click="cancelQUickLogin">{{ $t('取消') }}</a>
-                                    </div>
-                                    <div class="list">
-                                        <div v-for="item in loginInfo.quickLogin" :key="item.address + ':' + item.port"
-                                            :class="(tags.quickLoginSelect == item.address + ':' + item.port) ? 'select' : ''"
-                                            @click="selectQuickLogin(item.address + ':' + item.port)">
-                                            <span>{{ item.address }}:{{ item.port }}</span>
-                                            <div><div /></div>
-                                        </div>
-                                    </div>
-                                </div>
-                                <label>
-                                    <font-awesome-icon :icon="['fas', 'lock']" />
-                                    <input id="access_token" v-model="loginInfo.token" :placeholder="$t('访问令牌')"
-                                        class="ss-input" type="password" autocomplete="off">
-                                </label>
-                                <button id="connect_btn" class="ss-button" type="submit"
-                                    :disabled="loginInfo.creating"
-                                    @mousemove="afd">
-                                    <template v-if="!loginInfo.creating">
-                                        {{ $t('连接') }}
-                                    </template>
-                                    <template v-else>
-                                        <font-awesome-icon :icon="['fas', 'spinner']" spin />
-                                    </template>
-                                </button>
-                            </form>
-                            <a href="https://github.com/koishi-shangxue-plugins/koishi-shangxue-apps/tree/main/plugins/chat-patch"
-                                target="_blank" style="margin-bottom: -20px">{{ $t('如何连接') }}</a>
-                            <div class="wave-pan" style="margin-left: -30px">
-                                <svg id="login-wave" xmlns="http://www.w3.org/2000/svg"
-                                    xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 24 170 70"
-                                    preserveAspectRatio="none" shape-rendering="auto">
-                                    <defs>
-                                        <path id="gentle-wave" d="M -160 44 c 30 0 58 -18 88 -18 s 58 18 88 18 s 58 -18 88 -18 s 58 18 88 18 v 44 h -352 Z" />
-                                    </defs>
-                                    <g class="parallax">
-                                        <use xlink:href="#gentle-wave" x="83" y="0" />
-                                        <use xlink:href="#gentle-wave" x="135" y="3" />
-                                        <use xlink:href="#gentle-wave" x="185" y="5" />
-                                        <use xlink:href="#gentle-wave" x="54" y="7" />
-                                    </g>
-                                </svg>
-                            </div>
-                        </div>
-                    </div>
-                </div>
                 <div v-if="tags.page == 'Messages'" id="messageTab">
                     <Messages :chat="chatStore.chatInfo" @user-click="changeChat" @load-history="loadHistory" />
                 </div>
@@ -359,8 +257,8 @@ const contactStore = useContactStore()
 const chatStore = useChatStore()
 let musicSyncTimer = -1
 const tags = shallowReactive({
-    page: 'Home',
-    showChat: false,
+    page: 'Messages',
+    showChat: true,
     isSavePwdClick: false,
     savePassword: false,
     quickLoginSelect: '',
@@ -607,20 +505,10 @@ function changeTab(_: string, view: string, show: boolean) {
             }
             break
         }
-        case 'Home': {
-            if (optTab) {
-                optTab.style.opacity = '0'
-            }
-            break
-        }
     }
 }
 function barMainClick() {
-    if (loginInfo.status) {
-        changeTab('信息', 'Messages', true)
-    } else {
-        changeTab('主页', 'Home', false)
-    }
+    changeTab('信息', 'Messages', true)
 }
 
 /**

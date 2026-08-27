@@ -110,6 +110,11 @@ export async function loadHistory(info: BaseChatInfoElem) {
     const chatStore = useChatStore()
     const settingsStore = useSettingsStore()
     chatStore.messageList = []
+    const cacheKey = `${String(authStore.loginInfo.platform ?? '')}:${String(authStore.loginInfo.uin ?? '')}:${String(info.id)}`
+    const cachedMessages = chatStore.sessionMessageCache.get(cacheKey)
+    if (cachedMessages?.length) {
+        chatStore.messageList = [...cachedMessages]
+    }
     // 本地有数据时立即显示，同时仍发网络请求以获取最新消息（避免遗漏）
     if (
         settingsStore.sysConfig.enable_local_history &&

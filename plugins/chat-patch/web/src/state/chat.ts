@@ -1,6 +1,6 @@
 import { ChatInfoElem, MergeStackData } from '@renderer/function/elements/information'
 import { defineStore } from 'pinia'
-import { ref } from 'vue'
+import { reactive, ref } from 'vue'
 
 export const useChatStore = defineStore('chat', () => {
     const chatInfo = ref<ChatInfoElem>({
@@ -23,6 +23,7 @@ export const useChatStore = defineStore('chat', () => {
     const mergeMsgStack = ref<MergeStackData[]>([])
     const mergeMessageList = ref<any[] | undefined>(undefined)
     const mergeMessageImgList = ref<any[] | undefined>(undefined)
+    const sessionMessageCache = reactive(new Map<string, any[]>())
 
     return {
         chatInfo,
@@ -30,5 +31,6 @@ export const useChatStore = defineStore('chat', () => {
         mergeMsgStack,
         mergeMessageList,
         mergeMessageImgList,
+        sessionMessageCache,
     }
 })
