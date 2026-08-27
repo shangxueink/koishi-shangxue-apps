@@ -15,12 +15,15 @@ import {
   satoriEventToOneBot,
   satoriResponseToOneBot,
 } from './satori-model'
+import { Logger, LogType } from './base'
 import { useAuthStore } from '@renderer/state/auth'
 import { useContactStore } from '@renderer/state/contact'
 import { useSettingsStore } from '@renderer/state/settings'
 import type { ConnectionHistoryItem, LoginCacheElem } from './elements/system'
 
 const HISTORY_KEY = 'chat-patch:connection-history'
+const logger = new Logger()
+const unsupportedMethods = new Set<string>()
 
 export let websocket: WebSocket | undefined = undefined
 let disposeConnection: (() => void) | null = null
@@ -215,7 +218,7 @@ async function appendContactCache(type: string, item: unknown) {
 function buildFriendItem(raw: unknown, data: unknown): Record<string, unknown> {
   const root = getObject(data)
   const user = getObject(root.user) || getObject(root)
-  const name = String(user.name ?? user.nick ?? '')
+  const name = String(user.name ?? user.nick ?? user.username ?? '')
   const avatar = String(user.avatar ?? '')
   const item: Record<string, unknown> = { ...getObject(raw) }
   if (name) {
@@ -223,11 +226,40 @@ function buildFriendItem(raw: unknown, data: unknown): Record<string, unknown> {
     item.remark = name
   }
   if (avatar) item.avatar = avatar
+  if (item.class_id === undefined) item.class_id = 0
+  if (!item.class_name) item.class_name = '我的好友'
   return item
 }
 
-function contactListIds(list: unknown[]): Set<string> {
-  return new Set(list.map(contactId).filter(Boolean))
+function cachedFriendRaw(
+  cachedItem: Record<string, unknown>,
+  fallback: unknown,
+): Record<string, unknown> {
+  return buildFriendItem(getObject(cachedItem).raw ?? fallback, {})
+}
+
+function getString(value: unknown): string {
+  return typeof value === 'string' ? value : ''
+}
+
+function asArray(value: unknown): unknown[] | null {
+  return Array.isArray(value) ? value : null
+}
+
+async function requestFriendList(active: { platform: string; selfId: string }): Promise<unknown[]> {
+  let next: string | undefined
+  const users: unknown[] = []
+  do {
+    const data = await request('friend.list', next ? { next } : {}, active)
+    const root = getObject(data)
+    const page = asArray(root.data)
+      ?? asArray(data)
+      ?? asArray(getObject(root.data).data)
+      ?? []
+    users.push(...page)
+    next = getString(root.next) || getString(getObject(root.data).next) || undefined
+  } while (next)
+  return users
 }
 
 async function fetchFriendProfiles(
@@ -235,14 +267,33 @@ async function fetchFriendProfiles(
   friends: unknown[],
 ) {
   const contactStore = useContactStore()
+  const botKey = `${active.platform}:${active.selfId}`
+  if (unsupportedMethods.has(`user.get:${botKey}`)) return
   for (const raw of friends) {
     const id = contactId(raw)
     if (!id) continue
     let data: unknown = {}
     try {
-      data = await request('user.get', { user_id: id }, active)
-    } catch {
-      // 资料失败时先保留好友列表里的基础信息
+      data = await Promise.race([
+        request('user.get', { user_id: id }, active),
+        new Promise<null>((resolve) => setTimeout(() => resolve(null), 5000)),
+      ]) ?? {}
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error)
+      if (/is not a function|Satori API 返回 500/i.test(message)) {
+        if (!unsupportedMethods.has(`user.get:${botKey}`)) {
+          unsupportedMethods.add(`user.get:${botKey}`)
+          logger.error(
+            new Error(message),
+            '当前机器人不支持 user.get，已跳过好友身份补充',
+          )
+        }
+      } else {
+        logger.add(
+          LogType.ERR,
+          `获取好友身份信息失败 user.get ${id}: ${message}`,
+        )
+      }
     }
     const item = buildFriendItem(raw, data)
     const existing = contactStore.userList.find((contact) => {
@@ -252,63 +303,79 @@ async function fetchFriendProfiles(
       if (item.nickname) existing.nickname = String(item.nickname)
       if (item.remark) existing.remark = String(item.remark)
       if (item.avatar) existing.avatar = String(item.avatar)
+      if (item.class_id !== undefined) existing.class_id = Number(item.class_id)
+      if (item.class_name) existing.class_name = String(item.class_name)
       contactStore.userList = [...contactStore.userList]
     } else {
       dispatch({ retcode: 0, data: [item] }, 'getFriendList')
     }
-    try {
-      await appendContactCache('friend', item)
-    } catch {
+    // 缓存写入不能阻塞身份请求循环，否则第一个好友后就会停住。
+    void appendContactCache('friend', item).catch(() => {
       // 单个缓存写入失败不阻塞后续好友
-    }
+    })
     await new Promise((resolve) => setTimeout(resolve, 1000))
   }
 }
 
-async function refreshFriendList(active: { platform: string; selfId: string }) {
+async function handleFriendListResponse(
+  active: { platform: string; selfId: string },
+  friends: unknown[],
+) {
   const contactStore = useContactStore()
-  const cacheResult = await requestConsole('contact-cache', {
+  const cachePromise = requestConsole('contact-cache', {
     platform: active.platform,
     selfId: active.selfId,
     type: 'friend',
-  })
+  }).catch(() => ({}))
+  const cacheResult = await Promise.race([
+    cachePromise,
+    new Promise<null>((resolve) => setTimeout(() => resolve(null), 3000)),
+  ]) ?? {}
   const cached = Array.isArray(getObject(cacheResult).contacts)
     ? getObject(cacheResult).contacts as unknown[]
     : []
-  const cachedIds = contactListIds(cached)
-  const data = await request('friend.list', {}, active)
-  const response = satoriResponseToOneBot('get_friend_list', data)
-  const friends = Array.isArray(response.data) ? response.data : []
-  const allCached = friends.every((item) => {
-    return cachedIds.has(contactId(item))
-  })
-
-  if (allCached) {
-    // 缓存完整时按用户意图全量刷新，好友逐个重新获取并显示。
-    contactStore.userList = contactStore.userList.filter((item) => item.group_id)
-    await fetchFriendProfiles(active, friends)
+  const cachedMap = new Map<string, Record<string, unknown>>()
+  for (const contact of cached) {
+    const item = getObject(contact)
+    const id = getString(item.id)
+    if (id) cachedMap.set(id, item)
+  }
+  if (!Array.isArray(friends) || friends.length === 0) {
+    if (cachedMap.size > 0) {
+      dispatch({
+        retcode: 0,
+        data: [...cachedMap.values()].map((contact) => cachedFriendRaw(contact, contact)),
+      }, 'getFriendList')
+    }
     return
   }
+  const remoteCached = friends.filter((item) => cachedMap.has(contactId(item)))
+  const missing = friends.filter((item) => !cachedMap.has(contactId(item)))
+  const cachedNameIsId = remoteCached.some((item) => {
+    const cachedItem = cachedMap.get(contactId(item))
+    const raw = cachedFriendRaw(getObject(cachedItem), item)
+    const id = String(raw.user_id ?? raw.id ?? '')
+    return !raw.nickname || String(raw.nickname) === id
+  })
 
-  // 缓存不完整时先恢复已有缓存，再只补请求缺失的好友。
-  if (cached.length > 0) {
-    dispatch({
-      retcode: 0,
-      data: cached.map((contact) => getObject(contact).raw ?? contact),
-    }, 'getFriendList')
+  // 从空列表开始重建，先把已缓存好友放回来。
+  contactStore.userList = contactStore.userList.filter((item) => item.group_id)
+  if (remoteCached.length > 0) {
+    const cachedRaws = remoteCached.map((item) => {
+      const cachedItem = cachedMap.get(contactId(item))
+      return cachedFriendRaw(getObject(cachedItem), item)
+    })
+    for (const raw of cachedRaws) {
+      dispatch({ retcode: 0, data: [raw] }, 'getFriendList')
+      await new Promise((resolve) => setTimeout(resolve, 60))
+    }
   }
-  const missing = friends.filter((item) => !cachedIds.has(contactId(item)))
-  await fetchFriendProfiles(active, missing)
-}
-
-export async function refreshContacts() {
-  const active = getActiveBot()
-  if (!active) return
-  Connector.send('get_group_list', {}, 'getGroupList')
-  try {
-    await refreshFriendList(active)
-  } catch {
-    // 好友列表刷新失败时保留已有缓存和界面数据
+  if (missing.length > 0 && !cachedNameIsId) {
+    // 本地缓存不完整，只补缺失的好友。
+    await fetchFriendProfiles(active, missing)
+  } else {
+    // 本地缓存完整，或旧缓存里还是 QQ 号时，全量刷新身份信息。
+    await fetchFriendProfiles(active, friends)
   }
 }
 
@@ -413,14 +480,27 @@ export class Connector {
       return
     }
     const active = getActiveBot()
+    if (action === 'get_friend_list' && active) {
+      void requestFriendList(active)
+        .then((data) => {
+          const response = satoriResponseToOneBot('get_friend_list', data)
+          const friends = asArray(response.data) ?? []
+          void handleFriendListResponse(active, friends)
+        })
+        .catch((error: unknown) => {
+          const message = error instanceof Error ? error.message : String(error)
+          logger.error(
+            new Error(message),
+            '当前机器人不支持 friend.list，无法刷新好友列表',
+          )
+          dispatch({ retcode: -1, data: null, error: message }, echo)
+        })
+      return
+    }
     void request(mapped.method, mapped.params, active)
       .then((data) => {
         const response = satoriResponseToOneBot(action, data)
         dispatch(response, echo)
-        if (action === 'get_friend_list' && active && Array.isArray(response.data)) {
-          // 好友资料逐个获取，缓存也逐个追加。
-          void fetchFriendProfiles(active, response.data)
-        }
         if (action === 'get_group_list' && Array.isArray(response.data)) {
           void saveContactCache(action, response.data)
         }

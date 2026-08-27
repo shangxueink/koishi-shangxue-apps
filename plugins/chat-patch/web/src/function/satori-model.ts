@@ -540,16 +540,23 @@ export function satoriResponseToOneBot(action: string, data: unknown): Record<st
       const value = getObject(item)
       const user = getObject(value.user)
       const id = getString(value.id)
+      const friendName = getString(user.name)
+        || getString(user.nick)
+        || getString(value.name)
+        || getString(value.nick)
+        || id
       return action === 'get_friend_list'
         ? {
             user_id: getString(user.id) || id,
-            nickname: getString(user.name) || getString(user.nick) || id,
-            remark: getString(value.nick) || '',
-            avatar: getString(user.avatar) || undefined,
+            nickname: friendName,
+            remark: friendName === id ? '' : friendName,
+            avatar: getString(user.avatar) || getString(value.avatar) || undefined,
             group: {
               group_id: 0,
               group_name: '我的好友',
             },
+            class_id: 0,
+            class_name: '我的好友',
           }
         : {
             group_id: id,

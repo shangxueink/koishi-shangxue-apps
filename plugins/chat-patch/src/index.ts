@@ -12,7 +12,7 @@ import { registerWeb } from './web'
 
 export const name = 'chat-patch'
 export const reusable = false
-export const filter = true
+export const filter = false
 export const inject = {
   required: ['console', 'server', 'satori.server'],
 }

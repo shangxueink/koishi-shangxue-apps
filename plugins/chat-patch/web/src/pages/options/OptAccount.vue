@@ -8,7 +8,15 @@
 -->
 
 <template>
-    <div class="opt-page">
+    <div ref="accountList" class="opt-page account-page">
+        <div v-if="accounts.length > 3" class="account-scroll-controls">
+            <font-awesome-icon :icon="['fas', 'angle-up']"
+                :title="$t('向上滚动')"
+                @click="scrollAccount(-1)" />
+            <font-awesome-icon :icon="['fas', 'angle-down']"
+                :title="$t('向下滚动')"
+                @click="scrollAccount(1)" />
+        </div>
         <template v-if="accounts.length > 0">
             <div v-for="account in accounts"
                 :key="account.platform + ':' + account.selfId"
@@ -21,10 +29,6 @@
                     </div>
                     <span class="platform">{{ account.platform }}</span>
                 </div>
-                <font-awesome-icon v-if="isActive(account) && !sse && !napcat"
-                    :icon="['fas', 'right-from-bracket']"
-                    :title="$t('断开连接')"
-                    @click="exitConnect" />
             </div>
         </template>
         <template v-else>
@@ -40,9 +44,8 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
-import { remove } from '@renderer/function/option'
-import { Connector, login as loginInfo } from '@renderer/function/connect'
+import { computed, ref } from 'vue'
+import { login as loginInfo } from '@renderer/function/connect'
 import { getActiveBot } from '@renderer/function/satori'
 import { useAuthStore } from '@renderer/state/auth'
 import { i18n } from '@renderer/main'
@@ -51,9 +54,7 @@ defineOptions({ name: 'ViewOptAccount' })
 
 const $t = i18n.global.t
 const authStore = useAuthStore()
-
-const sse = import.meta.env.VITE_APP_SSE_MODE == 'true'
-const napcat = import.meta.env.VITE_NAPCAT
+const accountList = ref<HTMLElement | null>(null)
 
 interface SatoriAccount {
     platform: string
@@ -82,10 +83,12 @@ function isActive(account: SatoriAccount) {
     return activeBot.value.platform === account.platform && activeBot.value.selfId === account.selfId
 }
 
-/** 断开当前连接 */
-function exitConnect() {
-    remove('auto_connect')
-    Connector.close()
+/** 账号过多时按屏滚动列表 */
+function scrollAccount(direction: number) {
+    const el = accountList.value
+    if (!el) return
+    const step = Math.max(el.clientHeight * 0.8, 120)
+    el.scrollBy({ top: direction * step, behavior: 'smooth' })
 }
 
 function goLogin() {
@@ -94,6 +97,35 @@ function goLogin() {
 </script>
 
 <style scoped>
+    .account-page {
+        height: 100%;
+        overflow-y: auto;
+        overflow-x: hidden;
+        padding-right: 7px;
+        scrollbar-width: thin;
+    }
+    .account-scroll-controls {
+        position: sticky;
+        top: 0;
+        z-index: 2;
+        display: flex;
+        justify-content: flex-end;
+        gap: 6px;
+        margin: 0 !important;
+        padding: 6px 0 !important;
+        background: var(--color-bg);
+    }
+    .account-scroll-controls > svg {
+        cursor: pointer;
+        opacity: 0.7;
+        padding: 6px;
+        border-radius: 7px;
+        background: var(--color-card-2);
+        color: var(--color-font);
+    }
+    .account-scroll-controls > svg:hover {
+        opacity: 1;
+    }
     .account-info {
         margin-bottom: 10px;
         border-left: 3px solid transparent;
