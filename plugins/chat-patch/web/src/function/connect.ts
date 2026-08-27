@@ -174,11 +174,6 @@ function onSatoriReady(logins: Array<{ platform: string; selfId: string; name: s
   saveConnectionToHistory(login.address, login.token, first.selfId, first.name)
   flushPendingBotEvents(first.platform, first.selfId)
   void loadContactsFromCache()
-  for (const bot of logins) {
-    if (bot.platform && bot.selfId) {
-      void cacheBotContacts({ platform: bot.platform, selfId: bot.selfId })
-    }
-  }
 }
 
 function contactId(item: unknown): string {
@@ -265,6 +260,13 @@ function asArray(value: unknown): unknown[] | null {
   return Array.isArray(value) ? value : null
 }
 
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T | null> {
+  return Promise.race([
+    promise,
+    new Promise<null>((resolve) => setTimeout(() => resolve(null), ms)),
+  ])
+}
+
 async function requestFriendList(active: { platform: string; selfId: string }): Promise<unknown[]> {
   let next: string | undefined
   const users: unknown[] = []
@@ -291,38 +293,19 @@ async function cacheBotContacts(bot: { platform: string; selfId: string }) {
     const friendResponse = satoriResponseToOneBot('get_friend_list', friendUsers)
     const friends = asArray(friendResponse.data) ?? []
 
-    const cacheWrite = async () => {
-      if (groups.length > 0) {
-        await saveContactCache('get_group_list', groups, bot)
-      }
-      if (friends.length > 0) {
-        await saveContactCache('get_friend_list', friends, bot)
-      }
+    if (groups.length > 0) {
+      void withTimeout(saveContactCache('get_group_list', groups, bot), 3000).catch(() => {})
       if (isActiveBot(bot)) {
-        await loadContactType(bot, {
-          type: 'group',
-          action: 'get_group_list',
-          echo: 'getGroupList',
-        })
-        await loadContactType(bot, {
-          type: 'friend',
-          action: 'get_friend_list',
-          echo: 'getFriendList',
-        })
+        dispatch({ retcode: 0, data: groups }, 'getGroupList')
       }
     }
-    await cacheWrite()
 
     if (friends.length > 0) {
-      // 后台逐个补充身份信息并写缓存，不污染当前界面。
-      await fetchFriendProfiles(bot, friends, false)
       if (isActiveBot(bot)) {
-        await loadContactType(bot, {
-          type: 'friend',
-          action: 'get_friend_list',
-          echo: 'getFriendList',
-        })
+        dispatch({ retcode: 0, data: friends }, 'getFriendList')
       }
+      // 当前机器人直接更新界面；非当前机器人只写缓存。
+      await fetchFriendProfiles(bot, friends, isActiveBot(bot))
     }
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error)
@@ -396,11 +379,11 @@ async function fetchFriendProfiles(
     }
     // 缓存写入不能阻塞身份请求循环，否则第一个好友后就会停住。
     if (updateUi) {
-      void appendContactCache('friend', item, active).catch(() => {
+      void withTimeout(appendContactCache('friend', item, active), 3000).catch(() => {
         // 单个缓存写入失败不阻塞后续好友
       })
     } else {
-      await appendContactCache('friend', item, active).catch(() => {
+      await withTimeout(appendContactCache('friend', item, active), 3000).catch(() => {
         // 后台缓存写入失败不中断整个机器人
       })
     }

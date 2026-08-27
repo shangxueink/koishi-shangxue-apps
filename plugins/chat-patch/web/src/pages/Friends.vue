@@ -71,7 +71,7 @@
                                 class="empty-state">
                                 {{ $t('空') }}
                             </div>
-                            <div :class="uiStore.openSideBar ? 'open' : ''">
+                            <div v-else :class="uiStore.openSideBar ? 'open' : ''">
                             <template v-if="contactStore.showList.length <= 0">
                                 <template v-if="settingsStore.classes.length > 0">
                                     <template v-for="info in settingsStore.classes"

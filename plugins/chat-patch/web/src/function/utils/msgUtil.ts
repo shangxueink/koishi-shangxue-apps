@@ -694,7 +694,7 @@ export function updateBaseOnMsgList() {
     if (settingsStore.sysConfig.bubble_sort_user) {
         // 将 normalList 进行拆分
         const shouldShowInMainList = (item: UserFriendElem & UserGroupElem) => {
-            return item.user_id || item.new_msg || item.highlight
+            return item.user_id || item.always_top
         }
         onMsgList = topList.concat(normalList.filter((item) => {
             return shouldShowInMainList(item)
