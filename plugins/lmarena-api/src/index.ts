@@ -1,4 +1,6 @@
 import { Context } from "koishi"
+import { } from "koishi-plugin-puppeteer"
+import { } from "koishi-plugin-ffmpeg"
 import { Config, type Config as ConfigType } from "./config"
 import { createAppLogger } from "./logger"
 import { registerCommands } from "./commands"
@@ -7,7 +9,7 @@ export const name = "lmarena-api"
 
 export const inject = {
   required: ["http", "logger", "i18n"],
-  optional: ["database", "monetary"],
+  optional: ["database", "monetary", "puppeteer", "ffmpeg"],
 }
 
 export const usage = `

@@ -27,6 +27,9 @@ export interface Config {
   agnesModel: "agnes-image-2.0-flash" | "agnes-image-2.1-flash"
   agnesAPIkey: string | null
   disableWaitingTips: boolean
+  gifUpscaleEnabled: boolean
+  gifUpscaleMinSize: number
+  gifUpscaleMaxSize: number
 }
 
 export const Config: Schema<Config> = Schema.intersect([
@@ -85,6 +88,12 @@ export const Config: Schema<Config> = Schema.intersect([
     agnesModel: Schema.union(["agnes-image-2.0-flash", "agnes-image-2.1-flash"] as const).default("agnes-image-2.1-flash").role("radio").description("agnes 模型版本"),
     agnesAPIkey: Schema.string().role("secret").default(null).description("API Key（留空使用所选地区的内置 Key）"),
   }).description("特殊站点设置"),
+
+  Schema.object({
+    gifUpscaleEnabled: Schema.boolean().default(true).description("GIF 首帧分辨率不足时，使用 puppeteer 放大后再上传"),
+    gifUpscaleMinSize: Schema.number().default(1024).min(64).max(8192).step(64).description("GIF 首帧短边目标最小分辨率（像素）"),
+    gifUpscaleMaxSize: Schema.number().default(4096).min(64).max(16384).step(64).description("放大后长边上限（像素），避免极端比例图片过大"),
+  }).description("GIF 图片处理"),
 
 
   Schema.object({
