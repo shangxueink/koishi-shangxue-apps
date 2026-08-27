@@ -289,7 +289,9 @@ export function getMsgRawTxt(data: any): string {
                         }
                         break
                     }
-                // eslint-disable-next-line
+                    const atText = String(message[i].text)
+                    back += atText.startsWith('@') ? atText : '@' + atText
+                    break
                 case 'text':
                     back += message[i].text
                         .replaceAll('\n', ' ')

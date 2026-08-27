@@ -421,6 +421,17 @@ async function loadContactType(
       retcode: 0,
       data: contacts.map((contact) => getObject(contact).raw ?? contact),
     }, item.echo)
+    return
+  }
+
+  // 本地没有缓存时，首次进入自动完整获取一次。
+  if (item.type === 'friend') {
+    const data = await requestFriendList(active)
+    const response = satoriResponseToOneBot('get_friend_list', data)
+    const friends = asArray(response.data) ?? []
+    await handleFriendListResponse(active, friends)
+  } else {
+    Connector.send('get_group_list', {}, item.echo)
   }
 }
 
@@ -437,9 +448,11 @@ export async function loadContactsFromCache() {
       await running
       continue
     }
-    const task = loadContactType(active, item).finally(() => {
-      contactCacheLoads.delete(key)
-    })
+    const task = loadContactType(active, item)
+      .catch(() => {})
+      .finally(() => {
+        contactCacheLoads.delete(key)
+      })
     contactCacheLoads.set(key, task)
     await task
   }

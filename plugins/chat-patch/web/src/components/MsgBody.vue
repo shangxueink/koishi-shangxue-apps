@@ -603,7 +603,8 @@ function getAtName(item: { [key: string]: any }) {
         return '@' + $t('全体成员')
     }
     if (item.text != undefined) {
-        return item.text
+        const text = String(item.text)
+        return text.startsWith('@') ? text : '@' + text
     } else {
         for (let i = 0; i < chatStore.chatInfo.info.group_members.length; i++) {
             const user = chatStore.chatInfo.info.group_members[i]

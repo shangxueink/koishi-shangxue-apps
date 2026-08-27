@@ -11,12 +11,23 @@
     <template v-if="comp">
         <component :is="comp" :id="id" :data="data" />
     </template>
+    <div v-else-if="genericCard" class="msg-json generic-card" @click="openGenericCard(genericCard.url)">
+        <img v-if="genericCard.img" :src="genericCard.img" alt="">
+        <div>
+            <p>{{ genericCard.title }}</p>
+            <span v-if="genericCard.desc">{{ genericCard.desc }}</span>
+            <small v-if="genericCard.tag">{{ genericCard.tag }}</small>
+        </div>
+    </div>
     <span v-else class="msg-unknown">{{
         '( ' + $t('不支持的卡片类型') + ': ' + id + ' )'
     }}</span>
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue'
+import { openLink } from '@renderer/function/utils/appUtil'
+
 const comps = import.meta.glob('./jsonComp/*.vue', {
     eager: true,
     import: 'default',
@@ -53,4 +64,75 @@ try {
 }
 
 const comp = cardComponentMap[id]
+
+function getString(value: unknown): string {
+    return typeof value === 'string' ? value : ''
+}
+
+const genericCard = computed(() => {
+    if (comp || !json || typeof json !== 'object' || Array.isArray(json)) return undefined
+    const root = json as Record<string, unknown>
+    const meta = root.meta
+    if (typeof meta !== 'object' || meta === null) return undefined
+    const metaList = Object.values(meta as Record<string, unknown>)
+    for (const value of metaList) {
+        if (typeof value !== 'object' || value === null || Array.isArray(value)) continue
+        const card = value as Record<string, unknown>
+        const title = getString(card.title) || getString(card.name) || getString(card.nickname)
+        const desc = getString(card.desc)
+            || getString(card.summary)
+            || getString(card.content)
+            || getString(card.address)
+        const img = getString(card.preview)
+            || getString(card.avatar)
+            || getString(card.cover)
+            || getString(card.img)
+        if (!title && !desc && !img) continue
+        return {
+            title,
+            desc,
+            img,
+            tag: getString(card.tag) || getString(card.source) || getString(root.desc),
+            url: getString(card.jumpUrl) || getString(card.url) || getString(card.qqdocurl),
+        }
+    }
+    return undefined
+})
+
+function openGenericCard(url: string) {
+    if (url) openLink(url)
+}
 </script>
+
+<style scoped>
+    .generic-card {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        cursor: pointer;
+    }
+    .generic-card img {
+        width: 48px;
+        height: 48px;
+        border-radius: 7px;
+        object-fit: cover;
+        flex-shrink: 0;
+    }
+    .generic-card > div {
+        min-width: 0;
+    }
+    .generic-card p {
+        margin: 0;
+        font-weight: bold;
+    }
+    .generic-card span,
+    .generic-card small {
+        display: block;
+        margin-top: 4px;
+        font-size: 0.8rem;
+        opacity: 0.7;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+</style>

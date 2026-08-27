@@ -97,7 +97,10 @@ function pushParsedTag(
       result.push({
         type: 'at',
         qq: attrs.id || '',
-        text: attrs.name || (attrs.type === 'all' ? '@all' : `@${attrs.id || ''}`),
+        text: normalizeAtText(
+          attrs.name || (attrs.type === 'all' ? 'all' : attrs.id || ''),
+          attrs.id || '',
+        ),
       })
       break
     case 'sharp':
@@ -144,6 +147,18 @@ function pushParsedTag(
     case 'a':
       result.push({ type: 'text', text: attrs.href ? `${childrenText(children)} (${attrs.href})` : childrenText(children) })
       break
+    case 'json':
+      result.push({ type: 'json', data: attrs.data || attrs.content || '' })
+      break
+    case 'xml':
+      result.push({ type: 'xml', data: attrs.data || attrs.content || '' })
+      break
+    case 'markdown':
+      result.push({ type: 'markdown', content: attrs.content || childrenText(children) })
+      break
+    case 'keyboard':
+      // 官方机器人按钮不渲染，只保留 Markdown 正文
+      break
     default:
       if (children.length > 0) {
         result.push(...children)
@@ -157,8 +172,13 @@ function childrenText(children: Array<Record<string, unknown>>): string {
   return children.map((item) => getString(item.text) || getString(item.summary) || getString(item.name)).join('')
 }
 
+function normalizeAtText(name: string, id: string): string {
+  if (!name) return id ? `@${id}` : '@'
+  return name.startsWith('@') ? name : `@${name}`
+}
+
 function containsElementMarkup(source: string): boolean {
-  return /<(img|image|audio|video|file|mface|face|quote|at)(?:\s|\/|>)/i.test(source)
+  return /<(img|image|audio|video|file|mface|face|quote|at|json|xml|markdown|keyboard)(?:\s|\/|>)/i.test(source)
 }
 
 function splitMarkupTextSegments(
@@ -256,7 +276,11 @@ function toSegments(elements: unknown): Array<Record<string, unknown>> {
       result.push({ type: 'text', text: getString(attrs.content) })
     } else if (type === 'at') {
       const id = getString(attrs.id)
-      result.push({ type: 'at', qq: id, text: getString(attrs.name) || `@${id}` })
+      result.push({
+        type: 'at',
+        qq: id,
+        text: normalizeAtText(getString(attrs.name), id),
+      })
     } else if (type === 'img' || type === 'image') {
       const src = normalizeResourceSrc(getString(attrs.src) || getString(attrs.url) || getString(attrs.file), 'image')
       result.push({ type: 'image', file: src, url: src, summary: getString(attrs.title) })
@@ -283,6 +307,14 @@ function toSegments(elements: unknown): Array<Record<string, unknown>> {
       result.push({ type: 'file', file: src, name: getString(attrs.name), url: src })
     } else if (type === 'quote') {
       result.push({ type: 'reply', id: getString(attrs.id) })
+    } else if (type === 'json') {
+      result.push({ type: 'json', data: getString(attrs.data) || getString(attrs.content) })
+    } else if (type === 'xml') {
+      result.push({ type: 'xml', data: getString(attrs.data) || getString(attrs.content) })
+    } else if (type === 'markdown') {
+      result.push({ type: 'markdown', content: getString(attrs.content) || childrenText(children) })
+    } else if (type === 'keyboard') {
+      // 按钮段不渲染
     } else if (type === 'message' && attrs.forward) {
       result.push({ type: 'forward', id: getString(attrs.id), content: children })
     } else if (type === 'p' || type === 'br') {
