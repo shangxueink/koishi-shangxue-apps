@@ -58,6 +58,10 @@
                         <font-awesome-icon :icon="['fas', bot.selfId === activeBotId ? 'angle-up' : 'angle-down']" />
                     </div>
                     <div v-if="bot.selfId === activeBotId" class="robot-accordion-content">
+                        <div v-if="!contactStore.friendLoading && contactStore.userList.length === 0"
+                            class="empty-state">
+                            {{ $t('空') }}
+                        </div>
                         <div :class="uiStore.openSideBar ? 'open' : ''">
                             <template v-if="contactStore.showList.length <= 0">
                                 <template v-if="settingsStore.classes.length > 0">
@@ -197,11 +201,6 @@
     const classStatus = ref<{ [key: string]: boolean }>({})
     const satoriLogins = ref<Array<{ platform: string; selfId: string; name: string; avatar?: string; status?: number; features?: string[] }>>(getLogins())
     const activeBotId = ref(getActiveBot()?.selfId ?? loginInfo.selectedSatoriBot ?? '')
-    const botStates = ref(new Map<string, {
-        userList: any[]
-        baseList: Array<[number | string, UserFriendElem & UserGroupElem]>
-        onMsgList: any[]
-    }>())
 
     watch(() => loginInfo.satoriLogins, (list) => {
         satoriLogins.value = list ?? []
@@ -217,7 +216,7 @@
     function snapshotCurrentBot() {
         const id = activeBotId.value
         if (!id) return
-        botStates.value.set(id, {
+        contactStore.botStates.set(id, {
             userList: [...contactStore.userList],
             baseList: Array.from(contactStore.baseOnMsgList.entries()),
             onMsgList: [...contactStore.onMsgList],
@@ -249,7 +248,7 @@
             satoriLogins: satoriLogins.value,
             selectedSatoriBot: bot.selfId,
         }
-        const saved = botStates.value.get(bot.selfId)
+        const saved = contactStore.botStates.get(bot.selfId)
         if (saved) {
             contactStore.userList = saved.userList
             contactStore.baseOnMsgList.clear()
@@ -506,6 +505,14 @@
     }
     .robot-accordion-content {
         padding: 2px 0 6px;
+    }
+    .empty-state {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 40px 0;
+        color: var(--color-font-2, #888);
+        opacity: 0.65;
     }
 
     .friend-list > div:first-child > div.base > span {

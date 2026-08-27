@@ -5,6 +5,7 @@ import { dispatch } from './msg'
 import {
   connect as connectSatori,
   getActiveBot,
+  getLogins,
   request,
   requestConsole,
   setActiveBot,
@@ -326,6 +327,16 @@ async function cacheBotContacts(bot: { platform: string; selfId: string }) {
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error)
     logger.add(LogType.ERR, `初始化机器人联系人缓存失败 ${bot.platform}:${bot.selfId}: ${message}`)
+  }
+}
+
+export async function refreshAllBots() {
+  for (const bot of getLogins()) {
+    if (!bot.platform || !bot.selfId) continue
+    await cacheBotContacts({
+      platform: bot.platform,
+      selfId: bot.selfId,
+    })
   }
 }
 

@@ -11,7 +11,7 @@ import MealHungryPan from '@renderer/components/notice-component/MealHungryPan.v
 
 import { KeyboardInfo } from '@capacitor/keyboard'
 import { LogType, Logger, PopInfo, PopType } from '@renderer/function/base'
-import { Connector, login } from '@renderer/function/connect'
+import { Connector, login, refreshAllBots } from '@renderer/function/connect'
 import { BaseChatInfoElem, MenuEventData } from '@renderer/function/elements/information'
 import { useAuthStore } from '@renderer/state/auth'
 import { useContactStore } from '@renderer/state/contact'
@@ -171,21 +171,7 @@ export function loadHistoryMessage(
  */
 export function reloadUsers() {
     // 加载用户列表
-    const authStore = useAuthStore()
-    let friendName = 'get_friend_list'
-    let groupName = 'get_group_list'
-    if (authStore.jsonMap.user_list?.name) {
-        friendName = authStore.jsonMap.user_list.name.split('|')[0]
-        groupName = authStore.jsonMap.user_list.name.split('|')[1]
-    } else if (
-        authStore.jsonMap.friend_list?.name &&
-        authStore.jsonMap.group_list?.name
-    ) {
-        friendName = authStore.jsonMap.friend_list.name
-        groupName = authStore.jsonMap.group_list.name
-    }
-    Connector.send(friendName, {}, 'getFriendList')
-    Connector.send(groupName, {}, 'getGroupList')
+    void refreshAllBots()
 }
 
 /**

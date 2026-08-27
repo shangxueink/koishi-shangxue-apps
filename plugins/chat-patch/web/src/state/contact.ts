@@ -2,6 +2,12 @@ import { UserFriendElem, UserGroupElem } from '@renderer/function/elements/infor
 import { defineStore } from 'pinia'
 import { shallowRef, reactive, ref } from 'vue'
 
+export interface BotContactState {
+    userList: (UserFriendElem & UserGroupElem)[]
+    baseList: Array<[number | string, UserFriendElem & UserGroupElem]>
+    onMsgList: any[]
+}
+
 export const useContactStore = defineStore('contact', () => {
     const userList = shallowRef<(UserFriendElem & UserGroupElem)[]>([])
     const showList = shallowRef<(UserFriendElem & UserGroupElem)[]>([])
@@ -13,6 +19,7 @@ export const useContactStore = defineStore('contact', () => {
     const friendLoading = ref(false)
     const friendLoadedCount = ref(0)
     const friendTotalCount = ref(0)
+    const botStates = reactive(new Map<string, BotContactState>())
 
     return {
         userList,
@@ -25,5 +32,6 @@ export const useContactStore = defineStore('contact', () => {
         friendLoading,
         friendLoadedCount,
         friendTotalCount,
+        botStates,
     }
 })
