@@ -444,7 +444,7 @@ export function parseCQ(data: any) {
 */
 function parsePreviewMarkup(source: string): MsgItemElem[] {
     const result: MsgItemElem[] = []
-    const tagPattern = /<(img|image|face|mface|file|audio|video)\s+([^>]*?)\/?>/gi
+    const tagPattern = /<(img|image|face|mface|file|audio|video|at|quote|sharp)\s+([^>]*?)\/?>/gi
     let last = 0
     let match: RegExpExecArray | null
     while ((match = tagPattern.exec(source)) !== null) {
@@ -458,20 +458,31 @@ function parsePreviewMarkup(source: string): MsgItemElem[] {
         const name = attrs.match(/name\s*=\s*(?:"([^"]*)"|'([^']*)')/i)?.[1]
             ?? attrs.match(/name\s*=\s*(?:"([^"]*)"|'([^']*)')/i)?.[2]
             ?? ''
+        const id = attrs.match(/id\s*=\s*(?:"([^"]*)"|'([^']*)')/i)?.[1]
+            ?? attrs.match(/id\s*=\s*(?:"([^"]*)"|'([^']*)')/i)?.[2]
+            ?? ''
         const tag = String(match[1] ?? '').toLowerCase()
-        const type = tag === 'file'
-            ? 'file'
-            : tag === 'audio'
-                ? 'record'
-                : tag === 'video'
-                    ? 'video'
-                    : 'image'
-        result.push({
-            type,
-            file: src,
-            url: src,
-            ...(name ? { name } : {}),
-        })
+        if (tag === 'at') {
+            result.push({ type: 'at', qq: id, text: name || id })
+        } else if (tag === 'quote') {
+            result.push({ type: 'reply', id })
+        } else if (tag === 'sharp') {
+            result.push({ type: 'text', text: name ? `#${name}` : `#${id}` })
+        } else {
+            const type = tag === 'file'
+                ? 'file'
+                : tag === 'audio'
+                    ? 'record'
+                    : tag === 'video'
+                        ? 'video'
+                        : 'image'
+            result.push({
+                type,
+                file: src,
+                url: src,
+                ...(name ? { name } : {}),
+            })
+        }
         last = match.index + match[0].length
     }
     if (last < source.length) {
