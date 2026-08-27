@@ -482,7 +482,15 @@
         const info = settingsStore.sysConfig.top_info as {
             [key: string]: number[]
         } | null
-        contactStore.baseOnMsgList = new Map()
+        contactStore.baseOnMsgList.clear()
+        contactStore.onMsgList = []
+        contactStore.groupAssistList = []
+        contactStore.systemNoticesList = undefined
+        contactStore.newMsgCount = 0
+        for (const state of contactStore.botStates.values()) {
+            state.baseList = []
+            state.onMsgList = []
+        }
         if (info != null) {
             const topList = info[authStore.loginInfo.uin]
             if (topList !== undefined) {

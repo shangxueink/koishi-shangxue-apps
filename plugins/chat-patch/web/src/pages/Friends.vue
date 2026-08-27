@@ -16,11 +16,9 @@
                 <div class="base">
                     <span>{{ $t('列表') }}</span>
                     <div style="flex: 1" />
-                    <font-awesome-icon v-if="activeBotId" :icon="['fas', 'rotate-right']" @click="reloadUser" />
+                    <font-awesome-icon :icon="['fas', 'rotate-right']" @click="reloadUser" />
                 </div>
-                <div v-if="activeBotId"
-                    id="friend-small-search"
-                    class="small">
+                <div id="friend-small-search" class="small">
                     <label>
                         <input
                             id="friend-search-small"
@@ -36,7 +34,7 @@
                         <font-awesome-icon :icon="['fas', 'bars-staggered']" />
                     </div>
                 </div>
-                <label v-if="activeBotId">
+                <label>
                     <input
                         id="friend-search"
                         v-model="searchInfo"
@@ -47,22 +45,33 @@
                 </label>
             </div>
             <div class="robot-accordion-list">
-                <div v-for="bot in satoriLogins" :key="'bot-' + bot.selfId"
-                    :class="['robot-accordion', { expanded: bot.selfId === activeBotId }]">
-                    <div class="robot-accordion-header" @click="toggleRobot(bot)">
-                        <img :src="bot.avatar || '/img/icons/icon.svg'" :alt="bot.name">
-                        <div>
-                            <span :title="bot.name">{{ bot.name }}</span>
-                            <small>{{ bot.platform }}</small>
-                        </div>
-                        <font-awesome-icon :icon="['fas', bot.selfId === activeBotId ? 'angle-up' : 'angle-down']" />
+                <div v-if="isSearch" class="search-result-list">
+                    <div v-if="contactStore.showList.length === 0" class="empty-state">
+                        {{ $t('空') }}
                     </div>
-                    <div v-if="bot.selfId === activeBotId" class="robot-accordion-content">
-                        <div v-if="!contactStore.friendLoading && contactStore.userList.length === 0"
-                            class="empty-state">
-                            {{ $t('空') }}
+                    <FriendBody v-for="item in contactStore.showList"
+                        :key="'search-' + item.user_id + '-' + item.group_id"
+                        :data="item"
+                        from="friend"
+                        @click="userClick(item, $event)" />
+                </div>
+                <template v-else>
+                    <div v-for="bot in satoriLogins" :key="'bot-' + bot.selfId"
+                        :class="['robot-accordion', { expanded: bot.selfId === activeBotId }]">
+                        <div class="robot-accordion-header" @click="toggleRobot(bot)">
+                            <img :src="bot.avatar || '/img/icons/icon.svg'" :alt="bot.name">
+                            <div>
+                                <span :title="bot.name">{{ bot.name }}</span>
+                                <small>{{ bot.platform }}</small>
+                            </div>
+                            <font-awesome-icon :icon="['fas', bot.selfId === activeBotId ? 'angle-up' : 'angle-down']" />
                         </div>
-                        <div :class="uiStore.openSideBar ? 'open' : ''">
+                        <div v-if="bot.selfId === activeBotId" class="robot-accordion-content">
+                            <div v-if="!contactStore.friendLoading && contactStore.userList.length === 0"
+                                class="empty-state">
+                                {{ $t('空') }}
+                            </div>
+                            <div :class="uiStore.openSideBar ? 'open' : ''">
                             <template v-if="contactStore.showList.length <= 0">
                                 <template v-if="settingsStore.classes.length > 0">
                                     <template v-for="info in settingsStore.classes"
@@ -140,9 +149,10 @@
                                         @click="userClick(item, $event)" />
                                 </div>
                             </div>
+                            </div>
                         </div>
                     </div>
-                </div>
+                </template>
             </div>
         </div>
         <div :class="'friend-list-space' + (uiStore.openSideBar ? ' open' : '')">
@@ -196,6 +206,15 @@
         loadHistory: [data: BaseChatInfoElem]
     }>()
 
+    type ContactWithBot = UserFriendElem & UserGroupElem & {
+        _bot?: {
+            platform: string
+            selfId: string
+            name: string
+            avatar?: string
+        }
+    }
+
     const isSearch = ref(false)
     const searchInfo = ref('')
     const classStatus = ref<{ [key: string]: boolean }>({})
@@ -211,6 +230,27 @@
 
     const currentBotName = computed(() => {
         return satoriLogins.value.find((item) => item.selfId === activeBotId.value)?.name ?? ''
+    })
+
+    const allContacts = computed<ContactWithBot[]>(() => {
+        const map = new Map<string, ContactWithBot>()
+        const addContacts = (
+            items: (UserFriendElem & UserGroupElem)[],
+            bot?: ContactWithBot['_bot'],
+        ) => {
+            for (const item of items) {
+                const id = String(item.user_id ?? item.group_id ?? '')
+                const key = `${bot?.platform ?? ''}:${bot?.selfId ?? ''}:${id}`
+                map.set(key, { ...item, _bot: bot })
+            }
+        }
+        const currentBot = satoriLogins.value.find((item) => item.selfId === activeBotId.value)
+        addContacts(contactStore.userList, currentBot)
+        for (const [selfId, state] of contactStore.botStates) {
+            const bot = satoriLogins.value.find((item) => item.selfId === selfId)
+            addContacts(state.userList, bot)
+        }
+        return [...map.values()]
     })
 
     function snapshotCurrentBot() {
@@ -324,7 +364,10 @@
         }
     }
 
-    function userClick(data: UserFriendElem & UserGroupElem, event: Event) {
+    function userClick(data: ContactWithBot, event: Event) {
+        if (data._bot && data._bot.selfId !== activeBotId.value) {
+            selectRobot(data._bot)
+        }
         const sender = event.currentTarget as HTMLDivElement
         if (uiStore.openSideBar) {
             openLeftBar()
@@ -362,8 +405,8 @@
         const value = (event.target as HTMLInputElement).value.toLocaleLowerCase()
         if (value !== '') {
             isSearch.value = true
-            contactStore.showList = list.filter(
-                (item: UserFriendElem & UserGroupElem) => {
+            contactStore.showList = allContacts.value.filter(
+                (item: ContactWithBot) => {
                     const name = (
                         item.user_id? item.nickname + item.remark: item.group_name
                     ).toLowerCase()
@@ -505,6 +548,9 @@
     }
     .robot-accordion-content {
         padding: 2px 0 6px;
+    }
+    .search-result-list {
+        padding: 4px 0;
     }
     .empty-state {
         display: flex;
