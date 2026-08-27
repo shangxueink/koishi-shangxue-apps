@@ -110,6 +110,8 @@ export const optDefault: { [key: string]: any } = {
     enable_local_history: false,
     mixed_load_messages: false,
     disable_local_history_image_cache: false,
+    chatview_name: '',
+    keepMessagesOnClear: 50,
     // Dev
     msg_type: 2,
     log_level: 'err',
@@ -547,7 +549,7 @@ function loadOptData(data: { [key: string]: any }) {
     }else if (needless.length > 0) {
 		new PopInfo().add(
 			PopType.INFO,
-			'发现' + needless.length + '条未使用的配置属性',
+			'发现' + needless.length + '条未使用的配置属性: ' + needless.join(', '),
 			false,
 		)
 	}
