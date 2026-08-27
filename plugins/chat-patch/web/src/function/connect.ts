@@ -22,6 +22,7 @@ import { useAuthStore } from '@renderer/state/auth'
 import { useChatStore } from '@renderer/state/chat'
 import { useContactStore } from '@renderer/state/contact'
 import { useSettingsStore } from '@renderer/state/settings'
+import { updateBaseOnMsgList } from './utils/msgUtil'
 import type { ConnectionHistoryItem, LoginCacheElem } from './elements/system'
 import type { UserFriendElem, UserGroupElem } from './elements/information'
 
@@ -232,6 +233,7 @@ function syncUserIdentity(userId: string, name: string, avatar: string) {
     applyUser(friendItem as unknown as Record<string, unknown>)
     contactStore.userList = [...contactStore.userList]
   }
+  updateBaseOnMsgList()
 }
 
 function syncGroupIdentity(
@@ -258,6 +260,7 @@ function syncGroupIdentity(
     apply(groupItem as unknown as Record<string, unknown>)
     contactStore.userList = [...contactStore.userList]
   }
+  updateBaseOnMsgList()
 }
 
 async function requestGroupInfo(
@@ -361,7 +364,7 @@ async function resolveGroupIdentity(
     identityDebug('group identity: start fetch', { platform, selfId, sessionId, guildId, channelId })
     const info = await requestGroupInfo(bot, guildId, channelId, sessionId)
     identityDebug('group identity: fetch result', { platform, selfId, sessionId, info })
-    if (!name) name = info.name
+    if (!name || name === sessionId) name = info.name
     if (!avatar && info.avatar) {
       avatar = info.avatar
       raw = info.raw
@@ -494,6 +497,8 @@ function recordBotMessage(platform: string, selfId: string, msg: Record<string, 
     baseList: [],
     onMsgList: [],
   }
+  const rawTime = Number(msg.time)
+  const sessionTime = Number.isFinite(rawTime) && rawTime > 0 ? rawTime : Date.now() / 1000
   let session: Record<string, unknown> = {
     user_id: isGroup ? undefined : sessionId,
     group_id: isGroup ? sessionId : undefined,
@@ -507,7 +512,7 @@ function recordBotMessage(platform: string, selfId: string, msg: Record<string, 
       : (hasUsableAvatar(sender.avatar) ? getString(sender.avatar) : undefined),
     raw_msg: raw,
     raw_msg_base: raw,
-    time: Number(msg.time ?? Date.now() / 1000),
+    time: sessionTime,
     message_id: String(msg.message_id ?? ''),
     new_msg: true,
     channel_id: typeof msg.channel_id === 'string' ? msg.channel_id : undefined,
@@ -546,6 +551,16 @@ function recordBotMessage(platform: string, selfId: string, msg: Record<string, 
     state.onMsgList.unshift(session)
   }
   contactStore.botStates.set(selfId, state)
+  if (
+    isActiveBot({ platform, selfId }) &&
+    !contactStore.baseOnMsgList.has(String(sessionId))
+  ) {
+    contactStore.baseOnMsgList.set(
+      String(sessionId),
+      session as unknown as UserFriendElem & UserGroupElem,
+    )
+    updateBaseOnMsgList()
+  }
 
   const chatStore = useChatStore()
   const cacheKey = `${platform}:${selfId}:${sessionId}`

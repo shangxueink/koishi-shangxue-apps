@@ -2466,11 +2466,13 @@ function updateSysInfo(
 function formatMessageData(data: any, isGroup: boolean) {
     const name = data.sender?.card && data.sender.card !== '' ? data.sender.card : data.sender?.nickname
     const raw = getMsgRawTxt(data) || data.raw_message || ''
+    const rawTime = Number(data.time)
+    const time = Number.isFinite(rawTime) && rawTime > 0 ? getViewTime(rawTime) : Date.now()
 
     return {
         message_id: data.message_id,
         raw_msg: isGroup && name ? `${name}: ${raw}` : raw,
-        time: getViewTime(Number(data.time)),
+        time,
         raw_msg_base: raw,
     }
 }
