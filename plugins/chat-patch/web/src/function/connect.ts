@@ -268,31 +268,34 @@ async function fetchFriendProfiles(
 ) {
   const contactStore = useContactStore()
   const botKey = `${active.platform}:${active.selfId}`
-  if (unsupportedMethods.has(`user.get:${botKey}`)) return
-  for (const raw of friends) {
+  const userGetBlocked = unsupportedMethods.has(`user.get:${botKey}`)
+
+  const processFriend = async (raw: unknown) => {
     const id = contactId(raw)
-    if (!id) continue
+    if (!id) return
     let data: unknown = {}
-    try {
-      data = await Promise.race([
-        request('user.get', { user_id: id }, active),
-        new Promise<null>((resolve) => setTimeout(() => resolve(null), 5000)),
-      ]) ?? {}
-    } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : String(error)
-      if (/is not a function|Satori API 返回 500/i.test(message)) {
-        if (!unsupportedMethods.has(`user.get:${botKey}`)) {
-          unsupportedMethods.add(`user.get:${botKey}`)
-          logger.error(
-            new Error(message),
-            '当前机器人不支持 user.get，已跳过好友身份补充',
+    if (!userGetBlocked) {
+      try {
+        data = await Promise.race([
+          request('user.get', { user_id: id }, active),
+          new Promise<null>((resolve) => setTimeout(() => resolve(null), 5000)),
+        ]) ?? {}
+      } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : String(error)
+        if (/is not a function|Satori API 返回 500/i.test(message)) {
+          if (!unsupportedMethods.has(`user.get:${botKey}`)) {
+            unsupportedMethods.add(`user.get:${botKey}`)
+            logger.error(
+              new Error(message),
+              '当前机器人不支持 user.get，已跳过好友身份补充',
+            )
+          }
+        } else {
+          logger.add(
+            LogType.ERR,
+            `获取好友身份信息失败 user.get ${id}: ${message}`,
           )
         }
-      } else {
-        logger.add(
-          LogType.ERR,
-          `获取好友身份信息失败 user.get ${id}: ${message}`,
-        )
       }
     }
     const item = buildFriendItem(raw, data)
@@ -308,12 +311,26 @@ async function fetchFriendProfiles(
       contactStore.userList = [...contactStore.userList]
     } else {
       dispatch({ retcode: 0, data: [item] }, 'getFriendList')
+      contactStore.friendLoadedCount += 1
     }
     // 缓存写入不能阻塞身份请求循环，否则第一个好友后就会停住。
     void appendContactCache('friend', item).catch(() => {
       // 单个缓存写入失败不阻塞后续好友
     })
-    await new Promise((resolve) => setTimeout(resolve, 1000))
+  }
+
+  const batchSize = 30
+  for (let start = 0; start < friends.length; start += batchSize) {
+    const batchStart = Date.now()
+    const batch = friends.slice(start, start + batchSize)
+    await Promise.all(batch.map((raw) => processFriend(raw).catch((error: unknown) => {
+      logger.add(LogType.ERR, `处理好友身份信息失败: ${String(error)}`)
+    })))
+    const elapsed = Date.now() - batchStart
+    const wait = Math.max(0, 1000 - elapsed)
+    if (wait > 0) {
+      await new Promise((resolve) => setTimeout(resolve, wait))
+    }
   }
 }
 
@@ -341,6 +358,7 @@ async function handleFriendListResponse(
     if (id) cachedMap.set(id, item)
   }
   if (!Array.isArray(friends) || friends.length === 0) {
+    contactStore.friendLoading = false
     if (cachedMap.size > 0) {
       dispatch({
         retcode: 0,
@@ -359,6 +377,9 @@ async function handleFriendListResponse(
   })
 
   // 从空列表开始重建，先把已缓存好友放回来。
+  contactStore.friendLoading = true
+  contactStore.friendLoadedCount = 0
+  contactStore.friendTotalCount = friends.length
   contactStore.userList = contactStore.userList.filter((item) => item.group_id)
   if (remoteCached.length > 0) {
     const cachedRaws = remoteCached.map((item) => {
@@ -367,15 +388,20 @@ async function handleFriendListResponse(
     })
     for (const raw of cachedRaws) {
       dispatch({ retcode: 0, data: [raw] }, 'getFriendList')
+      contactStore.friendLoadedCount += 1
       await new Promise((resolve) => setTimeout(resolve, 60))
     }
   }
-  if (missing.length > 0 && !cachedNameIsId) {
-    // 本地缓存不完整，只补缺失的好友。
-    await fetchFriendProfiles(active, missing)
-  } else {
-    // 本地缓存完整，或旧缓存里还是 QQ 号时，全量刷新身份信息。
-    await fetchFriendProfiles(active, friends)
+  try {
+    if (missing.length > 0 && !cachedNameIsId) {
+      // 本地缓存不完整，只补缺失的好友。
+      await fetchFriendProfiles(active, missing)
+    } else {
+      // 本地缓存完整，或旧缓存里还是 QQ 号时，全量刷新身份信息。
+      await fetchFriendProfiles(active, friends)
+    }
+  } finally {
+    contactStore.friendLoading = false
   }
 }
 

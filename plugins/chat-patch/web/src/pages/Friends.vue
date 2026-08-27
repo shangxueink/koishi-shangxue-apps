@@ -74,7 +74,10 @@
                                     @click="classClick(info.class_id)">
                                     <div />
                                     <span>{{ info.class_name }}</span>
-                                    <a>{{
+                                    <a v-if="contactStore.friendLoading && info.class_id == 0">{{
+                                        contactStore.friendLoadedCount
+                                    }} / {{ contactStore.friendTotalCount }}</a>
+                                    <a v-else>{{
                                         info.user_count ??
                                             contactStore.userList.filter((get) => {
                                                 return get.class_id == info.class_id

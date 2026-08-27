@@ -10,6 +10,9 @@ export const useContactStore = defineStore('contact', () => {
     const onMsgList = shallowRef<(UserFriendElem & UserGroupElem)[]>([])
     const newMsgCount = ref(0)
     const systemNoticesList = shallowRef<Record<string, any> | undefined>(undefined)
+    const friendLoading = ref(false)
+    const friendLoadedCount = ref(0)
+    const friendTotalCount = ref(0)
 
     return {
         userList,
@@ -19,5 +22,8 @@ export const useContactStore = defineStore('contact', () => {
         onMsgList,
         newMsgCount,
         systemNoticesList,
+        friendLoading,
+        friendLoadedCount,
+        friendTotalCount,
     }
 })
