@@ -34,6 +34,29 @@ export function registerWeb(
     }
   }
 
+  ctx.server.get(`${config.basePath}/api/cache/all`, async (koa) => {
+    const entries = await database.getAllContacts()
+    const botMap = new Map<string, {
+      platform: string
+      selfId: string
+      groups: ContactCacheItem[]
+      friends: ContactCacheItem[]
+    }>()
+    for (const entry of entries) {
+      const key = `${entry.platform}:${entry.selfId}`
+      const bot = botMap.get(key) ?? {
+        platform: entry.platform,
+        selfId: entry.selfId,
+        groups: [],
+        friends: [],
+      }
+      if (entry.type === 'group') bot.groups = entry.contacts
+      if (entry.type === 'friend') bot.friends = entry.contacts
+      botMap.set(key, bot)
+    }
+    koa.body = { bots: [...botMap.values()] }
+  })
+
   ctx.server.get(`${config.basePath}/api/cache`, readCache)
 
   ctx.server.post(`${config.basePath}/api/cache`, async (koa) => {

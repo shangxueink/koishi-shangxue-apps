@@ -22,6 +22,7 @@ import { useAuthStore } from '@renderer/state/auth'
 import { useContactStore } from '@renderer/state/contact'
 import { useSettingsStore } from '@renderer/state/settings'
 import type { ConnectionHistoryItem, LoginCacheElem } from './elements/system'
+import type { UserFriendElem, UserGroupElem } from './elements/information'
 
 const HISTORY_KEY = 'chat-patch:connection-history'
 const logger = new Logger()
@@ -29,7 +30,6 @@ const unsupportedMethods = new Set<string>()
 
 export let websocket: WebSocket | undefined = undefined
 let disposeConnection: (() => void) | null = null
-const contactCacheLoads = new Map<string, Promise<void>>()
 const pendingBotEvents = new Map<string, SatoriEvent[]>()
 
 function botEventKey(platform: string, selfId: string) {
@@ -211,8 +211,15 @@ async function requestContactCache(params: {
   }
   const info = await getBootstrap()
   const basePath = info.basePath || '/chat-patch'
-  const url = `${location.origin}${basePath}/api/cache`
   const method = params.contacts ? 'POST' : 'GET'
+  const query = method === 'GET'
+    ? `?${new URLSearchParams({
+        platform: params.platform,
+        selfId: params.selfId,
+        type: params.type,
+      }).toString()}`
+    : ''
+  const url = `${location.origin}${basePath}/api/cache${query}`
   const response = await fetch(url, {
     method,
     headers: params.contacts ? { 'Content-Type': 'application/json' } : undefined,
@@ -222,6 +229,52 @@ async function requestContactCache(params: {
     throw new Error(`缓存 API 返回 ${response.status}`)
   }
   return response.json() as Promise<Record<string, unknown>>
+}
+
+async function requestAllBotsCache() {
+  const info = await getBootstrap()
+  const basePath = info.basePath || '/chat-patch'
+  const response = await fetch(`${location.origin}${basePath}/api/cache/all`)
+  if (!response.ok) {
+    throw new Error(`全部缓存 API 返回 ${response.status}`)
+  }
+  return response.json() as Promise<{ bots: unknown[] }>
+}
+
+async function loadAllBotsCache() {
+  const contactStore = useContactStore()
+  const result = await requestAllBotsCache()
+  const bots = Array.isArray(getObject(result).bots) ? getObject(result).bots as unknown[] : []
+  for (const rawBot of bots) {
+    const bot = getObject(rawBot)
+    const platform = getString(bot.platform)
+    const selfId = getString(bot.selfId)
+    if (!platform || !selfId) continue
+
+    const groups = Array.isArray(bot.groups) ? bot.groups as unknown[] : []
+    const friends = Array.isArray(bot.friends) ? bot.friends as unknown[] : []
+    const groupRaws = groups.map((contact) => getObject(contact).raw ?? contact)
+    const friendRaws = friends.map((contact) => cachedFriendRaw(getObject(contact), contact))
+    const userList = [...groupRaws, ...friendRaws] as (UserFriendElem & UserGroupElem)[]
+
+    const state = contactStore.botStates.get(selfId)
+    if (!state || state.userList.length === 0) {
+      contactStore.botStates.set(selfId, {
+        userList,
+        baseList: state?.baseList ?? [],
+        onMsgList: state?.onMsgList ?? [],
+      })
+    }
+
+    if (isActiveBot({ platform, selfId })) {
+      if (groupRaws.length > 0) {
+        dispatch({ retcode: 0, data: groupRaws }, 'getGroupList')
+      }
+      if (friendRaws.length > 0) {
+        dispatch({ retcode: 0, data: friendRaws }, 'getFriendList')
+      }
+    }
+  }
 }
 
 async function saveContactCache(
@@ -544,24 +597,12 @@ export async function loadContactsFromCache() {
     ? { platform: login.platform, selfId: String(login.uin) }
     : null)
   if (!active) return
-  await Promise.all([
-    { type: 'friend', action: 'get_friend_list', echo: 'getFriendList' },
-    { type: 'group', action: 'get_group_list', echo: 'getGroupList' },
-  ].map(async (item) => {
-    const key = `${active.platform}:${active.selfId}:${item.type}`
-    const running = contactCacheLoads.get(key)
-    if (running) {
-      await running
-      return
-    }
-    const task = loadContactType(active, item)
-      .catch(() => {})
-      .finally(() => {
-        contactCacheLoads.delete(key)
-    })
-    contactCacheLoads.set(key, task)
-    await task
-  }))
+  try {
+    await loadAllBotsCache()
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error)
+    logger.add(LogType.ERR, `加载全部机器人缓存失败: ${message}`)
+  }
 }
 
 function startSatori() {

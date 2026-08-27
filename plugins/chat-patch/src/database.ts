@@ -149,6 +149,46 @@ export class ChatDatabase {
     await this.setContacts(platform, selfId, type, next)
   }
 
+  async getAllContacts(): Promise<Array<{
+    platform: string
+    selfId: string
+    type: string
+    contacts: ContactCacheItem[]
+  }>> {
+    const result: Array<{
+      platform: string
+      selfId: string
+      type: string
+      contacts: ContactCacheItem[]
+    }> = []
+    for await (const [key, value] of this.db.iterator<string, string>({
+      gte: 'c:',
+      lte: 'c:\uffff',
+    })) {
+      if (!key.startsWith('c:')) continue
+      const typeIndex = key.lastIndexOf(':')
+      if (typeIndex <= 2) continue
+      const type = key.slice(typeIndex + 1)
+      const rest = key.slice(2, typeIndex)
+      const sep = rest.lastIndexOf(':')
+      if (sep <= 0) continue
+      const platform = rest.slice(0, sep)
+      const selfId = rest.slice(sep + 1)
+      try {
+        const parsed = JSON.parse(value) as unknown
+        result.push({
+          platform,
+          selfId,
+          type,
+          contacts: Array.isArray(parsed) ? parsed as ContactCacheItem[] : [],
+        })
+      } catch {
+        this.logger.warn('联系人缓存解析失败:', key)
+      }
+    }
+    return result
+  }
+
   private async trimMessages(platform: string, selfId: string, channelId: string) {
     const prefix = messagePrefix(platform, selfId, channelId)
     let count = 0
