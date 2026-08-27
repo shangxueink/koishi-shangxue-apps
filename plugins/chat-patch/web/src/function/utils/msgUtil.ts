@@ -9,6 +9,7 @@ import { v4 as uuid } from 'uuid'
 import { Connector } from '@renderer/function/connect'
 import {
     BotMsgType,
+    MsgItemElem,
     UserFriendElem,
     UserGroupElem,
 } from '../elements/information'
@@ -441,6 +442,44 @@ export function parseCQ(data: any) {
 * @param preShow 是否消息预显
 * @param echo 回显的事件名
 */
+function parsePreviewMarkup(source: string): MsgItemElem[] {
+    const result: MsgItemElem[] = []
+    const tagPattern = /<(img|image|face|mface|file|audio|video)\s+([^>]*?)\/?>/gi
+    let last = 0
+    let match: RegExpExecArray | null
+    while ((match = tagPattern.exec(source)) !== null) {
+        if (match.index > last) {
+            result.push({ type: 'text', text: source.slice(last, match.index) })
+        }
+        const attrs = match[2] ?? ''
+        const src = attrs.match(/src\s*=\s*(?:"([^"]*)"|'([^']*)')/i)?.[1]
+            ?? attrs.match(/src\s*=\s*(?:"([^"]*)"|'([^']*)')/i)?.[2]
+            ?? ''
+        const name = attrs.match(/name\s*=\s*(?:"([^"]*)"|'([^']*)')/i)?.[1]
+            ?? attrs.match(/name\s*=\s*(?:"([^"]*)"|'([^']*)')/i)?.[2]
+            ?? ''
+        const tag = String(match[1] ?? '').toLowerCase()
+        const type = tag === 'file'
+            ? 'file'
+            : tag === 'audio'
+                ? 'record'
+                : tag === 'video'
+                    ? 'video'
+                    : 'image'
+        result.push({
+            type,
+            file: src,
+            url: src,
+            ...(name ? { name } : {}),
+        })
+        last = match.index + match[0].length
+    }
+    if (last < source.length) {
+        result.push({ type: 'text', text: source.slice(last) })
+    }
+    return result.length > 0 ? result : [{ type: 'text', text: source }]
+}
+
 export function sendMsgRaw(
     id: string,
     type: string,
@@ -462,7 +501,7 @@ export function sendMsgRaw(
     const msgUUID = uuid()
     if (preShow) {
         const preShowMsg = typeof msg === 'string'
-            ? [{ type: 'text', text: msg }]
+            ? parsePreviewMarkup(msg)
             : JSON.parse(JSON.stringify(msg));
         preShowMsg.forEach((item: any) => {
             // 对 base64 图片做特殊处理
