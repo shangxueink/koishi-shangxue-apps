@@ -17,8 +17,7 @@
         <div />
         <img loading="lazy"
             :title="getShowName(session.group_name || session.nickname, session.remark)"
-            :src="session.user_id ? 'https://q1.qlogo.cn/g?b=qq&s=0&nk=' + session.user_id :
-                'https://p.qlogo.cn/gh/' + session.group_id + '/' + session.group_id + '/0'">
+            :src="session.avatar || '/img/icons/icon.svg'">
         <div>
             <p>
                 {{ getShowName(session.group_name || session.nickname, session.remark) }}

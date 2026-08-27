@@ -2419,8 +2419,7 @@ function newMsg(_: string, data: any) {
                     body:
                         data.message_type === 'group' ? String(senderObj.nickname ?? '') + ':' + raw : raw,
                     tag: `${sessionId}/${data.message_id}`,
-                    icon:
-                        data.message_type === 'group' ? `https://p.qlogo.cn/gh/${id}/${id}/0` : `https://q1.qlogo.cn/g?b=qq&s=0&nk=${id}`,
+                    icon: '/img/icons/icon.svg',
                     image: undefined as any,
                     type: data.group_id ? 'group' : 'user',
                     is_important: isImportant,

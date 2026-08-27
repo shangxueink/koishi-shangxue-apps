@@ -109,7 +109,7 @@
                         key-field="user_id">
                         <div class="member-item edit">
                             <img alt="nk" loading="lazy"
-                                :src="`https://q1.qlogo.cn/g?b=qq&s=0&nk=${memberId(item)}`">
+                                :src="'/img/icons/icon.svg'">
                             <div>
                                 <a @click="startChat(item)">{{
                                     memberName(item)
@@ -159,7 +159,7 @@
             </BcTab>
             <div :class="'ss-card user-config' + (Object.keys(showUserConfig).length > 0 ? ' show' : '')">
                 <div>
-                    <img alt="nk" :src="`https://q1.qlogo.cn/g?b=qq&s=0&nk=${showUserConfig.user_id}`">
+                    <img alt="nk" :src="showUserConfig.avatar || '/img/icons/icon.svg'">
                     <div>
                         <a>{{ showUserConfig.card != '' ? showUserConfig.card : showUserConfig.nickname }}</a>
                         <span>{{ showUserConfig.user_id }}</span>

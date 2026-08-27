@@ -149,7 +149,7 @@
                     </template>
                 </div>
                 <div class="qzone-feed-reply">
-                    <img :src="`https://q1.qlogo.cn/g?b=qq&s=0&nk=${authStore.loginInfo.uin}`">
+                    <img :src="authStore.loginInfo.avatar || '/img/icons/icon.svg'">
                     <label :for="`qzone-reply-input-${item.id}`" class="sr-only">{{ $t('评论输入框') }}</label>
                     <input :id="`qzone-reply-input-${item.id}`"
                         v-model="getReplyDraft(item.id).content"
@@ -660,7 +660,7 @@
             nickname: feed.nickname,
             time: feed.time,
             text: extractTextFromHtml(feed.html ?? ''),
-            avatar: `https://q1.qlogo.cn/g?b=qq&s=0&nk=${feed.uin}`,
+            avatar: feed.avatar || '/img/icons/icon.svg',
             images: extractImagesFromHtml(feed.html ?? ''),
             timeText: formatFeedTime(Number(feed.time ?? 0)),
             footInfo: getFootInfo(feed.html ?? ''),

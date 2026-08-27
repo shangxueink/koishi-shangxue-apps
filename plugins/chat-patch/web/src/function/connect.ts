@@ -28,6 +28,7 @@ import type { UserFriendElem, UserGroupElem } from './elements/information'
 const HISTORY_KEY = 'chat-patch:connection-history'
 const logger = new Logger()
 const unsupportedMethods = new Set<string>()
+const contactLookupCache = new Map<string, boolean>()
 
 export let websocket: WebSocket | undefined = undefined
 let disposeConnection: (() => void) | null = null
@@ -121,6 +122,103 @@ function setJsonMap() {
   }
 }
 
+async function resolveSessionIdentity(
+  platform: string,
+  selfId: string,
+  isGroup: boolean,
+  sessionId: string,
+  session: Record<string, unknown>,
+  msg: Record<string, unknown>,
+) {
+  const bot = { platform, selfId }
+  const key = `${platform}:${selfId}:${isGroup ? 'group' : 'friend'}:${sessionId}`
+  if (contactLookupCache.has(key)) return
+
+  const applyIdentity = (
+    target: Record<string, unknown>,
+    name: string,
+    avatar: string,
+  ) => {
+    if (isGroup) {
+      if (name) target.group_name = name
+    } else {
+      if (name) {
+        target.nickname = name
+        target.remark = name
+      }
+    }
+    if (avatar) target.avatar = avatar
+  }
+  const syncGlobal = (name: string, avatar: string) => {
+    const contactStore = useContactStore()
+    const globalSession = contactStore.baseOnMsgList.get(String(sessionId))
+    if (globalSession) {
+      applyIdentity(globalSession as unknown as Record<string, unknown>, name, avatar)
+      contactStore.baseOnMsgList.set(String(sessionId), globalSession)
+    }
+    const globalItem = contactStore.onMsgList.find((item) => {
+      return String(item.user_id ?? item.group_id) === sessionId
+    })
+    if (globalItem) {
+      applyIdentity(globalItem as unknown as Record<string, unknown>, name, avatar)
+      contactStore.onMsgList = [...contactStore.onMsgList]
+    }
+    if (msg.sender && typeof msg.sender === 'object') {
+      const sender = getObject(msg.sender)
+      if (avatar) sender.avatar = avatar
+      if (name && !isGroup) sender.nickname = name
+    }
+  }
+
+  const cacheResult = await requestContactCache({
+    platform,
+    selfId,
+    type: isGroup ? 'group' : 'friend',
+  }).catch(() => ({ contacts: [] }))
+  const contacts = Array.isArray(getObject(cacheResult).contacts)
+    ? getObject(cacheResult).contacts as unknown[]
+    : []
+  const cached = contacts.find((contact) => {
+    return getString(getObject(contact).id) === sessionId
+  })
+  if (cached) {
+    const raw = getObject(getObject(cached).raw ?? cached)
+    const name = isGroup
+      ? getString(raw.group_name) || getString(raw.name)
+      : getString(raw.nickname) || getString(raw.name)
+    const avatar = getString(raw.avatar)
+    applyIdentity(session, name, avatar)
+    syncGlobal(name, avatar)
+    if (name || avatar) contactLookupCache.set(key, true)
+    return
+  }
+
+  const data = isGroup
+    ? await request('guild.get', { guild_id: sessionId }, bot).catch(() => null)
+    : await request('user.get', { user_id: sessionId }, bot).catch(() => null)
+  const root = getObject(data)
+  const entity = isGroup ? getObject(root.guild) || root : getObject(root.user) || root
+  const name = isGroup
+    ? getString(entity.name) || getString(root.name)
+    : getString(entity.name) || getString(entity.nick) || getString(root.name) || getString(root.nick) || getString(root.username)
+  const avatar = getString(entity.avatar) || getString(root.avatar)
+  applyIdentity(session, name, avatar)
+  syncGlobal(name, avatar)
+  if (name || avatar) {
+    await appendContactCache(
+      isGroup ? 'group' : 'friend',
+      {
+        id: sessionId,
+        name: name || sessionId,
+        avatar: avatar || undefined,
+        raw: entity,
+      },
+      bot,
+    ).catch(() => {})
+  }
+  if (name || avatar) contactLookupCache.set(key, true)
+}
+
 function recordBotMessage(platform: string, selfId: string, msg: Record<string, unknown>) {
   const isGroup = Boolean(msg.group_id) || msg.message_type === 'group'
   const sessionId = String(msg.group_id ?? msg.user_id ?? '')
@@ -142,6 +240,9 @@ function recordBotMessage(platform: string, selfId: string, msg: Record<string, 
       : undefined,
     nickname: isGroup ? '' : String(sender.nickname ?? senderId ?? sessionId),
     remark: '',
+    avatar: isGroup
+      ? (typeof msg.group_avatar === 'string' ? msg.group_avatar : undefined)
+      : getString(sender.avatar) || undefined,
     raw_msg: raw,
     raw_msg_base: raw,
     time: Number(msg.time ?? Date.now() / 1000),
@@ -168,6 +269,7 @@ function recordBotMessage(platform: string, selfId: string, msg: Record<string, 
     messages.push(msg)
     chatStore.sessionMessageCache.set(cacheKey, messages)
   }
+  void resolveSessionIdentity(platform, selfId, isGroup, sessionId, session, msg)
 }
 
 function onSatoriEvent(event: SatoriEvent) {

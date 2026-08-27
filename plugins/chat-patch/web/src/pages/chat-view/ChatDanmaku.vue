@@ -106,7 +106,7 @@
                         <img
                             name="avatar"
                             :src="
-                                'https://q1.qlogo.cn/g?b=qq&s=0&nk=' + danmu.id
+                                danmu.avatar || '/img/icons/icon.svg'
                             ">
                         <a>{{ danmus.length - index + 1 }}</a>
                         <span>{{ danmu.text }}</span>

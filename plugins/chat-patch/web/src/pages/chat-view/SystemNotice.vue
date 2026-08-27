@@ -20,7 +20,7 @@
                 :key="'sysNot-' + index">
                 <div v-if="notice.request_type == 'friend'">
                     <div>
-                        <img :src="'https://q1.qlogo.cn/g?b=qq&s=0&nk=' + notice.user_id">
+                        <img :src="notice.avatar || '/img/icons/icon.svg'">
                         <div>
                             <span>{{ notice.user_id }}
                                 {{ $t('请求加为好友') }}</span>
@@ -49,7 +49,7 @@
                 </div>
                 <div v-else-if="notice.request_type == 'group'">
                     <div v-if="notice.sub_type == 'add'">
-                        <img :src="'https://q1.qlogo.cn/g?b=qq&s=0&nk=' + notice.user_id">
+                        <img :src="notice.avatar || '/img/icons/icon.svg'">
                         <div>
                             <span>{{ getName(notice.user_id) }}
                                 {{ $t('申请加入群聊') }}
@@ -68,7 +68,7 @@
                     </div>
                     <div v-else>
                         <!-- TODO：这情况会出现在 notice 里？记不太清了，先放着吧 😭 -->
-                        <img :src="'https://p.qlogo.cn/gh/' + notice.group_id + '/' + notice.group_id + '/0'">
+                        <img :src="notice.group_avatar || '/img/icons/icon.svg'">
                         <div>
                             <span>{{ getName(notice.user_id) }}
                                 {{ $t('邀请你加入群聊') }}

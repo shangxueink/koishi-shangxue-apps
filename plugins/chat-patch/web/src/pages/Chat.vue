@@ -177,7 +177,7 @@
                                 <div v-for="(item, index) in chat.info.jin_info.list"
                                     :key="'jin-' + index">
                                     <div>
-                                        <img :src="`https://q1.qlogo.cn/g?b=qq&s=0&nk=${item.sender_uin}`">
+                                        <img :src="item.sender_avatar || '/img/icons/icon.svg'">
                                         <div>
                                             <a>{{ item.sender_nick }}</a>
                                             <span>{{ item.sender_time ? Intl.DateTimeFormat(
@@ -312,7 +312,7 @@
                         :key="'atFind-' + item.user_id"
                         :class="{ selected: index === atSelectedIndex }"
                         @click="choiceAt(item.user_id)">
-                        <img :src="'https://q1.qlogo.cn/g?b=qq&s=0&nk=' + item.user_id">
+                        <img :src="'/img/icons/icon.svg'">
                         <span>{{
                             item.card != '' && item.card != null ? item.card : item.nickname
                         }}</span>
@@ -529,9 +529,7 @@
                             @click="forwardMsg(data)">
                             <img loading="lazy"
                                 :title="getShowName(data.group_name || data.nickname, data.remark)"
-                                :src="data.user_id ?
-                                    'https://q1.qlogo.cn/g?b=qq&s=0&nk=' + data.user_id :
-                                    'https://p.qlogo.cn/gh/' + data.group_id + '/' + data.group_id + '/0'">
+                                :src="data.avatar || '/img/icons/icon.svg'">
                             <div>
                                 <p>
                                     {{ data.group_name ?

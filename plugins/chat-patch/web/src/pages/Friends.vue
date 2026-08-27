@@ -380,8 +380,7 @@
             type: data.user_id ? 'user' : 'group',
             id: data.user_id ? data.user_id : data.group_id,
             name: getShowName(data),
-            avatar: data.user_id? 'https://q1.qlogo.cn/g?b=qq&s=0&nk=' + data.user_id: 'https://p.qlogo.cn/gh/' +
-                  data.group_id + '/' + data.group_id + '/0',
+            avatar: data.avatar || '/img/icons/icon.svg',
             jump: sender.dataset.jump,
             channel_id: data.channel_id,
             guild_id: data.guild_id,
