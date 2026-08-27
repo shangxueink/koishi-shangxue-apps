@@ -47,7 +47,7 @@ export async function apply(ctx: Context, config: Config) {
   recorder.start()
 
   registerBootstrap(ctx, config, database, pluginLogger)
-  registerWeb(ctx, config, pluginLogger)
+  registerWeb(ctx, config, database, pluginLogger)
 
   ctx.console.addEntry({
     dev: path.resolve(__dirname, '../client/index.ts'),

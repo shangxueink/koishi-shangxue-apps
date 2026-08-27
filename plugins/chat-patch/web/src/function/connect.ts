@@ -5,6 +5,7 @@ import { dispatch } from './msg'
 import {
   connect as connectSatori,
   getActiveBot,
+  getBootstrap,
   getLogins,
   request,
   requestConsole,
@@ -194,6 +195,35 @@ function contactCachePayload(item: unknown): Record<string, unknown> {
   }
 }
 
+async function requestContactCache(params: {
+  platform: string
+  selfId: string
+  type: string
+  contacts?: Record<string, unknown>[]
+  append?: boolean
+}) {
+  if (!params.platform || !params.selfId || !params.type) {
+    logger.add(
+      LogType.ERR,
+      `缓存请求缺少参数: ${params.platform}/${params.selfId}/${params.type}`,
+    )
+    return { contacts: [] }
+  }
+  const info = await getBootstrap()
+  const basePath = info.basePath || '/chat-patch'
+  const url = `${location.origin}${basePath}/api/cache`
+  const method = params.contacts ? 'POST' : 'GET'
+  const response = await fetch(url, {
+    method,
+    headers: params.contacts ? { 'Content-Type': 'application/json' } : undefined,
+    body: params.contacts ? JSON.stringify(params) : undefined,
+  })
+  if (!response.ok) {
+    throw new Error(`缓存 API 返回 ${response.status}`)
+  }
+  return response.json() as Promise<Record<string, unknown>>
+}
+
 async function saveContactCache(
   action: string,
   data: unknown,
@@ -203,7 +233,7 @@ async function saveContactCache(
   if (!active || !Array.isArray(data)) return
   const type = action === 'get_friend_list' ? 'friend' : 'group'
   const contacts = data.map(contactCachePayload)
-  await requestConsole('contact-cache', {
+  await requestContactCache({
     platform: active.platform,
     selfId: active.selfId,
     type,
@@ -220,7 +250,7 @@ async function appendContactCache(
   if (!active) return
   const contact = contactCachePayload(item)
   if (!contact.id) return
-  await requestConsole('contact-cache', {
+  await requestContactCache({
     platform: active.platform,
     selfId: active.selfId,
     type,
@@ -305,7 +335,13 @@ async function cacheBotContacts(bot: { platform: string; selfId: string }) {
         dispatch({ retcode: 0, data: friends }, 'getFriendList')
       }
       // 当前机器人直接更新界面；非当前机器人只写缓存。
-      await fetchFriendProfiles(bot, friends, isActiveBot(bot))
+      const friendItems = await fetchFriendProfiles(bot, friends, isActiveBot(bot))
+      if (friendItems.length > 0) {
+        await withTimeout(
+          saveContactCache('get_friend_list', friendItems, bot),
+          5000,
+        ).catch(() => {})
+      }
     }
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error)
@@ -314,6 +350,7 @@ async function cacheBotContacts(bot: { platform: string; selfId: string }) {
 }
 
 export async function refreshAllBots() {
+  useContactStore().botStates.clear()
   for (const bot of getLogins()) {
     if (!bot.platform || !bot.selfId) continue
     await cacheBotContacts({
@@ -327,10 +364,11 @@ async function fetchFriendProfiles(
   active: { platform: string; selfId: string },
   friends: unknown[],
   updateUi = true,
-) {
+): Promise<Record<string, unknown>[]> {
   const contactStore = updateUi ? useContactStore() : null
   const botKey = `${active.platform}:${active.selfId}`
   const userGetBlocked = unsupportedMethods.has(`user.get:${botKey}`)
+  const processedItems: Record<string, unknown>[] = []
 
   const processFriend = async (raw: unknown) => {
     const id = contactId(raw)
@@ -361,6 +399,7 @@ async function fetchFriendProfiles(
       }
     }
     const item = buildFriendItem(raw, data)
+    processedItems.push(item)
     if (updateUi && contactStore) {
       const existing = contactStore.userList.find((contact) => {
         return String(contact.user_id) === id
@@ -402,6 +441,7 @@ async function fetchFriendProfiles(
       await new Promise((resolve) => setTimeout(resolve, wait))
     }
   }
+  return processedItems
 }
 
 async function handleFriendListResponse(
@@ -409,7 +449,7 @@ async function handleFriendListResponse(
   friends: unknown[],
 ) {
   const contactStore = useContactStore()
-  const cachePromise = requestConsole('contact-cache', {
+  const cachePromise = requestContactCache({
     platform: active.platform,
     selfId: active.selfId,
     type: 'friend',
@@ -480,7 +520,7 @@ async function loadContactType(
   item: { type: string; action: string; echo: string },
 ) {
   // 页面加载只读 LevelDB 缓存；网络请求统一由刷新按钮触发。
-  const result = await requestConsole('contact-cache', {
+  const result = await requestContactCache({
     platform: active.platform,
     selfId: active.selfId,
     type: item.type,

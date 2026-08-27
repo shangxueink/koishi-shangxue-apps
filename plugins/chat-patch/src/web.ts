@@ -6,16 +6,66 @@ import send from 'koa-send'
 import type { DefaultContext, DefaultState, ParameterizedContext } from 'koa'
 
 import { Config } from './config'
+import { ChatDatabase } from './database'
 import { PluginLogger } from './logger'
+import { ContactCacheItem } from './types'
 
-export function registerWeb(ctx: Context, config: Config, logger: PluginLogger) {
+export function registerWeb(
+  ctx: Context,
+  config: Config,
+  database: ChatDatabase,
+  logger: PluginLogger,
+) {
   const webRoot = path.resolve(__dirname, '..', 'web', 'dist')
+
+  type WebContext = ParameterizedContext<DefaultState, DefaultContext>
+
+  const readCache = async (koa: WebContext) => {
+    const platform = String(koa.query.platform ?? '')
+    const selfId = String(koa.query.selfId ?? '')
+    const type = String(koa.query.type ?? '')
+    if (!platform || !selfId || !type) {
+      koa.status = 400
+      koa.body = { error: 'missing cache params' }
+      return
+    }
+    koa.body = {
+      contacts: await database.getContacts(platform, selfId, type),
+    }
+  }
+
+  ctx.server.get(`${config.basePath}/api/cache`, readCache)
+
+  ctx.server.post(`${config.basePath}/api/cache`, async (koa) => {
+    const requestBody = (koa.request as unknown as { body?: unknown }).body
+    const body = (requestBody ?? {}) as Record<string, unknown>
+    const platform = String(body.platform ?? '')
+    const selfId = String(body.selfId ?? '')
+    const type = String(body.type ?? '')
+    if (!platform || !selfId || !type) {
+      koa.status = 400
+      koa.body = { error: 'missing cache params' }
+      return
+    }
+    if (Array.isArray(body.contacts)) {
+      const contacts = body.contacts as ContactCacheItem[]
+      if (body.append === true) {
+        for (const contact of contacts) {
+          await database.appendContact(platform, selfId, type, contact)
+        }
+      } else {
+        await database.setContacts(platform, selfId, type, contacts)
+      }
+    }
+    koa.body = {
+      contacts: await database.getContacts(platform, selfId, type),
+    }
+  })
+
   if (!existsSync(webRoot)) {
     logger.warn('未找到 web/dist，请先执行 web 目录下的 npm run build')
     return
   }
-
-  type WebContext = ParameterizedContext<DefaultState, DefaultContext>
 
   const serveFile = async (koa: WebContext, fileName: string) => {
     const fullPath = path.join(webRoot, fileName)
