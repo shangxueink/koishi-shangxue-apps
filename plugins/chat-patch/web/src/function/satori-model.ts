@@ -18,6 +18,16 @@ function getString(value: unknown): string {
   return typeof value === 'string' ? value : ''
 }
 
+function usableAvatar(value: unknown): string | undefined {
+  const avatar = getString(value)
+  if (!avatar || avatar === '/img/icons/icon.svg') return undefined
+  if (avatar.includes('/proxy/chatfile') || avatar.includes('proxy/chatfile')) {
+    const match = avatar.match(/[?&]url=([^&#]*)/)
+    if (!match?.[1]) return undefined
+  }
+  return avatar
+}
+
 function getNumber(value: unknown): number {
   const num = Number(value)
   return Number.isFinite(num) ? num : 0
@@ -384,7 +394,7 @@ export function satoriEventToOneBot(event: SatoriObject): Record<string, unknown
       user_id: isGroup ? userId : directChannelId,
       group_id: groupId,
       group_name: isGroup ? (getString(guild.name) || getString(channel.name) || undefined) : undefined,
-      group_avatar: isGroup ? (getString(guild.avatar) || getString(channel.avatar) || undefined) : undefined,
+      group_avatar: isGroup ? (usableAvatar(guild.avatar) || usableAvatar(channel.avatar)) : undefined,
       channel_id: getString(channel.id) || (isGroup ? groupId : `private:${userId}`),
       guild_id: getString(guild.id),
       target_id: selfId,
@@ -394,7 +404,7 @@ export function satoriEventToOneBot(event: SatoriObject): Record<string, unknown
         user_id: userId,
         nickname,
         card,
-        avatar: getString(user.avatar) || undefined,
+        avatar: usableAvatar(user.avatar),
         role: getString(member.title) || '',
       },
       infoList: {
@@ -590,7 +600,7 @@ export function satoriResponseToOneBot(action: string, data: unknown): Record<st
             user_id: getString(user.id) || id,
             nickname: friendName,
             remark: friendName === id ? '' : friendName,
-            avatar: getString(user.avatar) || getString(value.avatar) || undefined,
+            avatar: usableAvatar(user.avatar) || usableAvatar(value.avatar),
             group: {
               group_id: 0,
               group_name: '我的好友',
@@ -601,7 +611,7 @@ export function satoriResponseToOneBot(action: string, data: unknown): Record<st
         : {
             group_id: id,
             group_name: getString(value.name) || id,
-            avatar: getString(value.avatar) || undefined,
+            avatar: usableAvatar(value.avatar),
             guild_id: id,
             channel_id: id,
             member_count: getNumber(value.member_count),

@@ -28,8 +28,12 @@ import type { UserFriendElem, UserGroupElem } from './elements/information'
 const HISTORY_KEY = 'chat-patch:connection-history'
 const logger = new Logger()
 const unsupportedMethods = new Set<string>()
-const IDENTITY_RETRY_MS = 5 * 60 * 1000
-const identityLookupCache = new Map<string, number>()
+
+function identityDebug(...args: unknown[]) {
+  if (import.meta.env.DEV) {
+    console.log('[chat-patch-identity]', ...args)
+  }
+}
 
 interface CachedIdentityInfo {
   name: string
@@ -44,13 +48,10 @@ function identityCacheKey(prefix: string, platform: string, selfId: string, id: 
 }
 
 function shouldFetchIdentity(key: string): boolean {
-  if (identityInfoCache.has(key)) return false
-  const lastAttempt = identityLookupCache.get(key)
-  return lastAttempt === undefined || Date.now() - lastAttempt >= IDENTITY_RETRY_MS
+  return !identityInfoCache.has(key)
 }
 
 function markIdentityLookup(key: string, hasAvatar: boolean, info?: CachedIdentityInfo) {
-  identityLookupCache.set(key, Date.now())
   if (hasAvatar && info) identityInfoCache.set(key, info)
 }
 
@@ -159,7 +160,16 @@ function pickAvatar(entity: Record<string, unknown>, root: Record<string, unknow
 
 function hasUsableAvatar(value: unknown): boolean {
   const avatar = getString(value)
-  return Boolean(avatar && avatar !== '/img/icons/icon.svg')
+  if (!avatar || avatar === '/img/icons/icon.svg') return false
+  if (avatar.includes('/proxy/chatfile') || avatar.includes('proxy/chatfile')) {
+    try {
+      const parsed = new URL(avatar, location.origin)
+      return Boolean(parsed.searchParams.get('url'))
+    } catch {
+      return false
+    }
+  }
+  return true
 }
 
 function applyUserIdentity(
@@ -201,6 +211,7 @@ function syncUserIdentity(userId: string, name: string, avatar: string) {
       target.remark = name
     }
     if (avatar) target.avatar = avatar
+    else if (target.avatar && !hasUsableAvatar(target.avatar)) delete target.avatar
   }
   const globalSession = contactStore.baseOnMsgList.get(String(userId))
   if (globalSession) {
@@ -303,6 +314,7 @@ async function resolveGroupIdentity(
   const key = identityCacheKey('group', platform, selfId, sessionId)
   const cachedInfo = identityInfoCache.get(key)
   if (cachedInfo) {
+    identityDebug('group identity: replay cached', { platform, selfId, sessionId, cachedInfo })
     const applyCachedGroup = (target: Record<string, unknown>) => {
       if (cachedInfo.name) target.group_name = cachedInfo.name
       if (cachedInfo.avatar) target.avatar = cachedInfo.avatar
@@ -311,7 +323,10 @@ async function resolveGroupIdentity(
     syncGroupIdentity(sessionId, applyCachedGroup)
     return
   }
-  if (!shouldFetchIdentity(key)) return
+  if (!shouldFetchIdentity(key)) {
+    identityDebug('group identity: skipped', { platform, selfId, sessionId, key })
+    return
+  }
 
   const cacheResult = await requestContactCache({
     platform,
@@ -343,7 +358,9 @@ async function resolveGroupIdentity(
     avatar = hasUsableAvatar(getString(raw.avatar)) ? getString(raw.avatar) : ''
   }
   if (!avatar) {
+    identityDebug('group identity: start fetch', { platform, selfId, sessionId, guildId, channelId })
     const info = await requestGroupInfo(bot, guildId, channelId, sessionId)
+    identityDebug('group identity: fetch result', { platform, selfId, sessionId, info })
     if (!name) name = info.name
     if (!avatar && info.avatar) {
       avatar = info.avatar
@@ -358,6 +375,7 @@ async function resolveGroupIdentity(
   const applyGroup = (target: Record<string, unknown>) => {
     if (name) target.group_name = name
     if (avatar) target.avatar = avatar
+    else if (target.avatar && !hasUsableAvatar(target.avatar)) delete target.avatar
   }
   applyGroup(session)
   syncGroupIdentity(sessionId, applyGroup)
@@ -387,13 +405,24 @@ async function fetchUserIdentity(
   const key = identityCacheKey('user', platform, selfId, userId)
   const cachedInfo = identityInfoCache.get(key)
   if (cachedInfo) {
+    identityDebug('user identity: replay cached', { platform, selfId, userId, cachedInfo })
     applyUserIdentity(userId, session, msg, cachedInfo.name, cachedInfo.avatar)
     return
   }
-  if (unsupportedMethods.has(`user.get:${botKey}`) || !shouldFetchIdentity(key)) return
+  if (!shouldFetchIdentity(key)) {
+    identityDebug('user identity: skipped', {
+      platform,
+      selfId,
+      userId,
+      shouldFetch: shouldFetchIdentity(key),
+    })
+    return
+  }
 
+  identityDebug('user.get: request', { platform, selfId, userId })
   const data = await request('user.get', { user_id: userId }, bot).catch((error: unknown) => {
     const message = error instanceof Error ? error.message : String(error)
+    identityDebug('user.get: request failed', { platform, selfId, userId, message })
     if (/is not a function|Satori API 杩斿洖 500/i.test(message)) {
       unsupportedMethods.add(`user.get:${botKey}`)
     }
@@ -408,6 +437,7 @@ async function fetchUserIdentity(
     || getString(payload.nick)
     || getString(payload.username)
   const avatar = hasUsableAvatar(pickAvatar(entity, payload)) ? pickAvatar(entity, payload) : ''
+  identityDebug('user.get: result', { platform, selfId, userId, name, avatar })
   if (!name && !avatar) {
     markIdentityLookup(key, false)
     return
@@ -428,20 +458,34 @@ async function fetchUserIdentity(
 }
 
 function recordBotMessage(platform: string, selfId: string, msg: Record<string, unknown>) {
+  identityDebug('recordBotMessage: enter', {
+    platform,
+    selfId,
+    post_type: msg.post_type,
+    message_type: msg.message_type,
+    group_id: msg.group_id,
+    user_id: msg.user_id,
+    channel_id: msg.channel_id,
+    sender: msg.sender,
+  })
   const isGroup = Boolean(msg.group_id) || msg.message_type === 'group'
   const channelId = typeof msg.channel_id === 'string' ? msg.channel_id : ''
   const sessionId = String(
     msg.group_id
-      ?? msg.user_id
-      ?? (isGroup ? '' : channelId.replace(/^private:/, '')),
+      || msg.user_id
+      || (isGroup ? '' : channelId.replace(/^private:/, '')),
   )
-  if (!sessionId || sessionId === '0') return
+  if (!sessionId || sessionId === '0') {
+    identityDebug('recordBotMessage: skipped invalid session', { sessionId, msg })
+    return
+  }
+  identityDebug('recordBotMessage: session', { sessionId })
   const sender = getObject(msg.sender)
   const hasSenderAvatar = hasUsableAvatar(sender.avatar)
   const senderId = String(
     sender.user_id
-      ?? msg.user_id
-      ?? (isGroup ? '' : channelId.replace(/^private:/, '')),
+      || msg.user_id
+      || (isGroup ? '' : channelId.replace(/^private:/, '')),
   )
   const raw = typeof msg.raw_message === 'string' ? msg.raw_message : ''
   const contactStore = useContactStore()
@@ -459,8 +503,8 @@ function recordBotMessage(platform: string, selfId: string, msg: Record<string, 
     nickname: isGroup ? '' : String(sender.nickname ?? senderId ?? sessionId),
     remark: '',
     avatar: isGroup
-      ? (typeof msg.group_avatar === 'string' ? msg.group_avatar : undefined)
-      : getString(sender.avatar) || undefined,
+      ? (hasUsableAvatar(msg.group_avatar) ? getString(msg.group_avatar) : undefined)
+      : (hasUsableAvatar(sender.avatar) ? getString(sender.avatar) : undefined),
     raw_msg: raw,
     raw_msg_base: raw,
     time: Number(msg.time ?? Date.now() / 1000),
@@ -520,28 +564,49 @@ function recordBotMessage(platform: string, selfId: string, msg: Record<string, 
         ? knownSessionAvatar.group_id !== undefined
         : knownSessionAvatar.user_id !== undefined),
     )
+  identityDebug('recordBotMessage', {
+    platform,
+    selfId,
+    isGroup,
+    sessionId,
+    senderId,
+    knownWithAvatar,
+    sessionAvatar: session.avatar,
+    baseAvatar: knownSessionAvatar?.avatar,
+  })
   if (isGroup) {
-    if (!knownWithAvatar) {
-      void resolveGroupIdentity(
-        platform,
-        selfId,
-        sessionId,
-        typeof msg.guild_id === 'string' ? msg.guild_id : '',
-        channelId,
-        session,
-        msg,
-      )
-    }
-    if (senderId && senderId !== '0' && !hasSenderAvatar) {
+    identityDebug('recordBotMessage: group identity branch', {
+      sessionId,
+      senderId,
+      knownWithAvatar,
+      hasSenderAvatar,
+    })
+    void resolveGroupIdentity(
+      platform,
+      selfId,
+      sessionId,
+      typeof msg.guild_id === 'string' ? msg.guild_id : '',
+      channelId,
+      session,
+      msg,
+    )
+    if (senderId && senderId !== '0') {
       void fetchUserIdentity(platform, selfId, senderId, null, msg)
     }
-  } else if (!knownWithAvatar && senderId && senderId !== '0') {
+  } else if (senderId && senderId !== '0') {
+    identityDebug('recordBotMessage: private identity branch', {
+      sessionId,
+      senderId,
+      knownWithAvatar,
+      hasSenderAvatar,
+    })
     void fetchUserIdentity(platform, selfId, senderId, session, msg)
   }
 }
 
 function onSatoriEvent(event: SatoriEvent) {
   const oneBot = satoriEventToOneBot(event.body)
+  identityDebug('satori event', { event, oneBot })
   if (!oneBot) return
   if (oneBot.post_type === 'message' || oneBot.post_type === 'message_sent') {
     recordBotMessage(event.platform, event.selfId, oneBot)
@@ -672,9 +737,14 @@ async function loadAllBotsCache() {
 
     const groups = Array.isArray(bot.groups) ? bot.groups as unknown[] : []
     const friends = Array.isArray(bot.friends) ? bot.friends as unknown[] : []
-    const groupRaws = groups.map((contact) => getObject(contact).raw ?? contact)
+    const groupRaws = groups.map((contact) => {
+      const cached = getObject(contact)
+      const raw = getObject(cached.raw) || cached
+      if (raw.avatar && !hasUsableAvatar(raw.avatar)) delete raw.avatar
+      return raw
+    })
     const friendRaws = friends.map((contact) => cachedFriendRaw(getObject(contact), contact))
-    const userList = [...groupRaws, ...friendRaws] as (UserFriendElem & UserGroupElem)[]
+    const userList = [...groupRaws, ...friendRaws] as unknown as (UserFriendElem & UserGroupElem)[]
 
     const state = contactStore.botStates.get(selfId)
     if (!state || state.userList.length === 0) {
@@ -735,13 +805,14 @@ function buildFriendItem(raw: unknown, data: unknown): Record<string, unknown> {
   const root = getObject(data)
   const user = getObject(root.user) || getObject(root)
   const name = String(user.name ?? user.nick ?? user.username ?? '')
-  const avatar = String(user.avatar ?? '')
+  const avatar = hasUsableAvatar(user.avatar) ? getString(user.avatar) : ''
   const item: Record<string, unknown> = { ...getObject(raw) }
   if (name) {
     item.nickname = name
     item.remark = name
   }
   if (avatar) item.avatar = avatar
+  else if (item.avatar && !hasUsableAvatar(item.avatar)) delete item.avatar
   if (item.class_id === undefined) item.class_id = 0
   if (!item.class_name) item.class_name = '我的好友'
   return item
