@@ -9,8 +9,8 @@
     "dist",
     "lib",
     "src",
-    "web/dist",
-    "web/src"
+    "client/web/dist",
+    "client/web/src"
   ],
   "license": "MIT",
   "homepage": "https://github.com/koishi-shangxue-plugins/koishi-shangxue-apps/",

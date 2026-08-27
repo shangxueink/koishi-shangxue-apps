@@ -16,7 +16,7 @@ export function registerWeb(
   database: ChatDatabase,
   logger: PluginLogger,
 ) {
-  const webRoot = path.resolve(__dirname, '..', 'web', 'dist')
+  const webRoot = path.resolve(__dirname, '..', 'client', 'web', 'dist')
 
   type WebContext = ParameterizedContext<DefaultState, DefaultContext>
 
@@ -86,7 +86,7 @@ export function registerWeb(
   })
 
   if (!existsSync(webRoot)) {
-    logger.warn('未找到 web/dist，请先执行 web 目录下的 npm run build')
+    logger.warn('未找到 client/web/dist，请先执行 client/web 目录下的 npm run build')
     return
   }
 
