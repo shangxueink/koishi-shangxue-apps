@@ -367,8 +367,9 @@ export function satoriEventToOneBot(event: SatoriObject): Record<string, unknown
     const hasChannelType = channel.type !== undefined && channel.type !== null
     const channelType = getNumber(channel.type)
     const isGroup = Boolean(guild.id)
-      || (hasChannelType && channelType === 0 && Boolean(guild.id || channel.parentId))
+      || (hasChannelType && channelType === 0)
     const userId = getString(user.id)
+      || (isGroup ? '' : getString(channel.id).replace(/^private:/, ''))
     const groupId = isGroup
       ? getString(guild.id) || getString(channel.id)
       : ''
@@ -536,6 +537,7 @@ function messageListFromResponse(data: unknown): unknown[] {
     const isGroup = Boolean(guild.id) || getNumber(channel.type) === 0
     const groupId = isGroup ? getString(guild.id) || getString(channel.id) : ''
     const userId = getString(user.id)
+      || (isGroup ? '' : getString(channel.id).replace(/^private:/, ''))
     const directChannelId = isGroup ? groupId : userId
     return {
       message_id: getString(message.id),

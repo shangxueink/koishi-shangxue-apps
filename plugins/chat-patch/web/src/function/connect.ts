@@ -28,7 +28,31 @@ import type { UserFriendElem, UserGroupElem } from './elements/information'
 const HISTORY_KEY = 'chat-patch:connection-history'
 const logger = new Logger()
 const unsupportedMethods = new Set<string>()
-const contactLookupCache = new Map<string, boolean>()
+const IDENTITY_RETRY_MS = 5 * 60 * 1000
+const identityLookupCache = new Map<string, number>()
+
+interface CachedIdentityInfo {
+  name: string
+  avatar: string
+  raw: Record<string, unknown>
+}
+
+const identityInfoCache = new Map<string, CachedIdentityInfo>()
+
+function identityCacheKey(prefix: string, platform: string, selfId: string, id: string) {
+  return `${prefix}:${platform}:${selfId}:${id}`
+}
+
+function shouldFetchIdentity(key: string): boolean {
+  if (identityInfoCache.has(key)) return false
+  const lastAttempt = identityLookupCache.get(key)
+  return lastAttempt === undefined || Date.now() - lastAttempt >= IDENTITY_RETRY_MS
+}
+
+function markIdentityLookup(key: string, hasAvatar: boolean, info?: CachedIdentityInfo) {
+  identityLookupCache.set(key, Date.now())
+  if (hasAvatar && info) identityInfoCache.set(key, info)
+}
 
 export let websocket: WebSocket | undefined = undefined
 let disposeConnection: (() => void) | null = null
@@ -122,87 +146,177 @@ function setJsonMap() {
   }
 }
 
-async function resolveSessionIdentity(
-  platform: string,
-  selfId: string,
-  isGroup: boolean,
-  sessionId: string,
-  session: Record<string, unknown>,
-  msg: Record<string, unknown>,
-) {
-  const bot = { platform, selfId }
-  const key = `${platform}:${selfId}:${isGroup ? 'group' : 'friend'}:${sessionId}`
-  if (contactLookupCache.has(key)) return
+function pickAvatar(entity: Record<string, unknown>, root: Record<string, unknown>): string {
+  return getString(entity.avatar)
+    || getString(root.avatar)
+    || getString(entity.avatar_url)
+    || getString(root.avatar_url)
+    || getString(entity.avatarUrl)
+    || getString(root.avatarUrl)
+    || getString(entity.icon)
+    || getString(root.icon)
+}
 
-  const applyIdentity = (
-    target: Record<string, unknown>,
-    name: string,
-    avatar: string,
-  ) => {
-    if (isGroup) {
-      if (name) target.group_name = name
-    } else {
-      if (name) {
-        target.nickname = name
-        target.remark = name
-      }
+function hasUsableAvatar(value: unknown): boolean {
+  const avatar = getString(value)
+  return Boolean(avatar && avatar !== '/img/icons/icon.svg')
+}
+
+function applyUserIdentity(
+  userId: string,
+  session: Record<string, unknown> | null,
+  msg: Record<string, unknown>,
+  name: string,
+  avatar: string,
+) {
+  if (name && session) {
+    session.nickname = name
+    session.remark = name
+  }
+  if (avatar && session) session.avatar = avatar
+  if (msg.sender && typeof msg.sender === 'object') {
+    const sender = getObject(msg.sender)
+    if (avatar) sender.avatar = avatar
+    if (name) sender.nickname = name
+  }
+  syncUserIdentity(userId, name, avatar)
+  const chatStore = useChatStore()
+  const applySenderAvatar = (item: Record<string, unknown>) => {
+    const itemSender = getObject(item.sender)
+    if (String(itemSender.user_id) !== userId) return
+    if (avatar) itemSender.avatar = avatar
+    if (name) itemSender.nickname = name
+  }
+  chatStore.messageList.forEach(applySenderAvatar)
+  for (const messages of chatStore.sessionMessageCache.values()) {
+    messages.forEach(applySenderAvatar)
+  }
+}
+
+function syncUserIdentity(userId: string, name: string, avatar: string) {
+  const contactStore = useContactStore()
+  const applyUser = (target: Record<string, unknown>) => {
+    if (name) {
+      target.nickname = name
+      target.remark = name
     }
     if (avatar) target.avatar = avatar
   }
-  const syncGlobal = (name: string, avatar: string) => {
-    const contactStore = useContactStore()
-    const globalSession = contactStore.baseOnMsgList.get(String(sessionId))
-    if (globalSession) {
-      applyIdentity(globalSession as unknown as Record<string, unknown>, name, avatar)
-      contactStore.baseOnMsgList.set(String(sessionId), globalSession)
-    }
-    const globalItem = contactStore.onMsgList.find((item) => {
-      return String(item.user_id ?? item.group_id) === sessionId
-    })
-    if (globalItem) {
-      applyIdentity(globalItem as unknown as Record<string, unknown>, name, avatar)
-      contactStore.onMsgList = [...contactStore.onMsgList]
-    }
-    if (msg.sender && typeof msg.sender === 'object') {
-      const sender = getObject(msg.sender)
-      if (avatar) sender.avatar = avatar
-      if (name && !isGroup) sender.nickname = name
-    }
+  const globalSession = contactStore.baseOnMsgList.get(String(userId))
+  if (globalSession) {
+    applyUser(globalSession as unknown as Record<string, unknown>)
+    contactStore.baseOnMsgList.set(String(userId), globalSession)
+  }
+  const globalItem = contactStore.onMsgList.find((item) => {
+    return String(item.user_id) === userId
+  })
+  if (globalItem) {
+    applyUser(globalItem as unknown as Record<string, unknown>)
+    contactStore.onMsgList = [...contactStore.onMsgList]
+  }
+  const friendItem = contactStore.userList.find((item) => {
+    return String(item.user_id) === userId
+  })
+  if (friendItem) {
+    applyUser(friendItem as unknown as Record<string, unknown>)
+    contactStore.userList = [...contactStore.userList]
+  }
+}
+
+function syncGroupIdentity(
+  sessionId: string,
+  apply: (target: Record<string, unknown>) => void,
+) {
+  const contactStore = useContactStore()
+  const globalSession = contactStore.baseOnMsgList.get(String(sessionId))
+  if (globalSession) {
+    apply(globalSession as unknown as Record<string, unknown>)
+    contactStore.baseOnMsgList.set(String(sessionId), globalSession)
+  }
+  const globalItem = contactStore.onMsgList.find((item) => {
+    return String(item.group_id) === sessionId
+  })
+  if (globalItem) {
+    apply(globalItem as unknown as Record<string, unknown>)
+    contactStore.onMsgList = [...contactStore.onMsgList]
+  }
+  const groupItem = contactStore.userList.find((item) => {
+    return String(item.group_id) === sessionId
+  })
+  if (groupItem) {
+    apply(groupItem as unknown as Record<string, unknown>)
+    contactStore.userList = [...contactStore.userList]
+  }
+}
+
+async function requestGroupInfo(
+  bot: { platform: string; selfId: string },
+  guildId: string,
+  channelId: string,
+  sessionId: string,
+): Promise<{ name: string; avatar: string; raw: Record<string, unknown> }> {
+  const requests: Array<{
+    method: string
+    params: Record<string, unknown>
+    entityKey: string
+  }> = []
+  if (guildId && guildId !== '0') {
+    requests.push({ method: 'guild.get', params: { guild_id: guildId }, entityKey: 'guild' })
+  }
+  if (channelId && channelId !== '0') {
+    requests.push({ method: 'channel.get', params: { channel_id: channelId }, entityKey: 'channel' })
+  }
+  if (sessionId && sessionId !== guildId && sessionId !== channelId) {
+    requests.push({ method: 'guild.get', params: { guild_id: sessionId }, entityKey: 'guild' })
   }
 
-  if (!isGroup) {
-    // 私聊：发送者不在消息列表时，直接按 ID 获取一次用户信息。
-    const data = await request('user.get', { user_id: sessionId }, bot).catch(() => null)
+  let name = ''
+  let avatar = ''
+  let raw: Record<string, unknown> = {}
+  for (const item of requests) {
+    const data = await request(item.method, item.params, bot).catch(() => null)
     const root = getObject(data)
-    const entity = getObject(root.user) || root
-    const name = getString(entity.name)
-      || getString(entity.nick)
-      || getString(root.name)
-      || getString(root.nick)
-      || getString(root.username)
-    const avatar = getString(entity.avatar) || getString(root.avatar)
-    applyIdentity(session, name, avatar)
-    syncGlobal(name, avatar)
-    if (name || avatar) {
-      await appendContactCache(
-        'friend',
-        {
-          id: sessionId,
-          name: name || sessionId,
-          avatar: avatar || undefined,
-          raw: entity,
-        },
-        bot,
-      ).catch(() => {})
-      contactLookupCache.set(key, true)
+    const payload = getObject(root.data) || root
+    const entity = getObject(payload[item.entityKey]) || payload
+    const candidateName = getString(entity.name) || getString(payload.name) || getString(entity.group_name)
+    const candidateAvatar = hasUsableAvatar(pickAvatar(entity, payload)) ? pickAvatar(entity, payload) : ''
+    if (!name && candidateName) name = candidateName
+    if (!avatar && candidateAvatar) {
+      avatar = candidateAvatar
+      raw = entity
     }
+  }
+  return { name, avatar, raw }
+}
+
+async function resolveGroupIdentity(
+  platform: string,
+  selfId: string,
+  sessionId: string,
+  guildId: string,
+  channelId: string,
+  session: Record<string, unknown>,
+  msg: Record<string, unknown>,
+) {
+  if (!sessionId || sessionId === '0') return
+  const bot = { platform, selfId }
+  const key = identityCacheKey('group', platform, selfId, sessionId)
+  const cachedInfo = identityInfoCache.get(key)
+  if (cachedInfo) {
+    const applyCachedGroup = (target: Record<string, unknown>) => {
+      if (cachedInfo.name) target.group_name = cachedInfo.name
+      if (cachedInfo.avatar) target.avatar = cachedInfo.avatar
+    }
+    applyCachedGroup(session)
+    syncGroupIdentity(sessionId, applyCachedGroup)
     return
   }
+  if (!shouldFetchIdentity(key)) return
 
   const cacheResult = await requestContactCache({
     platform,
     selfId,
-    type: isGroup ? 'group' : 'friend',
+    type: 'group',
   }).catch(() => ({ contacts: [] }))
   const contacts = Array.isArray(getObject(cacheResult).contacts)
     ? getObject(cacheResult).contacts as unknown[]
@@ -210,50 +324,125 @@ async function resolveSessionIdentity(
   const cached = contacts.find((contact) => {
     return getString(getObject(contact).id) === sessionId
   })
+  let raw: Record<string, unknown> = {}
+  let cachedAvatar = ''
   if (cached) {
-    const raw = getObject(getObject(cached).raw ?? cached)
-    const name = isGroup
-      ? getString(raw.group_name) || getString(raw.name)
-      : getString(raw.nickname) || getString(raw.name)
-    const avatar = getString(raw.avatar)
-    applyIdentity(session, name, avatar)
-    syncGlobal(name, avatar)
-    if (name || avatar) contactLookupCache.set(key, true)
+    const cachedObject = getObject(cached)
+    raw = getObject(cachedObject.raw ?? cachedObject)
+    cachedAvatar = hasUsableAvatar(getString(cachedObject.avatar)) ? getString(cachedObject.avatar) : ''
+  }
+
+  let name = typeof msg.group_name === 'string' ? msg.group_name : ''
+  let avatar = hasUsableAvatar(
+    typeof msg.group_avatar === 'string' ? msg.group_avatar : '',
+  ) ? (typeof msg.group_avatar === 'string' ? msg.group_avatar : '') : ''
+  if (!name) name = getString(raw.group_name) || getString(raw.name)
+  if (!avatar && cachedAvatar) {
+    avatar = cachedAvatar
+  } else if (!avatar) {
+    avatar = hasUsableAvatar(getString(raw.avatar)) ? getString(raw.avatar) : ''
+  }
+  if (!avatar) {
+    const info = await requestGroupInfo(bot, guildId, channelId, sessionId)
+    if (!name) name = info.name
+    if (!avatar && info.avatar) {
+      avatar = info.avatar
+      raw = info.raw
+    }
+  }
+  if (!name && !avatar) {
+    markIdentityLookup(key, false)
     return
   }
 
-  const data = isGroup
-    ? await request('guild.get', { guild_id: sessionId }, bot).catch(() => null)
-    : await request('user.get', { user_id: sessionId }, bot).catch(() => null)
-  const root = getObject(data)
-  const entity = isGroup ? getObject(root.guild) || root : getObject(root.user) || root
-  const name = isGroup
-    ? getString(entity.name) || getString(root.name)
-    : getString(entity.name) || getString(entity.nick) || getString(root.name) || getString(root.nick) || getString(root.username)
-  const avatar = getString(entity.avatar) || getString(root.avatar)
-  applyIdentity(session, name, avatar)
-  syncGlobal(name, avatar)
-  if (name || avatar) {
-    await appendContactCache(
-      isGroup ? 'group' : 'friend',
-      {
-        id: sessionId,
-        name: name || sessionId,
-        avatar: avatar || undefined,
-        raw: entity,
-      },
-      bot,
-    ).catch(() => {})
+  const applyGroup = (target: Record<string, unknown>) => {
+    if (name) target.group_name = name
+    if (avatar) target.avatar = avatar
   }
-  if (name || avatar) contactLookupCache.set(key, true)
+  applyGroup(session)
+  syncGroupIdentity(sessionId, applyGroup)
+  await appendContactCache(
+    'group',
+    {
+      id: sessionId,
+      name: name || sessionId,
+      avatar: avatar || undefined,
+      raw: Object.keys(raw).length > 0 ? raw : { group_name: name, avatar },
+    },
+    bot,
+  ).catch(() => {})
+  markIdentityLookup(key, Boolean(avatar), avatar ? { name, avatar, raw } : undefined)
+}
+
+async function fetchUserIdentity(
+  platform: string,
+  selfId: string,
+  userId: string,
+  session: Record<string, unknown> | null,
+  msg: Record<string, unknown>,
+) {
+  if (!userId || userId === '0') return
+  const bot = { platform, selfId }
+  const botKey = `${platform}:${selfId}`
+  const key = identityCacheKey('user', platform, selfId, userId)
+  const cachedInfo = identityInfoCache.get(key)
+  if (cachedInfo) {
+    applyUserIdentity(userId, session, msg, cachedInfo.name, cachedInfo.avatar)
+    return
+  }
+  if (unsupportedMethods.has(`user.get:${botKey}`) || !shouldFetchIdentity(key)) return
+
+  const data = await request('user.get', { user_id: userId }, bot).catch((error: unknown) => {
+    const message = error instanceof Error ? error.message : String(error)
+    if (/is not a function|Satori API 杩斿洖 500/i.test(message)) {
+      unsupportedMethods.add(`user.get:${botKey}`)
+    }
+    return null
+  })
+  const root = getObject(data)
+  const payload = getObject(root.data) || root
+  const entity = getObject(payload.user) || payload
+  const name = getString(entity.name)
+    || getString(entity.nick)
+    || getString(payload.name)
+    || getString(payload.nick)
+    || getString(payload.username)
+  const avatar = hasUsableAvatar(pickAvatar(entity, payload)) ? pickAvatar(entity, payload) : ''
+  if (!name && !avatar) {
+    markIdentityLookup(key, false)
+    return
+  }
+
+  applyUserIdentity(userId, session, msg, name, avatar)
+  await appendContactCache(
+    'friend',
+    {
+      id: userId,
+      name: name || userId,
+      avatar: avatar || undefined,
+      raw: entity,
+    },
+    bot,
+  ).catch(() => {})
+  markIdentityLookup(key, Boolean(avatar), avatar ? { name, avatar, raw: entity } : undefined)
 }
 
 function recordBotMessage(platform: string, selfId: string, msg: Record<string, unknown>) {
   const isGroup = Boolean(msg.group_id) || msg.message_type === 'group'
-  const sessionId = String(msg.group_id ?? msg.user_id ?? '')
+  const channelId = typeof msg.channel_id === 'string' ? msg.channel_id : ''
+  const sessionId = String(
+    msg.group_id
+      ?? msg.user_id
+      ?? (isGroup ? '' : channelId.replace(/^private:/, '')),
+  )
   if (!sessionId || sessionId === '0') return
   const sender = getObject(msg.sender)
-  const senderId = String(sender.user_id ?? msg.user_id ?? '')
+  const hasSenderAvatar = hasUsableAvatar(sender.avatar)
+  const senderId = String(
+    sender.user_id
+      ?? msg.user_id
+      ?? (isGroup ? '' : channelId.replace(/^private:/, '')),
+  )
   const raw = typeof msg.raw_message === 'string' ? msg.raw_message : ''
   const contactStore = useContactStore()
   const state = contactStore.botStates.get(selfId) ?? {
@@ -261,7 +450,7 @@ function recordBotMessage(platform: string, selfId: string, msg: Record<string, 
     baseList: [],
     onMsgList: [],
   }
-  const session = {
+  let session: Record<string, unknown> = {
     user_id: isGroup ? undefined : sessionId,
     group_id: isGroup ? sessionId : undefined,
     group_name: isGroup
@@ -281,10 +470,34 @@ function recordBotMessage(platform: string, selfId: string, msg: Record<string, 
     guild_id: typeof msg.guild_id === 'string' ? msg.guild_id : undefined,
   }
   const existing = state.onMsgList.find((item) => {
-    return String(item.user_id ?? item.group_id) === sessionId
+    return isGroup
+      ? String(item.group_id) === sessionId
+      : String(item.user_id) === sessionId
   })
   if (existing) {
+    const previousAvatar = existing.avatar
+    const previousGroupName = existing.group_name
+    const previousNickname = existing.nickname
+    const previousRemark = existing.remark
     Object.assign(existing, session)
+    if (!hasUsableAvatar(session.avatar) && hasUsableAvatar(previousAvatar)) {
+      existing.avatar = previousAvatar
+    }
+    if (
+      isGroup &&
+      !msg.group_name &&
+      previousGroupName &&
+      String(previousGroupName) !== String(sessionId)
+    ) {
+      existing.group_name = previousGroupName
+    }
+    if (!isGroup && !sender.nickname && previousNickname) {
+      existing.nickname = previousNickname
+    }
+    if (!isGroup && !existing.remark && previousRemark) {
+      existing.remark = previousRemark
+    }
+    session = existing
   } else {
     state.onMsgList.unshift(session)
   }
@@ -298,10 +511,32 @@ function recordBotMessage(platform: string, selfId: string, msg: Record<string, 
     messages.push(msg)
     chatStore.sessionMessageCache.set(cacheKey, messages)
   }
-  const knownWithAvatar = Boolean(existing?.avatar)
-    || Boolean(contactStore.baseOnMsgList.get(String(sessionId))?.avatar)
-  if (!knownWithAvatar) {
-    void resolveSessionIdentity(platform, selfId, isGroup, sessionId, session, msg)
+  const knownSessionAvatar = contactStore.baseOnMsgList.get(String(sessionId))
+  const knownWithAvatar = hasUsableAvatar(session.avatar)
+    || Boolean(
+      knownSessionAvatar &&
+      hasUsableAvatar(knownSessionAvatar.avatar) &&
+      (isGroup
+        ? knownSessionAvatar.group_id !== undefined
+        : knownSessionAvatar.user_id !== undefined),
+    )
+  if (isGroup) {
+    if (!knownWithAvatar) {
+      void resolveGroupIdentity(
+        platform,
+        selfId,
+        sessionId,
+        typeof msg.guild_id === 'string' ? msg.guild_id : '',
+        channelId,
+        session,
+        msg,
+      )
+    }
+    if (senderId && senderId !== '0' && !hasSenderAvatar) {
+      void fetchUserIdentity(platform, selfId, senderId, null, msg)
+    }
+  } else if (!knownWithAvatar && senderId && senderId !== '0') {
+    void fetchUserIdentity(platform, selfId, senderId, session, msg)
   }
 }
 
