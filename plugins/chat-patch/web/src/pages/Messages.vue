@@ -18,11 +18,7 @@
                     (showGroupAssist ? ' show' : '')">
                 <div>
                     <div class="base only">
-                        <font-awesome-icon v-if="activeBotId"
-                            :icon="['fas', 'angle-left']"
-                            style="cursor: pointer; margin-right: 6px"
-                            @click="backToRobots" />
-                        <span :title="activeBotId ? currentBotName : ''">{{ activeBotId ? currentBotName : $t('选择机器人') }}</span>
+                        <span>{{ $t('消息') }}</span>
                         <div style="flex: 1" />
                         <font-awesome-icon
                             :icon="['fas', 'clock-rotate-left']"
@@ -41,71 +37,74 @@
                         </div>
                     </div>
                 </div>
-                <div v-if="!activeBotId" id="message-list-body" class="robot-list-body">
-                    <div v-for="bot in satoriLogins" :key="bot.selfId"
-                        :class="['robot-item', { active: bot.selfId === activeBotId }]"
-                        @click="selectRobot(bot)">
-                        <img :src="bot.avatar || '/img/icons/icon.svg'" :alt="bot.name">
-                        <div>
-                            <span :title="bot.name">{{ bot.name }}</span>
-                            <small>{{ bot.platform }}</small>
+                <div id="message-list-body" class="robot-accordion-list">
+                    <div v-for="bot in satoriLogins" :key="'bot-' + bot.selfId"
+                        :class="['robot-accordion', { expanded: bot.selfId === activeBotId }]">
+                        <div class="robot-accordion-header" @click="toggleRobot(bot)">
+                            <img :src="bot.avatar || '/img/icons/icon.svg'" :alt="bot.name">
+                            <div>
+                                <span :title="bot.name">{{ bot.name }}</span>
+                                <small>{{ bot.platform }}</small>
+                            </div>
+                            <font-awesome-icon :icon="['fas', bot.selfId === activeBotId ? 'angle-up' : 'angle-down']" />
+                        </div>
+                        <div v-if="bot.selfId === activeBotId" class="robot-accordion-content">
+                            <TransitionGroup
+                                name="onmsg"
+                                tag="div"
+                                :class="uiStore.openSideBar ? ' open' : ''"
+                                style="overflow-x: hidden">
+                                <!-- 系统信息 -->
+                                <FriendBody v-if="!showGroupAssist &&
+                                                contactStore.systemNoticesList &&
+                                                Object.keys(contactStore.systemNoticesList).length > 0"
+                                    key="inMessage--10000"
+                                    :select="chat.show.id === -10000"
+                                    :menu="menu.select && menu.select.user_id === -10000"
+                                    :data="{
+                                        user_id: -10000,
+                                        always_top: true,
+                                        nickname: $t('系统通知'),
+                                        remark: $t('系统通知'),
+                                        raw_msg: contactStore.systemNoticesList[0].comment
+                                    }"
+                                    @click="systemNoticeClick"
+                                    @contextmenu.prevent="systemNoticeMenuShow($event)"
+                                    @touchstart="systemNoticeMenuStart($event)"
+                                    @touchmove="showMenuMove"
+                                    @touchend="showMenuEnd" />
+                                <!--- 群组消息 -->
+                                <FriendBody
+                                    v-if="contactStore.groupAssistList && contactStore.groupAssistList.length > 0"
+                                    key="inMessage--10001"
+                                    :select="chat.show.id === -10001"
+                                    :data="{
+                                        user_id: -10001,
+                                        always_top: true,
+                                        nickname: $t('群收纳盒'),
+                                        remark: $t('群收纳盒'),
+                                        time: contactStore.groupAssistList[0].time,
+                                        raw_msg: contactStore.groupAssistList[0].group_name + ': ' +
+                                            (contactStore.groupAssistList[0].raw_msg_base ?? '')
+                                    }"
+                                    @click="showGroupAssistCheck" />
+                                <!-- 其他消息 -->
+                                <FriendBody
+                                    v-for="item in contactStore.onMsgList"
+                                    :key="'inMessage-' + (item.user_id ? item.user_id : item.group_id)"
+                                    :select="chat.show.id === item.user_id || (chat.show.id === item.group_id && chat.group_name != '')"
+                                    :menu="menu.select && menu.select == item"
+                                    :data="item"
+                                    from="message"
+                                    @contextmenu.prevent="listMenuShow($event, item)"
+                                    @click="userClick(item)"
+                                    @touchstart="showMenuStart($event, item)"
+                                    @touchmove="showMenuMove"
+                                    @touchend="showMenuEnd" />
+                            </TransitionGroup>
                         </div>
                     </div>
                 </div>
-                <TransitionGroup v-else
-                    id="message-list-body"
-                    name="onmsg"
-                    tag="div"
-                    :class="uiStore.openSideBar ? ' open' : ''"
-                    style="overflow-x: hidden">
-                    <!-- 系统信息 -->
-                    <FriendBody v-if="!showGroupAssist &&
-                                    contactStore.systemNoticesList &&
-                                    Object.keys(contactStore.systemNoticesList).length > 0"
-                        key="inMessage--10000"
-                        :select="chat.show.id === -10000"
-                        :menu="menu.select && menu.select.user_id === -10000"
-                        :data="{
-                            user_id: -10000,
-                            always_top: true,
-                            nickname: $t('系统通知'),
-                            remark: $t('系统通知'),
-                            raw_msg: contactStore.systemNoticesList[0].comment
-                        }"
-                        @click="systemNoticeClick"
-                        @contextmenu.prevent="systemNoticeMenuShow($event)"
-                        @touchstart="systemNoticeMenuStart($event)"
-                        @touchmove="showMenuMove"
-                        @touchend="showMenuEnd" />
-                    <!--- 群组消息 -->
-                    <FriendBody
-                        v-if="contactStore.groupAssistList && contactStore.groupAssistList.length > 0"
-                        key="inMessage--10001"
-                        :select="chat.show.id === -10001"
-                        :data="{
-                            user_id: -10001,
-                            always_top: true,
-                            nickname: $t('群收纳盒'),
-                            remark: $t('群收纳盒'),
-                            time: contactStore.groupAssistList[0].time,
-                            raw_msg: contactStore.groupAssistList[0].group_name + ': ' +
-                                (contactStore.groupAssistList[0].raw_msg_base ?? '')
-                        }"
-                        @click="showGroupAssistCheck" />
-                    <!-- 其他消息 -->
-                    <FriendBody
-                        v-for="item in contactStore.onMsgList"
-                        :key="'inMessage-' + (item.user_id ? item.user_id : item.group_id)"
-                        :select="chat.show.id === item.user_id || (chat.show.id === item.group_id && chat.group_name != '')"
-                        :menu="menu.select && menu.select == item"
-                        :data="item"
-                        from="message"
-                        @contextmenu.prevent="listMenuShow($event, item)"
-                        @click="userClick(item)"
-                        @touchstart="showMenuStart($event, item)"
-                        @touchmove="showMenuMove"
-                        @touchend="showMenuEnd" />
-                </TransitionGroup>
             </div>
             <div id="group-assist-message-list"
                 :class="'friend-list group-assist-message-list' +
@@ -319,6 +318,14 @@
             chatStore.chatInfo.show.id = 0
             flushPendingBotEvents(bot.platform, bot.selfId)
             void loadContactsFromCache()
+        }
+    }
+
+    function toggleRobot(bot: { platform: string; selfId: string; name: string; avatar?: string; features?: string[] }) {
+        if (activeBotId.value === bot.selfId) {
+            backToRobots()
+        } else {
+            selectRobot(bot)
         }
     }
     const props = defineProps<{ chat: any }>()
@@ -756,6 +763,62 @@
     .robot-item small {
         font-size: 11px;
         opacity: 0.6;
+    }
+
+    .robot-accordion-list {
+        height: 100%;
+        overflow-y: auto;
+        overflow-x: hidden;
+    }
+    .robot-accordion {
+        border-bottom: 1px solid var(--color-card-2, rgba(0, 0, 0, 0.08));
+    }
+    .robot-accordion-header {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 12px;
+        cursor: pointer;
+    }
+    .robot-accordion-header:hover {
+        background: var(--color-hover-bg, rgba(0, 0, 0, 0.04));
+    }
+    .robot-accordion.expanded > .robot-accordion-header {
+        background: var(--color-active-bg, rgba(59, 130, 246, 0.08));
+    }
+    .robot-accordion-header img {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        object-fit: cover;
+        flex-shrink: 0;
+    }
+    .robot-accordion-header > div {
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+        flex: 1;
+        overflow: hidden;
+    }
+    .robot-accordion-header span {
+        display: block;
+        font-size: 13px;
+        font-weight: 600;
+        max-width: 100%;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .robot-accordion-header small {
+        font-size: 11px;
+        opacity: 0.6;
+    }
+    .robot-accordion-header > svg {
+        opacity: 0.7;
+        flex-shrink: 0;
+    }
+    .robot-accordion-content {
+        padding: 2px 0 6px;
     }
 
     .friend-list > div:first-child > div.base > span {

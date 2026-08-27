@@ -282,32 +282,35 @@ async function requestFriendList(active: { platform: string; selfId: string }): 
 
 async function cacheBotContacts(bot: { platform: string; selfId: string }) {
   try {
-    const groupData = await request('guild.list', {}, bot)
+    const groupPromise = request('guild.list', {}, bot).catch(() => null)
+    const friendPromise = requestFriendList(bot).catch(() => [])
+    const [groupData, friendUsers] = await Promise.all([groupPromise, friendPromise])
     const groupResponse = satoriResponseToOneBot('get_group_list', groupData)
     const groups = asArray(groupResponse.data) ?? []
-    if (groups.length > 0) {
-      await saveContactCache('get_group_list', groups, bot)
-    }
-
-    const friendUsers = await requestFriendList(bot)
     const friendResponse = satoriResponseToOneBot('get_friend_list', friendUsers)
     const friends = asArray(friendResponse.data) ?? []
-    if (friends.length > 0) {
-      await saveContactCache('get_friend_list', friends, bot)
-    }
 
-    if (isActiveBot(bot)) {
-      await loadContactType(bot, {
-        type: 'group',
-        action: 'get_group_list',
-        echo: 'getGroupList',
-      })
-      await loadContactType(bot, {
-        type: 'friend',
-        action: 'get_friend_list',
-        echo: 'getFriendList',
-      })
+    const cacheWrite = async () => {
+      if (groups.length > 0) {
+        await saveContactCache('get_group_list', groups, bot)
+      }
+      if (friends.length > 0) {
+        await saveContactCache('get_friend_list', friends, bot)
+      }
+      if (isActiveBot(bot)) {
+        await loadContactType(bot, {
+          type: 'group',
+          action: 'get_group_list',
+          echo: 'getGroupList',
+        })
+        await loadContactType(bot, {
+          type: 'friend',
+          action: 'get_friend_list',
+          echo: 'getFriendList',
+        })
+      }
     }
+    await cacheWrite()
 
     if (friends.length > 0) {
       // 后台逐个补充身份信息并写缓存，不污染当前界面。

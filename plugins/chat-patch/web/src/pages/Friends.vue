@@ -14,11 +14,7 @@
         <div id="friend-list" :class="'friend-list' + (uiStore.openSideBar ? ' open' : '')">
             <div>
                 <div class="base">
-                    <font-awesome-icon v-if="activeBotId"
-                        :icon="['fas', 'angle-left']"
-                        style="cursor: pointer; margin-right: 6px"
-                        @click="backToRobots" />
-                    <span :title="activeBotId ? currentBotName : ''">{{ activeBotId ? currentBotName : $t('选择机器人') }}</span>
+                    <span>{{ $t('列表') }}</span>
                     <div style="flex: 1" />
                     <font-awesome-icon v-if="activeBotId" :icon="['fas', 'rotate-right']" @click="reloadUser" />
                 </div>
@@ -50,93 +46,97 @@
                     <font-awesome-icon :icon="['fas', 'magnifying-glass']" />
                 </label>
             </div>
-            <div v-if="!activeBotId" class="robot-list-body">
-                <div v-for="bot in satoriLogins" :key="bot.selfId"
-                    :class="['robot-item', { active: bot.selfId === activeBotId }]"
-                    @click="selectRobot(bot)">
-                    <img :src="bot.avatar || '/img/icons/icon.svg'" :alt="bot.name">
-                    <div>
-                        <span :title="bot.name">{{ bot.name }}</span>
-                        <small>{{ bot.platform }}</small>
+            <div class="robot-accordion-list">
+                <div v-for="bot in satoriLogins" :key="'bot-' + bot.selfId"
+                    :class="['robot-accordion', { expanded: bot.selfId === activeBotId }]">
+                    <div class="robot-accordion-header" @click="toggleRobot(bot)">
+                        <img :src="bot.avatar || '/img/icons/icon.svg'" :alt="bot.name">
+                        <div>
+                            <span :title="bot.name">{{ bot.name }}</span>
+                            <small>{{ bot.platform }}</small>
+                        </div>
+                        <font-awesome-icon :icon="['fas', bot.selfId === activeBotId ? 'angle-up' : 'angle-down']" />
                     </div>
-                </div>
-            </div>
-            <div v-else :class="uiStore.openSideBar ? 'open' : ''">
-                <template v-if="contactStore.showList.length <= 0">
-                    <template v-if="settingsStore.classes.length > 0">
-                        <template v-for="info in settingsStore.classes"
-                            :key="'class-' + info.class_id">
-                            <div :class=" 'list exp-body' +
-                                (classStatus[info.class_id] == true ? ' open' : '')">
-                                <header :title="info.class_name"
-                                    :class="'exp-header' +
-                                        (uiStore.openSideBar ? ' open' : '')"
-                                    @click="classClick(info.class_id)">
-                                    <div />
-                                    <span>{{ info.class_name }}</span>
-                                    <a v-if="contactStore.friendLoading && info.class_id == 0">{{
-                                        contactStore.friendLoadedCount
-                                    }} / {{ contactStore.friendTotalCount }}</a>
-                                    <a v-else>{{
-                                        info.user_count ??
-                                            contactStore.userList.filter((get) => {
-                                                return get.class_id == info.class_id
-                                            }).length
-                                    }}</a>
-                                </header>
-                                <div :id="'class-' + info.class_id">
-                                    <FriendBody v-for="item in contactStore.userList.filter(
-                                                    (get) => {
-                                                        return ( get.class_id == info.class_id )
-                                                    },
-                                                )"
-                                        :key=" 'fb-' + (item.user_id ? item.user_id : item.group_id) "
+                    <div v-if="bot.selfId === activeBotId" class="robot-accordion-content">
+                        <div :class="uiStore.openSideBar ? 'open' : ''">
+                            <template v-if="contactStore.showList.length <= 0">
+                                <template v-if="settingsStore.classes.length > 0">
+                                    <template v-for="info in settingsStore.classes"
+                                        :key="'class-' + info.class_id">
+                                        <div :class=" 'list exp-body' +
+                                            (classStatus[info.class_id] == true ? ' open' : '')">
+                                            <header :title="info.class_name"
+                                                :class="'exp-header' +
+                                                    (uiStore.openSideBar ? ' open' : '')"
+                                                @click="classClick(info.class_id)">
+                                                <div />
+                                                <span>{{ info.class_name }}</span>
+                                                <a v-if="contactStore.friendLoading && info.class_id == 0">{{
+                                                    contactStore.friendLoadedCount
+                                                }} / {{ contactStore.friendTotalCount }}</a>
+                                                <a v-else>{{
+                                                    info.user_count ??
+                                                        contactStore.userList.filter((get) => {
+                                                            return get.class_id == info.class_id
+                                                        }).length
+                                                }}</a>
+                                            </header>
+                                            <div :id="'class-' + info.class_id">
+                                                <FriendBody v-for="item in contactStore.userList.filter(
+                                                                (get) => {
+                                                                    return ( get.class_id == info.class_id )
+                                                                },
+                                                            )"
+                                                    :key=" 'fb-' + (item.user_id ? item.user_id : item.group_id) "
+                                                    :data="item" from="friend"
+                                                    @click="userClick(item, $event)" />
+                                            </div>
+                                        </div>
+                                    </template>
+                                    <div :class="'list exp-body' + (classStatus['-1'] == true ? ' open' : '')">
+                                        <header :title="$t('群组')"
+                                            :class="'exp-header' +
+                                                (uiStore.openSideBar ? ' open' : '') "
+                                            @click="classClick('-1')">
+                                            <div />
+                                            <span>{{ $t('群组') }}</span>
+                                            <a>{{
+                                                contactStore.userList.filter((get) => {
+                                                    return get.class_id == undefined
+                                                }).length
+                                            }}</a>
+                                        </header>
+                                        <div>
+                                            <FriendBody v-for="item in contactStore.userList.filter(
+                                                            (get) => {
+                                                                return get.class_id == undefined
+                                                            },
+                                                        )"
+                                                :key="'fb-' + (item.user_id ? item.user_id : item.group_id)"
+                                                :data="item"
+                                                from="friend"
+                                                @click="userClick(item, $event)" />
+                                        </div>
+                                    </div>
+                                </template>
+                                <template v-else>
+                                    <FriendBody v-for="item in contactStore.userList"
+                                        :key="'fb-' + (item.user_id ? item.user_id : item.group_id)"
+                                        :data="item"
+                                        from="friend"
+                                        @click="userClick(item, $event)" />
+                                </template>
+                            </template>
+                            <!-- 搜索用的 -->
+                            <div v-else class="list">
+                                <div>
+                                    <FriendBody v-for="item in contactStore.showList"
+                                        :key="'fb-' + (item.user_id ? item.user_id : item.group_id)"
                                         :data="item" from="friend"
                                         @click="userClick(item, $event)" />
                                 </div>
                             </div>
-                        </template>
-                        <div :class="'list exp-body' + (classStatus['-1'] == true ? ' open' : '')">
-                            <header :title="$t('群组')"
-                                :class="'exp-header' +
-                                    (uiStore.openSideBar ? ' open' : '') "
-                                @click="classClick('-1')">
-                                <div />
-                                <span>{{ $t('群组') }}</span>
-                                <a>{{
-                                    contactStore.userList.filter((get) => {
-                                        return get.class_id == undefined
-                                    }).length
-                                }}</a>
-                            </header>
-                            <div>
-                                <FriendBody v-for="item in contactStore.userList.filter(
-                                                (get) => {
-                                                    return get.class_id == undefined
-                                                },
-                                            )"
-                                    :key="'fb-' + (item.user_id ? item.user_id : item.group_id)"
-                                    :data="item"
-                                    from="friend"
-                                    @click="userClick(item, $event)" />
-                            </div>
                         </div>
-                    </template>
-                    <template v-else>
-                        <FriendBody v-for="item in contactStore.userList"
-                            :key="'fb-' + (item.user_id ? item.user_id : item.group_id)"
-                            :data="item"
-                            from="friend"
-                            @click="userClick(item, $event)" />
-                    </template>
-                </template>
-                <!-- 搜索用的 -->
-                <div v-else class="list">
-                    <div>
-                        <FriendBody v-for="item in contactStore.showList"
-                            :key="'fb-' + (item.user_id ? item.user_id : item.group_id)"
-                            :data="item" from="friend"
-                            @click="userClick(item, $event)" />
                     </div>
                 </div>
             </div>
@@ -266,6 +266,14 @@
             chatStore.chatInfo.show.id = 0
             flushPendingBotEvents(bot.platform, bot.selfId)
             void loadContactsFromCache()
+        }
+    }
+
+    function toggleRobot(bot: { platform: string; selfId: string; name: string; avatar?: string; features?: string[] }) {
+        if (activeBotId.value === bot.selfId) {
+            backToRobots()
+        } else {
+            selectRobot(bot)
         }
     }
 
@@ -442,6 +450,62 @@
     .robot-item small {
         font-size: 11px;
         opacity: 0.6;
+    }
+
+    .robot-accordion-list {
+        height: 100%;
+        overflow-y: auto;
+        overflow-x: hidden;
+    }
+    .robot-accordion {
+        border-bottom: 1px solid var(--color-card-2, rgba(0, 0, 0, 0.08));
+    }
+    .robot-accordion-header {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 12px;
+        cursor: pointer;
+    }
+    .robot-accordion-header:hover {
+        background: var(--color-hover-bg, rgba(0, 0, 0, 0.04));
+    }
+    .robot-accordion.expanded > .robot-accordion-header {
+        background: var(--color-active-bg, rgba(59, 130, 246, 0.08));
+    }
+    .robot-accordion-header img {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        object-fit: cover;
+        flex-shrink: 0;
+    }
+    .robot-accordion-header > div {
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+        flex: 1;
+        overflow: hidden;
+    }
+    .robot-accordion-header span {
+        display: block;
+        font-size: 13px;
+        font-weight: 600;
+        max-width: 100%;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .robot-accordion-header small {
+        font-size: 11px;
+        opacity: 0.6;
+    }
+    .robot-accordion-header > svg {
+        opacity: 0.7;
+        flex-shrink: 0;
+    }
+    .robot-accordion-content {
+        padding: 2px 0 6px;
     }
 
     .friend-list > div:first-child > div.base > span {
