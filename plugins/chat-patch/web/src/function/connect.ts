@@ -170,6 +170,35 @@ async function resolveSessionIdentity(
     }
   }
 
+  if (!isGroup) {
+    // 私聊：发送者不在消息列表时，直接按 ID 获取一次用户信息。
+    const data = await request('user.get', { user_id: sessionId }, bot).catch(() => null)
+    const root = getObject(data)
+    const entity = getObject(root.user) || root
+    const name = getString(entity.name)
+      || getString(entity.nick)
+      || getString(root.name)
+      || getString(root.nick)
+      || getString(root.username)
+    const avatar = getString(entity.avatar) || getString(root.avatar)
+    applyIdentity(session, name, avatar)
+    syncGlobal(name, avatar)
+    if (name || avatar) {
+      await appendContactCache(
+        'friend',
+        {
+          id: sessionId,
+          name: name || sessionId,
+          avatar: avatar || undefined,
+          raw: entity,
+        },
+        bot,
+      ).catch(() => {})
+      contactLookupCache.set(key, true)
+    }
+    return
+  }
+
   const cacheResult = await requestContactCache({
     platform,
     selfId,
@@ -269,7 +298,11 @@ function recordBotMessage(platform: string, selfId: string, msg: Record<string, 
     messages.push(msg)
     chatStore.sessionMessageCache.set(cacheKey, messages)
   }
-  void resolveSessionIdentity(platform, selfId, isGroup, sessionId, session, msg)
+  const knownWithAvatar = Boolean(existing?.avatar)
+    || Boolean(contactStore.baseOnMsgList.get(String(sessionId))?.avatar)
+  if (!knownWithAvatar) {
+    void resolveSessionIdentity(platform, selfId, isGroup, sessionId, session, msg)
+  }
 }
 
 function onSatoriEvent(event: SatoriEvent) {

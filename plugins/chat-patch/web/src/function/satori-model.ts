@@ -364,7 +364,10 @@ export function satoriEventToOneBot(event: SatoriObject): Record<string, unknown
   }
 
   if (type === 'message' || type === 'message-created' || type === 'send') {
-    const isGroup = Boolean(guild.id) || Number(channel.type) === 0
+    const hasChannelType = channel.type !== undefined && channel.type !== null
+    const channelType = getNumber(channel.type)
+    const isGroup = Boolean(guild.id)
+      || (hasChannelType && channelType === 0 && Boolean(guild.id || channel.parentId))
     const userId = getString(user.id)
     const groupId = isGroup
       ? getString(guild.id) || getString(channel.id)
