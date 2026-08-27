@@ -1,62 +1,73 @@
-import { h } from 'koishi'
+import {} from '@koishijs/console'
+import type { Awaitable } from 'koishi'
 
-export interface BotInfo {
-  selfId: string
-  platform: string
-  username: string
-  avatar?: string
-  status: 'online' | 'offline'
+export interface SatoriBootstrap {
+  endpoint: string
+  token: string
+  basePath: string
 }
 
-export interface ChannelInfo {
+export interface MessageRecord {
+  id?: string
+  type: string
+  platform: string
+  selfId: string
+  channelId?: string
+  guildId?: string
+  userId?: string
+  timestamp: number
+  content?: string
+  elements?: unknown[]
+  raw?: unknown
+}
+
+export interface HistoryQuery {
+  platform: string
+  selfId: string
+  channelId: string
+  limit?: number
+}
+
+export interface HistoryResult {
+  messages: MessageRecord[]
+}
+
+export interface PinnedState {
+  bots: string[]
+  channels: string[]
+}
+
+export interface PluginConfigPayload {
+  basePath: string
+  maxMessagesPerChannel: number
+  historyPageSize: number
+  maxMediaFiles: number
+  blockedPlatforms: Array<{ platformName: string; exactMatch: boolean }>
+  loggerinfo: boolean
+}
+
+export interface ContactCacheItem {
   id: string
   name: string
-  type: number | string
-  channelId?: string
-  guildName?: string
-  isDirect?: boolean
-}
-
-export interface QuoteInfo {
-  messageId: string
-  id: string
-  content: string
-  elements?: h[]
-  user: {
-    id: string
-    name: string
-    userId: string
-    avatar?: string
-    username: string
-  }
-  timestamp: number
-}
-
-export interface MessageInfo {
-  id: string
-  content: string
-  userId: string
-  username: string
   avatar?: string
-  timestamp: number
-  channelId: string
-  selfId: string
-  elements?: h[]
-  type: 'user' | 'bot'
-  guildId?: string
-  guildName?: string
-  platform: string
-  quote?: QuoteInfo
-  isDirect?: boolean
-  sending?: boolean
-  realId?: string
 }
 
-export interface ChatData {
-  bots: Record<string, BotInfo>
-  channels: Record<string, Record<string, ChannelInfo>>
-  messages: Record<string, MessageInfo[]>
-  pinnedBots: string[]
-  pinnedChannels: string[]
-  lastSaveTime?: number
+export interface ContactCacheQuery {
+  platform: string
+  selfId: string
+  type: string
+  contacts?: ContactCacheItem[]
+}
+
+export interface ContactCacheResult {
+  contacts?: ContactCacheItem[]
+}
+
+declare module '@koishijs/console' {
+  interface Events {
+    'chat-patch/bootstrap'(): SatoriBootstrap
+    'chat-patch/history'(query: HistoryQuery): Awaitable<HistoryResult>
+    'chat-patch/config'(): PluginConfigPayload
+    'chat-patch/contact-cache'(query: ContactCacheQuery): Awaitable<ContactCacheResult>
+  }
 }

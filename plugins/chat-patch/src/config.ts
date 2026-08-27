@@ -1,47 +1,35 @@
 import { Schema } from 'koishi'
 
+export interface BlockedPlatform {
+  platformName: string
+  exactMatch: boolean
+}
+
 export interface Config {
   loggerinfo: boolean
-  clearIndexedDBOnStart: boolean
+  basePath: string
   maxMessagesPerChannel: number
-  messageChunkSize: number
-  channelCacheLimit: number
-  maxPersistImages: number
-  blockedPlatforms: Array<{
-    platformName: string
-    exactMatch: boolean
-  }>
+  historyPageSize: number
+  maxMediaFiles: number
+  blockedPlatforms: BlockedPlatform[]
 }
 
 export const Config: Schema<Config> = Schema.intersect([
   Schema.object({
-    maxMessagesPerChannel: Schema.number().default(500).description('每个群组最大保存消息数量').min(50).max(1500).step(1),
-    messageChunkSize: Schema.number().default(100).description('单个消息分块文件最大消息数量').min(20).max(500).step(1),
-    channelCacheLimit: Schema.number().default(50).description('内存中最多缓存的频道消息数量').min(1).max(200).step(1),
-    maxPersistImages: Schema.number().default(100).description('持久化存储的图片缓存数量').min(10).max(500).step(1),
-    blockedPlatforms: Schema.array(Schema.object({
-      platformName: Schema.string().description('平台名称或关键词'),
-      exactMatch: Schema.boolean().default(false).description('完全匹配？如果关闭，包含关键词即屏蔽').default(true)
-    })).role('table').description('屏蔽的平台列表').default(
-      [
-        {
-          "platformName": "qq",
-          "exactMatch": true
-        },
-        {
-          "platformName": "qqguild",
-          "exactMatch": true
-        },
-        {
-          "platformName": "sandbox",
-          "exactMatch": false
-        }
-      ]
-    ),
+    basePath: Schema.string().default('/chat-patch').description('Web 聊天室挂载路径'),
+    maxMessagesPerChannel: Schema.number().default(500).min(50).max(5000).step(1).description('每个频道最多保存的历史消息数'),
+    historyPageSize: Schema.number().default(50).min(10).max(500).step(1).description('历史消息分页大小'),
+    maxMediaFiles: Schema.number().default(200).min(20).max(2000).step(1).description('媒体缓存文件上限'),
   }).description('基础设置'),
-
   Schema.object({
-    clearIndexedDBOnStart: Schema.boolean().default(true).description('启动时强制清空IndexedDB缓存（适用于紧急情况，防止浏览器卡死）'),
-    loggerinfo: Schema.boolean().default(false).description('日志调试模式').experimental(),
-  }).description('开发者选项'),
+    blockedPlatforms: Schema.array(Schema.object({
+      platformName: Schema.string(),
+      exactMatch: Schema.boolean().default(true),
+    })).role('table').description('不记录历史的平台').default([
+      { platformName: 'qq', exactMatch: true },
+      { platformName: 'qqguild', exactMatch: true },
+      { platformName: 'sandbox', exactMatch: false },
+    ]),
+    loggerinfo: Schema.boolean().default(false).description('调试日志开关').hidden().experimental(),
+  }).description('高级设置'),
 ])

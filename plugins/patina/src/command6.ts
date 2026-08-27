@@ -5,7 +5,7 @@ import nodeurl from 'node:url'
 import { createTempDirectory, prepareStaticImage } from './media'
 import { Command6Config, ExtractImageUrl, LoggerInfo } from './types'
 import { createPage } from './browser'
-
+import {  } from 'koishi-plugin-puppeteer'
 export const command6Config = Schema.union([
   Schema.object({
     enablecommand6: Schema.const(false),
