@@ -2153,11 +2153,9 @@ function revokeMsg(_: string, msg: any) {
 
     // 寻找消息
     let msgGet = null as { [key: string]: any } | null
-    let msgIndex!: number
     for (const [index, msg] of chatStore.messageList.entries()) {
         if (msg.message_id === msgId) {
             msgGet = msg
-            msgIndex = index
         }
     }
 
@@ -2166,15 +2164,10 @@ function revokeMsg(_: string, msg: any) {
         return
     }
 
-    // 移除消息
-    chatStore.messageList.splice(msgIndex, 1)
-
-    if (msgGet.sender.user_id === authStore.loginInfo.uin)
-        msg.originMsg = msgGet
-
-    // 显示撤回提示
-    const list = chatStore.messageList
-    list.splice(msgIndex + 1, 0, msg)
+    // 不删除消息，保留原文并标记为已撤回。
+    msgGet.revoke = true
+    msgGet.revoked = true
+    msgGet.revokeTime = Date.now() / 1000
 }
 
 let qed_try_times = 0

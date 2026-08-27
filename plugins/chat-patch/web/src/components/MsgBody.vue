@@ -48,6 +48,9 @@
                 <span v-if="isDev && data._from_local_db" class="dev-local-tag">
                     {{ $t('本地') }}
                 </span>
+                <span v-if="data.revoke" class="revoked-tag">
+                    {{ $t('已撤回') }}
+                </span>
                 <a v-if="data.sender.card || data.sender.nickname">
                     {{ data.sender.card ? data.sender.card : data.sender.nickname }}
                 </a>
@@ -1217,6 +1220,21 @@ onMounted(() => {
 //#endregion
 </script>
 <style>
+    .message.revoke {
+        display: flex;
+        opacity: 1;
+        border: 2px solid var(--color-red);
+        border-radius: 7px;
+        background: rgba(255, 80, 80, 0.08);
+    }
+    .message.revoke .message-body > div {
+        background: transparent;
+    }
+    .revoked-tag {
+        color: var(--color-red);
+        font-size: 0.75rem;
+        margin-left: 6px;
+    }
     .dev-local-tag {
         display: inline-block;
         padding: 1px 7px !important;

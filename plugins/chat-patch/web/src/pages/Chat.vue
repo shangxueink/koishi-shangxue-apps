@@ -341,19 +341,15 @@
                         <label for="choice-file" class="sr-only">{{ $t('选择文件') }}</label>
                     </div>
                     <div
-                        :title="$t('表情')"
-                        @click="(details[1].open = !details[1].open),
-                                (tags.showMoreDetail = false)">
-                        <font-awesome-icon :icon="['fas', 'face-laugh']" />
+                        :title="voiceRecording ? $t('停止录音') : $t('发送语音')"
+                        :class="{ active: voiceRecording }"
+                        @click="toggleVoiceRecord">
+                        <font-awesome-icon :icon="['fas', voiceRecording ? 'stop' : 'microphone']" />
                     </div>
                     <div v-if="chat.show.type === 'user'"
                         :title="$t('戳一戳')"
                         @click="sendPoke(chat.show.id)">
                         <font-awesome-icon :icon="['fas', 'fa-hand-point-up']" />
-                    </div>
-                    <div v-if="chat.show.type === 'group'"
-                        :title="$t('精华消息')" @click="showJin">
-                        <font-awesome-icon :icon="['fas', 'star']" />
                     </div>
                     <div class="space" />
                     <div :title="$t('搜索消息')" @click="openSearch">
@@ -369,7 +365,6 @@
                     <font-awesome-icon v-else-if="settingsStore.sysConfig.quick_send == 'default'" :icon="['fas', 'plus']" />
                     <font-awesome-icon v-else-if="settingsStore.sysConfig.quick_send == 'img'" :icon="['fas', 'image']" />
                     <font-awesome-icon v-else-if="settingsStore.sysConfig.quick_send == 'file'" :icon="['fas', 'folder']" />
-                    <font-awesome-icon v-else-if="settingsStore.sysConfig.quick_send == 'face'" :icon="['fas', 'face-laugh']" />
                 </div>
                 <div>
                     <form @submit="mainSubmit">
@@ -714,6 +709,9 @@ const NewMsgNum = ref(0)
 const msg = ref('')
 const oldMsg = ref('')
 const imgCache = ref(new Map<number, string>())
+const voiceRecording = ref(false)
+const voiceRecorder = ref<MediaRecorder | null>(null)
+let voiceChunks: Blob[] = []
 const sendCache = ref<MsgItemElem[]>([])
 const selectedMsg = ref<{ [key: string]: any } | null>(null)
 const selectCache = ref('')
@@ -2312,6 +2310,65 @@ async function fileToDataURL(file: File): Promise<string> {
         }
         reader.readAsDataURL(file)
     })
+}
+
+function blobToBase64(blob: Blob): Promise<string> {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onload = function(event) {
+            const dataUrl = String(event.target?.result ?? '')
+            const index = dataUrl.indexOf('base64,')
+            resolve(index >= 0 ? dataUrl.slice(index + 7) : dataUrl)
+        }
+        reader.onerror = function(error) {
+            reject(error)
+        }
+        reader.readAsDataURL(blob)
+    })
+}
+
+async function toggleVoiceRecord() {
+    if (voiceRecording.value) {
+        voiceRecorder.value?.stop()
+        return
+    }
+    if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === 'undefined') {
+        new PopInfo().add(PopType.ERR, $t('当前浏览器不支持录音'))
+        return
+    }
+    try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+        voiceChunks = []
+        const recorder = new MediaRecorder(stream)
+        voiceRecorder.value = recorder
+        voiceRecording.value = true
+        recorder.ondataavailable = (event) => {
+            if (event.data.size > 0) voiceChunks.push(event.data)
+        }
+        recorder.onstop = async () => {
+            voiceRecording.value = false
+            voiceRecorder.value = null
+            stream.getTracks().forEach((track) => track.stop())
+            const blob = new Blob(voiceChunks, {
+                type: recorder.mimeType || 'audio/webm',
+            })
+            const base64 = await blobToBase64(blob)
+            addSpecialMsg({
+                addText: true,
+                msgObj: {
+                    type: 'record',
+                    file: 'base64://' + base64,
+                    name: $t('语音'),
+                },
+            })
+            voiceChunks = []
+        }
+        recorder.start()
+    } catch (error) {
+        voiceRecording.value = false
+        voiceRecorder.value = null
+        new Logger().error(error as Error, $t('录音失败'))
+    }
 }
 
 function toMainInput() {

@@ -524,6 +524,10 @@ export function sendMsgRaw(
                     item.url = item.file
                 }
             }
+            if (item.type == 'record' && item.file.startsWith('base64://')) {
+                const b64Str = (item.file as string).substring(9)
+                item.url = 'data:audio/webm;base64,' + b64Str
+            }
         })
         const showMsg = {
             revoke: true,
