@@ -86,7 +86,11 @@ export class Recorder {
     const userId = user?.id || ''
     const guildId = guild?.id || ''
     const channelId = channel?.id || ''
-    const groupId = guildId || normalizeGroupId(channelId) || ''
+    const channelType = String(channel?.type ?? '')
+    const isPrivateChannel = /^private:/i.test(channelId)
+      || channelType === '1'
+      || ['direct', 'private'].includes(channelType.toLowerCase())
+    const groupId = guildId || (isPrivateChannel ? '' : normalizeGroupId(channelId)) || ''
     const userName = user?.name || user?.nick || member?.nick || member?.name || ''
     const userAvatar = user?.avatar || member?.avatar || ''
     const groupName = guild?.name || channel?.name || ''

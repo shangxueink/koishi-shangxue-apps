@@ -48,6 +48,19 @@ function legacyGroupMemberKey(platform: string, selfId: string, groupId: string)
   return `gm:${platform}:${selfId}:${groupId}`
 }
 
+function isPrivateChannelId(value: unknown): boolean {
+  return typeof value === 'string' && /^(?:private|direct):/i.test(value)
+}
+
+function isUsableGroupContact(item: ContactCacheItem): boolean {
+  if (isPrivateChannelId(item.channelId)) return false
+  if (typeof item.raw === 'object' && item.raw !== null) {
+    const raw = item.raw as Record<string, unknown>
+    if (isPrivateChannelId(raw.channel_id) || isPrivateChannelId(raw.channelId)) return false
+  }
+  return true
+}
+
 export class ChatDatabase {
   private db: Level<string, string>
   private opened = false
@@ -258,7 +271,10 @@ export class ChatDatabase {
       try {
         const value = await this.db.get(key)
         const parsed = JSON.parse(value) as unknown
-        if (Array.isArray(parsed)) return parsed as ContactCacheItem[]
+        if (Array.isArray(parsed)) {
+          const contacts = parsed as ContactCacheItem[]
+          return type === 'group' ? contacts.filter(isUsableGroupContact) : contacts
+        }
       } catch {
         // 旧 key 或首次使用可能不存在
       }
@@ -277,10 +293,12 @@ export class ChatDatabase {
   }
 
   async setContacts(platform: string, selfId: string, type: string, contacts: ContactCacheItem[]) {
-    await this.db.put(contactKey(platform, selfId, type), JSON.stringify(contacts))
+    const next = type === 'group' ? contacts.filter(isUsableGroupContact) : contacts
+    await this.db.put(contactKey(platform, selfId, type), JSON.stringify(next))
   }
 
   async appendContact(platform: string, selfId: string, type: string, contact: ContactCacheItem) {
+    if (type === 'group' && !isUsableGroupContact(contact)) return
     const contacts = await this.getContacts(platform, selfId, type)
     const next = contacts.filter((item) => item.id !== contact.id)
     next.push(contact)
@@ -291,7 +309,9 @@ export class ChatDatabase {
     try {
       const value = await this.db.get(legacyContactKey(platform, selfId, type))
       const parsed = JSON.parse(value) as unknown
-      return Array.isArray(parsed) ? parsed as ContactCacheItem[] : []
+      if (!Array.isArray(parsed)) return []
+      const contacts = parsed as ContactCacheItem[]
+      return type === 'group' ? contacts.filter(isUsableGroupContact) : contacts
     } catch {
       return []
     }
@@ -400,6 +420,9 @@ export class ChatDatabase {
           selfId,
           type,
           contacts: Array.isArray(parsed) ? parsed as ContactCacheItem[] : [],
+        }
+        if (entry.type === 'group') {
+          entry.contacts = entry.contacts.filter(isUsableGroupContact)
         }
         const triple = JSON.stringify([platform, selfId, type])
         const existing = byTriple.get(triple)
