@@ -2098,6 +2098,7 @@ export async function getMessageList(list: any[] | undefined) {
  * @param msg 要处理的消息
  */
 async function msgPreprocess(msg: any): Promise<any> {
+    if (!Array.isArray(msg.message)) return msg
     //#region == json 合并转发 ============================
     if (msg.message.at(0)?.type === 'json') {
         try {
@@ -2188,7 +2189,7 @@ function revokeMsg(_: string, msg: any) {
 }
 
 let qed_try_times = 0
-function newMsg(_: string, data: any) {
+async function newMsg(_: string, data: any) {
     const { $t } = app.config.globalProperties
     const authStore = useAuthStore()
     const uiStore = useUIStore()
@@ -2199,6 +2200,7 @@ function newMsg(_: string, data: any) {
     if (data.detail_type == 'guild') {
         return
     }
+    data = await msgPreprocess(data)
 
     // 消息基础信息：优先使用 Satori 转换层生成的 infoList，避免 OneBot pathMap 误解析。
     const rawInfo = getDataObject(data.infoList ?? data)

@@ -186,6 +186,9 @@ function pushParsedTag(
         result.push(...children)
       }
       break
+    case 'forward':
+      result.push({ type: 'forward', id: attrs.id || '', content: children })
+      break
     case 'text':
       result.push({ type: 'text', text: attrs.content || '' })
       break
@@ -223,7 +226,7 @@ function normalizeAtText(name: string, id: string): string {
 }
 
 function containsElementMarkup(source: string): boolean {
-  return /<(img|image|audio|video|file|mface|face|quote|at|json|xml|markdown|keyboard)(?:\s|\/|>)/i.test(source)
+  return /<(img|image|audio|video|file|mface|face|quote|at|forward|json|xml|markdown|keyboard)(?:\s|\/|>)/i.test(source)
 }
 
 function splitMarkupTextSegments(
@@ -351,6 +354,12 @@ function toSegments(elements: unknown): Array<Record<string, unknown>> {
     } else if (type === 'file') {
       const src = normalizeResourceSrc(getString(attrs.src) || getString(attrs.url) || getString(attrs.file), 'file')
       result.push({ type: 'file', file: src, name: getString(attrs.name), url: src })
+    } else if (type === 'forward') {
+      result.push({
+        type: 'forward',
+        id: getString(attrs.id),
+        content: toSegments(children),
+      })
     } else if (type === 'quote') {
       result.push({ type: 'reply', id: getString(attrs.id) })
     } else if (type === 'json') {
