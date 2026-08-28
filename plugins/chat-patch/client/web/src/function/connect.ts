@@ -1213,6 +1213,7 @@ export async function loadGroupMembersFromCache(groupId: string) {
   const active = getActiveBot()
   if (!active || !groupId || groupId === '0') return
   try {
+    await loadAllBotsCache()
     const result = await requestContactCache({
       platform: active.platform,
       selfId: active.selfId,
@@ -1226,11 +1227,14 @@ export async function loadGroupMembersFromCache(groupId: string) {
       const cached = getObject(contact)
       const raw = getObject(cached.raw) || cached
       const id = getString(raw.user_id) || getString(raw.id)
+      const cachedUserAvatar = id
+        ? getCachedUserAvatar(active.platform, active.selfId, id)
+        : ''
       const avatar = hasUsableAvatar(raw.avatar)
         ? getString(raw.avatar)
         : hasUsableAvatar(cached.avatar)
           ? getString(cached.avatar)
-          : ''
+          : cachedUserAvatar
       return {
         user_id: id,
         nickname: getString(raw.nickname) || getString(raw.name) || id,
@@ -1239,6 +1243,16 @@ export async function loadGroupMembersFromCache(groupId: string) {
         avatar,
       }
     })
+    await Promise.all(mapped.filter((member) => !hasUsableAvatar(member.avatar)).map(async (member) => {
+      const info = await requestIdentityCache({
+        platform: active.platform,
+        selfId: active.selfId,
+        type: 'user',
+        id: String(member.user_id),
+      }).catch(() => null)
+      const avatar = hasUsableAvatar(getObject(info).avatar) ? getString(getObject(info).avatar) : ''
+      if (avatar) member.avatar = avatar
+    }))
     dispatch({ retcode: 0, data: mapped }, 'getGroupMemberList')
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error)

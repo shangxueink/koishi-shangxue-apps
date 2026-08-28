@@ -100,8 +100,8 @@ export function registerWeb(
       koa.body = { error: 'missing history params' }
       return
     }
-    const parsedLimit = Number(koa.query.limit ?? config.historyPageSize)
-    const limit = Number.isFinite(parsedLimit) && parsedLimit > 0 ? parsedLimit : config.historyPageSize
+    const parsedLimit = Number(koa.query.limit ?? config.maxMessagesPerChannel)
+    const limit = Number.isFinite(parsedLimit) && parsedLimit > 0 ? parsedLimit : config.maxMessagesPerChannel
     const beforeTime = Number(koa.query.beforeTime ?? 0)
     const messages = Number.isFinite(beforeTime) && beforeTime > 0
       ? await database.listMessagesBefore(platform, selfId, channelId, beforeTime, limit)

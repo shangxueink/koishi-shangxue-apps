@@ -139,13 +139,41 @@ export async function loadHistory(info: BaseChatInfoElem) {
             platform: String(authStore.loginInfo.platform ?? ''),
             selfId: String(authStore.loginInfo.uin ?? ''),
             channelId,
-            limit: 20,
+            limit: 500,
         })
         if (cachedMessages.length > 0) {
-            chatStore.messageList = cachedMessages
-            nextTick(() => {
+            const mergedMap = new Map<string, any>()
+            for (const msg of chatStore.messageList) {
+                const id = String(msg?.message_id ?? msg?.fake_message_id ?? '')
+                if (id && !mergedMap.has(id)) mergedMap.set(id, msg)
+            }
+            for (const msg of cachedMessages) {
+                const id = String(msg?.message_id ?? msg?.fake_message_id ?? '')
+                if (id && !mergedMap.has(id)) mergedMap.set(id, msg)
+            }
+            const merged = [...mergedMap.values()]
+            merged.sort((a, b) => {
+                const timeA = Number(a?.local_time ?? a?.timestamp_ms ?? a?.time_ms ?? 0)
+                    || Number(a?.time ? Number(a.time) * 1000 : 0)
+                const timeB = Number(b?.local_time ?? b?.timestamp_ms ?? b?.time_ms ?? 0)
+                    || Number(b?.time ? Number(b.time) * 1000 : 0)
+                if (timeA && timeB && timeA !== timeB) return timeA - timeB
+                const seqA = Number(a?.message_seq ?? a?.seq_id ?? a?.seq ?? 0)
+                const seqB = Number(b?.message_seq ?? b?.seq_id ?? b?.seq ?? 0)
+                if (Number.isFinite(seqA) && Number.isFinite(seqB) && seqA !== seqB) {
+                    return seqA - seqB
+                }
+                return 0
+            })
+            chatStore.messageList = merged.slice(-500)
+            const scrollToBottom = () => {
                 const pan = document.getElementById('msgPan')
                 if (pan) pan.scrollTop = pan.scrollHeight
+            }
+            nextTick(() => {
+                scrollToBottom()
+                setTimeout(scrollToBottom, 100)
+                setTimeout(scrollToBottom, 300)
             })
         }
     } catch (error) {

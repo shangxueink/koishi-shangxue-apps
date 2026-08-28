@@ -846,6 +846,7 @@ onMounted(() => {
     if (session) history.add(session)
 
     updateList(list.length, 0)
+    setTimeout(scrollBottom, 200)
     watch(() => list.map((item) => item.message_id + '_' + item.fake_msg),
         (newIds, oldIds = []) => {
             updateList(newIds.length, oldIds.length)
