@@ -2341,7 +2341,7 @@ function openChatInfoPan() {
     if (tags.value.openChatInfo) {
         if (
             chat.show.type === 'group' &&
-            chat.info.group_info.gc !== chat.show.id
+            chat.info.group_info?.gc !== chat.show.id
         ) {
             const url = `https://qinfo.clt.qq.com/cgi-bin/qun_info/get_group_info_all?gc=${chat.show.id}&bkn=${authStore.loginInfo.bkn}`
             Connector.send(
@@ -2351,7 +2351,7 @@ function openChatInfoPan() {
             )
         } else if (
             chat.show.type === 'user' &&
-            chat.info.user_info.uin !== chat.show.id
+            chat.info.user_info?.uin !== chat.show.id
         ) {
             const userInfo = authStore.jsonMap?.friend_info?.name
             if(userInfo != undefined) {
@@ -2362,11 +2362,11 @@ function openChatInfoPan() {
                 )
             }
         }
-        const noticeName = authStore.jsonMap.group_notices.name
+        const noticeName = authStore.jsonMap?.group_notices?.name
         if (
             chat.show.type === 'group' &&
             (chat.info.group_notices === undefined ||
-                Object.keys(chat.info.group_notices).length ===
+                Object.keys(chat.info.group_notices ?? {}).length ===
                     0)
         ) {
             if (noticeName) {
@@ -2377,7 +2377,7 @@ function openChatInfoPan() {
                 )
             }
         }
-        if (chat.show.type === 'group' && Object.keys(chat.info.group_files).length === 0) {
+        if (chat.show.type === 'group' && Object.keys(chat.info.group_files ?? {}).length === 0) {
             const name = authStore.jsonMap.group_files?.name
             if(name) {
                 Connector.send(name, {
@@ -3099,7 +3099,7 @@ function showJin() {
     details.value[2].open = !details.value[2].open
     if (chatStore.chatInfo.info.jin_info.list.length == 0) {
         const name =
-            authStore.jsonMap.group_essence.name ??
+            authStore.jsonMap?.group_essence?.name ??
             'get_essence_msg_list'
         Connector.send(
             name,
@@ -3208,7 +3208,7 @@ function closeSearch() {
 
 function sendPoke(userId: number) {
     if (authStore.jsonMap.poke) {
-        let name = authStore.jsonMap.poke.name
+        let name = authStore.jsonMap.poke?.name
         if (
             chat.show.type == 'user' &&
             authStore.jsonMap.poke.private_name
@@ -3268,7 +3268,7 @@ function jinScroll(event: Event) {
         if (chat.info.jin_info.is_end == false) {
             tags.value.isJinLoading = true
             const name =
-                authStore.jsonMap.group_essence.name ??
+                authStore.jsonMap?.group_essence?.name ??
                 'get_essence_msg_list'
             Connector.send(
                 name,
