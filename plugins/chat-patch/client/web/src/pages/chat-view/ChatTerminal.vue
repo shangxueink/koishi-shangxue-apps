@@ -419,9 +419,11 @@ import packageInfo from '../../../package.json'
                 tags.value.cmdTags.reply = true
             }
         }
-        setTimeout(() => {
+        // 发送后等 DOM 更新再滚动，避免固定延迟
+        nextTick(() => {
             scrollBottom()
-        }, 500)
+            requestAnimationFrame(() => scrollBottom())
+        })
     }
 
     function copy(str: string) {

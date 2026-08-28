@@ -1158,11 +1158,12 @@ function resizeMainInput(target?: HTMLTextAreaElement | HTMLInputElement | null)
 }
 function jumpSearchMsg() {
     closeSearch()
-    setTimeout(() => {
+    // 搜索面板切换后再定位目标消息
+    nextTick(() => {
         if (!selectedMsg.value) return
         scrollToMsg('chat-' + selectedMsg.value?.message_id, true)
         closeMsgMenu()
-    }, 100)
+    })
 }
 
 function chatScroll(event: Event, pass: boolean) {
@@ -1738,7 +1739,8 @@ function showMsgMeun(event: MenuEventData, data: any) {
             menu.style.marginLeft = maxWidth + 7 - menuWidth + 'px'
         }
         tags.value.showMsgMenu = true
-        setTimeout(() => {
+        // 菜单真正显示后再测量，避免固定延迟漏掉布局变化
+        nextTick(() => {
             const menuHeight = menu.clientHeight
             const bodyHeight = document.body.clientHeight
             if (pointY + menuHeight > bodyHeight - 20) {
@@ -1746,7 +1748,7 @@ function showMsgMeun(event: MenuEventData, data: any) {
                 menu.style.marginTop =
                     bodyHeight - menuHeight - 10 + 'px'
             }
-        }, 100)
+        })
     }
 }
 

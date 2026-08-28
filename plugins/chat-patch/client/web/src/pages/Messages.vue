@@ -207,7 +207,7 @@
 </template>
 
 <script setup lang="ts">
-    import { computed, ref, onMounted, markRaw, watch } from 'vue'
+    import { computed, ref, onMounted, markRaw, watch, nextTick } from 'vue'
     import { i18n } from '@renderer/main'
     import FriendBody from '@renderer/components/FriendBody.vue'
     import BcMenu from 'vue3-bcui/packages/bc-menu'
@@ -669,7 +669,8 @@
         listMenu.value = info
         menu.select = item
         // 出界处理
-        setTimeout(() => {
+        // 菜单显示后再测量，避免固定延迟
+        nextTick(() => {
             const menuEl = document.getElementById(
                 'msg-menu-view-messages-menu',
             )?.children[1] as HTMLDivElement
@@ -684,7 +685,7 @@
                     menuEl.style.marginTop = docHight - hight - 30 + 'px'
                 }
             }
-        }, 100)
+        })
     }
 
     /**
