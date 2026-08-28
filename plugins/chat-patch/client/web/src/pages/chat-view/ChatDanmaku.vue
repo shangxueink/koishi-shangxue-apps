@@ -488,10 +488,11 @@
             const index = sendCache.value.length
             sendCache.value.push(data.msgObj)
             if (data.addText === true) {
+                const token = data.msgObj?.type === 'image' ? '[图片]' : '[SQ:' + index + ']'
                 if (data.addTop === true) {
-                    msg.value = '[SQ:' + index + ']' + msg.value
+                    msg.value = token + msg.value
                 } else {
-                    msg.value += '[SQ:' + index + ']'
+                    msg.value += token
                 }
             }
             return index

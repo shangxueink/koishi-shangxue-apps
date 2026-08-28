@@ -277,7 +277,7 @@
                                     </div>
                                 </div>
                                 <div class="img">
-                                    <img :src="value" :alt="`[SQ:${key}]`">
+                                    <img :src="value" alt="[图片]">
                                 </div>
                                 <span>#{{ key }}</span>
                             </div>
@@ -2099,16 +2099,40 @@ function openChatInfoPan() {
     }
 }
 
+function removeNthOccurrence(source: string, token: string, ordinal: number): string {
+    let index = -1
+    for (let i = 0; i < ordinal; i++) {
+        index = source.indexOf(token, index + 1)
+        if (index < 0) return source
+    }
+    if (index < 0) return source
+    return source.slice(0, index) + source.slice(index + token.length)
+}
+
+function mediaToken(index: number): string {
+    const segment = sendCache.value[index]
+    return segment?.type === 'image' ? '[图片]' : '[SQ:' + index + ']'
+}
+
 function deleteImg(index: number) {
     imgCache.value.delete(index)
-    msg.value = msg.value.replace(
-        '[SQ:' + index + ']',
-        '',
-    )
-    msg.value = msg.value.replace(
-        '[SQ:' + index,
-        '',
-    )
+    const segment = sendCache.value[index]
+    if (segment?.type === 'image') {
+        let imageOrdinal = 0
+        for (let i = 0; i <= index; i++) {
+            if (sendCache.value[i]?.type === 'image') imageOrdinal++
+        }
+        msg.value = removeNthOccurrence(msg.value, '[图片]', imageOrdinal)
+    } else {
+        msg.value = msg.value.replace(
+            '[SQ:' + index + ']',
+            '',
+        )
+        msg.value = msg.value.replace(
+            '[SQ:' + index,
+            '',
+        )
+    }
 }
 
 async function editImg(key: number) {
@@ -2127,7 +2151,7 @@ function addSpecialMsg(data: SQCodeElem) {
         sendCache.value.push(data.msgObj)
         if (!data.addText) return index
 
-        const sqCode = `[SQ:${index}]`
+        const sqCode = mediaToken(index)
 
         if (data.addTop === true) {
             msg.value = sqCode + msg.value
@@ -2291,16 +2315,17 @@ async function setImg(file: File | null) {
         return
     }
 
+    const dataUrl = await fileToDataURL(file)
     const id = sendCache.value.length
     const data = {
-        type: 'text',
+        type: 'image',
         text: `[${$t('图片')}]`,
     }
+    imgCache.value.set(id, dataUrl)
     addSpecialMsg({
         addText: true,
         msgObj: data,
     })
-    imgCache.value.set(id, await fileToDataURL(file))
 }
 
 async function fileToDataURL(file: File): Promise<string> {
@@ -2342,6 +2367,19 @@ async function toggleVoiceRecord() {
         return
     }
     try {
+        if (navigator.permissions?.query) {
+            try {
+                const status = await navigator.permissions.query({
+                    name: 'microphone' as PermissionName,
+                })
+                if (status.state === 'denied') {
+                    new PopInfo().add(PopType.ERR, $t('麦克风权限被拒绝，请在浏览器设置中允许访问麦克风'))
+                    return
+                }
+            } catch {
+                // 部分浏览器不支持 micro 权限查询，继续用 getUserMedia 尝试
+            }
+        }
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
         voiceChunks = []
         const recorder = new MediaRecorder(stream)
@@ -2358,11 +2396,13 @@ async function toggleVoiceRecord() {
                 type: recorder.mimeType || 'audio/webm',
             })
             const base64 = await blobToBase64(blob)
+            const voiceName = recorder.mimeType.includes('mp4') ? 'voice.m4a' : 'voice.webm'
             addSpecialMsg({
                 addText: true,
                 msgObj: {
                     type: 'record',
                     file: 'base64://' + base64,
+                    fileName: voiceName,
                     name: $t('语音'),
                 },
             })
@@ -2372,6 +2412,9 @@ async function toggleVoiceRecord() {
     } catch (error) {
         voiceRecording.value = false
         voiceRecorder.value = null
+        if (error instanceof DOMException && error.name === 'NotAllowedError') {
+            new PopInfo().add(PopType.ERR, $t('麦克风权限被拒绝，请在浏览器设置中允许访问麦克风'))
+        }
         new Logger().error(error as Error, $t('录音失败'))
     }
 }
@@ -2656,6 +2699,22 @@ async function handleInput(event: Event) {
     }
 
     if(str.indexOf(']') >= 0) {
+        const prefix = oldMsg.value.substring(0, end)
+        const imageTokenIndex = prefix.lastIndexOf('[图片]')
+        if (imageTokenIndex >= 0 && imageTokenIndex < end) {
+            let imageOrdinal = 0
+            let cursor = -1
+            while ((cursor = prefix.indexOf('[图片]', cursor + 1)) >= 0) {
+                imageOrdinal++
+            }
+            const imageIndices = sendCache.value
+                .map((segment, index) => segment?.type === 'image' ? index : -1)
+                .filter((index) => index >= 0)
+            const imageIndex = imageIndices[imageOrdinal - 1]
+            if (imageIndex !== undefined && imgCache.value.has(imageIndex)) {
+                deleteImg(imageIndex)
+            }
+        }
         const sqIndex = oldMsg.value.substring(0, end).lastIndexOf('[SQ:')
         if(sqIndex >= 0 && sqIndex < end) {
             const msgHas = oldMsg.value.substring(sqIndex)
@@ -2756,7 +2815,7 @@ function reedit(msgData: any) {
                 addText: false,
                 msgObj: seg,
             })
-            msg.value += '[SQ:' + (sendCache.value.length - 1) + ']'
+            msg.value += mediaToken(sendCache.value.length - 1)
         }
     }
     toMainInput()

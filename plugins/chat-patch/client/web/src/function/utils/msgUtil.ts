@@ -562,7 +562,7 @@ async function persistBase64Media(msg: string | any[] | undefined): Promise<stri
     return Promise.all(msg.map(async (item) => {
         const source = getBase64Source(item)
         if (!source) return item
-        const localUrl = await uploadBase64Source(source, item?.name ?? '')
+        const localUrl = await uploadBase64Source(source, item?.fileName ?? item?.name ?? '')
         if (!localUrl) return item
         return {
             ...item,

@@ -39,7 +39,8 @@ function segmentToSatori(segment: MsgItemElem): string {
   }
   if (type === 'record' || type === 'audio') {
     const src = String(segment.file ?? segment.url ?? segment.src ?? '')
-    return src ? `<audio src="${escapeAttr(src)}"/>` : ''
+    const name = String(segment.fileName ?? segment.name ?? '')
+    return src ? `<audio src="${escapeAttr(src)}"${name ? ` name="${escapeAttr(name)}"` : ''}/>` : ''
   }
   if (type === 'video') {
     const src = String(segment.file ?? segment.url ?? segment.src ?? '')
@@ -55,24 +56,40 @@ function segmentToSatori(segment: MsgItemElem): string {
 
 export function parseMsg(msg: string, cache: MsgItemElem[], _img: string[]): string {
   let output = ''
-  let text = msg
-  const sq = /\[SQ:(\d+)\]/g
+  const pattern = /(\[SQ:\d+\]|\[图片\])/g
+  const consumed = new Set<number>()
   let match: RegExpExecArray | null
   let cursor = 0
 
-  while ((match = sq.exec(text)) !== null) {
-    output += escapeText(text.slice(cursor, match.index))
-    const index = Number(match[1])
-    const segment = cache[index]
-    if (segment) output += segmentToSatori(segment)
+  while ((match = pattern.exec(msg)) !== null) {
+    output += escapeText(msg.slice(cursor, match.index))
+    const token = match[0]
+    if (token.startsWith('[SQ:')) {
+      const index = Number(token.slice(4, -1))
+      const segment = cache[index]
+      if (segment) {
+        output += segmentToSatori(segment)
+        consumed.add(index)
+      }
+    } else {
+      const imageIndex = cache.findIndex((segment, index) => {
+        return !consumed.has(index) && segment?.type === 'image'
+      })
+      if (imageIndex >= 0) {
+        output += segmentToSatori(cache[imageIndex])
+        consumed.add(imageIndex)
+      } else {
+        output += '[图片]'
+      }
+    }
     cursor = match.index + match[0].length
   }
-  output += escapeText(text.slice(cursor))
+  output += escapeText(msg.slice(cursor))
   return output
 }
 
 export function getSQList(msg: string): RegExpMatchArray | null {
-  return msg.match(/\[SQ:\d+\]/g)
+  return msg.match(/\[SQ:\d+\]|\[图片\]/g)
 }
 
 export default {
