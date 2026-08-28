@@ -63,14 +63,7 @@
     const showAbout = ref(true)
 
     function updateShowAbout() {
-        nextTick(() => {
-            const width = window.innerWidth
-            if (width < 700) {
-                showAbout.value = true
-            } else {
-                showAbout.value = false
-            }
-        })
+        showAbout.value = true
     }
 
     watch(

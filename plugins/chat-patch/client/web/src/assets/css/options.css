@@ -254,7 +254,7 @@
 }
 
 .opt-about {
-    display: none !important;
+    display: block !important;
 }
 
 .bcd-body {

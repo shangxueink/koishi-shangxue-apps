@@ -758,10 +758,6 @@ onMounted(() => {
     window.onload = async () => {
         await backend.init() // Desktop：初始化客户端功能
 
-        if(isDebugMode()) {
-            // eslint-disable-next-line
-            console.log('[ SSystem Bootloader Complete took ' + (new Date().getTime() - uptime) + 'ms, welcome to ' + (import.meta.env.DEV ? 'sar-dos on stapxs-qq-lite.su' : 'ssqq on stapxs-qq-lite.user') + ' ]')
-        }
         // 初始化波浪动画
         setLoginWaveTimer(waveAnimation(
             document.getElementById('login-wave'),
@@ -785,12 +781,6 @@ onMounted(() => {
         }
         settingsStore.sysConfig = loadedConfig
         if (!migratedBackground) hydrateBackgroundImage(settingsStore.sysConfig.chat_background)
-        if(dev) {
-            logger.debug('stapxs-qq-lite.su:$/mnt/boot/dawnHunt/bin/core --pour /mnt/app/bin/main', true)
-            logger.system('[ dawnHuntCore Version: 1.0 Beta, dawnHuntDB: 2025-04-24 ]')
-        } else {
-            logger.debug('stapxs-qq-lite.user:$/mnt/app/bin/main', true)
-        }
         logger.add(LogType.DEBUG, '系统配置', settingsStore.sysConfig)
         // PS：重新再应用部分需要加载完成后才能应用的设置
         Option.run('opt_dark', Option.get('opt_dark'))
@@ -863,39 +853,7 @@ onMounted(() => {
         if (settingsStore.sysConfig.auto_connect == true || backend.isWeb()) {
             connect()
         }
-        if(napcat) {
-            logger.info('Stapxs QQ Lite 处于 Napcat 模式 ……')
-            const token = localStorage.getItem('token')
-            if(token) {
-                // api/Debug/create 获取连接配置信息
-                fetch('/api/Debug/create', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': 'Bearer ' + token
-                    }
-                }).then(async (response) => {
-                    if(response.ok) {
-                        const data = await response.json()
-                        // 获取当前页面的根 URL
-                        const rootUrl = window.location.origin
-                        loginInfo.address = rootUrl.replace('http', 'ws') + '/api/Debug/ws'
-                        loginInfo.token = data.data.token
-                        connect()
-                    } else {
-                        logger.error(null, 'Napcat 快速连接失败，状态码：' + response.status)
-                    }
-                }).catch((error) => {
-                    logger.error(null, 'Napcat 快速连接请求失败：' + error)
-                })
-                updateNapcatColor(token)
-                window.addEventListener('storage', (event) => {
-                    if(event.key === 'theme') {
-                        updateNapcatColor(token)
-                    }
-                })
-            }
-        }
+
         // 服务发现
         backend.call('Onebot', 'sys:findService', false)
         backend.call('OneBot', 'sys:frontLoaded', false)
