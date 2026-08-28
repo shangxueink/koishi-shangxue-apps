@@ -1,3 +1,5 @@
+import { isDebugMode } from '../base'
+
 export type PinYinData = {
     main: string[]
     short: string[]
@@ -69,7 +71,7 @@ export function ensurePinyinLoaded(): Promise<boolean> {
         }
 
         const handleError = () => {
-            console.warn('拼音库加载失败')
+            if (isDebugMode()) console.warn('拼音库加载失败')
             script?.remove()
             finish(false)
         }
@@ -119,7 +121,7 @@ export function getPinyin(name: string): PinYinData {
             }).map((item: string[]) => item.join('').toLowerCase()),
         }
     } catch (error) {
-        console.warn('拼音转换失败:', error)
+        if (isDebugMode()) console.warn('拼音转换失败:', error)
         return createEmptyPinyinData()
     }
 }

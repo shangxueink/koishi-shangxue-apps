@@ -2,6 +2,7 @@ import VueClipboard from 'vue-clipboard2'
 import packageInfo from '../package.json'
 
 import App from './App.vue'
+import { isDebugMode } from './function/base'
 
 import { createApp } from 'vue'
 import { createPinia } from 'pinia'
@@ -66,12 +67,14 @@ const colorList = [
 ]
 const color = colorList[Math.floor(Math.random() * colorList.length)]
 const str = strList[Math.floor(Math.random() * strList.length)]
-console.log(
-    `%c${str}%c Koishi Satori Chat - ${packageInfo.version} ( ${import.meta.env.DEV ? 'development' : 'production'} ) `,
-    `font-weight:bold;background:#${color};color:#fff;border-radius:7px 0 0 7px;padding:7px 14px;margin:7px 0 7px 7px;`,
-    'background:#e3e8ec;color:#000;border-radius:0 7px 7px 0;display:inline-block;padding:7px 14px;margin:7px 7px 7px 0;',
-)
-if(import.meta.env.DEV) {
-    console.log('[ SSystem Bootloader Loading …… core/sardos-core ]')
+if (isDebugMode()) {
+    console.log(
+        `%c${str}%c Koishi Satori Chat - ${packageInfo.version} ( ${import.meta.env.DEV ? 'development' : 'production'} ) `,
+        `font-weight:bold;background:#${color};color:#fff;border-radius:7px 0 0 7px;padding:7px 14px;margin:7px 0 7px 7px;`,
+        'background:#e3e8ec;color:#000;border-radius:0 7px 7px 0;display:inline-block;padding:7px 14px;margin:7px 7px 7px 0;',
+    )
+    if (import.meta.env.DEV) {
+        console.log('[ SSystem Bootloader Loading …… core/sardos-core ]')
+    }
+    console.log('[ SSystem Bootloader Loading …… core/ssqq-core ]')
 }
-console.log('[ SSystem Bootloader Loading …… core/ssqq-core ]')

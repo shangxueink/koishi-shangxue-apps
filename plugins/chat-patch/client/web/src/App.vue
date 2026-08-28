@@ -197,7 +197,7 @@ import packageInfo from '../package.json'
 
 import { computed, watch, onMounted, onUnmounted, shallowReactive, shallowRef, provide } from 'vue'
 import { Connector, login as loginInfo, loadConnectionHistory, loadConnectionFromHistory, deleteConnectionHistory, decodeStoredToken, loadContactsFromCache, loadGroupMembersFromCache } from '@renderer/function/connect'
-import { Logger, popList, PopInfo, LogType } from '@renderer/function/base'
+import { Logger, popList, PopInfo, LogType, isDebugMode } from '@renderer/function/base'
 import { setLoginWaveTimer } from '@renderer/function/msg'
 import { BaseChatInfoElem } from '@renderer/function/elements/information'
 import { useConnectionStore } from '@renderer/state/connection'
@@ -757,12 +757,9 @@ onMounted(() => {
     window.onload = async () => {
         await backend.init() // Desktop：初始化客户端功能
 
-        if(import.meta.env.DEV) {
+        if(isDebugMode()) {
             // eslint-disable-next-line
-            console.log('[ SSystem Bootloader Complete took ' + (new Date().getTime() - uptime) + 'ms, welcome to sar-dos on stapxs-qq-lite.su ]')
-        } else {
-            // eslint-disable-next-line
-            console.log('[ SSystem Bootloader Complete took ' + (new Date().getTime() - uptime) + 'ms, welcome to ssqq on stapxs-qq-lite.user ]')
+            console.log('[ SSystem Bootloader Complete took ' + (new Date().getTime() - uptime) + 'ms, welcome to ' + (import.meta.env.DEV ? 'sar-dos on stapxs-qq-lite.su' : 'ssqq on stapxs-qq-lite.user') + ' ]')
         }
         // 初始化波浪动画
         setLoginWaveTimer(waveAnimation(

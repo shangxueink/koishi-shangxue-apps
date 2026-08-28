@@ -20,16 +20,10 @@
                     <select id="opt-dev-log-level" v-model="settingsStore.sysConfig.log_level"
                         name="log_level" title="log_level" @change="save">
                         <option value="err">
-                            {{ $t('错误') }}
+                            {{ $t('错误模式') }}
                         </option>
                         <option value="debug">
-                            {{ $t('调试') }}
-                        </option>
-                        <option value="info">
-                            {{ $t('基本') }}
-                        </option>
-                        <option value="all">
-                            {{ $t('全部') }}
+                            {{ $t('调试模式') }}
                         </option>
                     </select>
                 </div>
@@ -84,7 +78,7 @@ import packageInfo from '../../../package.json'
         getRaw,
     } from '@renderer/function/option'
     import { Connector } from '@renderer/function/connect'
-    import { PopInfo, PopType } from '@renderer/function/base'
+    import { PopInfo, PopType, isDebugMode } from '@renderer/function/base'
     import { dispatch } from '@renderer/function/msg'
     import { BrowserInfo, detect } from 'detect-browser'
     import { BotMsgType } from '@renderer/function/elements/information'
@@ -226,11 +220,13 @@ import packageInfo from '../../../package.json'
             }
         }
         /* eslint-disable no-console */
-        console.log('=========================')
-        console.log('settingsStore:', settingsStore.$state)
-        console.log('authStore:', authStore.$state)
-        console.log('uiStore:', uiStore.$state)
-        console.log('=========================')
+        if (isDebugMode()) {
+            console.log('=========================')
+            console.log('settingsStore:', settingsStore.$state)
+            console.log('authStore:', authStore.$state)
+            console.log('uiStore:', uiStore.$state)
+            console.log('=========================')
+        }
         /* eslint-enable no-console */
         if(!backend.isMobile()) {
             backend.call(undefined, 'win:openDevTools', false)

@@ -58,7 +58,7 @@ function splitSatoriMarkupText(message: any[]): any[] {
     })
 }
 import { reactive, markRaw, nextTick } from 'vue'
-import { PopInfo, PopType, Logger, LogType } from './base'
+import { PopInfo, PopType, Logger, LogType, isDebugMode } from './base'
 import { Connector, fetchForwardMessage, getCachedUserAvatar, loadGroupMembersFromCache, login, requestUserAvatar, saveConnectionToHistory, saveSentSelfMessage } from './connect'
 import {
     GroupFileElem,
@@ -434,16 +434,17 @@ const noticeFunctions = {
                 break
             }
             case 'decrease': {
-                // 输出日志（显示为红色字体）
-                // eslint-disable-next-line no-console
-                console.log(
-                    '%c消失了一个好友：' +
-                    msg.nickname +
-                    '（' +
-                    msg.user_id +
-                    '）',
-                    'color:red;',
-                )
+                if (isDebugMode()) {
+                    // eslint-disable-next-line no-console
+                    console.log(
+                        '%c消失了一个好友：' +
+                        msg.nickname +
+                        '（' +
+                        msg.user_id +
+                        '）',
+                        'color:red;',
+                    )
+                }
                 break
             }
         }

@@ -18,7 +18,7 @@ import {
   satoriResponseToOneBot,
 } from './satori-model'
 import { buildForwardMessage } from './sender'
-import { Logger, LogType } from './base'
+import { Logger, LogType, isDebugMode } from './base'
 import { useAuthStore } from '@renderer/state/auth'
 import { useChatStore } from '@renderer/state/chat'
 import { useContactStore } from '@renderer/state/contact'
@@ -74,7 +74,7 @@ function isPrivateMessage(msg: Record<string, unknown>): boolean {
 }
 
 function identityDebug(...args: unknown[]) {
-  if (import.meta.env.DEV) {
+  if (isDebugMode()) {
     console.log('[chat-patch-identity]', ...args)
   }
 }

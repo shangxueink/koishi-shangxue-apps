@@ -21,6 +21,10 @@ export enum LogType {
     SYSTEM
 }
 
+export function isDebugMode(): boolean {
+    return Option.get('log_level') === 'debug'
+}
+
 export class Logger {
     private logTypeInfo: [string, string][]
 
@@ -43,20 +47,10 @@ export class Logger {
      */
     add(type: LogType, args: string, data = '' as any, hidden = false) {
         const logLevel = Option.get('log_level')
-        // PS：WS, UI, ERR, INFO, DEBUG
-        // all 将会输出以上全部类型，debug 将会输出 DEBUG、UI，info 将会输出 INFO，err 将会输出 ERR
-        if(import.meta.env.DEV && type === LogType.SYSTEM) {
+        // 错误模式只输出 ERR；调试模式输出全部日志
+        if (logLevel === 'debug') {
             this.print(type, args, data, hidden)
-        } else if (logLevel === 'all') {
-            this.print(type, args, data, hidden)
-        } else if (
-            logLevel === 'debug' &&
-            (type === LogType.DEBUG || type === LogType.UI)
-        ) {
-            this.print(type, args, data, hidden)
-        } else if (logLevel === 'info' && type === LogType.INFO) {
-            this.print(type, args, data, hidden)
-        } else if (logLevel === 'err' && type === LogType.ERR) {
+        } else if (type === LogType.ERR) {
             this.print(type, args, data, hidden)
         }
     }
