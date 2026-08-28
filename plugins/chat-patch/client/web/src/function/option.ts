@@ -270,15 +270,11 @@ function viewAlwaysTop(value: boolean) {
 
 function viewRevolve(value: boolean) {
     const baseApp = document.getElementById('base-app')
-    if (baseApp && value) {
-        if (baseApp.classList.contains('no-touch')) {
-            baseApp.classList.remove('no-touch')
-            // 把这个选项设置为 false
-            save('opt_revolve', false)
-        } else {
-            baseApp.classList.add('no-touch')
-            sendStatEvent('click_statistics', { name: 'touch_randomly' })
-        }
+    if (!baseApp) return
+    if (value) {
+        baseApp.classList.add('no-touch')
+    } else {
+        baseApp.classList.remove('no-touch')
     }
 }
 

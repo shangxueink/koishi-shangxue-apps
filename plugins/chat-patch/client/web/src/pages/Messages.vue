@@ -41,7 +41,7 @@
                     <div v-for="bot in satoriLogins" :key="'bot-' + bot.selfId"
                         :class="['robot-accordion', { expanded: bot.selfId === activeBotId }]">
                         <div class="robot-accordion-header" @click="toggleRobot(bot)">
-                            <img :src="bot.avatar || '/img/icons/icon.svg'" :alt="bot.name">
+                            <img :src="bot.avatar || '/img/icons/icon.svg'" :alt="bot.name" @error="avatarError">
                             <div>
                                 <span :title="bot.name">{{ bot.name }}</span>
                                 <small>{{ bot.platform }}</small>
@@ -240,6 +240,7 @@
     import { backend } from '@renderer/runtime/backend'
     import History from '@renderer/components/History.vue'
     import { normalizeSessionId } from '@renderer/function/utils/sessionUtil'
+    import { avatarError } from '@renderer/function/utils/avatarUtil'
     import { useUIStore } from '@renderer/state/ui'
     import { useAuthStore } from '@renderer/state/auth'
     import { useContactStore } from '@renderer/state/contact'

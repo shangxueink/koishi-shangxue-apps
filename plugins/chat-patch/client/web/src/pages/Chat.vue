@@ -25,7 +25,7 @@
         <!-- 聊天基本信息 -->
         <div class="info">
             <font-awesome-icon class="back" :icon="['fas', 'angle-left']" @click="exitWin" />
-            <img :src="chat.show.avatar">
+            <img :src="chat.show.avatar || '/img/icons/icon.svg'" @error="avatarError">
             <div class="info">
                 <p>
                     {{ chat.show.name }}
@@ -648,6 +648,7 @@ import { useAuthStore } from '@renderer/state/auth'
 import { useChatStore } from '@renderer/state/chat'
 import { useContactStore } from '@renderer/state/contact'
 import { addUploadTask, failUploadTask } from '@renderer/components/FileManager.vue'
+import { avatarError } from '@renderer/function/utils/avatarUtil'
 
 defineOptions({ name: 'ViewChat' })
 

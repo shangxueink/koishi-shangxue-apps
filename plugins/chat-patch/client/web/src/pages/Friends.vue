@@ -59,7 +59,7 @@
                     <div v-for="bot in satoriLogins" :key="'bot-' + bot.selfId"
                         :class="['robot-accordion', { expanded: bot.selfId === activeBotId }]">
                         <div class="robot-accordion-header" @click="toggleRobot(bot)">
-                            <img :src="bot.avatar || '/img/icons/icon.svg'" :alt="bot.name">
+                            <img :src="bot.avatar || '/img/icons/icon.svg'" :alt="bot.name" @error="avatarError">
                             <div>
                                 <span :title="bot.name">{{ bot.name }}</span>
                                 <small>{{ bot.platform }}</small>
@@ -185,6 +185,7 @@
     import { Connector, flushPendingBotEvents, loadContactsFromCache, login as loginInfo } from '@renderer/function/connect'
     import { getActiveBot, getLogins, setActiveBot } from '@renderer/function/satori'
     import { normalizeSessionId } from '@renderer/function/utils/sessionUtil'
+    import { avatarError } from '@renderer/function/utils/avatarUtil'
     import { backend } from '@renderer/runtime/backend'
     import { matchPinyin } from '@renderer/function/utils/pinyin'
     import { useUIStore } from '@renderer/state/ui'

@@ -16,7 +16,7 @@
             </header>
             <div class="chat-info-base user">
                 <div>
-                    <img :src="chat.show.avatar">
+                    <img :src="chat.show.avatar || '/img/icons/icon.svg'" @error="avatarError">
                     <div>
                         <a>{{ chat.show.name }}</a>
                         <span>{{ chat.show.id }}</span>
@@ -199,6 +199,7 @@
 
 <script setup lang="ts">
 import app, { i18n } from '@renderer/main'
+import { avatarError } from '@renderer/function/utils/avatarUtil'
 import BcTab from 'vue3-bcui/packages/bc-tab'
 import { RecycleScroller } from 'vue-virtual-scroller'
 import 'vue-virtual-scroller/dist/vue-virtual-scroller.css'
