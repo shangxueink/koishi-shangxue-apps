@@ -1756,6 +1756,7 @@ async function loadContactType(
 export async function loadGroupMembersFromCache(groupId: string) {
   const active = getActiveBot()
   if (!active || !groupId || groupId === '0') return
+  const authStore = useAuthStore()
   try {
     await loadAllBotsCache()
     const result = await requestContactCache({
@@ -1788,6 +1789,38 @@ export async function loadGroupMembersFromCache(groupId: string) {
         avatar,
       }
     })
+    const selfId = String(active.selfId)
+    const hasSelfMember = mapped.some((member) => String(member.user_id) === selfId)
+    if (!hasSelfMember) {
+      const selfName = String(authStore.loginInfo.nickname ?? authStore.loginInfo.name ?? '')
+        || selfId
+      const selfAvatar = String(authStore.loginInfo.avatar ?? '')
+      mapped.unshift({
+        user_id: selfId,
+        nickname: selfName,
+        card: '',
+        role: '',
+        avatar: selfAvatar,
+      })
+      await requestContactCache({
+        platform: active.platform,
+        selfId,
+        type: 'member',
+        groupId,
+        contacts: [{
+          id: selfId,
+          name: selfName,
+          avatar: selfAvatar || undefined,
+          raw: {
+            user_id: selfId,
+            nickname: selfName,
+            card: '',
+            avatar: selfAvatar,
+          },
+        }],
+        append: true,
+      }).catch(() => undefined)
+    }
     const needsIdentity = (member: typeof mapped[number]) => {
       const usableName = (value: string) => Boolean(value)
         && value !== member.user_id

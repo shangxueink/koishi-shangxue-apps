@@ -2394,7 +2394,7 @@ function mediaToken(index: number): string {
         const member = chatStore.chatInfo.info.group_members.find((item) => {
             return String(item.user_id) === id
         })
-        const name = member?.card || member?.nickname || id
+        const name = String(segment.text || member?.card || member?.nickname || id)
         return '[@' + name + ']'
     }
     return '[SQ:' + index + ']'
@@ -2433,27 +2433,40 @@ function addSpecialMsg(data: SQCodeElem) {
     const input = (document.getElementById( 'main-input') as HTMLTextAreaElement | HTMLInputElement) ??
         (document.getElementById( 'main-input-ex') as HTMLTextAreaElement | HTMLInputElement)
     if (data !== undefined) {
+        if (data.msgObj.type === 'at') {
+            const id = String(data.msgObj.qq ?? data.msgObj.id ?? '')
+            const member = chatStore.chatInfo.info.group_members.find((item) => {
+                return String(item.user_id) === id
+            })
+            data.msgObj = {
+                ...data.msgObj,
+                qq: id,
+                text: String(member?.card || member?.nickname || id),
+            }
+        }
         const index = sendCache.value.length
         sendCache.value.push(data.msgObj)
         if (!data.addText) return index
 
         const sqCode = mediaToken(index)
+        const atSpace = data.msgObj.type === 'at' ? ' ' : ''
 
         if (data.addTop === true) {
-            msg.value = sqCode + msg.value
+            msg.value = sqCode + atSpace + msg.value
         } else {
             const selectionStart = input?.selectionStart
             const selectionEnd = input?.selectionEnd ?? selectionStart
             if(selectionStart != null) {
                 const first = msg.value.substring(0, selectionStart)
                 const last = msg.value.substring(selectionEnd!, msg.value.length)
-                msg.value = first + sqCode + last
+                msg.value = first + sqCode + atSpace + last
                 nextTick(()=>{
-                    input.selectionStart = selectionStart + sqCode.length
-                    input.selectionEnd = selectionStart + sqCode.length
+                    const cursor = selectionStart + sqCode.length + atSpace.length
+                    input.selectionStart = cursor
+                    input.selectionEnd = cursor
                 })
             } else {
-                msg.value += sqCode
+                msg.value += sqCode + atSpace
             }
         }
         return index
