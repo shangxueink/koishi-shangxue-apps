@@ -828,7 +828,15 @@ function onSatoriReady(logins: Array<{ platform: string; selfId: string; name: s
 
 function contactId(item: unknown): string {
   const obj = getObject(item)
-  return String(obj.user_id ?? obj.group_id ?? obj.id ?? '')
+  const raw = String(obj.user_id ?? obj.group_id ?? obj.id ?? '')
+  if (obj.user_id) return raw
+  return normalizeGroupId(raw)
+}
+
+function normalizeGroupId(value: string): string {
+  const raw = value.replace(/^(?:group|room|chat|channel|guild|private):/i, '').trim()
+  const wrapped = raw.match(/^\[?_?([a-zA-Z0-9]+)_?\]?$/)
+  return wrapped ? wrapped[1] : raw || value
 }
 
 function contactName(item: unknown): string {
@@ -1007,7 +1015,7 @@ async function loadAllBotsCache() {
     })
     const friendRaws = friends.map((contact) => cachedFriendRaw(getObject(contact), contact))
     for (const raw of groupRaws) {
-      const id = getString(raw.group_id) || getString(raw.id)
+      const id = normalizeGroupId(getString(raw.group_id) || getString(raw.id))
       if (!id) continue
       const name = getString(raw.group_name) || getString(raw.name)
       const avatar = hasUsableAvatar(raw.avatar) ? getString(raw.avatar) : ''
@@ -1133,7 +1141,7 @@ function buildGroupItem(raw: unknown, data: unknown): Record<string, unknown> {
   const guild = getObject(root.guild) || getObject(root)
   const channel = getObject(root.channel)
   const item = { ...getObject(raw) }
-  const id = getString(item.group_id) || getString(item.id) || getString(item.guild_id) || ''
+  const id = normalizeGroupId(getString(item.group_id) || getString(item.id) || getString(item.guild_id) || '')
   const name = getString(guild.name)
     || getString(channel.name)
     || getString(item.group_name)

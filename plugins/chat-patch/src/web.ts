@@ -1,6 +1,6 @@
 import { Context } from 'koishi'
 import {} from '@koishijs/plugin-server'
-import { existsSync, promises as fs, statSync } from 'node:fs'
+import { createReadStream, existsSync, promises as fs, statSync } from 'node:fs'
 import { createHash } from 'node:crypto'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
@@ -30,6 +30,32 @@ export function registerWeb(
   const toExtension = (value: string): string => {
     const ext = value.startsWith('.') ? value : `.${value}`
     return ext.toLowerCase()
+  }
+
+  const normalizeGroupId = (value: string): string => {
+    const raw = value.replace(/^(?:group|room|chat|channel|guild|private):/i, '').trim()
+    const wrapped = raw.match(/^\[?_?([a-zA-Z0-9]+)_?\]?$/)
+    return wrapped ? wrapped[1] : raw || value
+  }
+
+  const historyChannelCandidates = (channelId: string): string[] => {
+    const raw = normalizeGroupId(channelId)
+    const candidates = [channelId]
+    if (raw && raw !== channelId) candidates.push(raw)
+    const stripped = channelId.includes(':') ? channelId.slice(channelId.indexOf(':') + 1) : channelId
+    const normalized = normalizeGroupId(stripped)
+    if (normalized && normalized !== raw) candidates.push(normalized)
+    if (channelId.includes(':')) {
+      candidates.push(raw || channelId)
+    } else {
+      const id = raw || channelId
+      candidates.push(`group:${id}`, `private:${id}`)
+    }
+    const id = normalized || raw || channelId
+    if (id) {
+      candidates.push(` [_${id}_] `, `_${id}_`, `[${id}]`, `group:${id}`)
+    }
+    return [...new Set(candidates)]
   }
 
   const mimeToExt: Record<string, string> = {
@@ -155,10 +181,46 @@ export function registerWeb(
       koa.body = { error: 'media file not found' }
       return
     }
+    const size = statSync(filePath).size
+    koa.set('Accept-Ranges', 'bytes')
     if (fileName.toLowerCase().endsWith('.webm')) {
       koa.type = 'audio/webm'
+    } else {
+      koa.type = fileName
     }
-    await send(koa, fileName, { root: uploadDir })
+    const range = koa.headers.range
+    if (range) {
+      const match = /^bytes=(\d*)-(\d*)$/.exec(String(range))
+      if (!match) {
+        koa.status = 416
+        koa.set('Content-Range', `bytes */${size}`)
+        koa.body = ''
+        return
+      }
+      let start = 0
+      let end = size - 1
+      if (match[1] === '' && match[2]) {
+        start = Math.max(0, size - Number(match[2]))
+      } else if (match[1]) {
+        start = Number(match[1])
+        end = match[2] ? Number(match[2]) : end
+      }
+      if (!Number.isFinite(start) || !Number.isFinite(end) || start < 0 || start >= size) {
+        koa.status = 416
+        koa.set('Content-Range', `bytes */${size}`)
+        koa.body = ''
+        return
+      }
+      if (end >= size) end = size - 1
+      if (end < start) end = start
+      koa.status = 206
+      koa.set('Content-Range', `bytes ${start}-${end}/${size}`)
+      koa.set('Content-Length', String(end - start + 1))
+      koa.body = createReadStream(filePath, { start, end })
+      return
+    }
+    koa.set('Content-Length', String(size))
+    koa.body = createReadStream(filePath)
   })
 
   ctx.server.get(`${config.basePath}/api/cache/all`, async (koa) => {
@@ -201,15 +263,10 @@ export function registerWeb(
         ? database.listMessagesBefore(platform, selfId, cid, beforeTime, limit)
         : database.listMessages(platform, selfId, cid, limit)
     }
-    let messages = await queryMessages(channelId)
-    // 兼容不带 group:/private: 前缀的旧请求
-    if (!messages.length && !channelId.includes(':')) {
-      const groupMessages = await queryMessages(`group:${channelId}`)
-      if (groupMessages.length) {
-        messages = groupMessages
-      } else {
-        messages = await queryMessages(`private:${channelId}`)
-      }
+    let messages: Awaited<ReturnType<typeof queryMessages>> = []
+    for (const candidate of historyChannelCandidates(channelId)) {
+      messages = await queryMessages(candidate)
+      if (messages.length) break
     }
     // 统一按本地收到时间排序，避免平台时间不准导致顺序颠倒
     messages.sort((a, b) => {

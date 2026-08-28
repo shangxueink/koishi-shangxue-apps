@@ -13,7 +13,9 @@ function isUsableName(value: string, id: string): boolean {
 }
 
 function normalizeGroupId(value: string): string {
-  return value.replace(/^(?:group|room|chat|channel|guild|private):/i, '') || value
+  const raw = value.replace(/^(?:group|room|chat|channel|guild|private):/i, '').trim()
+  const wrapped = raw.match(/^\[?_?([a-zA-Z0-9]+)_?\]?$/)
+  return wrapped ? wrapped[1] : raw || value
 }
 
 function normalizeCacheType(type: string): 'group' | 'friend' {
