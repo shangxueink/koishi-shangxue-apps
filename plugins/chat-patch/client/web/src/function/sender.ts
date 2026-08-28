@@ -13,6 +13,28 @@ function escapeAttr(value: string): string {
   return escapeText(value).replaceAll('"', '&quot;')
 }
 
+const satoriMarkupPattern = /<(\/?)(quote|at|img|image|audio|record|video|file|mface|face|sharp|p|br|message|text|json|xml|markdown|keyboard)(?:\s[^>]*)?\/?>/gi
+
+function escapeTextPreservingMarkup(value: string): string {
+  const decoded = value
+    .replaceAll('&lt;', '<')
+    .replaceAll('&gt;', '>')
+    .replaceAll('&quot;', '"')
+    .replaceAll('&#39;', "'")
+    .replaceAll('&amp;', '&')
+  const saved: string[] = []
+  const marker = (index: number) => `\u0000sq${index}\u0000`
+  const masked = decoded.replace(satoriMarkupPattern, (tag) => {
+    saved.push(tag)
+    return marker(saved.length - 1)
+  })
+  return masked
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replace(/\u0000sq(\d+)\u0000/g, (_, index: string) => saved[Number(index)] ?? '')
+}
+
 function segmentToSatori(segment: MsgItemElem): string {
   const type = String(segment.type ?? '')
   if (type === 'text') return escapeText(String(segment.text ?? ''))
@@ -62,7 +84,7 @@ export function parseMsg(msg: string, cache: MsgItemElem[], _img: string[]): str
   let cursor = 0
 
   while ((match = pattern.exec(msg)) !== null) {
-    output += escapeText(msg.slice(cursor, match.index))
+    output += escapeTextPreservingMarkup(msg.slice(cursor, match.index))
     const token = match[0]
     if (token.startsWith('[SQ:')) {
       const index = Number(token.slice(4, -1))
@@ -84,7 +106,7 @@ export function parseMsg(msg: string, cache: MsgItemElem[], _img: string[]): str
     }
     cursor = match.index + match[0].length
   }
-  output += escapeText(msg.slice(cursor))
+  output += escapeTextPreservingMarkup(msg.slice(cursor))
   return output
 }
 

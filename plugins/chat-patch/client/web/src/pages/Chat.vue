@@ -389,7 +389,7 @@
                             </div>
                         </template>
                         <template v-else>
-                        <template v-if="!Option.get('use_breakline')">
+                        <template v-if="settingsStore.sysConfig.send_key === 'none'">
                             <label for="main-input" class="sr-only">{{ $t('消息输入框') }}</label>
                             <input
                                 id="main-input"
@@ -992,7 +992,7 @@ function setupChatPaddingObserver() {
 function resizeMainInput(target?: HTMLTextAreaElement | HTMLInputElement | null) {
     const input = target ?? mainInput.value
     if (!input) return
-    if (!Option.get('use_breakline')) {
+    if (settingsStore.sysConfig.send_key === 'none') {
         input.style.height = ''
         return
     }

@@ -185,10 +185,9 @@
 </script>
 
 <script setup lang="ts">
-    import { computed, onMounted, ref } from 'vue'
+    import { computed, ref } from 'vue'
     import { i18n } from '@renderer/main'
     import { backend } from '@renderer/runtime/backend'
-    import { registerExtraOptionCard, registerExtraOptionItem } from '@renderer/function/option'
     import { useSettingsStore } from '@renderer/state/settings'
 
     const settingsStore = useSettingsStore()
@@ -400,30 +399,6 @@
         }
     }
 
-    onMounted(() => {
-        registerExtraOptionCard({
-            id: 'music-player',
-            title: '音乐播放器设置',
-        })
-        registerExtraOptionItem('music-player', {
-            id: 'glabal_lyric',
-            icon: 'book',
-            label: '显示歌词横幅',
-            description: '在应用顶部显示当前播放音乐的歌词',
-            type: 'switch',
-            optionKey: 'glabal_lyric',
-            defaultValue: true,
-        })
-        registerExtraOptionItem('music-player', {
-            id: 'original_lyrics',
-            icon: 'font',
-            label: '显示原歌词',
-            description: '显示原文歌词而非翻译歌词（需要重新播放）',
-            type: 'switch',
-            optionKey: 'original_lyrics',
-            defaultValue: false,
-        })
-    })
 </script>
 
 <style scoped>

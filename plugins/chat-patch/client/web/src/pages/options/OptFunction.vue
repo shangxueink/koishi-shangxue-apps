@@ -44,21 +44,6 @@
         <div class="ss-card">
             <header>{{ $t('通知选项') }}</header>
             <div class="opt-item">
-                <div :class="checkDefault('close_notice')" />
-                <font-awesome-icon :icon="['fas', 'volume-xmark']" />
-                <div>
-                    <label for="opt-function-close-notice">{{ $t('禁用通知') }}</label>
-                    <span>{{ $t('好嘛 …… 不烦你 ……') }}</span>
-                </div>
-                <label class="ss-switch">
-                    <input id="opt-function-close-notice" v-model="settingsStore.sysConfig.close_notice"
-                        type="checkbox" name="close_notice" @change="save">
-                    <div>
-                        <div />
-                    </div>
-                </label>
-            </div>
-            <div class="opt-item">
                 <div :class="checkDefault('group_notice_type')" />
                 <font-awesome-icon :icon="['fas', 'user-group']" />
                 <div>
@@ -100,21 +85,6 @@
                 </label>
             </div>
             <div class="opt-item">
-                <div :class="checkDefault('use_breakline')" />
-                <font-awesome-icon :icon="['fas', 'keyboard']" />
-                <div>
-                    <label for="opt-function-use-breakline">{{ $t('多行模式') }}</label>
-                    <span>{{ $t('I have a shift I have an enter ...') }}</span>
-                </div>
-                <label class="ss-switch">
-                    <input id="opt-function-use-breakline" v-model="settingsStore.sysConfig.use_breakline" type="checkbox"
-                        name="use_breakline" @change="breakLineTip($event);save($event)">
-                    <div>
-                        <div />
-                    </div>
-                </label>
-            </div>
-            <div v-if="settingsStore.sysConfig.use_breakline" class="opt-item">
                 <div :class="checkDefault('send_key')" />
                 <font-awesome-icon :icon="['fas', 'keyboard']" />
                 <div>
@@ -160,72 +130,9 @@
                     </select>
                 </div>
             </div>
-            <div class="opt-item">
-                <div :class="checkDefault('record_recent_emoji')" />
-                <font-awesome-icon :icon="['fas', 'clock-rotate-left']" />
-                <div>
-                    <label for="opt-function-recent-emoji">{{ $t('缓存最近使用表情') }}</label>
-                    <span>{{ $t('终于不用翻表情了') }}</span>
-                </div>
-                <div class="select-wrapper">
-                    <select
-                        id="opt-function-recent-emoji"
-                        v-model="settingsStore.sysConfig.record_recent_emoji"
-                        name="record_recent_emoji"
-                        title="record_recent_emoji">
-                        <option value="none">
-                            {{ $t('不记录') }}
-                        </option>
-                        <option value="order">
-                            {{ $t('使用顺序') }}
-                        </option>
-                        <option value="100times">
-                            {{ $t('100次使用频率（默认）') }}
-                        </option>
-                        <option value="500times">
-                            {{ $t('500次使用频率') }}
-                        </option>
-                    </select>
-                </div>
-            </div>
         </div>
         <div class="ss-card">
             <header>{{ $t('浏览选项') }}</header>
-            <div class="opt-item">
-                <div :class="checkDefault('close_respond')" />
-                <font-awesome-icon :icon="['fas', 'comments']" />
-                <div>
-                    <label for="opt-function-close-respond">{{ $t('关闭回应功能') }}</label>
-                    <span>{{
-                        $t('如果你不想用它或者 bot 不支持，可以关闭这个功能')
-                    }}</span>
-                </div>
-                <label class="ss-switch">
-                    <input id="opt-function-close-respond" v-model="settingsStore.sysConfig.close_respond"
-                        type="checkbox" name="close_respond" @change="save">
-                    <div>
-                        <div />
-                    </div>
-                </label>
-            </div>
-            <div class="opt-item">
-                <div :class="checkDefault('use_super_face')" />
-                <font-awesome-icon :icon="['fas', 'face-laugh-squint']" />
-                <div>
-                    <label for="opt-function-use-super-face">{{ $t('超级表情') }}</label>
-                    <span>{{
-                        $t('小黄脸长大了，变成了大黄脸！')
-                    }}</span>
-                </div>
-                <label class="ss-switch">
-                    <input id="opt-function-use-super-face" v-model="settingsStore.sysConfig.use_super_face"
-                        type="checkbox" name="use_super_face" @change="save">
-                    <div>
-                        <div />
-                    </div>
-                </label>
-            </div>
-
             <div v-if="backend.isDesktop()"
                 class="opt-item">
                 <div :class="checkDefault('opt_always_top')" />
@@ -321,70 +228,15 @@
                 </div>
             </div>
         </div>
-        <div class="ss-card">
-            <header>{{ $t('分析信息') }}</header>
-            <div
-                class="opt-item"
-                :style="{ 'background': settingsStore.sysConfig.close_ga !== true ? 'var(--color-card-1)' : 'none' }">
-                <div :class="checkDefault('close_ga')" />
-                <font-awesome-icon :icon="['fas', 'cloud']" />
-                <div>
-                    <label for="opt-function-close-ga">{{ $t('关闭分析') }}</label>
-                    <span>{{ $t('真的不让看吗（小声') }}</span>
-                </div>
-                <label class="ss-switch">
-                    <input id="opt-function-close-ga" v-model="settingsStore.sysConfig.close_ga" type="checkbox"
-                        name="close_ga" @change="save">
-                    <div style="background: var(--color-card-2)">
-                        <div />
-                    </div>
-                </label>
-            </div>
-            <div
-                v-if="settingsStore.sysConfig.close_ga !== true"
-                class="tip">
-                {{
-                    $t('我们使用 Umami 对应用的使用情况进行分析，它将不会上传精确到用户的信息；你也可以在这儿控制分析功能的开关和额外分析项。')
-                }}
-            </div>
-            <div v-if="settingsStore.sysConfig.close_ga !== true" class="opt-item">
-                <font-awesome-icon :icon="['fas', 'file-invoice']" />
-                <div>
-                    <span>{{ $t('分析统计信息') }}</span>
-                    <span>{{ $t('都有些什么数据呢') }}</span>
-                </div>
-                <button style="width: 100px; font-size: 0.8rem"
-                    class="ss-button" @click=" showUmamiInfo">
-                    {{ $t('查看') }}
-                </button>
-            </div>
-            <div v-if="settingsStore.sysConfig.close_ga !== true"
-                class="opt-item">
-                <div :class="checkDefault('open_ga_bot')" />
-                <font-awesome-icon :icon="['fas', 'dice']" />
-                <div>
-                    <label for="opt-function-open-ga-bot">{{ $t('后端类型分析') }}</label>
-                    <span>{{ $t('在连接后上传所使用的 bot 的类型分析') }}</span>
-                </div>
-                <label class="ss-switch">
-                    <input id="opt-function-open-ga-bot" v-model="settingsStore.sysConfig.open_ga_bot" type="checkbox"
-                        name="open_ga_bot" @change="save">
-                    <div>
-                        <div />
-                    </div>
-                </label>
-            </div>
-        </div>
     </div>
 </template>
 
 <script lang="ts" setup>
-    import { ref, watch, markRaw } from 'vue'
+    import { ref, watch } from 'vue'
     import { PopInfo, PopType } from '@renderer/function/base'
     import { runASWEvent as save, checkDefault, runAS } from '@renderer/function/option'
     import { i18n } from '@renderer/main'
 
-    import UmamiInfoPan from '@renderer/components/UmamiInfoPan.vue'
     import { backend } from '@renderer/runtime/backend'
     import { dbClearImages, dbGetStats } from '@renderer/function/utils/localHistoryUtil'
     import { useSettingsStore } from '@renderer/state/settings'
@@ -426,39 +278,9 @@
         return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`
     }
 
-    function showUmamiInfo() {
-        const popInfo = {
-            title: '',
-            template: markRaw(UmamiInfoPan),
-            full: true,
-            allowQuickClose: false
-        }
-        uiStore.popBoxList.push(popInfo)
-    }
-
     function toggleSessionDisplay(event: Event) {
         const sender = event.target as HTMLInputElement
         runAS('session_display_mode', sender.checked ? 'all' : 'recent')
-    }
-
-    function breakLineTip(event: Event) {
-        const sender = event.target as HTMLInputElement
-        if (sender.checked) {
-            const popInfo = {
-                title: $t('提醒'),
-                html: `<span>${$t('开启多行模式可能会在一些拥有特殊选词模式的输入法上出现问题，如 微软注音2003、新注音2003 和 绝大部分很早期的拼音输入法；如果在使用的时候遇到问题可以尝试关闭此功能。（或者换个更现代的输入法）')}</span>`,
-                button: [
-                    {
-                        text: $t('知道了'),
-                        master: true,
-                        fun: () => {
-                            uiStore.popBoxList.shift()
-                        },
-                    },
-                ],
-            }
-            uiStore.popBoxList.push(popInfo)
-        }
     }
 
     function toggleLocalHistoryImageCache(event: Event) {

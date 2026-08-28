@@ -94,7 +94,6 @@ export const optDefault: { [key: string]: any } = {
     opt_ind_message: false,
     opt_no_auto_load_image: false,
     // Function
-    close_notice: false,
     bubble_sort_user: true,
     session_display_mode: 'recent' as 'recent' | 'all',
     close_respond: false,
@@ -102,8 +101,7 @@ export const optDefault: { [key: string]: any } = {
     quick_send: 'default',
     group_notice_type: 'none',
     send_face: false,
-    use_breakline: true,
-    send_key: 'none',
+    send_key: 'ctrl',
     close_ga: false,
     open_ga_bot: true,
     record_recent_emoji: '100times' as 'none' | 'order' | '100times' | '500times',

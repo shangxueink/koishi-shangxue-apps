@@ -21,9 +21,6 @@
                 <div :name="$t('功能')">
                     <OptFunction :config="config" />
                 </div>
-                <div :name="$t('附加')">
-                    <OptAddon />
-                </div>
                 <div :name="$t('高级')">
                     <OptDev />
                 </div>
@@ -46,7 +43,6 @@
     import OptView from './options/OptView.vue'
     import OptDev from './options/OptDev.vue'
     import OptFunction from './options/OptFunction.vue'
-    import OptAddon from './options/OptAddon.vue'
 
     import AboutPan from '@renderer/components/AboutPan.vue'
 

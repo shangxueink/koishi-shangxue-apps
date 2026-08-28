@@ -2376,8 +2376,7 @@ function newMsg(_: string, data: any) {
             groupNoticeType !== 'none' ||
             hasForcedGroupInnerNotice
         const allowGroupSystemNotice = !isGroupMessage ||
-            groupNoticeType === 'all' ||
-            hasForcedGroupInnerNotice
+            groupNoticeType === 'all'
 
         // 会话状态更新 ============================================
         const sessionId = isTempGroupMessage ? sender : id
@@ -2488,10 +2487,13 @@ function newMsg(_: string, data: any) {
                         }
                     })
                 }
-                // 发送消息
-                if (Option.get('close_notice') !== true) {
-                    new Notify().notify(msgInfo)
+                const isGroupImportantNotice = isGroupMessage &&
+                    (data.atme || data.atall || isImportant || isGroupNotice)
+                if (isGroupImportantNotice && groupNoticeType !== 'none') {
+                    new PopInfo().add(PopType.INFO, `${msgInfo.title}: ${msgInfo.body}`)
                 }
+                // 发送消息
+                new Notify().notify(msgInfo)
             }
         }
 }
