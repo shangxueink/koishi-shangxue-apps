@@ -12,6 +12,10 @@ function isUsableName(value: string, id: string): boolean {
   return Boolean(value) && value !== id && !/unknown user|unknown guild|unknown channel/i.test(value)
 }
 
+function normalizeGroupId(value: string): string {
+  return value.replace(/^(?:group|room|chat|channel|guild|private):/i, '') || value
+}
+
 function normalizeCacheType(type: string): 'group' | 'friend' {
   if (type === 'user' || type === 'friend') return 'friend'
   return 'group'
@@ -34,12 +38,14 @@ export class ContactCacheService {
     selfId: string,
     userId: string,
     guildId?: string,
+    channelId?: string,
     fallbackName?: string,
     fallbackAvatar?: string,
   ): Promise<ContactCacheItem | null> {
     if (!userId || userId === '0') return null
     const guild = guildId && guildId !== '0' ? guildId : undefined
-    return this.resolve(platform, selfId, 'user', userId, async (bot) => {
+    const channel = channelId && channelId !== '0' ? channelId : undefined
+    const item = await this.resolve(platform, selfId, 'user', userId, async (bot) => {
       let user: Universal.User | null = null
       let member: Universal.GuildMember | null = null
       try {
@@ -89,12 +95,28 @@ export class ContactCacheService {
           name,
           nickname: name,
           avatar: avatar || undefined,
+          channel_id: channel || undefined,
+          guild_id: guild || undefined,
         },
       }
     }, {
       name: fallbackName,
       avatar: fallbackAvatar,
     })
+    if (!item) return null
+    const needChannel = Boolean(channel && item.channelId !== channel)
+    const needGuild = Boolean(guild && item.guildId !== guild)
+    if (channel) item.channelId = channel
+    if (guild) item.guildId = guild
+    if (needChannel || needGuild) {
+      if (item.raw && typeof item.raw === 'object') {
+        const raw = item.raw as Record<string, unknown>
+        if (channel) raw.channel_id = channel
+        if (guild) raw.guild_id = guild
+      }
+      await this.database.appendContact(platform, selfId, 'friend', item)
+    }
+    return item
   }
 
   // 查询群/频道缓存；未命中时由后端调用 guild.get/channel.get，并写入数据库
@@ -109,9 +131,10 @@ export class ContactCacheService {
   ): Promise<ContactCacheItem | null> {
     const guild = guildId && guildId !== '0' ? guildId : undefined
     const channel = channelId && channelId !== '0' ? channelId : undefined
-    const cacheId = id && id !== '0' ? id : guild || channel || ''
+    const rawId = id && id !== '0' ? normalizeGroupId(id) : ''
+    const cacheId = rawId || guild || normalizeGroupId(channel || '') || ''
     if (!cacheId) return null
-    return this.resolve(platform, selfId, 'group', cacheId, async (bot) => {
+    const item = await this.resolve(platform, selfId, 'group', cacheId, async (bot) => {
       const [guildData, channelData] = await Promise.all([
         guild
           ? this.safeGet(() => bot.getGuild(guild))
@@ -143,12 +166,28 @@ export class ContactCacheService {
           name,
           group_name: name,
           avatar: avatar || undefined,
+          channel_id: channel || undefined,
+          guild_id: guild || undefined,
         },
       }
     }, {
       name: fallbackName,
       avatar: fallbackAvatar,
     })
+    if (!item) return null
+    const needChannel = Boolean(channel && item.channelId !== channel)
+    const needGuild = Boolean(guild && item.guildId !== guild)
+    if (channel) item.channelId = channel
+    if (guild) item.guildId = guild
+    if (needChannel || needGuild) {
+      if (item.raw && typeof item.raw === 'object') {
+        const raw = item.raw as Record<string, unknown>
+        if (channel) raw.channel_id = channel
+        if (guild) raw.guild_id = guild
+      }
+      await this.database.appendContact(platform, selfId, 'group', item)
+    }
+    return item
   }
 
   // 收到群消息时更新该群对应的群友表
@@ -254,6 +293,9 @@ export class ContactCacheService {
       id: item.id,
       name: item.name,
       avatar: item.avatar || undefined,
+      channelId: item.channelId || undefined,
+      guildId: item.guildId || undefined,
+      raw: item.raw ?? undefined,
     }
   }
 }

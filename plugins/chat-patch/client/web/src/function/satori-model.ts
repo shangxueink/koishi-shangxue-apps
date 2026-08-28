@@ -18,6 +18,10 @@ function getString(value: unknown): string {
   return typeof value === 'string' ? value : ''
 }
 
+function normalizeGroupId(value: string): string {
+  return value.replace(/^(?:group|room|chat|channel|guild|private):/i, '') || value
+}
+
 function usableAvatar(value: unknown): string | undefined {
   const avatar = getString(value)
   if (!avatar || avatar === '/img/icons/icon.svg') return undefined
@@ -391,7 +395,7 @@ export function satoriEventToOneBot(event: SatoriObject): Record<string, unknown
     const userId = getString(user.id)
       || (isGroup ? '' : getString(channel.id).replace(/^private:/, ''))
     const groupId = isGroup
-      ? getString(guild.id) || getString(channel.id)
+      ? getString(guild.id) || normalizeGroupId(getString(channel.id))
       : ''
     const directChannelId = isGroup ? groupId : userId
     const nickname = getString(user.name) || getString(user.nick) || userId
@@ -625,7 +629,9 @@ function messageListFromResponse(data: unknown): unknown[] {
     const guild = getObject(message.guild)
     const member = getObject(message.member)
     const isGroup = Boolean(guild.id) || getNumber(channel.type) === 0
-    const groupId = isGroup ? getString(guild.id) || getString(channel.id) : ''
+    const groupId = isGroup
+      ? getString(guild.id) || normalizeGroupId(getString(channel.id))
+      : ''
     const userId = getString(user.id)
       || (isGroup ? '' : getString(channel.id).replace(/^private:/, ''))
     const directChannelId = isGroup ? groupId : userId

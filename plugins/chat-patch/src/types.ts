@@ -53,6 +53,8 @@ export interface ContactCacheItem {
   id: string
   name: string
   avatar?: string
+  channelId?: string
+  guildId?: string
   raw?: unknown
 }
 

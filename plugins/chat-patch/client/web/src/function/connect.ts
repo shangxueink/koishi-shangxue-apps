@@ -198,18 +198,22 @@ function applyUserIdentity(
   msg: Record<string, unknown>,
   name: string,
   avatar: string,
+  channelId = '',
 ) {
   if (name && session) {
     session.nickname = name
     session.remark = name
   }
   if (avatar && session) session.avatar = avatar
+  if (channelId && session && !getString(session.channel_id)) {
+    session.channel_id = channelId
+  }
   if (msg.sender && typeof msg.sender === 'object') {
     const sender = getObject(msg.sender)
     if (avatar) sender.avatar = avatar
     if (name) sender.nickname = name
   }
-  syncUserIdentity(userId, name, avatar)
+  syncUserIdentity(userId, name, avatar, channelId)
   const chatStore = useChatStore()
   const applySenderAvatar = (item: Record<string, unknown>) => {
     const itemSender = getObject(item.sender)
@@ -223,7 +227,7 @@ function applyUserIdentity(
   }
 }
 
-function syncUserIdentity(userId: string, name: string, avatar: string) {
+function syncUserIdentity(userId: string, name: string, avatar: string, channelId = '') {
   const contactStore = useContactStore()
   const applyUser = (target: Record<string, unknown>) => {
     if (name) {
@@ -232,6 +236,10 @@ function syncUserIdentity(userId: string, name: string, avatar: string) {
     }
     if (avatar) target.avatar = avatar
     else if (target.avatar && !hasUsableAvatar(target.avatar)) delete target.avatar
+    if (channelId) {
+      if (!getString(target.channel_id)) target.channel_id = channelId
+      if (!getString(target.channelId)) target.channelId = channelId
+    }
   }
   const globalSession = contactStore.baseOnMsgList.get(String(userId))
   if (globalSession) {
@@ -344,10 +352,14 @@ async function resolveGroupIdentity(
   const cached = getObject(cacheResult)
   const cachedName = getString(cached.name)
   const cachedAvatar = hasUsableAvatar(cached.avatar) ? getString(cached.avatar) : ''
+  const cachedChannelId = getString(cached.channel_id) || getString(cached.channelId) || channelId
+  const cachedGuildId = getString(cached.guild_id) || getString(cached.guildId) || guildId
   if (cachedName || cachedAvatar) {
     const cachedApply = (target: Record<string, unknown>) => {
       if (cachedName) target.group_name = cachedName
       if (cachedAvatar) target.avatar = cachedAvatar
+      if (cachedChannelId) target.channel_id = cachedChannelId
+      if (cachedGuildId) target.guild_id = cachedGuildId
     }
     cachedApply(session)
     syncGroupIdentity(sessionId, cachedApply)
@@ -368,6 +380,8 @@ async function resolveGroupIdentity(
     if (name) target.group_name = name
     if (avatar) target.avatar = avatar
     else if (target.avatar && !hasUsableAvatar(target.avatar)) delete target.avatar
+    if (channelId) target.channel_id = channelId
+    if (guildId) target.guild_id = guildId
   }
   applyGroup(session)
   syncGroupIdentity(sessionId, applyGroup)
@@ -399,16 +413,21 @@ async function fetchUserIdentity(
     }
 
     const guildId = getString(msg.guild_id) || getString(msg.group_id)
+    const isPrivate = !getString(msg.group_id)
+    const channelId = isPrivate
+      ? (getString(msg.channel_id) || `private:${userId}`)
+      : ''
     const sender = getObject(msg.sender)
     const senderName = getString(sender.nickname) || getString(sender.card) || getString(sender.name)
     const senderAvatar = hasUsableAvatar(sender.avatar) ? getString(sender.avatar) : ''
-    identityDebug('user identity: request cache', { platform, selfId, userId, guildId, senderName })
+    identityDebug('user identity: request cache', { platform, selfId, userId, guildId, channelId, senderName })
     const data = await requestIdentityCache({
       platform,
       selfId,
       type: 'user',
       id: userId,
       guildId,
+      channelId: channelId || undefined,
       name: senderName,
       avatar: senderAvatar,
     }).catch(() => null)
@@ -424,7 +443,8 @@ async function fetchUserIdentity(
       return
     }
 
-    applyUserIdentity(userId, session, msg, name, avatar)
+    const cachedChannelId = getString(root.channel_id) || getString(root.channelId) || channelId
+    applyUserIdentity(userId, session, msg, name, avatar, cachedChannelId)
     markIdentityLookup(key, true, { name, avatar, raw: root })
   } finally {
     identityInflight.delete(inflightKey)
@@ -775,9 +795,12 @@ function contactName(item: unknown): string {
 }
 
 function contactCachePayload(item: unknown): Record<string, unknown> {
+  const obj = getObject(item)
   return {
-    id: contactId(item),
-    name: contactName(item),
+    id: contactId(obj),
+    name: contactName(obj),
+    channelId: getString(obj.channel_id) || getString(obj.channelId) || undefined,
+    guildId: getString(obj.guild_id) || getString(obj.guildId) || undefined,
     raw: item,
   }
 }
@@ -1028,6 +1051,8 @@ function buildFriendItem(raw: unknown, data: unknown): Record<string, unknown> {
   const name = String(user.name ?? user.nick ?? user.username ?? '')
   const avatar = hasUsableAvatar(user.avatar) ? getString(user.avatar) : ''
   const item: Record<string, unknown> = { ...getObject(raw) }
+  if (!item.channel_id && item.channelId) item.channel_id = item.channelId
+  if (!item.guild_id && item.guildId) item.guild_id = item.guildId
   if (name) {
     item.nickname = name
     item.remark = name
@@ -1081,8 +1106,15 @@ function buildGroupItem(raw: unknown, data: unknown): Record<string, unknown> {
   if (name) item.group_name = name
   if (avatar) item.avatar = avatar
   else if (item.avatar && !hasUsableAvatar(item.avatar)) delete item.avatar
-  if (!item.guild_id) item.guild_id = id
-  if (!item.channel_id) item.channel_id = id
+  const guildId = getString(guild.id)
+    || getString(item.guild_id)
+    || getString(item.guildId)
+    || id
+  const channelId = getString(channel.id)
+    || getString(item.channel_id)
+    || getString(item.channelId)
+  if (guildId) item.guild_id = guildId
+  if (channelId) item.channel_id = channelId
   return item
 }
 
@@ -1099,8 +1131,8 @@ async function fetchGroupProfiles(
     const id = contactId(raw)
     if (!id) return
     const rawObj = getObject(raw)
-    const guildId = getString(rawObj.guild_id) || id
-    const channelId = getString(rawObj.channel_id) || id
+    const guildId = getString(rawObj.guild_id) || getString(rawObj.guildId) || id
+    const channelId = getString(rawObj.channel_id) || getString(rawObj.channelId) || id
     const [guildData, channelData] = await Promise.all([
       withTimeout(
         request('guild.get', { guild_id: guildId }, active).catch(() => null),

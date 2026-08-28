@@ -50,7 +50,9 @@ export interface UserFriendElem extends UserElem {
     group_name: string
     avatar?: string
     channel_id?: string
+    channelId?: string
     guild_id?: string
+    guildId?: string
     py_name?: PinYinData
     py_start?: string
     member_count?: number
@@ -62,7 +64,9 @@ export interface UserGroupElem extends UserElem {
     nickname: string
     remark: string
     channel_id?: string
+    channelId?: string
     guild_id?: string
+    guildId?: string
     raw_msg_base?: string       // 给群收纳箱用的
     py_name?: PinYinData
     py_start?: string

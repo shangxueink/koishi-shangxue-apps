@@ -395,8 +395,8 @@
                 id: id,
                 name: getShowName(data.group_name || data.nickname, data.remark),
                 avatar: data.avatar || '/img/icons/icon.svg',
-                channel_id: data.channel_id,
-                guild_id: data.guild_id,
+                channel_id: data.channel_id ?? data.channelId,
+                guild_id: data.guild_id ?? data.guildId,
             }
             if (props.chat.id != back.id) {
                 // 更新聊天框

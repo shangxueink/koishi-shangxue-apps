@@ -144,11 +144,13 @@ export function registerWeb(
     const id = String(koa.query.userId ?? koa.query.groupId ?? koa.query.id ?? '')
     if (id) {
       if (type === 'user' || type === 'friend') {
+        const channelId = String(koa.query.channelId ?? '')
         const contact = await contactCache.getUser(
           platform,
           selfId,
           id,
           String(koa.query.guildId ?? ''),
+          channelId,
           String(koa.query.name ?? ''),
           String(koa.query.avatar ?? ''),
         )

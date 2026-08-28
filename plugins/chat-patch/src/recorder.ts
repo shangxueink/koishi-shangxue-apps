@@ -9,6 +9,10 @@ import { PluginLogger } from './logger'
 
 const MESSAGE_TYPES = new Set(['message', 'message-created', 'send'])
 
+function normalizeGroupId(value: string): string {
+  return value.replace(/^(?:group|room|chat|channel|guild|private):/i, '') || value
+}
+
 export class Recorder {
   constructor(
     private ctx: Context,
@@ -80,7 +84,7 @@ export class Recorder {
     const userId = user?.id || ''
     const guildId = guild?.id || ''
     const channelId = channel?.id || ''
-    const groupId = guildId || channelId || ''
+    const groupId = guildId || normalizeGroupId(channelId) || ''
     const userName = user?.name || user?.nick || member?.nick || member?.name || ''
     const userAvatar = user?.avatar || member?.avatar || ''
     const groupName = guild?.name || channel?.name || ''
@@ -102,6 +106,7 @@ export class Recorder {
           selfId,
           userId,
           guildId || groupId,
+          undefined,
           userName,
           userAvatar,
         )
@@ -131,6 +136,7 @@ export class Recorder {
         selfId,
         userId,
         undefined,
+        channelId,
         userName,
         userAvatar,
       )
