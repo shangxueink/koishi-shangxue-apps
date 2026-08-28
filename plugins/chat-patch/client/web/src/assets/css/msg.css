@@ -608,6 +608,42 @@ div:has(> .msg-img.long-img.light)::after {
     min-width: 35vw;
 }
 
+/* QQ 小程序卡片固定为方形卡片，不随屏幕宽度继续拉伸 */
+.msg-json.miniapp-card {
+    width: 18rem;
+    min-width: 0;
+    max-width: min(18rem, 80vw);
+    max-height: 18rem;
+    aspect-ratio: 1 / 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    box-sizing: border-box;
+    border: 1px solid rgba(var(--color-card-2-rgb), 0.5);
+    border-radius: 7px;
+    background: rgba(var(--color-card-rgb), 0.35);
+}
+.msg-json.miniapp-card > p {
+    flex: none;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+.msg-json.miniapp-card > img {
+    width: 100%;
+    max-width: 100%;
+    flex: 1;
+    min-height: 0;
+    object-fit: cover;
+    border-radius: 7px;
+    margin: 7px 0 0;
+    transform: none;
+}
+.msg-json.miniapp-card > div.bottom-bar {
+    margin: 0;
+    padding: 8px;
+}
+
 .msg-json > p {
     font-weight: bold;
     margin: 0;

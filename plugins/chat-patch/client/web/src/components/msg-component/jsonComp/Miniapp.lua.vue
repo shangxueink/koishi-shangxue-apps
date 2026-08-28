@@ -1,5 +1,5 @@
 <template>
-    <div v-if="success" class="msg-json" @click="openLink(parsedContent.jumpUrl)">
+    <div v-if="success" class="msg-json miniapp-card" @click="openLink(parsedContent.jumpUrl)">
         <p>{{ parsedContent.title }}</p>
         <img :src="parsedContent.img" alt="">
         <div class="bottom-bar">
