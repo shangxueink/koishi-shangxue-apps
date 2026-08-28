@@ -240,7 +240,9 @@
         ) => {
             for (const item of items) {
                 const id = String(item.user_id ?? item.group_id ?? '')
-                const key = `${bot?.platform ?? ''}:${bot?.selfId ?? ''}:${id}`
+                const key = [bot?.platform ?? '', bot?.selfId ?? '', id]
+                    .map((value) => encodeURIComponent(String(value)))
+                    .join(':')
                 map.set(key, { ...item, _bot: bot })
             }
         }

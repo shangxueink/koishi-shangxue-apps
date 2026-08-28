@@ -690,20 +690,8 @@
      * 显示群收纳盒
      */
     function showGroupAssistCheck() {
-        if(!showGroupAssist.value && chatStore.chatInfo.show.id == 0 && backend.type != 'capacitor' ) {
-            // 如果没有打开聊天框，打开收纳盒中的第一个群；这么做主要是为了防止动画穿帮
-            const assistGroup = document.getElementById('group-assist-message-list-body')
-            if(assistGroup && assistGroup.children.length > 0) {
-                (assistGroup.children[0] as HTMLDivElement).click()
-                setTimeout(() => {
-                    showGroupAssist.value = !showGroupAssist.value
-                }, 500)
-            } else {
-                showGroupAssist.value = !showGroupAssist.value
-            }
-        } else {
-            showGroupAssist.value = !showGroupAssist.value
-        }
+        // 只展开收纳盒，不再默认选中第一个群
+        showGroupAssist.value = !showGroupAssist.value
     }
 
     function showMenuStart(

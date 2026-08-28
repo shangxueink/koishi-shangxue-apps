@@ -330,7 +330,7 @@
                         :title="$t('图片')"
                         @click="runSelectImg">
                         <font-awesome-icon :icon="['fas', 'image']" />
-                        <input id="choice-pic" type="file" style="display: none"
+                        <input id="choice-pic" type="file" accept="image/*" style="display: none"
                             @change="selectImg">
                         <label for="choice-pic" class="sr-only">{{ $t('选择图片') }}</label>
                     </div>
@@ -363,11 +363,6 @@
                         </div>
                         <input id="choice-audio" type="file" accept="audio/*"
                             style="display: none" @change="selectAudioFile">
-                    </div>
-                    <div v-if="chat.show.type === 'user'"
-                        :title="$t('戳一戳')"
-                        @click="sendPoke(chat.show.id)">
-                        <font-awesome-icon :icon="['fas', 'fa-hand-point-up']" />
                     </div>
                     <div class="space" />
                     <div :title="$t('搜索消息')" @click="openSearch">
@@ -753,6 +748,11 @@ const chatImg = ref<any>(undefined)
 const trueLang = getTrueLang()
 const isDev = import.meta.env.DEV
 
+function ensureChannelPrefix(channelId: string, prefix: string): string {
+    if (/^(?:group|room|chat|channel|guild|private):/i.test(channelId)) return channelId
+    return `${prefix}:${channelId}`
+}
+
 //#region == 窗口移动相关 ==================================================
 const chatMoveOptions: VMoveOptions<HTMLDivElement> = {
     beforeHook: (_) => {
@@ -1128,8 +1128,8 @@ async function loadMoreHistory() {
         const id = chatStore.chatInfo.show.id
         const rawChannelId = String(chatStore.chatInfo.show.channel_id ?? '')
         const channelId = type === 'group'
-            ? (rawChannelId.includes(':') ? rawChannelId : `group:${rawChannelId || id}`)
-            : (rawChannelId || (String(id).includes(':') ? String(id) : `private:${id}`))
+            ? ensureChannelPrefix(rawChannelId || String(id), 'group')
+            : ensureChannelPrefix(rawChannelId || String(id), 'private')
         const cached = await loadChatHistoryFromCache({
             platform: String(authStore.loginInfo.platform ?? ''),
             selfId: String(authStore.loginInfo.uin ?? ''),

@@ -30,55 +30,15 @@
                 <div>
                     <span name="id">{{ userInfo.user_id }}</span>
                     <div>
-                        <a>{{ userInfo.card ? userInfo.card : userInfo.nickname }}</a>
-                        <span :class="titleClass">
-                            <template v-if="userInfo?.is_robot">
-                                {{ $t('机器人') }}
-                            </template>
-                            <template v-if="userInfo?.role == 'owner'">
-                                {{ $t('群主') }}
-                            </template>
-                            <template v-if="userInfo?.role == 'admin'">
-                                {{ $t('管理员') }}
-                            </template>
-                            <template v-if="userInfo?.level">
-                                {{ 'Lv.' + userInfo.level }}
-                            </template>
-                        </span>
-                        <span v-if="userInfo?.is_robot" class="robot">{{ $t('机器人') }}</span>
-                        <span v-if="userInfo?.role == 'owner'" class="owner">{{ $t('群主') }}</span>
-                        <span v-else-if="userInfo?.role == 'admin'" class="admin">{{ $t('管理员') }}</span>
+                        <a>{{ userInfo.card || userInfo.nickname || userInfo.name || userInfo.user_id }}</a>
                     </div>
                 </div>
-            </div>
-            <div class="member">
-                <div>
-                    <template v-if="userInfo.banTime">
-                        <font-awesome-icon style="color: var(--color-red)" :icon="['fas', 'fa-volume-mute']" />
-                        {{ $t('禁言中') }}
-                    </template>
-                </div>
-                <span v-if="userInfo.join_time">
-                    {{
-                        $t('{time} 加入群聊', {
-                            time: Intl.DateTimeFormat(getTrueLang(), {
-                                year: 'numeric',
-                                month: 'short',
-                                day: 'numeric',
-                            }).format(
-                                new Date(userInfo.join_time * 1000),
-                            ),
-                        })
-                    }}
-                </span>
             </div>
         </template>
     </div>
 </template>
 
 <script setup lang="ts">
-import { getTrueLang } from '@renderer/function/utils/systemUtil';
-
 type IUser = any
 
 const { user: userProp } = defineProps<{
@@ -90,13 +50,6 @@ if (typeof userProp === 'function') {
     userInfo = userProp()
 } else {
     userInfo = userProp
-}
-
-const titleClass = {
-    'user-title': true,
-    'robot': userInfo?.is_robot,
-    'owner': userInfo?.role == 'owner',
-    'admin': userInfo?.role == 'admin',
 }
 </script>
 

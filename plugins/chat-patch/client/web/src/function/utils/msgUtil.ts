@@ -754,7 +754,7 @@ export async function sendMsgRaw(
                         'send_msg',
                         {
                             user_id: id,
-                            channel_id: String(chatStore.chatInfo.show.channel_id ?? (String(id).includes(':') ? String(id) : `private:${String(id)}`)),
+                            channel_id: String(chatStore.chatInfo.show.channel_id ?? (/^(?:group|room|chat|channel|guild|private):/i.test(String(id)) ? String(id) : `private:${String(id)}`)),
                             message: msg,
                         },
                         echo + '_uuid_' + msgUUID,

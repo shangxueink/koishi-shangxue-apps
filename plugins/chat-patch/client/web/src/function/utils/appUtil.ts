@@ -50,6 +50,15 @@ import { normalizeSessionId } from './sessionUtil'
 const popInfo = new PopInfo()
 const logger = new Logger()
 
+function encodeKeyPart(value: unknown): string {
+    return encodeURIComponent(String(value ?? ''))
+}
+
+function ensureChannelPrefix(channelId: string, prefix: string): string {
+    if (/^(?:group|room|chat|channel|guild|private):/i.test(channelId)) return channelId
+    return `${prefix}:${channelId}`
+}
+
 /**
  * 滚动到目标消息（不自动加载）
  * @param seqName DOM 名（chat-xx）
@@ -113,7 +122,7 @@ export async function loadHistory(info: BaseChatInfoElem) {
     uiStore.nowGetHistory = false
     uiStore.historyBeforeTime = undefined
     chatStore.messageList = []
-    const cacheKey = `${String(authStore.loginInfo.platform ?? '')}:${String(authStore.loginInfo.uin ?? '')}:${String(info.id)}`
+    const cacheKey = [authStore.loginInfo.platform, authStore.loginInfo.uin, info.id].map(encodeKeyPart).join(':')
     const cachedMessages = chatStore.sessionMessageCache.get(cacheKey)
     if (cachedMessages?.length) {
         chatStore.messageList = [...cachedMessages]
@@ -134,8 +143,8 @@ export async function loadHistory(info: BaseChatInfoElem) {
     }
     const rawChannelId = String(info.channel_id ?? '')
     const channelId = info.type === 'group'
-        ? (rawChannelId.includes(':') ? rawChannelId : `group:${rawChannelId || info.id}`)
-        : (rawChannelId || (String(info.id).includes(':') ? String(info.id) : `private:${info.id}`))
+        ? ensureChannelPrefix(rawChannelId || String(info.id), 'group')
+        : ensureChannelPrefix(rawChannelId || String(info.id), 'private')
     try {
         const cachedMessages = await loadChatHistoryFromCache({
             platform: String(authStore.loginInfo.platform ?? ''),

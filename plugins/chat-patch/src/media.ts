@@ -17,6 +17,7 @@ function toExtension(value: string): string {
 
 export class MediaManager {
   private mediaDir: string
+  private uploadDir: string
   private cleanupTimer?: () => void
 
   constructor(
@@ -26,6 +27,7 @@ export class MediaManager {
     private logger: PluginLogger,
   ) {
     this.mediaDir = path.resolve(ctx.baseDir, 'data', 'chat-patch', 'media')
+    this.uploadDir = path.resolve(ctx.baseDir, 'data', 'chat-patch', 'upload-media')
   }
 
   start() {
@@ -49,17 +51,20 @@ export class MediaManager {
     this.cleanupTimer = this.ctx.setInterval(() => {
       void this.cleanup()
     }, 10 * 60 * 1000)
+
+    // 每次插件启动时先按全局文件数清理一次
+    void this.cleanup()
   }
 
   dispose() {
     this.cleanupTimer?.()
   }
 
-  async cacheUrl(url: string): Promise<string | null> {
+  async cacheUrl(url: string, channelId = ''): Promise<string | null> {
     try {
-      const filePath = await this.resolveAndDownload(url)
+      const filePath = await this.resolveAndDownload(url, channelId)
       if (filePath) {
-        await this.database.recordMedia(url, filePath)
+        await this.database.recordMedia(url, filePath, channelId)
       }
       return filePath
     } catch (error) {
@@ -68,19 +73,19 @@ export class MediaManager {
     }
   }
 
-  private async resolveAndDownload(url: string): Promise<string | null> {
+  private async resolveAndDownload(url: string, channelId: string): Promise<string | null> {
     try {
       await fs.mkdir(this.mediaDir, { recursive: true })
       const cached = await this.database.getMediaPath(url)
       if (cached && await this.exists(cached)) {
-        return this.migrateCachedMedia(url, cached)
+        return this.migrateCachedMedia(url, cached, channelId)
       }
 
       const hash = createHash('md5').update(url).digest('hex')
       const urlExt = path.extname(new URL(url).pathname)
       const fallbackPath = path.join(this.mediaDir, `${hash}${urlExt || '.bin'}`)
       if (await this.exists(fallbackPath)) {
-        return this.migrateCachedMedia(url, fallbackPath)
+        return this.migrateCachedMedia(url, fallbackPath, channelId)
       }
 
       const response = await fetch(url, {
@@ -116,7 +121,7 @@ export class MediaManager {
     return ext && ext !== '.bin' ? ext.toLowerCase() : '.bin'
   }
 
-  private async migrateCachedMedia(url: string, filePath: string): Promise<string> {
+  private async migrateCachedMedia(url: string, filePath: string, channelId: string): Promise<string> {
     try {
       const buffer = await fs.readFile(filePath)
       const ext = await this.detectExtension(url, buffer)
@@ -133,7 +138,7 @@ export class MediaManager {
       } else {
         await fs.rename(filePath, newPath)
       }
-      await this.database.recordMedia(url, newPath)
+      await this.database.recordMedia(url, newPath, channelId)
       return newPath
     } catch (error) {
       this.logger.warn('旧媒体缓存重命名失败:', url, error)
@@ -143,18 +148,85 @@ export class MediaManager {
 
   private async cleanup() {
     try {
-      const files = await fs.readdir(this.mediaDir)
-      const stats = await Promise.all(files.map(async (name) => {
-        const filePath = path.join(this.mediaDir, name)
-        const stat = await fs.stat(filePath)
-        return { filePath, mtime: stat.mtimeMs }
-      }))
-      stats.sort((a, b) => b.mtime - a.mtime)
-      for (const item of stats.slice(this.config.maxMediaFiles)) {
-        await fs.unlink(item.filePath)
+      const allFiles: Array<{ filePath: string; mtimeMs: number; channelId: string }> = []
+      for (const dir of [this.mediaDir, this.uploadDir]) {
+        try {
+          const entries = await fs.readdir(dir, { withFileTypes: true })
+          for (const entry of entries) {
+            if (!entry.isFile()) continue
+            const filePath = path.join(dir, entry.name)
+            try {
+              const stat = await fs.stat(filePath)
+              allFiles.push({ filePath, mtimeMs: stat.mtimeMs, channelId: '' })
+            } catch {
+              // 单个文件读取失败不影响其他文件清理
+            }
+          }
+        } catch {
+          // 目录不存在时跳过
+        }
+      }
+      if (!allFiles.length) return
+
+      const metadata = await this.database.getAllMedia()
+      const channelByPath = new Map(metadata.map((item) => [path.normalize(item.filePath), item.channelId]))
+      const uploadRoot = path.normalize(this.uploadDir)
+      for (const file of allFiles) {
+        const normalized = path.normalize(file.filePath)
+        file.channelId = channelByPath.get(normalized) ?? ''
+        if (!file.channelId && normalized.startsWith(uploadRoot)) {
+          file.channelId = 'upload'
+        }
+        if (!file.channelId) file.channelId = 'unknown'
+      }
+
+      if (allFiles.length <= this.config.maxMediaFiles) return
+
+      const groups = new Map<string, typeof allFiles>()
+      for (const file of allFiles) {
+        const list = groups.get(file.channelId) ?? []
+        list.push(file)
+        groups.set(file.channelId, list)
+      }
+      for (const list of groups.values()) {
+        list.sort((a, b) => b.mtimeMs - a.mtimeMs)
+      }
+
+      // 按频道/目录公平分配，避免一个群独占全部名额
+      const keep = new Set<string>()
+      const groupList = [...groups.values()]
+      let cursor = 0
+      for (let count = 0; count < this.config.maxMediaFiles && count < allFiles.length; count++) {
+        let picked = false
+        for (let offset = 0; offset < groupList.length; offset++) {
+          const group = groupList[(cursor + offset) % groupList.length]
+          const file = group.shift()
+          if (file) {
+            keep.add(file.filePath)
+            cursor = (cursor + offset + 1) % groupList.length
+            picked = true
+            break
+          }
+        }
+        if (!picked) break
+      }
+
+      let removed = 0
+      for (const file of allFiles) {
+        if (keep.has(file.filePath)) continue
+        try {
+          await fs.unlink(file.filePath)
+          removed += 1
+        } catch {
+          // 文件可能已被外部删除
+        }
+        await this.database.removeMediaByPath(file.filePath).catch(() => undefined)
+      }
+      if (removed > 0) {
+        this.logger.logInfo('媒体缓存已清理', removed, '个文件')
       }
     } catch {
-      // 媒体目录不存在时无需清理
+      // 清理失败时不阻塞插件启动
     }
   }
 

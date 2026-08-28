@@ -14,13 +14,17 @@ function isUsableName(value: string, id: string): boolean {
 
 function normalizeGroupId(value: string): string {
   const raw = value.replace(/^(?:group|room|chat|channel|guild|private):/i, '').trim()
-  const wrapped = raw.match(/^\[?_?([a-zA-Z0-9]+)_?\]?$/)
+  const wrapped = raw.match(/^\[_?([\s\S]+?)_?\]$/)
   return wrapped ? wrapped[1] : raw || value
 }
 
 function normalizeCacheType(type: string): 'group' | 'friend' {
   if (type === 'user' || type === 'friend') return 'friend'
   return 'group'
+}
+
+function encodeKeyPart(value: string): string {
+  return encodeURIComponent(value)
 }
 
 type FetchContact = (bot: Bot<Context>) => Promise<ContactCacheItem | null>
@@ -213,7 +217,7 @@ export class ContactCacheService {
     fallback?: { name?: string; avatar?: string },
   ): Promise<ContactCacheItem | null> {
     const canonical = normalizeCacheType(type)
-    const key = `${platform}:${selfId}:${canonical}:${id}`
+    const key = [platform, selfId, canonical, id].map(encodeKeyPart).join(':')
     const existing = this.inflight.get(key)
     if (existing) return existing
 

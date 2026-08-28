@@ -257,7 +257,7 @@ export function connect(
               const user = getObject(login.user)
               const platform = getString(login.platform) || getString(user.platform)
               const selfId = getString(user.id) || getString(login.selfId)
-              const key = `${platform}:${selfId}`
+              const key = [platform, selfId].map((value) => encodeURIComponent(value)).join(':')
               if (!platform || !selfId || seen.has(key)) continue
               seen.add(key)
               nextLogins.push({

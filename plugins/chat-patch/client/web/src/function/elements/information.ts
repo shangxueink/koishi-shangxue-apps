@@ -99,6 +99,8 @@ export interface GroupFileFolderElem {
 
 export interface GroupMemberInfoElem {
     user_id: number | string
+    name?: string
+    avatar?: string
     title: string
     card: string
     join_time: number

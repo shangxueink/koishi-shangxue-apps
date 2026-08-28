@@ -31,6 +31,10 @@ const HISTORY_KEY = 'chat-patch:connection-history'
 const logger = new Logger()
 const unsupportedMethods = new Set<string>()
 
+function encodeKeyPart(value: string): string {
+  return encodeURIComponent(value)
+}
+
 function identityDebug(...args: unknown[]) {
   if (import.meta.env.DEV) {
     console.log('[chat-patch-identity]', ...args)
@@ -47,7 +51,7 @@ const identityInfoCache = new Map<string, CachedIdentityInfo>()
 const identityInflight = new Set<string>()
 
 function identityCacheKey(prefix: string, platform: string, selfId: string, id: string) {
-  return `${prefix}:${platform}:${selfId}:${id}`
+  return [prefix, platform, selfId, id].map(encodeKeyPart).join(':')
 }
 
 function markIdentityLookup(key: string, _hasAvatar: boolean, info?: CachedIdentityInfo) {
@@ -86,7 +90,7 @@ let disposeConnection: (() => void) | null = null
 const pendingBotEvents = new Map<string, SatoriEvent[]>()
 
 function botEventKey(platform: string, selfId: string) {
-  return `${platform}:${selfId}`
+  return [platform, selfId].map(encodeKeyPart).join(':')
 }
 
 function isActiveBot(bot: { platform: string; selfId: string }) {
@@ -606,7 +610,7 @@ function recordBotMessage(platform: string, selfId: string, msg: Record<string, 
   }
 
   const chatStore = useChatStore()
-  const cacheKey = `${platform}:${selfId}:${sessionId}`
+  const cacheKey = [platform, selfId, sessionId].map(encodeKeyPart).join(':')
   const messages = chatStore.sessionMessageCache.get(cacheKey) ?? []
   const messageId = String(msg.message_id ?? '')
   if (messageId && !messages.some((item) => String(item.message_id) === messageId)) {
@@ -682,7 +686,7 @@ function recordBotMessage(platform: string, selfId: string, msg: Record<string, 
 export function restoreBotStateFromMessageCache(platform: string, selfId: string) {
   const chatStore = useChatStore()
   const contactStore = useContactStore()
-  const prefix = `${platform}:${selfId}:`
+  const prefix = `${encodeKeyPart(platform)}:${encodeKeyPart(selfId)}:`
   const sessions: Array<UserFriendElem & UserGroupElem> = []
   for (const [key, messages] of chatStore.sessionMessageCache) {
     if (!key.startsWith(prefix)) continue
@@ -835,7 +839,7 @@ function contactId(item: unknown): string {
 
 function normalizeGroupId(value: string): string {
   const raw = value.replace(/^(?:group|room|chat|channel|guild|private):/i, '').trim()
-  const wrapped = raw.match(/^\[?_?([a-zA-Z0-9]+)_?\]?$/)
+  const wrapped = raw.match(/^\[_?([\s\S]+?)_?\]$/)
   return wrapped ? wrapped[1] : raw || value
 }
 
@@ -1252,7 +1256,7 @@ async function fetchFriendProfiles(
   updateUi = true,
 ): Promise<Record<string, unknown>[]> {
   const contactStore = updateUi ? useContactStore() : null
-  const botKey = `${active.platform}:${active.selfId}`
+  const botKey = [active.platform, active.selfId].map(encodeKeyPart).join(':')
   const userGetBlocked = unsupportedMethods.has(`user.get:${botKey}`)
   const processedItems: Record<string, unknown>[] = []
 
@@ -1442,6 +1446,7 @@ export async function loadGroupMembersFromCache(groupId: string) {
       const cached = getObject(contact)
       const raw = getObject(cached.raw) || cached
       const id = getString(raw.user_id) || getString(raw.id)
+      const cachedName = getString(cached.name) || getString(cached.nickname)
       const cachedUserAvatar = id
         ? getCachedUserAvatar(active.platform, active.selfId, id)
         : ''
@@ -1452,22 +1457,56 @@ export async function loadGroupMembersFromCache(groupId: string) {
           : cachedUserAvatar
       return {
         user_id: id,
-        nickname: getString(raw.nickname) || getString(raw.name) || id,
+        nickname: getString(raw.nickname) || getString(raw.name) || cachedName || id,
         card: getString(raw.card) || '',
         role: getString(raw.role) || getString(raw.title) || '',
         avatar,
       }
     })
-    await Promise.all(mapped.filter((member) => !hasUsableAvatar(member.avatar)).map(async (member) => {
-      const info = await requestIdentityCache({
-        platform: active.platform,
-        selfId: active.selfId,
-        type: 'user',
-        id: String(member.user_id),
-      }).catch(() => null)
-      const avatar = hasUsableAvatar(getObject(info).avatar) ? getString(getObject(info).avatar) : ''
-      if (avatar) member.avatar = avatar
-    }))
+    const needsIdentity = (member: typeof mapped[number]) => {
+      const usableName = (value: string) => Boolean(value)
+        && value !== member.user_id
+        && !/unknown user|unknown guild|unknown channel/i.test(value)
+      const hasName = usableName(member.nickname) || usableName(member.card)
+      return !hasName || !hasUsableAvatar(member.avatar)
+    }
+    await Promise.all(mapped
+      .filter((member) => member.user_id && member.user_id !== '0' && needsIdentity(member))
+      .map(async (member) => {
+        const info = await requestIdentityCache({
+          platform: active.platform,
+          selfId: active.selfId,
+          type: 'user',
+          id: member.user_id,
+          guildId: groupId,
+        }).catch(() => null)
+        const root = getObject(info)
+        const name = getString(root.name) || getString(root.nickname) || getString(root.nick) || getString(root.username)
+        const avatar = hasUsableAvatar(root.avatar) ? getString(root.avatar) : ''
+        if (name && name !== member.user_id) {
+          const unusableName = (value: string) => !value
+            || value === member.user_id
+            || /unknown user|unknown guild|unknown channel/i.test(value)
+          if (unusableName(member.nickname)) member.nickname = name
+          if (unusableName(member.card)) member.card = name
+        }
+        if (avatar) member.avatar = avatar
+        if (name || avatar) {
+          await requestContactCache({
+            platform: active.platform,
+            selfId: active.selfId,
+            type: 'member',
+            groupId,
+            contacts: [{
+              id: member.user_id,
+              name: name || member.nickname || member.user_id,
+              avatar: avatar || undefined,
+              raw: root,
+            }],
+            append: true,
+          }).catch(() => undefined)
+        }
+      }))
     dispatch({ retcode: 0, data: mapped }, 'getGroupMemberList')
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error)

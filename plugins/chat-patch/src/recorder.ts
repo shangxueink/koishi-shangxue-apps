@@ -11,7 +11,7 @@ const MESSAGE_TYPES = new Set(['message', 'message-created', 'send'])
 
 function normalizeGroupId(value: string): string {
   const raw = value.replace(/^(?:group|room|chat|channel|guild|private):/i, '').trim()
-  const wrapped = raw.match(/^\[?_?([a-zA-Z0-9]+)_?\]?$/)
+  const wrapped = raw.match(/^\[_?([\s\S]+?)_?\]$/)
   return wrapped ? wrapped[1] : raw || value
 }
 
@@ -147,6 +147,11 @@ export class Recorder {
 
   private async cacheMessageMedia(event: ReturnType<Session['toJSON']>) {
     const elements = Array.isArray(event.message?.elements) ? event.message.elements : []
+    const channelId = String(
+      event.channel?.id
+      || event.guild?.id
+      || '',
+    )
     const urls: string[] = []
     const collect = (list: unknown[]) => {
       for (const raw of list) {
@@ -160,6 +165,6 @@ export class Recorder {
       }
     }
     collect(elements)
-    await Promise.allSettled(urls.map((url) => this.media.cacheUrl(url)))
+    await Promise.allSettled(urls.map((url) => this.media.cacheUrl(url, channelId)))
   }
 }

@@ -34,7 +34,7 @@ export function registerWeb(
 
   const normalizeGroupId = (value: string): string => {
     const raw = value.replace(/^(?:group|room|chat|channel|guild|private):/i, '').trim()
-    const wrapped = raw.match(/^\[?_?([a-zA-Z0-9]+)_?\]?$/)
+    const wrapped = raw.match(/^\[_?([\s\S]+?)_?\]$/)
     return wrapped ? wrapped[1] : raw || value
   }
 
@@ -42,16 +42,10 @@ export function registerWeb(
     const raw = normalizeGroupId(channelId)
     const candidates = [channelId]
     if (raw && raw !== channelId) candidates.push(raw)
-    const stripped = channelId.includes(':') ? channelId.slice(channelId.indexOf(':') + 1) : channelId
-    const normalized = normalizeGroupId(stripped)
-    if (normalized && normalized !== raw) candidates.push(normalized)
-    if (channelId.includes(':')) {
-      candidates.push(raw || channelId)
-    } else {
-      const id = raw || channelId
+    const id = raw || channelId
+    if (!/^(?:group|room|chat|channel|guild|private):/i.test(channelId)) {
       candidates.push(`group:${id}`, `private:${id}`)
     }
-    const id = normalized || raw || channelId
     if (id) {
       candidates.push(` [_${id}_] `, `_${id}_`, `[${id}]`, `group:${id}`)
     }
@@ -232,7 +226,7 @@ export function registerWeb(
       friends: ContactCacheItem[]
     }>()
     for (const entry of entries) {
-      const key = `${entry.platform}:${entry.selfId}`
+      const key = JSON.stringify([entry.platform, entry.selfId])
       const bot = botMap.get(key) ?? {
         platform: entry.platform,
         selfId: entry.selfId,

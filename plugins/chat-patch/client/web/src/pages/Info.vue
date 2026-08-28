@@ -14,7 +14,7 @@
                 <span v-if="chat.show.type === 'user'">{{ $t('好友') }}</span>
                 <font-awesome-icon :icon="['fas', 'xmark']" @click="closeChatInfoPan" />
             </header>
-            <div :class="'chat-info-base ' + chat.show.type">
+            <div class="chat-info-base user">
                 <div>
                     <img :src="chat.show.avatar">
                     <div>
@@ -24,6 +24,30 @@
                     <div style="display: flex;align-items: center;justify-content: center;cursor: pointer;"
                         @click="copyText(chat.show.id)">
                         <font-awesome-icon :icon="['fas', 'copy']" />
+                    </div>
+                </div>
+                <div v-if="chat.show.type === 'group'">
+                    <header>
+                        <span>{{ $t('群组 ID') }}</span>
+                    </header>
+                    <div class="info-copy">
+                        <span>{{ chat.show.id }}</span>
+                        <font-awesome-icon :icon="['fas', 'copy']" @click="copyText(chat.show.id)" />
+                    </div>
+                    <header>
+                        <span>{{ $t('频道 ID') }}</span>
+                    </header>
+                    <div class="info-copy">
+                        <span>{{ groupChannelId() }}</span>
+                        <font-awesome-icon :icon="['fas', 'copy']" @click="copyText(groupChannelId())" />
+                    </div>
+                    <header>
+                        <span>{{ $t('群头像') }}</span>
+                    </header>
+                    <div class="info-copy">
+                        <span style="word-break: break-all;">{{ isDefaultAvatar(chat.show.avatar) ? $t('无') : chat.show.avatar }}</span>
+                        <font-awesome-icon v-if="!isDefaultAvatar(chat.show.avatar)"
+                            :icon="['fas', 'copy']" @click="copyText(chat.show.avatar)" />
                     </div>
                 </div>
                 <div v-if="chat.show.type === 'group'"
@@ -40,58 +64,35 @@
                     </div>
                 </div>
                 <div v-else-if="chat.show.type === 'user'">
-                    <header v-if="chat.info.user_info.qid">
-                        <span>QID</span>
-                    </header>
-                    <span v-if="chat.info.user_info.qid">{{ chat.info.user_info.qid }}</span>
                     <header>
-                        <span>{{ $t('等级') }}</span>
+                        <span>{{ $t('用户 ID') }}</span>
                     </header>
-                    <span>{{ qqLevelToEmoji(chat.info.user_info.qqLevel) }}</span>
-                    <header v-if="chat.info.user_info.regTime">
-                        <span>{{ $t('注册时间') }}</span>
-                    </header>
-                    <span v-if="chat.info.user_info.regTime">{{ Intl.DateTimeFormat(trueLang, { year: 'numeric' })
-                        .format(new Date(chat.info.user_info.regTime * 1000)) }}</span>
-                    <header>
-                        <span>{{ $t('签名') }}</span>
-                    </header>
-                    <span>{{ chat.info.user_info.longNick ? chat.info.user_info.longNick : $t("这个人很懒什么都没有写～") }}</span>
-                    <header>
-                        <span>{{ $t('其他信息') }}</span>
-                    </header>
-                    <div class="outher">
-                        <span v-if="chat.info.user_info.birthday_year">{{ $t('生日') }}:
-                            <span>
-                                {{ Intl.DateTimeFormat(trueLang, {
-                                    year: 'numeric',
-                                    month: 'short',
-                                    day: 'numeric',
-                                }).format(new Date(
-                                    `${chat.info.user_info.birthday_year}-${
-                                        chat.info.user_info.birthday_month}-${
-                                        chat.info.user_info.birthday_day}`,
-                                )) }}
-                            </span>
-                        </span>
-                        <span v-if="chat.info.user_info.country">{{ $t('地区') }}:
-                            <span>
-                                {{
-                                    `${chat.info.user_info.country}-${
-                                        chat.info.user_info.province}-${
-                                        chat.info.user_info.city}`
-                                }}
-                            </span>
-                        </span>
+                    <div class="info-copy">
+                        <span>{{ chat.show.id }}</span>
+                        <font-awesome-icon :icon="['fas', 'copy']" @click="copyText(chat.show.id)" />
                     </div>
-                    <!-- <template v-if="!chat.show.temp">
-                        <header>
-                            <span>{{ $t('设置') }}</span>
-                        </header>
-                        <OptInfo
-                            :type="'number'"
-                            :chat="chat" />
-                    </template> -->
+                    <header>
+                        <span>{{ $t('用户名称') }}</span>
+                    </header>
+                    <div class="info-copy">
+                        <span>{{ chat.show.name }}</span>
+                        <font-awesome-icon :icon="['fas', 'copy']" @click="copyText(chat.show.name)" />
+                    </div>
+                    <header>
+                        <span>{{ $t('用户头像链接') }}</span>
+                    </header>
+                    <div class="info-copy">
+                        <span style="word-break: break-all;">{{ isDefaultAvatar(chat.show.avatar) ? $t('无') : chat.show.avatar }}</span>
+                        <font-awesome-icon v-if="!isDefaultAvatar(chat.show.avatar)"
+                            :icon="['fas', 'copy']" @click="copyText(chat.show.avatar)" />
+                    </div>
+                    <header>
+                        <span>{{ $t('频道 ID') }}</span>
+                    </header>
+                    <div class="info-copy">
+                        <span>{{ userChannelId() }}</span>
+                        <font-awesome-icon :icon="['fas', 'copy']" @click="copyText(userChannelId())" />
+                    </div>
                 </div>
             </div>
             <BcTab v-if="chat.show.type === 'group'"
@@ -99,17 +100,17 @@
                 <div :name="$t('成员')">
                     <div class="search-view">
                         <label for="info-member-search" class="sr-only">{{ $t('搜索成员') }}</label>
-                        <input id="info-member-search" :placeholder="$t('搜索 ……')" @input="(e: Event) => searchList(e)">
+                        <input id="info-member-search" :placeholder="$t('搜索 ……')" @input="searchList($event)">
                     </div>
                     <RecycleScroller
                         v-slot="{ item }"
                         class="member-scroller"
-                        :items="number_cache.length > 0 ? number_cache : chat.info.group_members"
+                        :items="memberSearch.trim() ? number_cache : chat.info.group_members"
                         :item-size="60"
                         key-field="user_id">
                         <div class="member-item edit">
                             <img alt="nk" loading="lazy"
-                                :src="'/img/icons/icon.svg'">
+                                :src="memberAvatar(item) || '/img/icons/icon.svg'">
                             <div>
                                 <a @click="startChat(item)">{{
                                     memberName(item)
@@ -123,38 +124,6 @@
                             <font-awesome-icon v-else :icon="['fas', 'copy']" @click="copyText(memberId(item))" />
                         </div>
                     </RecycleScroller>
-                </div>
-                <div :name="$t('公告')">
-                    <div class="bulletins">
-                        <BulletinBody
-                            v-for="(item, index) in chat.info.group_notices ?? []"
-                            :key="'bulletins-' + index"
-                            :data="item"
-                            :index="index" />
-                    </div>
-                    <div v-if="!chat.info.group_notices || chat.info.group_notices.length === 0"
-                        style="text-align: center; padding: 20px; color: var(--color-text-3);">
-                        {{ $t('这里还没有公告哦~') }}
-                    </div>
-                </div>
-                <div :name="$t('文件')">
-                    <div
-                        class="group-files">
-                        <div v-for="item in chat.info.group_files"
-                            :key="'file-' + (item.folder_id ?? item.file_id)">
-                            <FileBody :chat="chat" :item="item" />
-                        </div>
-                    </div>
-                    <div v-if="!chat.info.group_files || chat.info.group_files.length === 0"
-                        style="text-align: center; padding: 20px; color: var(--color-text-3);">
-                        {{ $t('一点文件都没有耶——') }}
-                    </div>
-                </div>
-                <div :name="$t('设置')">
-                    <div style="padding: 0 20px">
-                        <OptInfo :type="'group'" :chat="chat"
-                            @update_mumber_card="updateMumberCard" />
-                    </div>
                 </div>
             </BcTab>
             <div :class="'ss-card user-config' + (Object.keys(showUserConfig).length > 0 ? ' show' : '')">
@@ -230,17 +199,14 @@
 
 <script setup lang="ts">
 import app, { i18n } from '@renderer/main'
-import BulletinBody from '@renderer/components/BulletinBody.vue'
-import FileBody from '@renderer/components/FileBody.vue'
-import OptInfo from './options/OptInfo.vue'
 import BcTab from 'vue3-bcui/packages/bc-tab'
 import { RecycleScroller } from 'vue-virtual-scroller'
 import 'vue-virtual-scroller/dist/vue-virtual-scroller.css'
 
 import { Connector, loadGroupMembersFromCache } from '@renderer/function/connect'
 import { PopInfo, PopType } from '@renderer/function/base'
-import { toRaw, ref, nextTick } from 'vue'
-import { delay, getTrueLang } from '@renderer/function/utils/systemUtil'
+import { toRaw, ref, nextTick, watch } from 'vue'
+import { delay } from '@renderer/function/utils/systemUtil'
 import { useAuthStore } from '@renderer/state/auth'
 import { useContactStore } from '@renderer/state/contact'
 import { useChatStore } from '@renderer/state/chat'
@@ -249,7 +215,6 @@ import {
     UserFriendElem,
     UserGroupElem,
 } from '@renderer/function/elements/information'
-import { qqLevelToEmoji } from '@renderer/function/utils/msgUtil'
 
 defineOptions({ name: 'ViewInfo' })
 
@@ -269,11 +234,34 @@ const emit = defineEmits<{
 
 const { t: $t } = i18n.global
 
-// Constants
-const trueLang = getTrueLang()
+function isDefaultAvatar(value: unknown): boolean {
+    const avatar = String(value ?? '')
+    return !avatar || avatar === '/img/icons/icon.svg' || avatar.includes('/img/icons/icon.svg')
+}
+
+function userChannelId(): string {
+    return String(
+        props.chat.show.channel_id
+        || props.chat.show.channelId
+        || props.chat.info.user_info.channel_id
+        || props.chat.info.user_info.channelId
+        || `private:${props.chat.show.id}`,
+    )
+}
+
+function groupChannelId(): string {
+    return String(
+        props.chat.show.channel_id
+        || props.chat.show.channelId
+        || props.chat.info.group_info.channel_id
+        || props.chat.info.group_info.channelId
+        || `group:${props.chat.show.id}`,
+    )
+}
 
 // Reactive state
 const number_cache = ref<any[]>([])
+const memberSearch = ref('')
 const showUserConfig = ref<any>({})
 const showUserConfigRaw = ref<any>({})
 
@@ -281,6 +269,8 @@ interface MemberLike {
   user_id?: unknown
   card?: unknown
   nickname?: unknown
+  name?: unknown
+  avatar?: unknown
   role?: unknown
 }
 
@@ -295,7 +285,11 @@ function memberId(value: unknown): string {
 
 function memberName(value: unknown): string {
   const member = asMember(value)
-  return String(member.card ?? member.nickname ?? '')
+  return String(member.card || member.nickname || member.name || memberId(value))
+}
+
+function memberAvatar(value: unknown): string {
+  return String(asMember(value).avatar ?? '')
 }
 
 function memberRole(value: unknown): string {
@@ -560,26 +554,29 @@ function moreConfig(info: any) {
     }
 }
 
-function searchList(event: Event) {
-    const value = (event.target as HTMLInputElement).value
-    if (value !== '') {
-        number_cache.value = toRaw(props.chat.info.group_members)
-        number_cache.value = number_cache.value.filter((item: any) => {
-            const name =
-                item.card.toLowerCase() +
-                '(' +
-                item.nickname.toLowerCase() +
-                ')'
-            const id = item.user_id
-            return (
-                name.indexOf(value.toLowerCase()) != -1 ||
-                id.toString() === value
-            )
-        })
-    } else {
-        number_cache.value = [] as any[]
+function searchList(event?: Event) {
+    if (event) {
+        memberSearch.value = (event.target as HTMLInputElement).value
     }
+    const keyword = memberSearch.value.trim()
+    if (!keyword) {
+        number_cache.value = [] as any[]
+        return
+    }
+    const lower = keyword.toLowerCase()
+    const source = Array.isArray(props.chat.info.group_members)
+        ? props.chat.info.group_members
+        : []
+    number_cache.value = toRaw(source).filter((item: any) => {
+        const name = memberName(item).toLowerCase()
+        const id = memberId(item)
+        return name.includes(lower) || id.includes(keyword) || id.toLowerCase().includes(lower)
+    })
 }
+
+watch(() => props.chat.info.group_members, () => {
+    if (memberSearch.value.trim()) searchList()
+}, { deep: true })
 
 function canEditMember(role: string) {
     return (
@@ -687,6 +684,23 @@ function canEditMember(role: string) {
         margin-right: 5px;
         display: block;
         opacity: 1;
+    }
+
+    .info-copy {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    .info-copy > span {
+        flex: 1;
+        min-width: 0;
+    }
+    .info-copy > svg {
+        color: var(--color-font-2);
+        cursor: pointer;
+    }
+    .info-copy > svg:hover {
+        color: var(--color-main);
     }
 </style>
 <style>

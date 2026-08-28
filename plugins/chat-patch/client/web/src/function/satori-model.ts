@@ -20,7 +20,7 @@ function getString(value: unknown): string {
 
 function normalizeGroupId(value: string): string {
   const raw = value.replace(/^(?:group|room|chat|channel|guild|private):/i, '').trim()
-  const wrapped = raw.match(/^\[?_?([a-zA-Z0-9]+)_?\]?$/)
+  const wrapped = raw.match(/^\[_?([\s\S]+?)_?\]$/)
   return wrapped ? wrapped[1] : raw || value
 }
 
@@ -578,7 +578,9 @@ export function mapAction(action: string, params: Record<string, unknown>): {
   const guildId = getString(params.group_id) || getString(params.guild_id)
   const userId = getString(params.user_id)
   const messageId = getString(params.message_id)
-  const directChannel = userId && !userId.includes(':') ? `private:${userId}` : userId
+  const directChannel = userId && !/^(?:group|room|chat|channel|guild|private):/i.test(userId)
+    ? `private:${userId}`
+    : userId
   const channelId = getString(params.channel_id) || guildId || directChannel || userId
   const content = Array.isArray(params.message)
     ? serializeSatoriContent(params.message)
