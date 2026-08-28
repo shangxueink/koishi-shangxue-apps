@@ -311,7 +311,8 @@ function openBySrc(img: Img, src: string) {
     currentImg.value = toRaw(img)
     const target = currentImg.value.getBySrc(src)
     if (!target) {
-        new PopInfo().add(PopType.ERR, $t('定位图片失败'))
+        currentImg.value = new Img(src)
+        init()
         return
     }
     currentImg.value = toRaw(target)

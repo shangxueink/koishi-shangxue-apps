@@ -30,7 +30,7 @@ export class Img {
      * @returns 图片节点
      */
     getBySrc(src: string): Img | undefined {
-        if (this._src === src) return this
+        if (this._src === src || this.src === src) return this
         if (this.next) return this.next.getBySrc(src)
         return undefined
     }

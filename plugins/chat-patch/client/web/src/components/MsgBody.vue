@@ -654,9 +654,33 @@ function imgStyle(length: number, at: number, isFace: boolean) {
 }
 
 function imgClick(url: string) {
-    if (viewerRef?.value && imageListHeader) {
-        viewerRef.value.openBySrc(imageListHeader, url)
+    if (!viewerRef?.value) return
+    let header = imageListHeader
+    if (!header || !header.getBySrc(url)) {
+        header = buildMessageImageList() ?? header
     }
+    if (header) {
+        viewerRef.value.openBySrc(header, url)
+    } else {
+        viewerRef.value.open(new Img(url))
+    }
+}
+
+function buildMessageImageList(): Img | undefined {
+    const urls: string[] = []
+    const collect = (msg: any) => {
+        if (!Array.isArray(msg?.message)) return
+        for (const item of msg.message) {
+            if (item?.type === 'image' && item?.file !== 'marketface' && item?.url) {
+                urls.push(String(item.url))
+            }
+        }
+    }
+    if (Array.isArray(chatStore.messageList)) {
+        for (const msg of chatStore.messageList) collect(msg)
+    }
+    if (Array.isArray(data?.message)) collect(data)
+    return Img.fromList([...new Set(urls)])
 }
 
 async function loadImage(item: { url: string }, index: number) {
