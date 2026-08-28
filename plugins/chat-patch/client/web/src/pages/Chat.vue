@@ -1805,8 +1805,14 @@ function cancelReply() {
 
 function consoleLogMsg() {
     if (!selectedMsg.value) return
-    // eslint-disable-next-line no-console
-    console.log(selectedMsg.value?._rawSatori ?? selectedMsg.value)
+    const raw = selectedMsg.value?._rawSatori ?? selectedMsg.value
+    try {
+        // eslint-disable-next-line no-console
+        console.log(JSON.stringify(raw, null, 2))
+    } catch {
+        // eslint-disable-next-line no-console
+        console.dir(raw, { depth: null })
+    }
     closeMsgMenu()
 }
 

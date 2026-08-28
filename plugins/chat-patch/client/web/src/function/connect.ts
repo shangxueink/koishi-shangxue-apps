@@ -798,6 +798,16 @@ export function restoreBotStateFromMessageCache(platform: string, selfId: string
 
 function onSatoriEvent(event: SatoriEvent) {
   const oneBot = satoriEventToOneBot(event.body, String(event.platform || ''))
+  if (oneBot) {
+    oneBot._rawSatori = {
+      type: event.type,
+      platform: event.platform,
+      selfId: event.selfId,
+      timestamp: event.timestamp,
+      sn: event.sn,
+      body: event.body,
+    }
+  }
   identityDebug('satori event', { event, oneBot })
   if (!oneBot) return
   if (!isCurrentBotEvent(event)) {
@@ -836,6 +846,16 @@ export function flushPendingBotEvents(platform: string, selfId: string) {
   pendingBotEvents.delete(key)
   for (const event of events) {
     const oneBot = satoriEventToOneBot(event.body, String(event.platform || ''))
+    if (oneBot) {
+      oneBot._rawSatori = {
+        type: event.type,
+        platform: event.platform,
+        selfId: event.selfId,
+        timestamp: event.timestamp,
+        sn: event.sn,
+        body: event.body,
+      }
+    }
     if (oneBot) {
       void msgPreprocess(oneBot, {
         platform: String(event.platform || oneBot.platform || ''),
