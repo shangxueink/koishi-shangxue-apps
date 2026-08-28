@@ -2353,7 +2353,7 @@ function openChatInfoPan() {
             chat.show.type === 'user' &&
             chat.info.user_info.uin !== chat.show.id
         ) {
-            const userInfo = authStore.jsonMap.friend_info.name
+            const userInfo = authStore.jsonMap?.friend_info?.name
             if(userInfo != undefined) {
                 Connector.send(
                     userInfo,
