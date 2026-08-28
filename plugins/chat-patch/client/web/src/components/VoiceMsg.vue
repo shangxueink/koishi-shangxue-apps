@@ -23,13 +23,28 @@
                 <span class="voice-unsupported">{{ $t('不支持的消息') }}</span>
             </template>
             <template v-else>
-                <div class="voice-spectrum">
-                    <div
-                        v-for="(height, index) in displaySpectrumBars"
-                        :key="index"
-                        class="voice-spectrum-bar"
-                        :class="{ active: index < activeBarCount }"
-                        :style="{ height: `${height}%` }" />
+                <div ref="seekWrapRef"
+                    class="voice-spectrum-wrap"
+                    :class="{ seeking, disabled: !loaded || duration <= 0 }"
+                    @pointerdown.stop="startSeek"
+                    @pointermove.stop="moveSeek"
+                    @pointerup.stop="endSeek"
+                    @pointercancel.stop="endSeek"
+                    @click.stop>
+                    <div class="voice-spectrum">
+                        <div
+                            v-for="(height, index) in displaySpectrumBars"
+                            :key="index"
+                            class="voice-spectrum-bar"
+                            :class="{ active: index < activeBarCount }"
+                            :style="{ height: `${height}%` }" />
+                    </div>
+                    <div class="voice-seek-line">
+                        <div class="voice-seek-fill"
+                            :style="{ width: `${progressPercent}%` }" />
+                        <div class="voice-seek-thumb"
+                            :style="{ left: `${progressPercent}%` }" />
+                    </div>
                 </div>
                 <span class="voice-duration">{{ isError ? $t('加载失败') : formatSeconds }}</span>
             </template>
@@ -75,10 +90,12 @@ const props = defineProps<{
 
 const audioRef = ref<HTMLAudioElement | null>(null)
 const audioSrc = ref<string>('')
+const seekWrapRef = ref<HTMLDivElement | null>(null)
 const isLoading = ref(false)
 const isError = ref(false)
 const isUnsupported = ref(false)
 const isPlaying = ref(false)
+const seeking = ref(false)
 const currentTime = ref(0)
 const duration = ref(props.item.duration || 0)
 const loaded = ref(false)
@@ -321,6 +338,40 @@ function togglePlay() {
     }
 }
 
+function seekPosition(clientX: number) {
+    const wrap = seekWrapRef.value
+    const audio = audioRef.value
+    if (!wrap || !audio || duration.value <= 0) return
+    const rect = wrap.getBoundingClientRect()
+    if (rect.width <= 0) return
+    const ratio = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width))
+    const nextTime = ratio * duration.value
+    audio.currentTime = nextTime
+    currentTime.value = nextTime
+}
+
+function startSeek(event: PointerEvent) {
+    if (!loaded.value || duration.value <= 0) return
+    seeking.value = true
+    const target = event.currentTarget as HTMLElement | null
+    target?.setPointerCapture?.(event.pointerId)
+    seekPosition(event.clientX)
+}
+
+function moveSeek(event: PointerEvent) {
+    if (!seeking.value) return
+    seekPosition(event.clientX)
+}
+
+function endSeek(event: PointerEvent) {
+    if (!seeking.value) return
+    seeking.value = false
+    const target = event.currentTarget as HTMLElement | null
+    if (target?.hasPointerCapture?.(event.pointerId)) {
+        target.releasePointerCapture(event.pointerId)
+    }
+}
+
 /**
  * 音频加载完成
  */
@@ -449,14 +500,30 @@ onBeforeUnmount(() => {
     min-width: 0;
 }
 
-.voice-spectrum {
+.voice-spectrum-wrap {
+    position: relative;
     flex: 1;
     min-width: 0;
     height: 22px;
+    cursor: pointer;
+    touch-action: none;
+}
+
+.voice-spectrum-wrap.disabled {
+    cursor: default;
+}
+
+.voice-spectrum-wrap.seeking {
+    cursor: grabbing;
+}
+
+.voice-spectrum {
+    position: absolute;
+    inset: 0;
     display: flex;
     align-items: center;
     gap: 2px;
-    margin-right: 5px;
+    pointer-events: none;
 }
 
 .voice-spectrum-bar {
@@ -473,11 +540,48 @@ onBeforeUnmount(() => {
     opacity: 1;
 }
 
+.voice-seek-line {
+    position: absolute;
+    top: 50%;
+    right: 0;
+    left: 0;
+    height: 3px;
+    pointer-events: none;
+    border-radius: 999px;
+    background: rgba(0, 0, 0, 0.16);
+    transform: translateY(-50%);
+}
+
+.voice-seek-fill {
+    height: 100%;
+    border-radius: 999px;
+    background: var(--color-main);
+}
+
+.voice-seek-thumb {
+    position: absolute;
+    top: 50%;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--color-main);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.24);
+    transform: translate(-50%, -50%);
+}
+
 .voice-msg.me .voice-spectrum-bar {
     background: var(--color-card-2);
 }
 
 .voice-msg.me .voice-spectrum-bar.active {
+    background: var(--color-card-2);
+}
+
+.voice-msg.me .voice-seek-fill {
+    background: var(--color-card-2);
+}
+
+.voice-msg.me .voice-seek-thumb {
     background: var(--color-card-2);
 }
 

@@ -9,6 +9,7 @@
 
 import { Logger } from '@renderer/function/base'
 import { Connector } from '@renderer/function/connect'
+import { getBootstrap } from '@renderer/function/satori'
 
 const logger = new Logger()
 
@@ -17,6 +18,7 @@ export interface RecordMsgData {
     file?: string
     url?: string
     path?: string
+    webUrl?: string
     magic?: boolean
     duration?: number
 }
@@ -66,6 +68,28 @@ function getAudioDuration(url: string): Promise<number> {
     })
 }
 
+function isDirectAudioSource(value: string): boolean {
+  return /^(https?:|data:|blob:)/i.test(value) || value.startsWith('/')
+}
+
+function isLocalAudioPath(value: string): boolean {
+  return value.startsWith('file:') ||
+    /^[a-z]:[\\/]/i.test(value) ||
+    value.startsWith('\\\\')
+}
+
+async function resolveLocalAudioUrl(value: string): Promise<string> {
+  if (isDirectAudioSource(value)) return value
+  if (!isLocalAudioPath(value)) return ''
+  const info = await getBootstrap()
+  const basePath = info.basePath || '/chat-patch'
+  const fileName = value
+    .replace(/^file:\/\//i, '')
+    .split(/[\\/]/)
+    .pop() || value
+  return `${location.origin}${basePath}/api/media?file=${encodeURIComponent(fileName)}`
+}
+
 // ============================================================================
 // 公开 API
 // ============================================================================
@@ -90,6 +114,17 @@ export async function loadRecord(data: RecordMsgData, msgId?: string): Promise<R
 
     if (!data.file) {
         throw new Error('语音消息缺少 file 字段')
+    }
+
+    const directSource = String(data.webUrl || data.url || data.file || data.path || '')
+    if (directSource) {
+        const directUrl = await resolveLocalAudioUrl(directSource)
+        if (directUrl) {
+            const duration = data.duration || (await getAudioDuration(directUrl))
+            const loadResult: RecordLoadResult = { src: directUrl, duration }
+            loadCache.set(cacheKey, loadResult)
+            return loadResult
+        }
     }
 
     // 调用 get_record API

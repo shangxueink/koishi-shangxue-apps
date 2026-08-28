@@ -323,7 +323,9 @@
                     </div>
                 </div>
                 <!-- 更多功能 -->
-                <div :class="tags.showMoreDetail ? 'more-detail show' : 'more-detail'">
+                <div :class="(tags.showMoreDetail ? 'more-detail show' : 'more-detail') +
+                    (voiceMenuShow ? ' voice-menu-open' : '')"
+                    @click="voiceMenuShow = false">
                     <div
                         :title="$t('图片')"
                         @click="runSelectImg">
@@ -340,11 +342,19 @@
                             style="display: none" @change="selectFile">
                         <label for="choice-file" class="sr-only">{{ $t('选择文件') }}</label>
                     </div>
-                    <div
-                        :title="voiceRecording ? $t('停止录音') : $t('发送语音')"
-                        :class="{ active: voiceRecording }"
-                        @click="toggleVoiceRecord">
-                        <font-awesome-icon :icon="['fas', voiceRecording ? 'stop' : 'microphone']" />
+                    <div class="voice-menu-wrap">
+                        <div
+                            :title="voiceRecording ? $t('停止录音') : $t('发送语音')"
+                            :class="{ active: voiceRecording }"
+                            @click.stop="toggleVoiceMenu">
+                            <font-awesome-icon :icon="['fas', voiceRecording ? 'stop' : 'microphone']" />
+                        </div>
+                        <div v-if="voiceMenuShow" class="voice-menu" @click.stop>
+                            <div @click="startVoiceRecord">{{ $t('浏览器录音') }}</div>
+                            <div @click="selectVoiceFile">{{ $t('音频文件') }}</div>
+                        </div>
+                        <input id="choice-audio" type="file" accept="audio/*"
+                            style="display: none" @change="selectAudioFile">
                     </div>
                     <div v-if="chat.show.type === 'user'"
                         :title="$t('戳一戳')"
@@ -368,6 +378,14 @@
                 </div>
                 <div>
                     <form @submit="mainSubmit">
+                        <template v-if="pendingVoice">
+                            <div id="voice-pending-input" class="voice-pending" role="button"
+                                @click="cancelPendingVoice">
+                                <span>[{{ $t('语音') }}]</span>
+                                <font-awesome-icon :icon="['fas', 'xmark']" />
+                            </div>
+                        </template>
+                        <template v-else>
                         <template v-if="!Option.get('use_breakline')">
                             <label for="main-input" class="sr-only">{{ $t('消息输入框') }}</label>
                             <input
@@ -406,6 +424,7 @@
                                 @input="handleInput"
                                 @compositionstart="handleCompositionStart"
                                 @compositionend="handleCompositionEnd" />
+                        </template>
                         </template>
                     </form>
                     <slot name="main-input-button" />
@@ -708,6 +727,8 @@ const msg = ref('')
 const oldMsg = ref('')
 const imgCache = ref(new Map<number, string>())
 const voiceRecording = ref(false)
+const pendingVoice = ref<MsgItemElem | null>(null)
+const voiceMenuShow = ref(false)
 const voiceRecorder = ref<MediaRecorder | null>(null)
 let voiceChunks: Blob[] = []
 const sendCache = ref<MsgItemElem[]>([])
@@ -2357,11 +2378,18 @@ function blobToBase64(blob: Blob): Promise<string> {
     })
 }
 
-async function toggleVoiceRecord() {
+function toggleVoiceMenu() {
     if (voiceRecording.value) {
         voiceRecorder.value?.stop()
+        voiceMenuShow.value = false
         return
     }
+    voiceMenuShow.value = !voiceMenuShow.value
+}
+
+async function startVoiceRecord() {
+    voiceMenuShow.value = false
+    if (voiceRecording.value) return
     if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === 'undefined') {
         new PopInfo().add(PopType.ERR, $t('当前浏览器不支持录音'))
         return
@@ -2397,15 +2425,19 @@ async function toggleVoiceRecord() {
             })
             const base64 = await blobToBase64(blob)
             const voiceName = recorder.mimeType.includes('mp4') ? 'voice.m4a' : 'voice.webm'
-            addSpecialMsg({
-                addText: true,
-                msgObj: {
+            const audioMime = recorder.mimeType.includes('mp4') ? 'audio/mp4' : 'audio/webm'
+            if (voiceChunks.length > 0) {
+                pendingVoice.value = {
                     type: 'record',
                     file: 'base64://' + base64,
+                    url: `data:${audioMime};base64,${base64}`,
                     fileName: voiceName,
                     name: $t('语音'),
-                },
-            })
+                } as MsgItemElem
+                msg.value = ''
+                sendCache.value = []
+                imgCache.value.clear()
+            }
             voiceChunks = []
         }
         recorder.start()
@@ -2417,6 +2449,43 @@ async function toggleVoiceRecord() {
         }
         new Logger().error(error as Error, $t('录音失败'))
     }
+}
+
+function cancelPendingVoice() {
+    pendingVoice.value = null
+    voiceMenuShow.value = false
+    voiceChunks = []
+    msg.value = ''
+    toMainInput()
+}
+
+function selectVoiceFile() {
+    voiceMenuShow.value = false
+    const input = document.getElementById('choice-audio') as HTMLInputElement | null
+    input?.click()
+}
+
+async function selectAudioFile(event: Event) {
+    const input = event.target as HTMLInputElement
+    const file = input.files?.[0]
+    input.value = ''
+    if (!file) return
+    if (!file.type.startsWith('audio/') && !/\.(mp3|wav|m4a|aac|ogg|webm|flac)$/i.test(file.name)) {
+        new PopInfo().add(PopType.ERR, $t('请选择音频文件'))
+        return
+    }
+    const dataUrl = await fileToDataURL(file)
+    pendingVoice.value = {
+        type: 'record',
+        file: dataUrl,
+        url: dataUrl,
+        fileName: file.name,
+        name: $t('语音'),
+    } as MsgItemElem
+    msg.value = ''
+    sendCache.value = []
+    imgCache.value.clear()
+    voiceChunks = []
 }
 
 function toMainInput() {
@@ -2434,6 +2503,34 @@ function sendMsg(echo = 'sendMsgBack') {
     details.value.forEach((item) => {
         item.open = false
     })
+
+    if (pendingVoice.value) {
+        const voice = pendingVoice.value
+        pendingVoice.value = null
+        voiceMenuShow.value = false
+        voiceChunks = []
+        if (chat.show.temp) {
+            sendMsgRaw(
+                chat.show.id + '/' + chat.show.temp,
+                chat.show.type,
+                [voice],
+                true,
+                echo,
+            )
+        } else {
+            sendMsgRaw(
+                chat.show.id,
+                chat.show.type,
+                [voice],
+                true,
+                echo,
+            )
+        }
+        msg.value = ''
+        sendCache.value = []
+        imgCache.value.clear()
+        return
+    }
 
     for (const [key, base64data] of imgCache.value) {
         sendCache.value[key] = {
@@ -2810,6 +2907,14 @@ function reedit(msgData: any) {
             const foundMsg = list.find((item: any) => item.message_id == seg.id)
             if (!foundMsg) continue
             replyMsg(foundMsg)
+        } else if (seg.type === 'record' || seg.type === 'audio') {
+            pendingVoice.value = {
+                ...seg,
+                name: seg.name || $t('语音'),
+            } as MsgItemElem
+            msg.value = ''
+            sendCache.value = []
+            imgCache.value.clear()
         } else {
             addSpecialMsg({
                 addText: false,
@@ -2936,5 +3041,80 @@ function exitWin() {
 
     .pan-leave-to {
         opacity: 0;
+    }
+
+    .more-detail {
+        position: relative;
+    }
+
+    .more-detail.voice-menu-open {
+        overflow: visible;
+    }
+
+    .voice-menu-wrap {
+        position: relative;
+        width: 50px;
+        height: 50px;
+        margin: 0 10px;
+        cursor: pointer;
+        border-radius: 7px;
+        background: var(--color-card-1);
+    }
+
+    .voice-menu-wrap > div:first-child {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 100%;
+        height: 100%;
+    }
+
+    .voice-menu-wrap > div:first-child > svg {
+        color: var(--color-font-1);
+        margin: 15px;
+        height: 20px;
+        width: 20px;
+    }
+
+    .voice-menu-wrap > div:first-child.active {
+        background: rgba(244, 67, 54, 0.12);
+    }
+
+    .voice-menu-wrap > div:first-child.active > svg {
+        color: #f44336;
+    }
+
+    .voice-menu {
+        position: absolute;
+        right: 0;
+        bottom: 56px;
+        z-index: 20;
+        min-width: 120px;
+        overflow: hidden;
+        border-radius: 8px;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+        background: var(--color-card, #fff);
+    }
+
+    .voice-menu > div {
+        padding: 8px 14px;
+        cursor: pointer;
+        white-space: nowrap;
+    }
+
+    .voice-menu > div:hover {
+        background: var(--color-hover-bg, rgba(0, 0, 0, 0.06));
+    }
+
+    .voice-pending {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        height: 36px;
+        padding: 0 12px;
+        cursor: pointer;
+        border-radius: 6px;
+        color: var(--color-main, #3b82f6);
+        background: var(--color-active-bg, rgba(59, 130, 246, 0.08));
     }
 </style>

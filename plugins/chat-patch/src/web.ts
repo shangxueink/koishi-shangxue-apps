@@ -68,6 +68,31 @@ export function registerWeb(
     }
   })
 
+  ctx.server.get(`${config.basePath}/api/media`, async (koa) => {
+    const fileName = path.basename(String(koa.query.file ?? koa.query.name ?? ''))
+    if (!fileName || fileName === '.' || fileName === '..') {
+      koa.status = 400
+      koa.body = { error: 'missing media file' }
+      return
+    }
+    const filePath = path.resolve(uploadDir, fileName)
+    const root = path.resolve(uploadDir)
+    if (filePath !== root && !filePath.startsWith(`${root}${path.sep}`)) {
+      koa.status = 400
+      koa.body = { error: 'invalid media file' }
+      return
+    }
+    if (!existsSync(filePath) || !statSync(filePath).isFile()) {
+      koa.status = 404
+      koa.body = { error: 'media file not found' }
+      return
+    }
+    if (fileName.toLowerCase().endsWith('.webm')) {
+      koa.type = 'audio/webm'
+    }
+    await send(koa, fileName, { root: uploadDir })
+  })
+
   ctx.server.get(`${config.basePath}/api/cache/all`, async (koa) => {
     const entries = await database.getAllContacts()
     const botMap = new Map<string, {
