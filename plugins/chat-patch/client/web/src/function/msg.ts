@@ -41,7 +41,7 @@ import {
 } from '@renderer/function/utils/appUtil'
 import { reactive, markRaw, nextTick } from 'vue'
 import { PopInfo, PopType, Logger, LogType } from './base'
-import { Connector, login, saveConnectionToHistory } from './connect'
+import { Connector, getCachedUserAvatar, login, saveConnectionToHistory } from './connect'
 import {
     GroupFileElem,
     GroupFileFolderElem,
@@ -2258,6 +2258,17 @@ function newMsg(_: string, data: any) {
         if (id && (id === showId || targetId === showId)) {
             // 如果有正在输入的提示，清除它
             chatStore.chatInfo.show.appendInfo = undefined
+            const cachedAvatar = getCachedUserAvatar(
+                String(authStore.loginInfo.platform ?? ''),
+                String(authStore.loginInfo.uin ?? ''),
+                sender,
+            )
+            if (
+                cachedAvatar &&
+                (!senderObj.avatar || senderObj.avatar === '/img/icons/icon.svg')
+            ) {
+                senderObj.avatar = cachedAvatar
+            }
             // 保存消息
             saveMsg(buildMsgList([data]), 'bottom')
             // 抽个签

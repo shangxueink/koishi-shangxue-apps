@@ -370,7 +370,7 @@ export function satoriEventToOneBot(event: SatoriObject): Record<string, unknown
   const base = {
     self_id: selfId,
     platform,
-    time: Math.floor(getNumber(event.timestamp) / 1000),
+    time: Math.floor(getNumber(event.timestamp) / 1000) || Math.floor(Date.now() / 1000),
   }
 
   if (type === 'message' || type === 'message-created' || type === 'send') {
@@ -551,7 +551,7 @@ function messageListFromResponse(data: unknown): unknown[] {
     const directChannelId = isGroup ? groupId : userId
     return {
       message_id: getString(message.id),
-      time: Math.floor(getNumber(message.timestamp) / 1000),
+      time: Math.floor(getNumber(message.timestamp) / 1000) || Math.floor(Date.now() / 1000),
       message_type: isGroup ? 'group' : 'private',
       group_id: groupId,
       user_id: groupId ? userId : directChannelId,

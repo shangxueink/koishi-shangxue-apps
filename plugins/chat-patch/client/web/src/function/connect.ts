@@ -53,7 +53,12 @@ function shouldFetchIdentity(key: string): boolean {
 }
 
 function markIdentityLookup(key: string, hasAvatar: boolean, info?: CachedIdentityInfo) {
-  if (hasAvatar && info) identityInfoCache.set(key, info)
+  if (info) identityInfoCache.set(key, info)
+}
+
+export function getCachedUserAvatar(platform: string, selfId: string, userId: string): string {
+  const info = identityInfoCache.get(identityCacheKey('user', platform, selfId, userId))
+  return hasUsableAvatar(info?.avatar) ? getString(info.avatar) : ''
 }
 
 export let websocket: WebSocket | undefined = undefined
@@ -348,6 +353,17 @@ async function resolveGroupIdentity(
     const cachedObject = getObject(cached)
     raw = getObject(cachedObject.raw ?? cachedObject)
     cachedAvatar = hasUsableAvatar(getString(cachedObject.avatar)) ? getString(cachedObject.avatar) : ''
+    const cachedName = getString(raw.group_name) || getString(raw.name)
+    if (cachedName || cachedAvatar) {
+      const cachedApply = (target: Record<string, unknown>) => {
+        if (cachedName) target.group_name = cachedName
+        if (cachedAvatar) target.avatar = cachedAvatar
+      }
+      cachedApply(session)
+      syncGroupIdentity(sessionId, cachedApply)
+      markIdentityLookup(key, true, { name: cachedName || sessionId, avatar: cachedAvatar, raw })
+      return
+    }
   }
 
   let name = typeof msg.group_name === 'string' ? msg.group_name : ''
@@ -392,7 +408,7 @@ async function resolveGroupIdentity(
     },
     bot,
   ).catch(() => {})
-  markIdentityLookup(key, Boolean(avatar), avatar ? { name, avatar, raw } : undefined)
+  markIdentityLookup(key, true, { name, avatar, raw })
 }
 
 async function fetchUserIdentity(
@@ -457,7 +473,7 @@ async function fetchUserIdentity(
     },
     bot,
   ).catch(() => {})
-  markIdentityLookup(key, Boolean(avatar), avatar ? { name, avatar, raw: entity } : undefined)
+  markIdentityLookup(key, true, { name, avatar, raw: entity })
 }
 
 function recordBotMessage(platform: string, selfId: string, msg: Record<string, unknown>) {
@@ -759,6 +775,30 @@ async function loadAllBotsCache() {
       return raw
     })
     const friendRaws = friends.map((contact) => cachedFriendRaw(getObject(contact), contact))
+    for (const raw of groupRaws) {
+      const id = getString(raw.group_id) || getString(raw.id)
+      if (!id) continue
+      const name = getString(raw.group_name) || getString(raw.name)
+      const avatar = hasUsableAvatar(raw.avatar) ? getString(raw.avatar) : ''
+      if (!name && !avatar) continue
+      identityInfoCache.set(identityCacheKey('group', platform, selfId, id), {
+        name,
+        avatar,
+        raw,
+      })
+    }
+    for (const raw of friendRaws) {
+      const id = getString(raw.user_id) || getString(raw.id)
+      if (!id) continue
+      const name = getString(raw.nickname) || getString(raw.remark) || getString(raw.name)
+      const avatar = hasUsableAvatar(raw.avatar) ? getString(raw.avatar) : ''
+      if (!name && !avatar) continue
+      identityInfoCache.set(identityCacheKey('user', platform, selfId, id), {
+        name,
+        avatar,
+        raw,
+      })
+    }
     const userList = [...groupRaws, ...friendRaws] as unknown as (UserFriendElem & UserGroupElem)[]
 
     const state = contactStore.botStates.get(selfId)
