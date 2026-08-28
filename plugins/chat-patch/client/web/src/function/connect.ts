@@ -515,6 +515,23 @@ function recordBotMessage(platform: string, selfId: string, msg: Record<string, 
     messages.push(msg)
     chatStore.sessionMessageCache.set(cacheKey, messages)
   }
+  const currentShowId = String(chatStore.chatInfo.show.id ?? '')
+  const currentShowType = String(chatStore.chatInfo.show.type ?? '')
+  const msgChannelId = String(msg.channel_id ?? '')
+  const showChannelId = String(chatStore.chatInfo.show.channel_id ?? '')
+  const isCurrentChat = isActiveBot({ platform, selfId }) && (
+    (isGroup && currentShowType === 'group' && String(sessionId) === currentShowId) ||
+    (!isGroup && currentShowType === 'user' && String(sessionId) === currentShowId) ||
+    (msgChannelId && showChannelId && msgChannelId === showChannelId)
+  )
+  if (
+    isCurrentChat &&
+    messageId &&
+    !chatStore.messageList.some((item) => String(item.message_id) === messageId)
+  ) {
+    // 实时消息直接写入当前聊天窗口，避免依赖旧的消息解析链路
+    chatStore.messageList.push(msg)
+  }
   const knownSessionAvatar = contactStore.baseOnMsgList.get(String(sessionId))
   const knownWithAvatar = hasUsableAvatar(session.avatar)
     || Boolean(
