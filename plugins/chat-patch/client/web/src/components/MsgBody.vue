@@ -397,7 +397,7 @@ import Option from '@renderer/function/option'
 import markdownit from 'markdown-it'
 
 import { MsgBodyFuns as ViewFuns } from '@renderer/function/model/msg-body'
-import { watch, onMounted, nextTick, provide, inject, useTemplateRef, ref, toRaw } from 'vue'
+import { watch, onMounted, nextTick, provide, inject, useTemplateRef, ref, computed, toRaw } from 'vue'
 import { Connector } from '@renderer/function/connect'
 import { resolveForwardMessageContent } from '@renderer/function/msg'
 import { parseSatoriMarkup } from '@renderer/function/satori-model'
@@ -516,7 +516,10 @@ const moveOptions: VMoveOptions<HTMLDivElement> = {
 
 const View = ViewFuns
 const md = markdownit({ breaks: true })
-const isMe = ref(false)
+const isMe = computed(() => {
+    if (globalMe) return globalMe === 'Y'
+    return String(authStore.loginInfo.uin) === String(data?.sender?.user_id ?? '')
+})
 const isDev = import.meta.env.DEV
 const msgBodyClass = ref('message-body')
 const isDebugMsg = Option.get('debug_msg')
@@ -1265,12 +1268,6 @@ function isFace(item: any) {
 //#region == 生命周期 ================================================================
 
 onMounted(() => {
-    isMe.value =
-        Number(authStore.loginInfo.uin) ===
-        Number(data.sender.user_id)
-    if(globalMe) {
-        isMe.value = globalMe == 'Y'
-    }
     watch(
         () => chatStore.chatInfo.info.group_members.length,
         () => {

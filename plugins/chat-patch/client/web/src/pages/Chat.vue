@@ -670,7 +670,7 @@ const multipleSelectList = ref<string[]>([])
 const selectedForwardAction = ref<ForwardAction>('single-message')
 const tags = ref({
     sendTag: 'REFUSE' as 'READY' | 'PASS' | 'REFUSE',
-    showBottomButton: true,
+    showBottomButton: false,
     showMoreDetail: false,
     showMsgMenu: false,
     showForwardPan: false,
@@ -869,7 +869,7 @@ function resetState() {
     NewMsgNum.value = 0
     tags.value = {
         sendTag: 'REFUSE',
-        showBottomButton: true,
+        showBottomButton: false,
         showMoreDetail: false,
         showMsgMenu: false,
         showForwardPan: false,
@@ -922,6 +922,7 @@ watch(() => chat, () => {
     nextTick(() => {
         scheduleResizeMainInput()
         scrollBottomAfterLayout()
+        updateBottomButtonVisibility()
     })
     startSelfRefresh()
     const history = useSessionHistoryStore()
@@ -968,6 +969,7 @@ onMounted(() => {
         setupChatLayoutObserver()
         scheduleResizeMainInput()
         scrollBottomAfterLayout()
+        updateBottomButtonVisibility()
     })
 })
 
@@ -1079,6 +1081,7 @@ function setupChatLayoutObserver() {
     if (!pan || chatLayoutObserver !== null || chatMediaLoadHandler !== null) return
     // 图片/视频加载后会改变消息高度，捕获阶段补一次贴底定位
     const keepBottom = () => {
+        updateBottomButtonVisibility()
         scrollBottomAfterLayout()
     }
     chatMediaLoadHandler = keepBottom
@@ -1167,6 +1170,14 @@ function jumpSearchMsg() {
     })
 }
 
+function updateBottomButtonVisibility() {
+    const pan = msgPan.value
+    if (!pan) return
+    const scrollable = pan.scrollHeight > pan.clientHeight + 1
+    const atBottom = pan.scrollTop + pan.clientHeight + 10 >= pan.scrollHeight
+    tags.value.showBottomButton = scrollable && !atBottom
+}
+
 function chatScroll(event: Event, pass: boolean) {
     if(pass) return
 
@@ -1179,15 +1190,9 @@ function chatScroll(event: Event, pass: boolean) {
         shouldKeepChatAtBottom = true
         NewMsgNum.value = 0
         tags.value.showBottomButton = false
-    } else if (shouldKeepChatAtBottom) {
-        shouldKeepChatAtBottom = false
-    }
-    if (
-        body.scrollTop <
-            body.scrollHeight - body.clientHeight * 2 &&
-        tags.value.showBottomButton !== true
-    ) {
-        tags.value.showBottomButton = true
+    } else {
+        if (shouldKeepChatAtBottom) shouldKeepChatAtBottom = false
+        updateBottomButtonVisibility()
     }
 }
 
@@ -2972,6 +2977,7 @@ function updateList(newLength: number, oldLength: number) {
                         scrollTo(newPan.scrollHeight, false)
                         scrollBottomAfterLayout()
                     }
+                    updateBottomButtonVisibility()
                 }
             }
 

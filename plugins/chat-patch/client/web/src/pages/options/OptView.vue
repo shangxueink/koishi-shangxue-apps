@@ -278,20 +278,11 @@
                     <span>{{ $t('机器人消息默认显示在右侧') }}</span>
                 </div>
                 <div class="select-wrapper">
-                    <label class="ss-radio" style="margin-right: 12px;">
-                        <input type="radio" name="opt_ind_message" value="left"
-                            :checked="settingsStore.sysConfig.opt_ind_message === 'left'"
-                            @change="save($event)">
-                        <div><div /></div>
-                        <span>{{ $t('左') }}</span>
-                    </label>
-                    <label class="ss-radio">
-                        <input type="radio" name="opt_ind_message" value="right"
-                            :checked="settingsStore.sysConfig.opt_ind_message !== 'left'"
-                            @change="save($event)">
-                        <div><div /></div>
-                        <span>{{ $t('右') }}</span>
-                    </label>
+                    <select id="opt-view-ind-message" v-model="settingsStore.sysConfig.opt_ind_message"
+                        name="opt_ind_message" title="opt_ind_message" @change="save">
+                        <option value="left">{{ $t('左') }}</option>
+                        <option value="right">{{ $t('右') }}</option>
+                    </select>
                 </div>
             </div>
             <div v-if="isMobile() && !backend.isMobile()"
