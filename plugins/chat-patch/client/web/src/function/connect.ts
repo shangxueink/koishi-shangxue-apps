@@ -61,6 +61,12 @@ function hasIdentityData(info: CachedIdentityInfo | undefined): boolean {
 }
 
 export function getCachedUserAvatar(platform: string, selfId: string, userId: string): string {
+  if (userId === selfId) {
+    const login = getLogins().find((item) => {
+      return item.platform === platform && item.selfId === selfId
+    })
+    if (hasUsableAvatar(login?.avatar)) return getString(login.avatar)
+  }
   const info = identityInfoCache.get(identityCacheKey('user', platform, selfId, userId))
   return hasUsableAvatar(info?.avatar) ? getString(info.avatar) : ''
 }
@@ -402,6 +408,28 @@ async function fetchUserIdentity(
   if (identityInflight.has(inflightKey)) return
   identityInflight.add(inflightKey)
   try {
+    if (userId === selfId) {
+      const login = getLogins().find((item) => {
+        return item.platform === platform && item.selfId === selfId
+      })
+      if (login) {
+        const loginName = login.name || userId
+        const loginAvatar = login.avatar || ''
+        applyUserIdentity(userId, session, msg, loginName, loginAvatar)
+        markIdentityLookup(key, true, {
+          name: loginName,
+          avatar: loginAvatar,
+          raw: {
+            id: userId,
+            user_id: userId,
+            nickname: loginName,
+            name: loginName,
+            avatar: loginAvatar,
+          },
+        })
+        return
+      }
+    }
     const cachedInfo = identityInfoCache.get(key)
     if (!hasIdentityData(cachedInfo)) {
       identityDebug('user identity: skipped', {
@@ -755,6 +783,20 @@ function onSatoriReady(logins: Array<{ platform: string; selfId: string; name: s
   login.creating = false
   login.status = true
   const authStore = useAuthStore()
+  for (const item of logins) {
+    if (!item.platform || !item.selfId) continue
+    identityInfoCache.set(identityCacheKey('user', item.platform, item.selfId, item.selfId), {
+      name: item.name || item.selfId,
+      avatar: item.avatar || '',
+      raw: {
+        id: item.selfId,
+        user_id: item.selfId,
+        nickname: item.name || item.selfId,
+        name: item.name || item.selfId,
+        avatar: item.avatar || '',
+      },
+    })
+  }
   const first = logins[0]
   if (!first) return
 

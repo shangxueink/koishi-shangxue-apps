@@ -1807,6 +1807,7 @@ function forwardMsg(data: UserFriendElem & UserGroupElem) {
             sender: {
                 user_id: authStore.loginInfo.uin,
                 nickname: authStore.loginInfo.nickname,
+                avatar: authStore.loginInfo.avatar,
             }
         }
         const popInfo = {

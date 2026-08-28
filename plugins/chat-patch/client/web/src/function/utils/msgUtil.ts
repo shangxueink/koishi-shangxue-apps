@@ -7,7 +7,7 @@ import { Logger, PopInfo, PopType } from '@renderer/function/base'
 import { useSettingsStore } from '@renderer/state/settings'
 import { v4 as uuid } from 'uuid'
 import { Connector } from '@renderer/function/connect'
-import { getBootstrap } from '@renderer/function/satori'
+import { getBootstrap, getLogins } from '@renderer/function/satori'
 import {
     BotMsgType,
     MsgItemElem,
@@ -593,6 +593,10 @@ export async function sendMsgRaw(
     // 将消息构建为完整消息体先显示出去
     const msgUUID = uuid()
     if (preShow) {
+        const botLogin = getLogins().find((item) => {
+            return item.platform === String(authStore.loginInfo.platform ?? '') &&
+                item.selfId === String(authStore.loginInfo.uin ?? '')
+        })
         const preShowMsg = typeof msg === 'string'
             ? parsePreviewMarkup(msg)
             : JSON.parse(JSON.stringify(msg));
@@ -625,6 +629,7 @@ export async function sendMsgRaw(
             sender: {
                 user_id: authStore.loginInfo.uin,
                 nickname: authStore.loginInfo.nickname,
+                avatar: authStore.loginInfo.avatar || botLogin?.avatar,
             },
             message: preShowMsg,
         } as { [key: string]: any }
