@@ -274,16 +274,25 @@
                 <div :class="checkDefault('opt_ind_message')" />
                 <font-awesome-icon :icon="['fas', 'message']" />
                 <div>
-                    <label for="opt-view-ind-message">{{ $t('独立显示消息') }}</label>
-                    <span>{{ $t('始终让自己的消息显示在右边') }}</span>
+                    <label>{{ $t('默认显示居左还是居右') }}</label>
+                    <span>{{ $t('机器人消息默认显示在右侧') }}</span>
                 </div>
-                <label class="ss-switch">
-                    <input id="opt-view-ind-message" v-model="settingsStore.sysConfig.opt_ind_message"
-                        type="checkbox" name="opt_ind_message" @change="save">
-                    <div>
-                        <div />
-                    </div>
-                </label>
+                <div class="select-wrapper">
+                    <label class="ss-radio" style="margin-right: 12px;">
+                        <input type="radio" name="opt_ind_message" value="left"
+                            :checked="settingsStore.sysConfig.opt_ind_message === 'left'"
+                            @change="save($event)">
+                        <div><div /></div>
+                        <span>{{ $t('左') }}</span>
+                    </label>
+                    <label class="ss-radio">
+                        <input type="radio" name="opt_ind_message" value="right"
+                            :checked="settingsStore.sysConfig.opt_ind_message !== 'left'"
+                            @change="save($event)">
+                        <div><div /></div>
+                        <span>{{ $t('右') }}</span>
+                    </label>
+                </div>
             </div>
             <div v-if="isMobile() && !backend.isMobile()"
                 class="opt-item">

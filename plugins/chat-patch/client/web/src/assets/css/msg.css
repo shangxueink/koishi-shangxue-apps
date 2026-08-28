@@ -20,6 +20,15 @@
 .message.me.right {
     flex-direction: row-reverse !important;
 }
+.message.me.left {
+    flex-direction: row;
+}
+.message.me.left > img {
+    margin: 10px 15px 0 0;
+}
+.message-body.me.left {
+    align-items: start;
+}
 .message.selected {
     background: #0000001d;
 }

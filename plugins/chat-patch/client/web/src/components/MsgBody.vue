@@ -19,7 +19,8 @@
             { 'me': isMe && type != 'body' },
             { 'selected': props.selected },
             { 'selecting': selecting },
-            { 'right': settingsStore.sysConfig.opt_ind_message === true && type != 'body' },
+            { 'right': isMe && type != 'body' && settingsStore.sysConfig.opt_ind_message !== 'left' },
+            { 'left': isMe && type != 'body' && settingsStore.sysConfig.opt_ind_message === 'left' },
             { 'body-only': type == 'body' }
         ]"
         :data-raw="getMsgRawTxt(data)"
@@ -1302,7 +1303,9 @@ onMounted(() => {
         if(isMe.value && type != 'merge') {
             msgBodyClass.value += ' me'
         }
-        if(settingsStore.sysConfig.opt_ind_message === true) {
+        if(settingsStore.sysConfig.opt_ind_message === 'left') {
+            msgBodyClass.value += ' left'
+        } else {
             msgBodyClass.value += ' right'
         }
     }

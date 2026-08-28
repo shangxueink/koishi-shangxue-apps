@@ -866,6 +866,7 @@ const chatMoveOptions: VMoveOptions<HTMLDivElement> = {
 //#endregion
 
 function resetState() {
+    NewMsgNum.value = 0
     tags.value = {
         sendTag: 'REFUSE',
         showBottomButton: true,
@@ -2972,7 +2973,6 @@ function updateList(newLength: number, oldLength: number) {
                         scrollBottomAfterLayout()
                     }
                 }
-                uiStore.nowGetHistory = false
             }
 
             const getImgList = () => {

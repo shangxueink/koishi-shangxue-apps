@@ -91,7 +91,7 @@ export const optDefault: { [key: string]: any } = {
     opt_revolve: false,
     use_favicon_notice: true,
     use_super_face: true,
-    opt_ind_message: false,
+    opt_ind_message: 'right',
     opt_no_auto_load_image: false,
     // Function
     bubble_sort_user: true,

@@ -928,6 +928,7 @@ const msgFunctions = {
         if (pan) {
             const oldScrollHeight = pan.scrollHeight
             saveMsg(msg, 'top').then(() => {
+                uiStore.nowGetHistory = false
                 nextTick(() => {
                     setTimeout(() => {
                         logger.debug(`滚动前高度：${oldScrollHeight}，当前高度：${pan.scrollHeight}，滚动位置：${pan.scrollHeight - oldScrollHeight}`)
