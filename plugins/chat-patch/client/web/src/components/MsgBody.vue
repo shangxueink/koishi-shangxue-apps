@@ -471,6 +471,7 @@ const emit = defineEmits<{
     click: [event: MouseEvent, msg: Msg]
     scrollToMsg: [...args: any[]]
     imageLoaded: [...args: any[]]
+    contentRendered: []
     sendPoke: [...args: any[]]
     leftMove: [msg: Msg]
     rightMove: [msg: Msg]
@@ -1115,8 +1116,13 @@ function getMdHTML(str: string, id: string) {
         if(alt) {
             const size = alt.split('#')
             if(size.length == 3) {
-                img.style.width = size[1]
-                img.style.height = size[2]
+                const width = Number.parseFloat(size[1])
+                const height = Number.parseFloat(size[2])
+                if (Number.isFinite(width) && Number.isFinite(height) && width > 0 && height > 0) {
+                    img.style.aspectRatio = `${width} / ${height}`
+                    img.style.width = 'auto'
+                    img.style.height = 'auto'
+                }
             }
         }
     }
@@ -1134,13 +1140,15 @@ function getMdHTML(str: string, id: string) {
         }
     }
 
-    setTimeout(() => {
+    // Markdown 必须在 DOM 挂载后再插入，插入后通知聊天区重新贴底
+    nextTick(() => {
         const body = document.getElementById(id)
         if(body) {
             body.innerHTML = ''
             body.appendChild(div)
+            emit('contentRendered')
         }
-    }, 500)
+    })
 
     return id
 }

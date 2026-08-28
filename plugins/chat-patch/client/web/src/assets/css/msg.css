@@ -191,6 +191,15 @@
     margin-top: 5px;
     padding: 10px;
 }
+/* 限制消息内图片/视频高度，避免长图或大图撑爆聊天区 */
+#msgPan .message-body img,
+.merge-pan .message-body img,
+#msgPan .message-body video,
+.merge-pan .message-body video,
+#msgPan .message-body iframe,
+.merge-pan .message-body iframe {
+    max-height: min(18rem, 40vh) !important;
+}
 .message-body.me > div {
     background: var(--color-main);
 }
@@ -250,6 +259,10 @@
 .msg-md img {
     border-radius: 7px;
     max-width: 100%;
+    max-height: min(18rem, 40vh) !important;
+    width: auto !important;
+    height: auto !important;
+    object-fit: contain;
 }
 .msg-md blockquote {
     border-left: 3px solid var(--color-font-2);

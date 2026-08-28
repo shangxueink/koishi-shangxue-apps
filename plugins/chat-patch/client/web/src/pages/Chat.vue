@@ -108,7 +108,8 @@
                             @scroll-to-msg="scrollToMsg"
                             @image-loaded="imgLoadedScroll"
                             @left-move="replyMsg"
-                            @send-poke="sendPoke" />
+                            @send-poke="sendPoke"
+                            @content-rendered="scrollBottomAfterLayout" />
                         <!-- 其他通知消息 -->
                         <NoticeBody v-else-if="msgIndex.post_type === 'notice'"
                             :id="uuid()"
@@ -139,7 +140,8 @@
                             @scroll-to-msg="scrollToMsg"
                             @show-menu="showMsgMeun"
                             @image-loaded="imgLoadedScroll"
-                            @left-move="replyMsg" />
+                            @left-move="replyMsg"
+                            @content-rendered="scrollBottomAfterLayout" />
                     </template>
                 </TransitionGroup>
             </template>
@@ -918,7 +920,7 @@ watch(() => chat, () => {
     initMenuDisplay()
     nextTick(() => {
         scheduleResizeMainInput()
-        scrollBottom()
+        scrollBottomAfterLayout()
     })
     startSelfRefresh()
     const history = useSessionHistoryStore()
@@ -964,7 +966,7 @@ onMounted(() => {
         setupChatPaddingObserver()
         setupChatLayoutObserver()
         scheduleResizeMainInput()
-        scrollBottom()
+        scrollBottomAfterLayout()
     })
 })
 
@@ -986,12 +988,21 @@ onBeforeUnmount(() => {
         chatLayoutObserver.disconnect()
         chatLayoutObserver = null
     }
+    if (chatMediaLoadHandler !== null) {
+        const pan = msgPan.value
+        pan?.removeEventListener('load', chatMediaLoadHandler, true)
+        pan?.removeEventListener('error', chatMediaLoadHandler, true)
+        pan?.removeEventListener('loadedmetadata', chatMediaLoadHandler, true)
+        pan?.removeEventListener('loadeddata', chatMediaLoadHandler, true)
+        chatMediaLoadHandler = null
+    }
 })
 
 let resizeMainInputFrame: number | null = null
 let chatPaddingFrame: number | null = null
 let sendMoreResizeObserver: ResizeObserver | null = null
 let chatLayoutObserver: ResizeObserver | null = null
+let chatMediaLoadHandler: ((event: Event) => void) | null = null
 let shouldKeepChatAtBottom = true
 let chatPaddingAfterUpdate: Array<() => void> = []
 // scrollHeight includes a small browser-dependent inner gap for this textarea style.
@@ -1064,12 +1075,35 @@ function setupChatPaddingObserver() {
 
 function setupChatLayoutObserver() {
     const pan = msgPan.value
-    if (!pan || typeof ResizeObserver === 'undefined' || chatLayoutObserver !== null) return
+    if (!pan || chatLayoutObserver !== null || chatMediaLoadHandler !== null) return
+    // 图片/视频加载后会改变消息高度，捕获阶段补一次贴底定位
+    const keepBottom = () => {
+        scrollBottomAfterLayout()
+    }
+    chatMediaLoadHandler = keepBottom
+    pan.addEventListener('load', keepBottom, true)
+    pan.addEventListener('error', keepBottom, true)
+    pan.addEventListener('loadedmetadata', keepBottom, true)
+    pan.addEventListener('loadeddata', keepBottom, true)
+    if (typeof ResizeObserver === 'undefined') return
+    // 布局尺寸变化时也保持贴底，避免固定延迟漏掉异步内容
     chatLayoutObserver = new ResizeObserver(() => {
-        if (shouldKeepChatAtBottom) scrollBottom(false)
+        keepBottom()
     })
     chatLayoutObserver.observe(pan)
     if (pan.firstElementChild) chatLayoutObserver.observe(pan.firstElementChild)
+}
+
+function scrollBottomAfterLayout() {
+    if (!shouldKeepChatAtBottom || !msgPan.value) return
+    scrollBottom(false)
+    requestAnimationFrame(() => {
+        if (!shouldKeepChatAtBottom || !msgPan.value) return
+        scrollBottom(false)
+        requestAnimationFrame(() => {
+            if (shouldKeepChatAtBottom && msgPan.value) scrollBottom(false)
+        })
+    })
 }
 
 function resizeMainInput(target?: HTMLTextAreaElement | HTMLInputElement | null) {
@@ -2905,6 +2939,7 @@ function updateList(newLength: number, oldLength: number) {
                     }
                     if (oldLength <= 0) {
                         scrollTo(newPan.scrollHeight, false)
+                        scrollBottomAfterLayout()
                     }
                 }
                 uiStore.nowGetHistory = false
