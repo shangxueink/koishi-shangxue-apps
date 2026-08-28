@@ -41,7 +41,7 @@ import {
 } from '@renderer/function/utils/appUtil'
 import { reactive, markRaw, nextTick } from 'vue'
 import { PopInfo, PopType, Logger, LogType } from './base'
-import { Connector, getCachedUserAvatar, login, saveConnectionToHistory } from './connect'
+import { Connector, getCachedUserAvatar, login, requestUserAvatar, saveConnectionToHistory } from './connect'
 import {
     GroupFileElem,
     GroupFileFolderElem,
@@ -1950,7 +1950,7 @@ function getMessageTimestamp(msg: any): number {
 }
 
 function buildFallbackMessageKey(msg: any): string {
-    const seq = msg?.message_seq ?? msg?.seq_id ?? msg?.seq ?? ''
+    const seq = msg?.message_seq ?? msg?.seq_id ?? msg?.seq ?? msg?.sn ?? ''
     const sender = msg?.sender?.user_id ?? msg?.user_id ?? msg?.sender_id ?? ''
     const ts = getMessageTimestamp(msg)
     return `${ts}|${sender}|${seq}`
@@ -1961,8 +1961,8 @@ function compareMessageOrder(a: any, b: any): number {
     const tb = getMessageTimestamp(b)
     if (ta !== tb) return ta - tb
 
-    const sa = Number(a?.message_seq ?? a?.seq_id ?? a?.seq)
-    const sb = Number(b?.message_seq ?? b?.seq_id ?? b?.seq)
+    const sa = Number(a?.message_seq ?? a?.seq_id ?? a?.seq ?? a?.sn)
+    const sb = Number(b?.message_seq ?? b?.seq_id ?? b?.seq ?? b?.sn)
     if (Number.isFinite(sa) && Number.isFinite(sb) && sa !== sb) {
         return sa - sb
     }
@@ -1970,7 +1970,13 @@ function compareMessageOrder(a: any, b: any): number {
     const ia = normalizeMessageId(a?.message_id)
     const ib = normalizeMessageId(b?.message_id)
     if (ia === ib) return 0
-    return ia.localeCompare(ib)
+    const na = Number(ia)
+    const nb = Number(ib)
+    if (Number.isFinite(na) && Number.isFinite(nb) && na !== nb) {
+        return na - nb
+    }
+    // 同秒且没有可靠序列时保持平台返回顺序，避免按随机 message_id 打乱
+    return 0
 }
 
 function getImageSegments(msg: any): any[] {
@@ -2075,10 +2081,25 @@ export async function getMessageList(list: any[] | undefined) {
     if (msgPath.message_list.order === 'reverse') {
         list.reverse()
     }
+    list.sort(compareMessageOrder)
     // 检查必要字段
     list.forEach((item: any) => {
         if (!item.post_type) {
             item.post_type = 'message'
+        }
+    })
+    const authStore = useAuthStore()
+    const platform = String(authStore.loginInfo.platform ?? '')
+    const selfId = String(authStore.loginInfo.uin ?? '')
+    list.forEach((item: any) => {
+        const sender = item.sender
+        const userId = String(sender?.user_id ?? item.user_id ?? item.sender_id ?? '')
+        if (!userId) return
+        const avatar = getCachedUserAvatar(platform, selfId, userId)
+        if (avatar && sender) {
+            sender.avatar = avatar
+        } else {
+            requestUserAvatar(platform, selfId, userId, item)
         }
     })
     return Promise.all(list.map(msgPreprocess))

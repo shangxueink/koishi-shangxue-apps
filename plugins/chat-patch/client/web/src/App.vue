@@ -564,6 +564,20 @@ function rafLoop() {
  * @param data 切换信息
  */
 function changeChat(data: BaseChatInfoElem) {
+    if (
+        chatStore.chatInfo.show.id === data.id &&
+        chatStore.chatInfo.show.type === data.type
+    ) {
+        return
+    }
+    if (
+        chatStore.chatInfo.show.id !== data.id ||
+        chatStore.chatInfo.show.type !== data.type
+    ) {
+        chatStore.messageList = []
+    }
+    uiStore.nowGetHistory = false
+    uiStore.historyBeforeTime = undefined
     void loadContactsFromCache()
     // 设置聊天信息
     chatStore.chatInfo = {

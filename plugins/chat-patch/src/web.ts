@@ -6,6 +6,7 @@ import send from 'koa-send'
 import type { DefaultContext, DefaultState, ParameterizedContext } from 'koa'
 
 import { Config } from './config'
+import { ContactCacheService } from './cache'
 import { ChatDatabase } from './database'
 import { PluginLogger } from './logger'
 import { ContactCacheItem } from './types'
@@ -14,25 +15,13 @@ export function registerWeb(
   ctx: Context,
   config: Config,
   database: ChatDatabase,
+  contactCache: ContactCacheService,
   logger: PluginLogger,
 ) {
   const webRoot = path.resolve(__dirname, '..', 'client', 'web', 'dist')
 
   type WebContext = ParameterizedContext<DefaultState, DefaultContext>
-
-  const readCache = async (koa: WebContext) => {
-    const platform = String(koa.query.platform ?? '')
-    const selfId = String(koa.query.selfId ?? '')
-    const type = String(koa.query.type ?? '')
-    if (!platform || !selfId || !type) {
-      koa.status = 400
-      koa.body = { error: 'missing cache params' }
-      return
-    }
-    koa.body = {
-      contacts: await database.getContacts(platform, selfId, type),
-    }
-  }
+  const cacheType = (type: string) => type === 'user' ? 'friend' : type
 
   ctx.server.get(`${config.basePath}/api/cache/all`, async (koa) => {
     const entries = await database.getAllContacts()
@@ -57,31 +46,82 @@ export function registerWeb(
     koa.body = { bots: [...botMap.values()] }
   })
 
-  ctx.server.get(`${config.basePath}/api/cache`, readCache)
+  ctx.server.get(`${config.basePath}/api/cache`, async (koa) => {
+    const platform = String(koa.query.platform ?? '')
+    let selfId = String(koa.query.selfId ?? '')
+    if (!selfId) {
+      selfId = ctx.bots.find((bot) => bot.platform === platform)?.selfId ?? ''
+    }
+    const type = String(koa.query.type ?? '')
+    if (!platform || !selfId || !type) {
+      koa.status = 400
+      koa.body = { error: 'missing cache params' }
+      return
+    }
+
+    // 单条身份缓存：前端收消息时优先走这里，命中后不再请求 Satori API
+    const id = String(koa.query.userId ?? koa.query.groupId ?? koa.query.id ?? '')
+    if (id) {
+      if (type === 'user' || type === 'friend') {
+        const contact = await contactCache.getUser(
+          platform,
+          selfId,
+          id,
+          String(koa.query.guildId ?? ''),
+        )
+        koa.body = contact ?? null
+        return
+      }
+      if (type === 'group') {
+        const guildId = String(koa.query.guildId ?? '')
+        const channelId = String(koa.query.channelId ?? '')
+        const contact = await contactCache.getGroup(
+          platform,
+          selfId,
+          id,
+          guildId,
+          channelId,
+        )
+        koa.body = contact ?? null
+        return
+      }
+      koa.status = 400
+      koa.body = { error: 'unsupported cache type' }
+      return
+    }
+
+    koa.body = {
+      contacts: await database.getContacts(platform, selfId, cacheType(type)),
+    }
+  })
 
   ctx.server.post(`${config.basePath}/api/cache`, async (koa) => {
     const requestBody = (koa.request as unknown as { body?: unknown }).body
     const body = (requestBody ?? {}) as Record<string, unknown>
     const platform = String(body.platform ?? '')
-    const selfId = String(body.selfId ?? '')
+    let selfId = String(body.selfId ?? '')
+    if (!selfId) {
+      selfId = ctx.bots.find((bot) => bot.platform === platform)?.selfId ?? ''
+    }
     const type = String(body.type ?? '')
     if (!platform || !selfId || !type) {
       koa.status = 400
       koa.body = { error: 'missing cache params' }
       return
     }
+    const normalizedType = cacheType(type)
     if (Array.isArray(body.contacts)) {
       const contacts = body.contacts as ContactCacheItem[]
       if (body.append === true) {
         for (const contact of contacts) {
-          await database.appendContact(platform, selfId, type, contact)
+          await database.appendContact(platform, selfId, normalizedType, contact)
         }
       } else {
-        await database.setContacts(platform, selfId, type, contacts)
+        await database.setContacts(platform, selfId, normalizedType, contacts)
       }
     }
     koa.body = {
-      contacts: await database.getContacts(platform, selfId, type),
+      contacts: await database.getContacts(platform, selfId, normalizedType),
     }
   })
 

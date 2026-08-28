@@ -43,22 +43,35 @@ interface CachedIdentityInfo {
 }
 
 const identityInfoCache = new Map<string, CachedIdentityInfo>()
+const identityInflight = new Set<string>()
 
 function identityCacheKey(prefix: string, platform: string, selfId: string, id: string) {
   return `${prefix}:${platform}:${selfId}:${id}`
 }
 
-function shouldFetchIdentity(key: string): boolean {
-  return !identityInfoCache.has(key)
+function markIdentityLookup(key: string, _hasAvatar: boolean, info?: CachedIdentityInfo) {
+  // 缺失也记录一次，避免同一会话内反复回源
+  identityInfoCache.set(key, info ?? { name: '', avatar: '', raw: {} })
 }
 
-function markIdentityLookup(key: string, hasAvatar: boolean, info?: CachedIdentityInfo) {
-  if (info) identityInfoCache.set(key, info)
+function hasIdentityData(info: CachedIdentityInfo | undefined): boolean {
+  // 未查询过时允许回源；只有明确空结果才跳过
+  return !info || Boolean(info.name || info.avatar)
 }
 
 export function getCachedUserAvatar(platform: string, selfId: string, userId: string): string {
   const info = identityInfoCache.get(identityCacheKey('user', platform, selfId, userId))
   return hasUsableAvatar(info?.avatar) ? getString(info.avatar) : ''
+}
+
+export function requestUserAvatar(
+  platform: string,
+  selfId: string,
+  userId: string,
+  msg: Record<string, unknown>,
+) {
+  if (!userId || userId === '0') return
+  void fetchUserIdentity(platform, selfId, userId, null, msg)
 }
 
 export let websocket: WebSocket | undefined = undefined
@@ -268,46 +281,6 @@ function syncGroupIdentity(
   updateBaseOnMsgList()
 }
 
-async function requestGroupInfo(
-  bot: { platform: string; selfId: string },
-  guildId: string,
-  channelId: string,
-  sessionId: string,
-): Promise<{ name: string; avatar: string; raw: Record<string, unknown> }> {
-  const requests: Array<{
-    method: string
-    params: Record<string, unknown>
-    entityKey: string
-  }> = []
-  if (guildId && guildId !== '0') {
-    requests.push({ method: 'guild.get', params: { guild_id: guildId }, entityKey: 'guild' })
-  }
-  if (channelId && channelId !== '0') {
-    requests.push({ method: 'channel.get', params: { channel_id: channelId }, entityKey: 'channel' })
-  }
-  if (sessionId && sessionId !== guildId && sessionId !== channelId) {
-    requests.push({ method: 'guild.get', params: { guild_id: sessionId }, entityKey: 'guild' })
-  }
-
-  let name = ''
-  let avatar = ''
-  let raw: Record<string, unknown> = {}
-  for (const item of requests) {
-    const data = await request(item.method, item.params, bot).catch(() => null)
-    const root = getObject(data)
-    const payload = getObject(root.data) || root
-    const entity = getObject(payload[item.entityKey]) || payload
-    const candidateName = getString(entity.name) || getString(payload.name) || getString(entity.group_name)
-    const candidateAvatar = hasUsableAvatar(pickAvatar(entity, payload)) ? pickAvatar(entity, payload) : ''
-    if (!name && candidateName) name = candidateName
-    if (!avatar && candidateAvatar) {
-      avatar = candidateAvatar
-      raw = entity
-    }
-  }
-  return { name, avatar, raw }
-}
-
 async function resolveGroupIdentity(
   platform: string,
   selfId: string,
@@ -318,74 +291,41 @@ async function resolveGroupIdentity(
   msg: Record<string, unknown>,
 ) {
   if (!sessionId || sessionId === '0') return
-  const bot = { platform, selfId }
   const key = identityCacheKey('group', platform, selfId, sessionId)
   const cachedInfo = identityInfoCache.get(key)
-  if (cachedInfo) {
-    identityDebug('group identity: replay cached', { platform, selfId, sessionId, cachedInfo })
-    const applyCachedGroup = (target: Record<string, unknown>) => {
-      if (cachedInfo.name) target.group_name = cachedInfo.name
-      if (cachedInfo.avatar) target.avatar = cachedInfo.avatar
-    }
-    applyCachedGroup(session)
-    syncGroupIdentity(sessionId, applyCachedGroup)
-    return
-  }
-  if (!shouldFetchIdentity(key)) {
+  if (!hasIdentityData(cachedInfo)) {
     identityDebug('group identity: skipped', { platform, selfId, sessionId, key })
     return
   }
 
-  const cacheResult = await requestContactCache({
+  identityDebug('group identity: request cache', { platform, selfId, sessionId, guildId, channelId })
+  const cacheResult = await requestIdentityCache({
     platform,
     selfId,
     type: 'group',
-  }).catch(() => ({ contacts: [] }))
-  const contacts = Array.isArray(getObject(cacheResult).contacts)
-    ? getObject(cacheResult).contacts as unknown[]
-    : []
-  const cached = contacts.find((contact) => {
-    return getString(getObject(contact).id) === sessionId
-  })
-  let raw: Record<string, unknown> = {}
-  let cachedAvatar = ''
-  if (cached) {
-    const cachedObject = getObject(cached)
-    raw = getObject(cachedObject.raw ?? cachedObject)
-    cachedAvatar = hasUsableAvatar(getString(cachedObject.avatar)) ? getString(cachedObject.avatar) : ''
-    const cachedName = getString(raw.group_name) || getString(raw.name)
-    if (cachedName || cachedAvatar) {
-      const cachedApply = (target: Record<string, unknown>) => {
-        if (cachedName) target.group_name = cachedName
-        if (cachedAvatar) target.avatar = cachedAvatar
-      }
-      cachedApply(session)
-      syncGroupIdentity(sessionId, cachedApply)
-      markIdentityLookup(key, true, { name: cachedName || sessionId, avatar: cachedAvatar, raw })
-      return
+    id: sessionId,
+    guildId,
+    channelId,
+  }).catch(() => null)
+  const cached = getObject(cacheResult)
+  const cachedName = getString(cached.name)
+  const cachedAvatar = hasUsableAvatar(cached.avatar) ? getString(cached.avatar) : ''
+  if (cachedName || cachedAvatar) {
+    const cachedApply = (target: Record<string, unknown>) => {
+      if (cachedName) target.group_name = cachedName
+      if (cachedAvatar) target.avatar = cachedAvatar
     }
+    cachedApply(session)
+    syncGroupIdentity(sessionId, cachedApply)
+    markIdentityLookup(key, true, { name: cachedName || sessionId, avatar: cachedAvatar, raw: cached })
+    return
   }
 
-  let name = typeof msg.group_name === 'string' ? msg.group_name : ''
-  let avatar = hasUsableAvatar(
+  // 后端回源失败时只使用事件自带的字段，不再每次消息都请求 guild/channel
+  const name = typeof msg.group_name === 'string' ? msg.group_name : ''
+  const avatar = hasUsableAvatar(
     typeof msg.group_avatar === 'string' ? msg.group_avatar : '',
   ) ? (typeof msg.group_avatar === 'string' ? msg.group_avatar : '') : ''
-  if (!name) name = getString(raw.group_name) || getString(raw.name)
-  if (!avatar && cachedAvatar) {
-    avatar = cachedAvatar
-  } else if (!avatar) {
-    avatar = hasUsableAvatar(getString(raw.avatar)) ? getString(raw.avatar) : ''
-  }
-  if (!avatar) {
-    identityDebug('group identity: start fetch', { platform, selfId, sessionId, guildId, channelId })
-    const info = await requestGroupInfo(bot, guildId, channelId, sessionId)
-    identityDebug('group identity: fetch result', { platform, selfId, sessionId, info })
-    if (!name || name === sessionId) name = info.name
-    if (!avatar && info.avatar) {
-      avatar = info.avatar
-      raw = info.raw
-    }
-  }
   if (!name && !avatar) {
     markIdentityLookup(key, false)
     return
@@ -398,17 +338,7 @@ async function resolveGroupIdentity(
   }
   applyGroup(session)
   syncGroupIdentity(sessionId, applyGroup)
-  await appendContactCache(
-    'group',
-    {
-      id: sessionId,
-      name: name || sessionId,
-      avatar: avatar || undefined,
-      raw: Object.keys(raw).length > 0 ? raw : { group_name: name, avatar },
-    },
-    bot,
-  ).catch(() => {})
-  markIdentityLookup(key, true, { name, avatar, raw })
+  markIdentityLookup(key, true, { name, avatar, raw: { group_name: name, avatar } })
 }
 
 async function fetchUserIdentity(
@@ -419,61 +349,47 @@ async function fetchUserIdentity(
   msg: Record<string, unknown>,
 ) {
   if (!userId || userId === '0') return
-  const bot = { platform, selfId }
-  const botKey = `${platform}:${selfId}`
   const key = identityCacheKey('user', platform, selfId, userId)
-  const cachedInfo = identityInfoCache.get(key)
-  if (cachedInfo) {
-    identityDebug('user identity: replay cached', { platform, selfId, userId, cachedInfo })
-    applyUserIdentity(userId, session, msg, cachedInfo.name, cachedInfo.avatar)
-    return
-  }
-  if (!shouldFetchIdentity(key)) {
-    identityDebug('user identity: skipped', {
+  const inflightKey = `user:${key}`
+  if (identityInflight.has(inflightKey)) return
+  identityInflight.add(inflightKey)
+  try {
+    const cachedInfo = identityInfoCache.get(key)
+    if (!hasIdentityData(cachedInfo)) {
+      identityDebug('user identity: skipped', {
+        platform,
+        selfId,
+        userId,
+      })
+      return
+    }
+
+    const guildId = getString(msg.guild_id) || getString(msg.group_id)
+    identityDebug('user identity: request cache', { platform, selfId, userId, guildId })
+    const data = await requestIdentityCache({
       platform,
       selfId,
-      userId,
-      shouldFetch: shouldFetchIdentity(key),
-    })
-    return
-  }
-
-  identityDebug('user.get: request', { platform, selfId, userId })
-  const data = await request('user.get', { user_id: userId }, bot).catch((error: unknown) => {
-    const message = error instanceof Error ? error.message : String(error)
-    identityDebug('user.get: request failed', { platform, selfId, userId, message })
-    if (/is not a function|Satori API 杩斿洖 500/i.test(message)) {
-      unsupportedMethods.add(`user.get:${botKey}`)
-    }
-    return null
-  })
-  const root = getObject(data)
-  const payload = getObject(root.data) || root
-  const entity = getObject(payload.user) || payload
-  const name = getString(entity.name)
-    || getString(entity.nick)
-    || getString(payload.name)
-    || getString(payload.nick)
-    || getString(payload.username)
-  const avatar = hasUsableAvatar(pickAvatar(entity, payload)) ? pickAvatar(entity, payload) : ''
-  identityDebug('user.get: result', { platform, selfId, userId, name, avatar })
-  if (!name && !avatar) {
-    markIdentityLookup(key, false)
-    return
-  }
-
-  applyUserIdentity(userId, session, msg, name, avatar)
-  await appendContactCache(
-    'friend',
-    {
+      type: 'user',
       id: userId,
-      name: name || userId,
-      avatar: avatar || undefined,
-      raw: entity,
-    },
-    bot,
-  ).catch(() => {})
-  markIdentityLookup(key, true, { name, avatar, raw: entity })
+      guildId,
+    }).catch(() => null)
+    const root = getObject(data)
+    const name = getString(root.name)
+      || getString(root.nick)
+      || getString(root.nickname)
+      || getString(root.username)
+    const avatar = hasUsableAvatar(root.avatar) ? getString(root.avatar) : ''
+    identityDebug('user identity: cache result', { platform, selfId, userId, name, avatar })
+    if (!name && !avatar) {
+      markIdentityLookup(key, false)
+      return
+    }
+
+    applyUserIdentity(userId, session, msg, name, avatar)
+    markIdentityLookup(key, true, { name, avatar, raw: root })
+  } finally {
+    identityInflight.delete(inflightKey)
+  }
 }
 
 function recordBotMessage(platform: string, selfId: string, msg: Record<string, unknown>) {
@@ -566,7 +482,11 @@ function recordBotMessage(platform: string, selfId: string, msg: Record<string, 
   } else {
     state.onMsgList.unshift(session)
   }
-  contactStore.botStates.set(selfId, state)
+  contactStore.botStates.set(selfId, {
+    userList: [...state.userList],
+    baseList: [...state.baseList],
+    onMsgList: [...state.onMsgList],
+  })
   if (
     isActiveBot({ platform, selfId }) &&
     !contactStore.baseOnMsgList.has(String(sessionId))
@@ -746,6 +666,43 @@ async function requestContactCache(params: {
   return response.json() as Promise<Record<string, unknown>>
 }
 
+// 收消息时查询单条身份缓存；后端未命中会自动回源并写库
+async function requestIdentityCache(params: {
+  platform: string
+  selfId: string
+  type: 'user' | 'group'
+  id: string
+  guildId?: string
+  channelId?: string
+}): Promise<Record<string, unknown> | null> {
+  if (!params.platform || !params.selfId || !params.id) return null
+  const info = await getBootstrap()
+  const basePath = info.basePath || '/chat-patch'
+  const query = new URLSearchParams({
+    platform: params.platform,
+    selfId: params.selfId,
+    type: params.type,
+    [params.type === 'user' ? 'userId' : 'groupId']: params.id,
+  })
+  if (params.guildId) query.set('guildId', params.guildId)
+  if (params.channelId) query.set('channelId', params.channelId)
+
+  const response = await fetch(`${location.origin}${basePath}/api/cache?${query.toString()}`)
+  if (!response.ok) {
+    throw new Error(`身份缓存 API 返回 ${response.status}`)
+  }
+  const text = await response.text()
+  if (!text || text === 'null') return null
+  try {
+    const parsed = JSON.parse(text) as unknown
+    return typeof parsed === 'object' && parsed !== null
+      ? parsed as Record<string, unknown>
+      : null
+  } catch {
+    return null
+  }
+}
+
 async function requestAllBotsCache() {
   const info = await getBootstrap()
   const basePath = info.basePath || '/chat-patch'
@@ -911,6 +868,100 @@ async function requestFriendList(active: { platform: string; selfId: string }): 
   return users
 }
 
+function buildGroupItem(raw: unknown, data: unknown): Record<string, unknown> {
+  const root = getObject(data)
+  const guild = getObject(root.guild) || getObject(root)
+  const channel = getObject(root.channel)
+  const item = { ...getObject(raw) }
+  const id = getString(item.group_id) || getString(item.id) || getString(item.guild_id) || ''
+  const name = getString(guild.name)
+    || getString(channel.name)
+    || getString(item.group_name)
+    || getString(item.name)
+  const avatar = hasUsableAvatar(guild.avatar)
+    ? getString(guild.avatar)
+    : hasUsableAvatar(channel.avatar)
+      ? getString(channel.avatar)
+      : hasUsableAvatar(item.avatar)
+        ? getString(item.avatar)
+        : ''
+  if (name) item.group_name = name
+  if (avatar) item.avatar = avatar
+  else if (item.avatar && !hasUsableAvatar(item.avatar)) delete item.avatar
+  if (!item.guild_id) item.guild_id = id
+  if (!item.channel_id) item.channel_id = id
+  return item
+}
+
+// 刷新群组时逐个请求 guild.get / channel.get，并把结果写回缓存和界面
+async function fetchGroupProfiles(
+  active: { platform: string; selfId: string },
+  groups: unknown[],
+  updateUi = true,
+): Promise<Record<string, unknown>[]> {
+  const contactStore = updateUi ? useContactStore() : null
+  const processedItems: Record<string, unknown>[] = []
+
+  const processGroup = async (raw: unknown) => {
+    const id = contactId(raw)
+    if (!id) return
+    const rawObj = getObject(raw)
+    const guildId = getString(rawObj.guild_id) || id
+    const channelId = getString(rawObj.channel_id) || id
+    const [guildData, channelData] = await Promise.all([
+      withTimeout(
+        request('guild.get', { guild_id: guildId }, active).catch(() => null),
+        5000,
+      ),
+      withTimeout(
+        request('channel.get', { channel_id: channelId, guild_id: guildId }, active).catch(() => null),
+        5000,
+      ),
+    ])
+    const item = buildGroupItem(raw, { guild: guildData, channel: channelData })
+    processedItems.push(item)
+
+    if (updateUi && contactStore) {
+      const existing = contactStore.userList.find((contact) => {
+        return String(contact.group_id) === id
+      })
+      if (existing) {
+        if (item.group_name) existing.group_name = String(item.group_name)
+        if (item.avatar) existing.avatar = String(item.avatar)
+        else if (existing.avatar && !hasUsableAvatar(existing.avatar)) delete existing.avatar
+        contactStore.userList = [...contactStore.userList]
+      } else {
+        dispatch({ retcode: 0, data: [item] }, 'getGroupList')
+      }
+    }
+
+    if (updateUi) {
+      void withTimeout(appendContactCache('group', item, active), 3000).catch(() => {
+        // 单个群组缓存写入失败不阻塞后续请求
+      })
+    } else {
+      await withTimeout(appendContactCache('group', item, active), 3000).catch(() => {
+        // 后台缓存写入失败不中断整个机器人
+      })
+    }
+  }
+
+  const batchSize = 30
+  for (let start = 0; start < groups.length; start += batchSize) {
+    const batchStart = Date.now()
+    const batch = groups.slice(start, start + batchSize)
+    await Promise.all(batch.map((raw) => processGroup(raw).catch((error: unknown) => {
+      logger.add(LogType.ERR, `处理群组身份信息失败: ${String(error)}`)
+    })))
+    const elapsed = Date.now() - batchStart
+    const wait = Math.max(0, 1000 - elapsed)
+    if (wait > 0) {
+      await new Promise((resolve) => setTimeout(resolve, wait))
+    }
+  }
+  return processedItems
+}
+
 async function cacheBotContacts(bot: { platform: string; selfId: string }) {
   try {
     const groupPromise = request('guild.list', {}, bot).catch(() => null)
@@ -925,6 +976,14 @@ async function cacheBotContacts(bot: { platform: string; selfId: string }) {
       void withTimeout(saveContactCache('get_group_list', groups, bot), 3000).catch(() => {})
       if (isActiveBot(bot)) {
         dispatch({ retcode: 0, data: groups }, 'getGroupList')
+      }
+      // 群组列表拿到后，再逐个请求群组和频道信息
+      const groupItems = await fetchGroupProfiles(bot, groups, isActiveBot(bot))
+      if (groupItems.length > 0) {
+        await withTimeout(
+          saveContactCache('get_group_list', groupItems, bot),
+          5000,
+        ).catch(() => {})
       }
     }
 

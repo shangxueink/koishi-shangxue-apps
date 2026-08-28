@@ -33,6 +33,12 @@ function getNumber(value: unknown): number {
   return Number.isFinite(num) ? num : 0
 }
 
+function normalizeTimestampMs(value: unknown): number {
+  const num = getNumber(value)
+  if (!num) return Date.now()
+  return num < 1e12 ? num * 1000 : num
+}
+
 function normalizeResourceSrc(src: string, type: string): string {
   if (!src.startsWith('base64://')) return src
   const mime = type === 'image'
@@ -370,7 +376,10 @@ export function satoriEventToOneBot(event: SatoriObject): Record<string, unknown
   const base = {
     self_id: selfId,
     platform,
-    time: Math.floor(getNumber(event.timestamp) / 1000) || Math.floor(Date.now() / 1000),
+    sn: getNumber(event.sn),
+    time: Math.floor(normalizeTimestampMs(event.timestamp) / 1000),
+    message_seq: getNumber(event.sn),
+    seq_id: getNumber(event.sn),
   }
 
   if (type === 'message' || type === 'message-created' || type === 'send') {
@@ -551,7 +560,10 @@ function messageListFromResponse(data: unknown): unknown[] {
     const directChannelId = isGroup ? groupId : userId
     return {
       message_id: getString(message.id),
-      time: Math.floor(getNumber(message.timestamp) / 1000) || Math.floor(Date.now() / 1000),
+      sn: getNumber(message.sn),
+      time: Math.floor(normalizeTimestampMs(message.timestamp) / 1000),
+      message_seq: getNumber(message.sn) || getNumber(message.seq),
+      seq_id: getNumber(message.sn) || getNumber(message.seq),
       message_type: isGroup ? 'group' : 'private',
       group_id: groupId,
       user_id: groupId ? userId : directChannelId,

@@ -9,6 +9,7 @@ export interface SatoriBootstrap {
 
 export interface MessageRecord {
   id?: string
+  sequence?: number
   type: string
   platform: string
   selfId: string

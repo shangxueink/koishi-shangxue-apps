@@ -4,10 +4,16 @@ import { createHash } from 'node:crypto'
 import { promises as fs } from 'node:fs'
 import path from 'node:path'
 import send from 'koa-send'
+import FileType from 'file-type'
 
 import { Config } from './config'
 import { ChatDatabase } from './database'
 import { PluginLogger } from './logger'
+
+function toExtension(value: string): string {
+  const ext = value.startsWith('.') ? value : `.${value}`
+  return ext.toLowerCase()
+}
 
 export class MediaManager {
   private mediaDir: string
@@ -65,11 +71,17 @@ export class MediaManager {
   private async resolveAndDownload(url: string): Promise<string | null> {
     try {
       await fs.mkdir(this.mediaDir, { recursive: true })
-      const ext = path.extname(new URL(url).pathname) || '.bin'
-      const filename = `${createHash('md5').update(url).digest('hex')}${ext}`
-      const filePath = path.join(this.mediaDir, filename)
+      const cached = await this.database.getMediaPath(url)
+      if (cached && await this.exists(cached)) {
+        return this.migrateCachedMedia(url, cached)
+      }
 
-      if (await this.exists(filePath)) return filePath
+      const hash = createHash('md5').update(url).digest('hex')
+      const urlExt = path.extname(new URL(url).pathname)
+      const fallbackPath = path.join(this.mediaDir, `${hash}${urlExt || '.bin'}`)
+      if (await this.exists(fallbackPath)) {
+        return this.migrateCachedMedia(url, fallbackPath)
+      }
 
       const response = await fetch(url, {
         headers: {
@@ -81,12 +93,51 @@ export class MediaManager {
         return null
       }
       const buffer = Buffer.from(await response.arrayBuffer())
+      const ext = await this.detectExtension(url, buffer)
+      const filename = `${hash}${ext}`
+      const filePath = path.join(this.mediaDir, filename)
       await fs.writeFile(filePath, buffer)
       this.logger.logInfo('媒体已缓存:', filename, buffer.length)
       return filePath
     } catch (error) {
       this.logger.warn('媒体缓存异常:', url, error)
       return null
+    }
+  }
+
+  private async detectExtension(url: string, buffer: Buffer): Promise<string> {
+    try {
+      const detected = await FileType.fromBuffer(buffer)
+      if (detected?.ext) return toExtension(detected.ext)
+    } catch (error) {
+      this.logger.logInfo('媒体类型识别失败，回退 URL 后缀:', url, error)
+    }
+    const ext = path.extname(new URL(url).pathname)
+    return ext && ext !== '.bin' ? ext.toLowerCase() : '.bin'
+  }
+
+  private async migrateCachedMedia(url: string, filePath: string): Promise<string> {
+    try {
+      const buffer = await fs.readFile(filePath)
+      const ext = await this.detectExtension(url, buffer)
+      const currentExt = path.extname(filePath).toLowerCase()
+      if (ext === '.bin' || ext === currentExt) return filePath
+
+      const newPath = path.join(
+        path.dirname(filePath),
+        `${path.basename(filePath, path.extname(filePath))}${ext}`,
+      )
+      if (newPath === filePath) return filePath
+      if (await this.exists(newPath)) {
+        await fs.unlink(filePath)
+      } else {
+        await fs.rename(filePath, newPath)
+      }
+      await this.database.recordMedia(url, newPath)
+      return newPath
+    } catch (error) {
+      this.logger.warn('旧媒体缓存重命名失败:', url, error)
+      return filePath
     }
   }
 

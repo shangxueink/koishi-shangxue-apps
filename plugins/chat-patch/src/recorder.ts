@@ -40,6 +40,7 @@ export class Recorder {
     const message = event.message
     const record: MessageRecord = {
       id: message?.id || `local-${event.sn}`,
+      sequence: event.sn,
       type: session.type,
       platform,
       selfId: session.selfId,

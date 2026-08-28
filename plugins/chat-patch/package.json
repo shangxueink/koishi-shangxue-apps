@@ -51,6 +51,7 @@
     "tailwindcss": "^3.4.17"
   },
   "dependencies": {
+    "file-type": "^16.5.4",
     "koa-send": "^5.0.1",
     "level": "^10.0.0",
     "mime-types": "^3.0.2"

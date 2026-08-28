@@ -4,6 +4,7 @@ import path from 'node:path'
 
 import { Config } from './config'
 import { createPluginLogger } from './logger'
+import { ContactCacheService } from './cache'
 import { ChatDatabase } from './database'
 import { Recorder } from './recorder'
 import { MediaManager } from './media'
@@ -39,6 +40,7 @@ export async function apply(ctx: Context, config: Config) {
 
   const database = new ChatDatabase(ctx, config, pluginLogger)
   await database.initialize()
+  const contactCache = new ContactCacheService(ctx, database, pluginLogger)
 
   const media = new MediaManager(ctx, config, database, pluginLogger)
   media.start()
@@ -47,7 +49,7 @@ export async function apply(ctx: Context, config: Config) {
   recorder.start()
 
   registerBootstrap(ctx, config, database, pluginLogger)
-  registerWeb(ctx, config, database, pluginLogger)
+  registerWeb(ctx, config, database, contactCache, pluginLogger)
 
   ctx.console.addEntry({
     dev: path.resolve(__dirname, '../client/index.ts'),

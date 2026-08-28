@@ -109,6 +109,9 @@ export async function loadHistory(info: BaseChatInfoElem) {
     const authStore = useAuthStore()
     const chatStore = useChatStore()
     const settingsStore = useSettingsStore()
+    const uiStore = useUIStore()
+    uiStore.nowGetHistory = false
+    uiStore.historyBeforeTime = undefined
     chatStore.messageList = []
     const cacheKey = `${String(authStore.loginInfo.platform ?? '')}:${String(authStore.loginInfo.uin ?? '')}:${String(info.id)}`
     const cachedMessages = chatStore.sessionMessageCache.get(cacheKey)

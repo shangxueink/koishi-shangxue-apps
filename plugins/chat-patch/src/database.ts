@@ -138,6 +138,16 @@ export class ChatDatabase {
     }
   }
 
+  async getContact(
+    platform: string,
+    selfId: string,
+    type: string,
+    id: string,
+  ): Promise<ContactCacheItem | null> {
+    const contacts = await this.getContacts(platform, selfId, type)
+    return contacts.find((item) => item.id === id) ?? null
+  }
+
   async setContacts(platform: string, selfId: string, type: string, contacts: ContactCacheItem[]) {
     await this.db.put(`c:${platform}:${selfId}:${type}`, JSON.stringify(contacts))
   }
