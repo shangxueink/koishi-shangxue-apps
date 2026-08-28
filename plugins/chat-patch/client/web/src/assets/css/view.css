@@ -10,6 +10,16 @@ body {
     padding: 0;
     margin: 0;
 }
+*, *::before, *::after {
+    -webkit-user-select: none !important;
+    -moz-user-select: none !important;
+    user-select: none !important;
+}
+input, textarea, [contenteditable="true"] {
+    -webkit-user-select: text !important;
+    -moz-user-select: text !important;
+    user-select: text !important;
+}
 input::placeholder {
     color: var(--color-font-2);
 }
@@ -600,7 +610,7 @@ textarea:focus {
 .friend-view {
     overflow: hidden;
     flex-direction: row;
-    user-select: text;
+    user-select: none;
     display: flex;
     height: 100%;
     width: 100%;
@@ -1076,7 +1086,7 @@ textarea:focus {
 
 .pop-box {
     position: absolute;
-    user-select: text;
+    user-select: none;
     height: 100%;
     z-index: 50;
     width: 100%;

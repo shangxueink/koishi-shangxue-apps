@@ -715,6 +715,15 @@ function afd(event: MouseEvent) {
 
 //#endregion
 
+function preventGlobalSelectAll(event: KeyboardEvent) {
+    const key = event.key.toLowerCase()
+    if (!(event.ctrlKey || event.metaKey) || key !== 'a') return
+    const target = event.target as HTMLElement | null
+    const tag = target?.tagName.toLowerCase() ?? ''
+    if (tag === 'input' || tag === 'textarea' || target?.isContentEditable) return
+    event.preventDefault()
+}
+
 //#region == 生命周期 ====================================================================
 
 onMounted(() => {
@@ -723,6 +732,7 @@ onMounted(() => {
 
     // 添加全局点击事件监听，用于关闭下拉菜单
     document.addEventListener('click', handleClickOutside)
+    window.addEventListener('keydown', preventGlobalSelectAll, true)
     window.addEventListener('resize', updateLayoutState)
     updateLayoutState()
     refreshCurrentMusic()
@@ -986,6 +996,7 @@ onMounted(() => {
 onUnmounted(() => {
     // 移除全局点击事件监听器
     document.removeEventListener('click', handleClickOutside)
+    window.removeEventListener('keydown', preventGlobalSelectAll, true)
     window.removeEventListener('resize', updateLayoutState)
     if (musicSyncTimer > 0) {
         clearInterval(musicSyncTimer)
