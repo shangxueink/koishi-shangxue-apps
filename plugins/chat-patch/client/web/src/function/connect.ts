@@ -729,6 +729,49 @@ async function requestAllBotsCache() {
   return response.json() as Promise<{ bots: unknown[] }>
 }
 
+export async function loadChatHistoryFromCache(params: {
+  platform: string
+  selfId: string
+  channelId: string
+  limit?: number
+  beforeTimeMs?: number
+}): Promise<Record<string, unknown>[]> {
+  const info = await getBootstrap()
+  const basePath = info.basePath || '/chat-patch'
+  const query = new URLSearchParams({
+    platform: params.platform,
+    selfId: params.selfId,
+    channelId: params.channelId,
+    limit: String(params.limit ?? 20),
+  })
+  if (params.beforeTimeMs) query.set('beforeTime', String(params.beforeTimeMs))
+  const response = await fetch(`${location.origin}${basePath}/api/history?${query.toString()}`)
+  if (!response.ok) {
+    throw new Error(`历史缓存 API 返回 ${response.status}`)
+  }
+  const result = getObject(await response.json() as unknown)
+  const records = Array.isArray(result.messages) ? result.messages as unknown[] : []
+  const messages: Record<string, unknown>[] = []
+  for (const record of records) {
+    const raw = getObject(getObject(record).raw)
+    const msg = satoriEventToOneBot(raw)
+    if (!msg || !msg.message_id) continue
+    const userId = getString(msg.user_id)
+    const groupId = getString(msg.group_id)
+    msg.infoList = {
+      message_id: getString(msg.message_id),
+      private_id: groupId ? '' : userId,
+      group_id: groupId || undefined,
+      channel_id: getString(msg.channel_id),
+      guild_id: getString(msg.guild_id),
+      target_id: getString(msg.target_id),
+      sender: userId,
+    }
+    messages.push(msg)
+  }
+  return messages
+}
+
 async function loadAllBotsCache() {
   const contactStore = useContactStore()
   const result = await requestAllBotsCache()

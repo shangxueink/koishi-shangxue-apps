@@ -601,7 +601,7 @@ import {
     getDifferencesWithRanges
 } from '@renderer/function/utils/msgUtil'
 import { Logger, LogType, PopInfo, PopType } from '@renderer/function/base'
-import { Connector } from '@renderer/function/connect'
+import { Connector, loadChatHistoryFromCache } from '@renderer/function/connect'
 import {
     BaseChatInfoElem,
     MsgItemElem,
@@ -1090,30 +1090,30 @@ async function loadMoreHistory() {
             }
         }
 
-        const fullPage =
-            authStore.jsonMap.message_list?.pagerType == 'full'
         const type = chatStore.chatInfo.show.type
         const id = chatStore.chatInfo.show.id
         const channelId = String(chatStore.chatInfo.show.channel_id ?? id)
-        const guildId = String(chatStore.chatInfo.show.guild_id ?? id)
-        let name
-        if (authStore.jsonMap.message_list && type != 'group') {
-            name = authStore.jsonMap.message_list.private_name
-        } else {
-            name = authStore.jsonMap.message_list.name
+        const cached = await loadChatHistoryFromCache({
+            platform: String(authStore.loginInfo.platform ?? ''),
+            selfId: String(authStore.loginInfo.uin ?? ''),
+            channelId,
+            limit: 20,
+            beforeTimeMs: Number.isFinite(firstMsgTime) && firstMsgTime > 0
+                ? firstMsgTime * 1000
+                : undefined,
+        })
+        const existingIds = new Set(chatStore.messageList.map((m) => String(m.message_id ?? '')))
+        const addList = cached.filter((m) => {
+            const msgId = String(m.message_id ?? '')
+            return msgId.length === 0 || !existingIds.has(msgId)
+        })
+        if (addList.length > 0) {
+            chatStore.messageList.splice(0, 0, ...addList)
         }
-        Connector.send(
-            name ?? 'get_chat_history',
-            {
-                group_id: type == 'group' ? (guildId || id) : undefined,
-                guild_id: type == 'group' ? (guildId || id) : undefined,
-                channel_id: channelId,
-                user_id: type != 'group' ? id : undefined,
-                message_id: firstMsgId,
-                count: fullPage? chatStore.messageList.length + 20: 20,
-            },
-            'getChatHistory',
-        )
+        if (cached.length < 20) {
+            uiStore.canLoadHistory = false
+        }
+        uiStore.nowGetHistory = false
     }
 }
 

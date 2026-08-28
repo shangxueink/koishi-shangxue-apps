@@ -1,9 +1,12 @@
 import { Context } from 'koishi'
 import {} from '@koishijs/plugin-server'
-import { existsSync, statSync } from 'node:fs'
+import { existsSync, promises as fs, statSync } from 'node:fs'
+import { createHash } from 'node:crypto'
 import path from 'node:path'
+import { pathToFileURL } from 'node:url'
 import send from 'koa-send'
 import type { DefaultContext, DefaultState, ParameterizedContext } from 'koa'
+import FileType from 'file-type'
 
 import { Config } from './config'
 import { ContactCacheService } from './cache'
@@ -19,9 +22,51 @@ export function registerWeb(
   logger: PluginLogger,
 ) {
   const webRoot = path.resolve(__dirname, '..', 'client', 'web', 'dist')
+  const uploadDir = path.resolve(ctx.baseDir, 'data', 'chat-patch', 'upload-media')
 
   type WebContext = ParameterizedContext<DefaultState, DefaultContext>
   const cacheType = (type: string) => type === 'user' ? 'friend' : type
+
+  const toExtension = (value: string): string => {
+    const ext = value.startsWith('.') ? value : `.${value}`
+    return ext.toLowerCase()
+  }
+
+  ctx.server.post(`${config.basePath}/api/upload-media`, async (koa) => {
+    const requestBody = (koa.request as unknown as { body?: unknown }).body
+    const body = (requestBody ?? {}) as Record<string, unknown>
+    let source = String(body.dataUrl ?? body.data ?? '')
+    if (source.startsWith('base64://')) source = source.slice(9)
+    if (!source) {
+      koa.status = 400
+      koa.body = { error: 'missing media data' }
+      return
+    }
+    const comma = source.indexOf('base64,')
+    const base64 = comma >= 0 ? source.slice(comma + 7) : source
+    const buffer = Buffer.from(base64, 'base64')
+    if (!buffer.length) {
+      koa.status = 400
+      koa.body = { error: 'invalid media data' }
+      return
+    }
+
+    await fs.mkdir(uploadDir, { recursive: true })
+    const detected = await FileType.fromBuffer(buffer)
+    const nameExt = path.extname(String(body.name ?? '')).toLowerCase()
+    const ext = detected?.ext
+      ? toExtension(detected.ext)
+      : nameExt || '.bin'
+    const filename = `${createHash('md5').update(buffer).digest('hex')}${ext}`
+    const filePath = path.join(uploadDir, filename)
+    if (!existsSync(filePath)) {
+      await fs.writeFile(filePath, buffer)
+    }
+    koa.body = {
+      path: pathToFileURL(filePath).href,
+      localPath: filePath,
+    }
+  })
 
   ctx.server.get(`${config.basePath}/api/cache/all`, async (koa) => {
     const entries = await database.getAllContacts()
@@ -44,6 +89,25 @@ export function registerWeb(
       botMap.set(key, bot)
     }
     koa.body = { bots: [...botMap.values()] }
+  })
+
+  ctx.server.get(`${config.basePath}/api/history`, async (koa) => {
+    const platform = String(koa.query.platform ?? '')
+    const selfId = String(koa.query.selfId ?? '')
+    const channelId = String(koa.query.channelId ?? '')
+    if (!platform || !selfId || !channelId) {
+      koa.status = 400
+      koa.body = { error: 'missing history params' }
+      return
+    }
+    const parsedLimit = Number(koa.query.limit ?? config.historyPageSize)
+    const limit = Number.isFinite(parsedLimit) && parsedLimit > 0 ? parsedLimit : config.historyPageSize
+    const beforeTime = Number(koa.query.beforeTime ?? 0)
+    const messages = Number.isFinite(beforeTime) && beforeTime > 0
+      ? await database.listMessagesBefore(platform, selfId, channelId, beforeTime, limit)
+      : await database.listMessages(platform, selfId, channelId, limit)
+    // 数据库按倒序返回，前端统一使用正序列表
+    koa.body = { messages: messages.reverse() }
   })
 
   ctx.server.get(`${config.basePath}/api/cache`, async (koa) => {

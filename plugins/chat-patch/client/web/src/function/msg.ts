@@ -2277,8 +2277,32 @@ function newMsg(_: string, data: any) {
             ) {
                 senderObj.avatar = cachedAvatar
             }
-            // 保存消息
-            saveMsg(buildMsgList([data]), 'bottom')
+            // 保存消息：优先使用 Satori 转换后的消息结构，避免 pathMap 解析失败导致右侧不更新
+            const incoming = Array.isArray(data.message)
+                ? data
+                : normalizeNewIncomingMessage(data)[0] ?? data
+            if (!incoming.infoList) {
+                const groupId = getString(incoming.group_id)
+                const userId = getString(incoming.user_id)
+                incoming.infoList = {
+                    message_id: getString(incoming.message_id),
+                    private_id: groupId ? '' : userId,
+                    group_id: groupId || undefined,
+                    channel_id: getString(incoming.channel_id),
+                    guild_id: getString(incoming.guild_id),
+                    target_id: getString(incoming.target_id),
+                    sender: userId,
+                }
+            }
+            if (
+                !chatStore.messageList.some((item) => {
+                    return String(item.message_id) === String(incoming.message_id)
+                })
+            ) {
+                chatStore.messageList.push(incoming)
+                sendMsgAppendInfo(incoming)
+                saveMessagesWithSideEffects(authStore.loginInfo.uin, [incoming])
+            }
             // 抽个签
             const num = randomNum(0, 10000)
             if (num >= 400 && num <= 500) {

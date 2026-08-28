@@ -599,19 +599,6 @@ function changeChat(data: BaseChatInfoElem) {
     uiStore.canLoadHistory = true // 重置终止加载标志
     uiStore.loadHistoryFail = false // 重置加载失败标志
     if (data.type == 'group' && String(data.id ?? '') && String(data.id) !== '0') {
-        const guildId = String(data.guild_id ?? data.id ?? '')
-        const channelId = String(data.channel_id ?? data.id ?? '')
-        // 获取自己在群内的资料
-        Connector.send(
-            'get_group_member_info',
-            {
-                group_id: guildId,
-                guild_id: guildId,
-                channel_id: channelId,
-                user_id: authStore.loginInfo.uin,
-            },
-            'getUserInfoInGroup',
-        )
         // 获取群成员列表改为读取本地缓存，不再请求 guild.member.list
         void loadGroupMembersFromCache(String(data.id))
     }

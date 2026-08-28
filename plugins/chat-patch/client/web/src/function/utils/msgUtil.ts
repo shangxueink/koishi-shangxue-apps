@@ -7,6 +7,7 @@ import { Logger, PopInfo, PopType } from '@renderer/function/base'
 import { useSettingsStore } from '@renderer/state/settings'
 import { v4 as uuid } from 'uuid'
 import { Connector } from '@renderer/function/connect'
+import { getBootstrap } from '@renderer/function/satori'
 import {
     BotMsgType,
     MsgItemElem,
@@ -491,7 +492,88 @@ function parsePreviewMarkup(source: string): MsgItemElem[] {
     return result.length > 0 ? result : [{ type: 'text', text: source }]
 }
 
-export function sendMsgRaw(
+function getBase64Source(item: any): string {
+    const file = String(item?.file ?? '')
+    const url = String(item?.url ?? '')
+    if (file.startsWith('base64://')) return file.slice(9)
+    if (file.startsWith('data:')) return file
+    if (url.startsWith('data:')) return url
+    if (url.startsWith('base64://')) return url.slice(9)
+    return ''
+}
+
+function isBase64Source(source: string): boolean {
+    return source.startsWith('base64://') || source.startsWith('data:')
+}
+
+function escapeMarkupAttr(value: string): string {
+    return value.replace(/&/g, '&amp;').replace(/"/g, '&quot;')
+}
+
+async function uploadBase64Source(source: string, name = ''): Promise<string> {
+    try {
+        const info = await getBootstrap()
+        const basePath = info.basePath || '/chat-patch'
+        const normalized = source.startsWith('base64://') ? source.slice(9) : source
+        const response = await fetch(`${location.origin}${basePath}/api/upload-media`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                dataUrl: normalized,
+                name,
+            }),
+        })
+        if (!response.ok) return ''
+        const result = await response.json() as Record<string, unknown>
+        return typeof result.path === 'string' ? result.path : ''
+    } catch {
+        return ''
+    }
+}
+
+async function persistBase64Markup(markup: string): Promise<string> {
+    const pattern = /<(img|audio|video|file)\b([^>]*)>/gi
+    let output = ''
+    let last = 0
+    let match: RegExpExecArray | null
+    while ((match = pattern.exec(markup)) !== null) {
+        const tag = match[1]
+        let attrs = match[2]
+        const selfClosing = /\/\s*$/.test(attrs)
+        if (selfClosing) attrs = attrs.replace(/\/\s*$/, '')
+        const srcMatch = /\bsrc\s*=\s*(["'])(.*?)\1/i.exec(attrs)
+        const nameMatch = /\bname\s*=\s*(["'])(.*?)\1/i.exec(attrs)
+        if (srcMatch && isBase64Source(srcMatch[2])) {
+            const localUrl = await uploadBase64Source(srcMatch[2], nameMatch?.[2] ?? '')
+            if (localUrl) {
+                attrs = attrs.replace(srcMatch[0], `src="${escapeMarkupAttr(localUrl)}"`)
+            }
+        }
+        output += markup.slice(last, match.index)
+        output += `<${tag}${attrs}${selfClosing ? '/>' : '>'}`
+        last = match.index + match[0].length
+    }
+    return output + markup.slice(last)
+}
+
+async function persistBase64Media(msg: string | any[] | undefined): Promise<string | any[] | undefined> {
+    if (typeof msg === 'string') return persistBase64Markup(msg)
+    if (!Array.isArray(msg)) return msg
+    return Promise.all(msg.map(async (item) => {
+        const source = getBase64Source(item)
+        if (!source) return item
+        const localUrl = await uploadBase64Source(source, item?.name ?? '')
+        if (!localUrl) return item
+        return {
+            ...item,
+            file: localUrl,
+            url: localUrl,
+            localPath: localUrl,
+        }
+    }))
+}
+
+export async function sendMsgRaw(
     id: string,
     type: string,
     msg: string | any[] | undefined,
@@ -572,6 +654,8 @@ export function sendMsgRaw(
             updateBaseOnMsgList()
         }
     }
+    // 预发送保留 Base64 用于本地预览；真正发送前先写入后端临时目录
+    msg = await persistBase64Media(msg)
     // 检查消息体是否需要处理
     if (uiStore.msgType == BotMsgType.Array) {
         if (msg && typeof msg != 'string') {

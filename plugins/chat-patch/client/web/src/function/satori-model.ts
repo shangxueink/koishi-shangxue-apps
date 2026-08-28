@@ -580,13 +580,7 @@ export function mapAction(action: string, params: Record<string, unknown>): {
     : getString(params.message) || getString(params.content)
 
   if (
-    ['get_group_member_info'].includes(normalized) &&
-    (!guildId || guildId === '0')
-  ) {
-    return null
-  }
-  if (
-    ['send_msg', 'send_private_msg', 'send_group_msg', 'get_group_msg_history', 'get_friend_msg_history'].includes(normalized) &&
+    ['send_msg', 'send_private_msg', 'send_group_msg'].includes(normalized) &&
     (!channelId || channelId === '0')
   ) {
     return null
@@ -595,7 +589,6 @@ export function mapAction(action: string, params: Record<string, unknown>): {
   const table: Record<string, { method: string; params: Record<string, unknown> }> = {
     get_login_info: { method: 'login.get', params: {} },
     get_stranger_info: { method: 'user.get', params: { user_id: userId } },
-    get_group_member_info: { method: 'guild.member.get', params: { guild_id: guildId, user_id: userId } },
     delete_msg: { method: 'message.delete', params: { channel_id: channelId, message_id: messageId } },
     get_msg: { method: 'message.get', params: { channel_id: channelId, message_id: messageId } },
     send_msg: { method: 'message.create', params: { channel_id: channelId, content } },
@@ -617,14 +610,6 @@ export function mapAction(action: string, params: Record<string, unknown>): {
     set_group_add_request: {
       method: 'guild.member.approve',
       params: { message_id: getString(params.flag) || messageId, approve: params.approve !== false && params.approve !== 0 },
-    },
-    get_group_msg_history: {
-      method: 'message.list',
-      params: { channel_id: channelId, order: 'desc', limit: getNumber(params.message_count) || 50 },
-    },
-    get_friend_msg_history: {
-      method: 'message.list',
-      params: { channel_id: channelId, order: 'desc', limit: getNumber(params.message_count) || 50 },
     },
   }
 

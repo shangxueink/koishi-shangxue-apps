@@ -11,7 +11,7 @@ import MealHungryPan from '@renderer/components/notice-component/MealHungryPan.v
 
 import { KeyboardInfo } from '@capacitor/keyboard'
 import { LogType, Logger, PopInfo, PopType } from '@renderer/function/base'
-import { Connector, login, refreshAllBots } from '@renderer/function/connect'
+import { Connector, loadChatHistoryFromCache, login, refreshAllBots } from '@renderer/function/connect'
 import { BaseChatInfoElem, MenuEventData } from '@renderer/function/elements/information'
 import { useAuthStore } from '@renderer/state/auth'
 import { useContactStore } from '@renderer/state/contact'
@@ -132,46 +132,25 @@ export async function loadHistory(info: BaseChatInfoElem) {
             chatStore.messageList = localMsgs
         }
     }
-    if (!loadHistoryMessage(info.id, info.type, 20, 'getChatHistoryFist', info.channel_id, info.guild_id)) {
-        new PopInfo().add(
-            PopType.ERR,
-            app.config.globalProperties.$t('加载历史消息失败'),
-            false,
-        )
+    const channelId = info.channel_id
+        || (info.type === 'group' ? String(info.id) : String(info.id).includes(':') ? String(info.id) : `private:${info.id}`)
+    try {
+        const cachedMessages = await loadChatHistoryFromCache({
+            platform: String(authStore.loginInfo.platform ?? ''),
+            selfId: String(authStore.loginInfo.uin ?? ''),
+            channelId,
+            limit: 20,
+        })
+        if (cachedMessages.length > 0) {
+            chatStore.messageList = cachedMessages
+            nextTick(() => {
+                const pan = document.getElementById('msgPan')
+                if (pan) pan.scrollTop = pan.scrollHeight
+            })
+        }
+    } catch (error) {
+        logger.error(error as Error, '[LocalHistory] 加载聊天记录缓存失败')
     }
-}
-export function loadHistoryMessage(
-    id: number | string,
-    type: string,
-    count = 20,
-    echo = 'getChatHistoryFist',
-    channelId?: string,
-    guildId?: string,
-) {
-    if (id === 0 || id === '' || id == null || String(id) === '0') return false
-    const authStore = useAuthStore()
-    const chatStore = useChatStore()
-    let name: string
-    const fullPage = authStore.jsonMap.message_list?.pagerType == 'full'
-    if (authStore.jsonMap.message_list && type != 'group') {
-        name = authStore.jsonMap.message_list.private_name
-    } else {
-        name = authStore.jsonMap.message_list.name
-    }
-
-    Connector.send(
-        name ?? 'get_chat_history',
-        {
-            group_id: type == 'group' ? (guildId || String(id)) : undefined,
-            guild_id: type == 'group' ? (guildId || String(id)) : undefined,
-            channel_id: channelId || (type == 'group' ? String(id) : String(id).includes(':') ? String(id) : `private:${id}`),
-            user_id: type != 'group' ? id : undefined,
-            message_id: 0,
-            count: fullPage ? chatStore.messageList.length + count : count,
-        },
-        echo,
-    )
-    return true
 }
 
 /**

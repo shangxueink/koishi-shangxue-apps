@@ -73,6 +73,34 @@ export class ChatDatabase {
     return result
   }
 
+  async listMessagesBefore(
+    platform: string,
+    selfId: string,
+    channelId: string,
+    beforeTime: number,
+    limit = this.config.historyPageSize,
+  ): Promise<MessageRecord[]> {
+    const prefix = messagePrefix(platform, selfId, channelId)
+    const before = `${prefix}${String(beforeTime).padStart(16, '0')}`
+    const result: MessageRecord[] = []
+    for await (const [, value] of this.db.iterator<string, string>({
+      gte: prefix,
+      lt: before,
+      reverse: true,
+      limit,
+    })) {
+      try {
+        const parsed = JSON.parse(value) as unknown
+        if (typeof parsed === 'object' && parsed !== null) {
+          result.push(parsed as MessageRecord)
+        }
+      } catch {
+        this.logger.warn('历史消息解析失败:', value.slice(0, 120))
+      }
+    }
+    return result
+  }
+
   async clearChannel(platform: string, selfId: string, channelId: string) {
     const prefix = messagePrefix(platform, selfId, channelId)
     const operations: Array<{ type: 'del'; key: string }> = []

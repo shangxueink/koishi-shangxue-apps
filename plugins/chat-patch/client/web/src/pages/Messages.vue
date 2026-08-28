@@ -219,7 +219,7 @@
         UserFriendElem,
         UserGroupElem,
     } from '@renderer/function/elements/information'
-    import { changeGroupNotice, loadHistoryMessage } from '@renderer/function/utils/appUtil'
+    import { changeGroupNotice } from '@renderer/function/utils/appUtil'
     import { PopInfo, PopType } from '@renderer/function/base'
     import { MenuStatue } from 'vue3-bcui/packages/dist/types'
     import { library } from '@fortawesome/fontawesome-svg-core'
@@ -462,9 +462,6 @@
             item.highlight = undefined
             contactStore.baseOnMsgList.set(normalizeSessionId(id), item)
         }
-        // 标记消息已读
-        const type = data.group_id ? 'group' : 'user'
-        loadHistoryMessage(id, type, 1, 'readMemberMessage')
         // pop
         new PopInfo().add(
             PopType.INFO,
