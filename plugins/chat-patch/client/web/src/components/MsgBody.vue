@@ -198,12 +198,12 @@
                         <template v-else-if="item.type == 'forward'">
                             <div class="msg-raw-forward"
                                 @click="openMerge()">
-                                <span>{{ $t('合并转发消息') }}</span>
+                                <span>{{ $t('群聊的聊天记录') }}</span>
                                 <div class="forward-msg">
                                     <template v-if="item.content && item.content.length > 0">
                                         <div v-for="(i, indexItem) in item.content.slice(0, 3)"
                                             :key="'raw-forward-' + indexItem">
-                                            {{ i.sender.nickname }}:
+                                            {{ i.sender?.nickname || i.sender?.name || $t('未知') }}:
                                             <span v-for="(msg, msgIndex) in i.message"
                                                 :key="'raw-forward-item-' + msgIndex">
                                                 <span v-if="msg.type == 'text'">
@@ -237,7 +237,7 @@
                                         </div>
                                     </template>
                                     <div v-else>
-                                        {{ $t('加载失败') }}
+                                        {{ $t('暂无预览内容') }}
                                     </div>
                                 </div>
                                 <div>
@@ -245,7 +245,7 @@
                                         {{ $t('查看 {count} 条转发消息', { count: item.content.length }) }}
                                     </span>
                                     <span v-else>
-                                        {{ $t('聊天记录') }}
+                                        {{ $t('查看合并转发消息') }}
                                     </span>
                                 </div>
                             </div>
@@ -1158,7 +1158,7 @@ function sendPlay(info: MusicInfo) {
 function openMerge(){
     const seg = data.message[0]
     if (!seg.content) {
-        new PopInfo().add(PopType.ERR, $t('合并转发解析失败'))
+        new PopInfo().add(PopType.ERR, $t('无法获取合并转发内容'))
         return
     }
 

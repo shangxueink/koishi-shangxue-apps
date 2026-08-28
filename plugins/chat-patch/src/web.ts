@@ -271,6 +271,44 @@ export function registerWeb(
     koa.body = { messages }
   })
 
+  ctx.server.get(`${config.basePath}/api/forward`, async (koa) => {
+    const platform = String(koa.query.platform ?? '')
+    const selfId = String(koa.query.selfId ?? '')
+    const id = String(koa.query.id ?? '')
+    if (!platform || !selfId || !id) {
+      koa.status = 400
+      koa.body = { error: 'missing forward params' }
+      return
+    }
+    if (platform !== 'onebot') {
+      koa.status = 501
+      koa.body = { error: 'forward api not supported' }
+      return
+    }
+    const bot = ctx.bots.find((item) => {
+      return item.platform === platform && item.selfId === selfId
+    })
+    if (!bot) {
+      koa.status = 404
+      koa.body = { error: 'bot not found' }
+      return
+    }
+    const internal = (bot as unknown as {
+      internal?: { getForwardMsg?: (messageId: string) => Promise<unknown> }
+    }).internal
+    if (!internal?.getForwardMsg) {
+      koa.status = 501
+      koa.body = { error: 'forward api not supported' }
+      return
+    }
+    try {
+      koa.body = await internal.getForwardMsg(id)
+    } catch (error) {
+      koa.status = 502
+      koa.body = { error: 'forward api failed' }
+    }
+  })
+
   ctx.server.get(`${config.basePath}/api/cache`, async (koa) => {
     const platform = String(koa.query.platform ?? '')
     let selfId = String(koa.query.selfId ?? '')

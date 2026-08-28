@@ -992,6 +992,27 @@ async function requestAllBotsCache() {
   return response.json() as Promise<{ bots: unknown[] }>
 }
 
+export async function fetchForwardMessage(
+  platform: string,
+  selfId: string,
+  id: string,
+): Promise<unknown[] | null> {
+  if (!platform || !selfId || !id) return null
+  const info = await getBootstrap()
+  const basePath = info.basePath || '/chat-patch'
+  const query = new URLSearchParams({ platform, selfId, id })
+  try {
+    const response = await fetch(`${location.origin}${basePath}/api/forward?${query.toString()}`)
+    if (!response.ok) return null
+    const data = await response.json() as unknown
+    if (Array.isArray(data)) return data as unknown[]
+    const obj = data as { messages?: unknown }
+    return Array.isArray(obj.messages) ? obj.messages as unknown[] : null
+  } catch {
+    return null
+  }
+}
+
 export async function loadChatHistoryFromCache(params: {
   platform: string
   selfId: string

@@ -42,7 +42,7 @@ import {
 } from '@renderer/function/utils/appUtil'
 import { reactive, markRaw, nextTick } from 'vue'
 import { PopInfo, PopType, Logger, LogType } from './base'
-import { Connector, getCachedUserAvatar, loadGroupMembersFromCache, login, requestUserAvatar, saveConnectionToHistory } from './connect'
+import { Connector, fetchForwardMessage, getCachedUserAvatar, loadGroupMembersFromCache, login, requestUserAvatar, saveConnectionToHistory } from './connect'
 import {
     GroupFileElem,
     GroupFileFolderElem,
@@ -2123,9 +2123,17 @@ async function msgPreprocess(msg: any): Promise<any> {
                     if (data) msg.message.at(0).content = data
                 } else {
                     // 否则调用接口获取
-                    const originData = await Connector.callApi('forward_msg', { id: forwardId })
-                    const data = await getMessageList(originData as unknown[])
-                    if (data) msg.message.at(0).content = data
+                    const authStore = useAuthStore()
+                    const platform = String(authStore.loginInfo.platform ?? '')
+                    if (platform === 'onebot') {
+                        const originData = await fetchForwardMessage(
+                            platform,
+                            String(authStore.loginInfo.uin ?? ''),
+                            forwardId,
+                        )
+                        const data = await getMessageList(originData ?? undefined)
+                        if (data) msg.message.at(0).content = data
+                    }
                 }
             } catch (e) {
                 logger.error(e as unknown as Error, '合并转发解析失败')
