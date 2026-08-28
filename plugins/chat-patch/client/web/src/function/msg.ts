@@ -58,7 +58,8 @@ function splitSatoriMarkupText(message: any[]): any[] {
     })
 }
 import { reactive, markRaw, nextTick } from 'vue'
-import { PopInfo, PopType, Logger, LogType, isDebugMode } from './base'
+import { PopInfo, PopType, Logger, LogType } from './base'
+import { isDebugMode } from './debug'
 import { Connector, fetchForwardMessage, getCachedUserAvatar, loadGroupMembersFromCache, login, requestUserAvatar, saveConnectionToHistory, saveSentSelfMessage } from './connect'
 import {
     GroupFileElem,

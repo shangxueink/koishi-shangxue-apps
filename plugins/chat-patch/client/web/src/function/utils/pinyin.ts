@@ -1,4 +1,4 @@
-import { isDebugMode } from '../base'
+import { isDebugMode } from '../debug'
 
 export type PinYinData = {
     main: string[]

@@ -2,7 +2,7 @@ import VueClipboard from 'vue-clipboard2'
 import packageInfo from '../package.json'
 
 import App from './App.vue'
-import { isDebugMode } from './function/base'
+import { isDebugMode } from './function/debug'
 
 import { createApp } from 'vue'
 import { createPinia } from 'pinia'

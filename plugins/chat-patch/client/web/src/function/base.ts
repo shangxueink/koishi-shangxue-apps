@@ -7,6 +7,7 @@
  */
 
 import Option from './option'
+import { isDebugMode } from './debug'
 import { reactive } from 'vue'
 import { PopInfoElem } from './elements/system'
 
@@ -21,9 +22,7 @@ export enum LogType {
     SYSTEM
 }
 
-export function isDebugMode(): boolean {
-    return Option.get('log_level') === 'debug'
-}
+export { isDebugMode }
 
 export class Logger {
     private logTypeInfo: [string, string][]

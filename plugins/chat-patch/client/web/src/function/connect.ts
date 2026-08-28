@@ -18,7 +18,8 @@ import {
   satoriResponseToOneBot,
 } from './satori-model'
 import { buildForwardMessage } from './sender'
-import { Logger, LogType, isDebugMode } from './base'
+import { Logger, LogType } from './base'
+import { isDebugMode } from './debug'
 import { useAuthStore } from '@renderer/state/auth'
 import { useChatStore } from '@renderer/state/chat'
 import { useContactStore } from '@renderer/state/contact'
