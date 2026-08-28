@@ -152,7 +152,7 @@
             :style="{ 'opacity': tags.showBottomButton ? 1 : 0 }"
             @click="scrollBottom(true)">
             <div class="ss-card">
-                <font-awesome-icon :icon="['fas', 'comment']" />
+                <font-awesome-icon :icon="['fas', 'angle-down']" />
                 <span v-if="NewMsgNum > 0">{{ NewMsgNum }}</span>
             </div>
         </div>
