@@ -132,8 +132,10 @@ export async function loadHistory(info: BaseChatInfoElem) {
             chatStore.messageList = localMsgs
         }
     }
-    const channelId = info.channel_id
-        || (info.type === 'group' ? String(info.id) : String(info.id).includes(':') ? String(info.id) : `private:${info.id}`)
+    const rawChannelId = String(info.channel_id ?? '')
+    const channelId = info.type === 'group'
+        ? (rawChannelId.includes(':') ? rawChannelId : `group:${rawChannelId || info.id}`)
+        : (rawChannelId || (String(info.id).includes(':') ? String(info.id) : `private:${info.id}`))
     try {
         const cachedMessages = await loadChatHistoryFromCache({
             platform: String(authStore.loginInfo.platform ?? ''),

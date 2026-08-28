@@ -22,7 +22,8 @@ import { useAuthStore } from '@renderer/state/auth'
 import { useChatStore } from '@renderer/state/chat'
 import { useContactStore } from '@renderer/state/contact'
 import { useSettingsStore } from '@renderer/state/settings'
-import { updateBaseOnMsgList } from './utils/msgUtil'
+import { getMsgRawTxt, updateBaseOnMsgList } from './utils/msgUtil'
+import { normalizeSessionId } from './utils/sessionUtil'
 import type { ConnectionHistoryItem, LoginCacheElem } from './elements/system'
 import type { UserFriendElem, UserGroupElem } from './elements/information'
 
@@ -281,6 +282,33 @@ function syncGroupIdentity(
   updateBaseOnMsgList()
 }
 
+function updateBotStateGroup(
+  platform: string,
+  selfId: string,
+  sessionId: string,
+  apply: (target: Record<string, unknown>) => void,
+) {
+  const contactStore = useContactStore()
+  const state = contactStore.botStates.get(selfId)
+  const session = state?.onMsgList.find((item) => String(item.group_id) === sessionId)
+  if (!state || !session) return
+  apply(session as unknown as Record<string, unknown>)
+  const key = normalizeSessionId(String(sessionId))
+  const baseList = [...state.baseList]
+  const baseIndex = baseList.findIndex(([baseKey]) => normalizeSessionId(String(baseKey)) === key)
+  const typedSession = session as unknown as UserFriendElem & UserGroupElem
+  if (baseIndex >= 0) {
+    baseList[baseIndex] = [key, typedSession]
+  } else {
+    baseList.push([key, typedSession])
+  }
+  contactStore.botStates.set(selfId, {
+    userList: [...state.userList],
+    baseList,
+    onMsgList: [...state.onMsgList],
+  })
+}
+
 async function resolveGroupIdentity(
   platform: string,
   selfId: string,
@@ -323,6 +351,7 @@ async function resolveGroupIdentity(
     }
     cachedApply(session)
     syncGroupIdentity(sessionId, cachedApply)
+    updateBotStateGroup(platform, selfId, sessionId, cachedApply)
     markIdentityLookup(key, true, { name: cachedName || sessionId, avatar: cachedAvatar, raw: cached })
     return
   }
@@ -342,6 +371,7 @@ async function resolveGroupIdentity(
   }
   applyGroup(session)
   syncGroupIdentity(sessionId, applyGroup)
+  updateBotStateGroup(platform, selfId, sessionId, applyGroup)
   markIdentityLookup(key, true, { name, avatar, raw: { group_name: name, avatar } })
 }
 
@@ -402,6 +432,8 @@ async function fetchUserIdentity(
 }
 
 function recordBotMessage(platform: string, selfId: string, msg: Record<string, unknown>) {
+  if (!msg.local_time) msg.local_time = Date.now()
+  if (!msg.timestamp_ms) msg.timestamp_ms = Number(msg.time) * 1000 || Date.now()
   identityDebug('recordBotMessage: enter', {
     platform,
     selfId,
@@ -431,7 +463,20 @@ function recordBotMessage(platform: string, selfId: string, msg: Record<string, 
       || msg.user_id
       || (isGroup ? '' : channelId.replace(/^private:/, '')),
   )
-  const raw = typeof msg.raw_message === 'string' ? msg.raw_message : ''
+  const raw = getMsgRawTxt(msg) || (typeof msg.raw_message === 'string' ? msg.raw_message : '')
+  const senderName = String(sender.card || sender.nickname || (isGroup ? senderId : ''))
+  const rawPreview = isGroup && senderName ? `${senderName}: ${raw}` : raw
+  const cachedGroupInfo = isGroup
+    ? identityInfoCache.get(identityCacheKey('group', platform, selfId, sessionId))
+    : undefined
+  const eventGroupName = typeof msg.group_name === 'string' ? msg.group_name : ''
+  const eventGroupAvatar = hasUsableAvatar(msg.group_avatar) ? getString(msg.group_avatar) : ''
+  const groupName = isGroup
+    ? (eventGroupName || cachedGroupInfo?.name || sessionId)
+    : undefined
+  const groupAvatar = isGroup
+    ? (eventGroupAvatar || cachedGroupInfo?.avatar || undefined)
+    : undefined
   const contactStore = useContactStore()
   const state = contactStore.botStates.get(selfId) ?? {
     userList: [],
@@ -443,15 +488,11 @@ function recordBotMessage(platform: string, selfId: string, msg: Record<string, 
   let session: Record<string, unknown> = {
     user_id: isGroup ? undefined : sessionId,
     group_id: isGroup ? sessionId : undefined,
-    group_name: isGroup
-      ? (typeof msg.group_name === 'string' ? msg.group_name : sessionId)
-      : undefined,
+    group_name: groupName,
     nickname: isGroup ? '' : String(sender.nickname ?? senderId ?? sessionId),
     remark: '',
-    avatar: isGroup
-      ? (hasUsableAvatar(msg.group_avatar) ? getString(msg.group_avatar) : undefined)
-      : (hasUsableAvatar(sender.avatar) ? getString(sender.avatar) : undefined),
-    raw_msg: raw,
+    avatar: isGroup ? groupAvatar : (hasUsableAvatar(sender.avatar) ? getString(sender.avatar) : undefined),
+    raw_msg: rawPreview,
     raw_msg_base: raw,
     time: sessionTime,
     message_id: String(msg.message_id ?? ''),
@@ -491,9 +532,18 @@ function recordBotMessage(platform: string, selfId: string, msg: Record<string, 
   } else {
     state.onMsgList.unshift(session)
   }
+  const baseKey = normalizeSessionId(String(sessionId))
+  const baseList = [...state.baseList]
+  const baseIndex = baseList.findIndex(([key]) => normalizeSessionId(String(key)) === baseKey)
+  const typedSession = session as unknown as UserFriendElem & UserGroupElem
+  if (baseIndex >= 0) {
+    baseList[baseIndex] = [baseKey, typedSession]
+  } else {
+    baseList.push([baseKey, typedSession])
+  }
   contactStore.botStates.set(selfId, {
     userList: [...state.userList],
-    baseList: [...state.baseList],
+    baseList,
     onMsgList: [...state.onMsgList],
   })
   if (
@@ -581,10 +631,86 @@ function recordBotMessage(platform: string, selfId: string, msg: Record<string, 
   }
 }
 
+export function restoreBotStateFromMessageCache(platform: string, selfId: string) {
+  const chatStore = useChatStore()
+  const contactStore = useContactStore()
+  const prefix = `${platform}:${selfId}:`
+  const sessions: Array<UserFriendElem & UserGroupElem> = []
+  for (const [key, messages] of chatStore.sessionMessageCache) {
+    if (!key.startsWith(prefix)) continue
+    const msg = messages[messages.length - 1]
+    if (!msg) continue
+    const isGroup = Boolean(msg.group_id)
+    const id = String(isGroup ? msg.group_id : msg.user_id)
+    if (!id || id === '0') continue
+    const sender = getObject(msg.sender)
+    const senderId = getString(sender.user_id) || getString(msg.user_id) || ''
+    const senderName = getString(sender.card) || getString(sender.nickname) || (isGroup ? senderId : '')
+    const raw = getMsgRawTxt(msg) || (typeof msg.raw_message === 'string' ? msg.raw_message : '')
+    const cachedGroupInfo = isGroup
+      ? identityInfoCache.get(identityCacheKey('group', platform, selfId, id))
+      : undefined
+    const eventGroupAvatar = hasUsableAvatar(msg.group_avatar) ? getString(msg.group_avatar) : ''
+    sessions.push({
+      user_id: isGroup ? undefined : id,
+      group_id: isGroup ? id : undefined,
+      group_name: isGroup
+        ? (getString(msg.group_name) || cachedGroupInfo?.name || id)
+        : '',
+      nickname: isGroup ? '' : getString(sender.nickname) || getString(sender.card) || id,
+      remark: isGroup ? '' : getString(sender.nickname) || '',
+      avatar: isGroup
+        ? (eventGroupAvatar || cachedGroupInfo?.avatar || '')
+        : hasUsableAvatar(sender.avatar) ? getString(sender.avatar) : '',
+      raw_msg: isGroup && senderName ? `${senderName}: ${raw}` : raw,
+      raw_msg_base: raw,
+      time: Number(msg.local_time ?? msg.timestamp_ms ?? (Number(msg.time) ? Number(msg.time) * 1000 : 0)),
+      message_id: getString(msg.message_id),
+      channel_id: getString(msg.channel_id),
+      guild_id: getString(msg.guild_id),
+    } as UserFriendElem & UserGroupElem)
+  }
+  if (!sessions.length) return
+
+  const state = contactStore.botStates.get(selfId) ?? {
+    userList: [],
+    baseList: [],
+    onMsgList: [],
+  }
+  const baseList = [...state.baseList]
+  const baseKeys = new Set(baseList.map(([key]) => normalizeSessionId(key)))
+  const existing = new Set(state.onMsgList.map((item) => {
+    return String(item.user_id ?? item.group_id ?? '')
+  }))
+  for (const session of sessions) {
+    const id = String(session.user_id ?? session.group_id ?? '')
+    if (id && !existing.has(id)) {
+      state.onMsgList.unshift(session)
+      existing.add(id)
+    }
+    if (id && !baseKeys.has(normalizeSessionId(id))) {
+      baseList.push([normalizeSessionId(id), session])
+      baseKeys.add(normalizeSessionId(id))
+    }
+  }
+  contactStore.botStates.set(selfId, {
+    userList: [...state.userList],
+    baseList,
+    onMsgList: [...state.onMsgList],
+  })
+}
+
 function onSatoriEvent(event: SatoriEvent) {
   const oneBot = satoriEventToOneBot(event.body)
   identityDebug('satori event', { event, oneBot })
   if (!oneBot) return
+  if (!isCurrentBotEvent(event)) {
+    const key = botEventKey(event.platform, event.selfId)
+    const events = pendingBotEvents.get(key) ?? []
+    events.push(event)
+    if (events.length > 500) events.splice(0, events.length - 500)
+    pendingBotEvents.set(key, events)
+  }
   if (oneBot.post_type === 'message' || oneBot.post_type === 'message_sent') {
     recordBotMessage(event.platform, event.selfId, oneBot)
   }
@@ -770,9 +896,16 @@ export async function loadChatHistoryFromCache(params: {
   const records = Array.isArray(result.messages) ? result.messages as unknown[] : []
   const messages: Record<string, unknown>[] = []
   for (const record of records) {
-    const raw = getObject(getObject(record).raw)
+    const recordObj = getObject(record)
+    const raw = getObject(recordObj.raw)
     const msg = satoriEventToOneBot(raw)
     if (!msg || !msg.message_id) continue
+    const localTime = Number(recordObj.receivedAt ?? recordObj.timestampMs ?? recordObj.timestamp ?? 0)
+    if (localTime) {
+      msg.local_time = localTime
+      msg.timestamp_ms = localTime
+      msg.time_ms = localTime
+    }
     const userId = getString(msg.user_id)
     const groupId = getString(msg.group_id)
     msg.infoList = {

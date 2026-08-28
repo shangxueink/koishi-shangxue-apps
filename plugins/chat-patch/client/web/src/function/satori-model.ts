@@ -378,7 +378,6 @@ export function satoriEventToOneBot(event: SatoriObject): Record<string, unknown
     platform,
     sn: getNumber(event.sn),
     timestamp_ms: getNumber(event.timestamp) ? normalizeTimestampMs(event.timestamp) : 0,
-    local_time: Date.now(),
     time: Math.floor(normalizeTimestampMs(event.timestamp) / 1000),
     message_seq: getNumber(event.sn),
     seq_id: getNumber(event.sn),

@@ -1044,8 +1044,12 @@ async function loadMoreHistory() {
         !uiStore.nowGetHistory &&
         uiStore.canLoadHistory !== false
     ) {
-        const firstMsgId = list[0].message_id
-        const firstMsgTime = Number(list[0]?.time)
+        const firstMsg = list[0]
+        const firstMsgId = firstMsg.message_id
+        const firstMsgTime = Number(firstMsg?.time)
+        const cacheBeforeTime = Number(
+            firstMsg?.local_time ?? firstMsg?.timestamp_ms ?? firstMsg?.time_ms ?? 0
+        ) || (Number.isFinite(firstMsgTime) ? firstMsgTime * 1000 : 0)
         const useMixedHistory =
             settingsStore.sysConfig.enable_local_history &&
             settingsStore.sysConfig.mixed_load_messages !== false
@@ -1093,15 +1097,16 @@ async function loadMoreHistory() {
 
         const type = chatStore.chatInfo.show.type
         const id = chatStore.chatInfo.show.id
-        const channelId = String(chatStore.chatInfo.show.channel_id ?? id)
+        const rawChannelId = String(chatStore.chatInfo.show.channel_id ?? '')
+        const channelId = type === 'group'
+            ? (rawChannelId.includes(':') ? rawChannelId : `group:${rawChannelId || id}`)
+            : (rawChannelId || (String(id).includes(':') ? String(id) : `private:${id}`))
         const cached = await loadChatHistoryFromCache({
             platform: String(authStore.loginInfo.platform ?? ''),
             selfId: String(authStore.loginInfo.uin ?? ''),
             channelId,
             limit: 20,
-            beforeTimeMs: Number.isFinite(firstMsgTime) && firstMsgTime > 0
-                ? firstMsgTime * 1000
-                : undefined,
+            beforeTimeMs: cacheBeforeTime > 0 ? cacheBeforeTime : undefined,
         })
         const existingIds = new Set(chatStore.messageList.map((m) => String(m.message_id ?? '')))
         const addList = cached.filter((m) => {

@@ -224,9 +224,9 @@
     import { MenuStatue } from 'vue3-bcui/packages/dist/types'
     import { library } from '@fortawesome/fontawesome-svg-core'
     import { login as loginInfo } from '@renderer/function/connect'
-    import { Connector, flushPendingBotEvents, loadContactsFromCache } from '@renderer/function/connect'
+    import { Connector, flushPendingBotEvents, loadContactsFromCache, restoreBotStateFromMessageCache } from '@renderer/function/connect'
     import { getActiveBot, getLogins, setActiveBot } from '@renderer/function/satori'
-    import { canGroupNotice, getShowName } from '@renderer/function/utils/msgUtil'
+    import { canGroupNotice, getShowName, updateBaseOnMsgList } from '@renderer/function/utils/msgUtil'
 
     import {
         faThumbTack,
@@ -285,6 +285,24 @@
         })
     }
 
+    function restoreBotStateUi(bot: { platform: string; selfId: string }) {
+        const restored = contactStore.botStates.get(bot.selfId)
+        if (!restored) return
+        contactStore.baseOnMsgList.clear()
+        for (const [key, value] of restored.baseList) {
+            contactStore.baseOnMsgList.set(normalizeSessionId(key), value)
+        }
+        for (const item of restored.onMsgList) {
+            const id = String(item.user_id ?? item.group_id ?? '')
+            if (!id || id === '0') continue
+            contactStore.baseOnMsgList.set(
+                normalizeSessionId(id),
+                item as UserFriendElem & UserGroupElem,
+            )
+        }
+        contactStore.onMsgList = restored.onMsgList
+    }
+
     function selectRobot(bot: { platform: string; selfId: string; name: string; avatar?: string; features?: string[] }) {
         if (bot.selfId === activeBotId.value) return
         snapshotCurrentBot()
@@ -311,14 +329,21 @@
                 contactStore.baseOnMsgList.set(normalizeSessionId(key), value)
             }
             contactStore.onMsgList = saved.onMsgList
+            restoreBotStateFromMessageCache(bot.platform, bot.selfId)
+            restoreBotStateUi(bot)
             flushPendingBotEvents(bot.platform, bot.selfId)
+            updateBaseOnMsgList()
+            void loadContactsFromCache()
         } else {
             contactStore.userList = []
             contactStore.baseOnMsgList.clear()
             contactStore.onMsgList = []
             chatStore.messageList = []
             chatStore.chatInfo.show.id = 0
+            restoreBotStateFromMessageCache(bot.platform, bot.selfId)
+            restoreBotStateUi(bot)
             flushPendingBotEvents(bot.platform, bot.selfId)
+            updateBaseOnMsgList()
             void loadContactsFromCache()
         }
     }

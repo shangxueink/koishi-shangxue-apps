@@ -103,11 +103,28 @@ export function registerWeb(
     const parsedLimit = Number(koa.query.limit ?? config.maxMessagesPerChannel)
     const limit = Number.isFinite(parsedLimit) && parsedLimit > 0 ? parsedLimit : config.maxMessagesPerChannel
     const beforeTime = Number(koa.query.beforeTime ?? 0)
-    const messages = Number.isFinite(beforeTime) && beforeTime > 0
-      ? await database.listMessagesBefore(platform, selfId, channelId, beforeTime, limit)
-      : await database.listMessages(platform, selfId, channelId, limit)
-    // 数据库按倒序返回，前端统一使用正序列表
-    koa.body = { messages: messages.reverse() }
+    const queryMessages = async (cid: string) => {
+      return Number.isFinite(beforeTime) && beforeTime > 0
+        ? database.listMessagesBefore(platform, selfId, cid, beforeTime, limit)
+        : database.listMessages(platform, selfId, cid, limit)
+    }
+    let messages = await queryMessages(channelId)
+    // 兼容不带 group:/private: 前缀的旧请求
+    if (!messages.length && !channelId.includes(':')) {
+      const groupMessages = await queryMessages(`group:${channelId}`)
+      if (groupMessages.length) {
+        messages = groupMessages
+      } else {
+        messages = await queryMessages(`private:${channelId}`)
+      }
+    }
+    // 统一按本地收到时间排序，避免平台时间不准导致顺序颠倒
+    messages.sort((a, b) => {
+      const timeA = Number(a?.receivedAt ?? a?.timestampMs ?? a?.timestamp ?? 0)
+      const timeB = Number(b?.receivedAt ?? b?.timestampMs ?? b?.timestamp ?? 0)
+      return timeA - timeB
+    })
+    koa.body = { messages }
   })
 
   ctx.server.get(`${config.basePath}/api/cache`, async (koa) => {
