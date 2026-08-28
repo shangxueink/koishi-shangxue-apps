@@ -164,6 +164,13 @@
 .msg-replay {
     background: #0000000f;
 }
+.msg-replay.me,
+.msg-replay.me .message-body,
+.msg-replay.me .msg-text,
+.msg-replay.me span,
+.msg-replay.me a {
+    color: var(--color-font-r);
+}
 
 .face-pan,
 .jin-pan,

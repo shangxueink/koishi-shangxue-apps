@@ -450,6 +450,13 @@ div:has(> .msg-img.long-img.light)::after {
 .msg-replay.me svg {
     color: var(--color-font-1-r);
 }
+.msg-replay.me,
+.msg-replay.me .message-body,
+.msg-replay.me .msg-text,
+.msg-replay.me span,
+.msg-replay.me a {
+    color: var(--color-font-r);
+}
 
 .msg-xml {
     padding: 5px 15px;

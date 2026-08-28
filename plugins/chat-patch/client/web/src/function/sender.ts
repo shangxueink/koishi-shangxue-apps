@@ -124,6 +124,10 @@ export function parseMsg(msg: string, cache: MsgItemElem[], _img: string[]): str
   let output = ''
   const pattern = sqTokenPattern
   const consumed = new Set<number>()
+  const replyPrefix = cache
+    .filter((segment) => segment?.type === 'reply' || segment?.type === 'quote')
+    .map((segment) => segmentToSatori(segment))
+    .join('')
   let match: RegExpExecArray | null
   let cursor = 0
 
@@ -161,7 +165,7 @@ export function parseMsg(msg: string, cache: MsgItemElem[], _img: string[]): str
     cursor = match.index + match[0].length
   }
   output += escapeTextPreservingMarkup(msg.slice(cursor))
-  return output
+  return replyPrefix + output
 }
 
 export function getSQList(msg: string): RegExpMatchArray | null {
