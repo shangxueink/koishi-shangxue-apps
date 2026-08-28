@@ -103,13 +103,15 @@ export function apply(ctx: Context, config: Config) {
     }
   }
 
-  ctx.command(config.emojihub_bili_command)
-    .action(async ({ session }) => {
+  ctx.command(`${config.emojihub_bili_command} [page:number]`)
+    .action(async ({ session, args }) => {
       const txtCommandList = listAllCommands(config);
       logInfo(config, `指令列表txtCommandList：  ` + txtCommandList);
 
       if (session.platform === "qq" || session.platform === "qqguild") {
-        let markdownMessage = command_list_markdown(ctx, session, config, emojihub_bili_codecommand, 1);
+        // 翻页按钮通过命令的第一个参数携带页码
+        const page = Number(args?.[0]) || 1;
+        let markdownMessage = command_list_markdown(ctx, session, config, emojihub_bili_codecommand, page);
         await sendmarkdownMessage(ctx, session, markdownMessage, config);
       } else {
         const commandText = txtCommandList.join('\n');

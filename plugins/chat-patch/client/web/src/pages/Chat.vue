@@ -907,6 +907,7 @@ function resetState() {
         checkNewLineFlag: false,
     }
     msgMenus.value = []
+    shouldKeepChatAtBottom = true
 }
 
 watch(() => chat, () => {
@@ -939,7 +940,6 @@ onMounted(() => {
     if (session) history.add(session)
 
     updateList(list.length, 0)
-    setTimeout(scrollBottom, 200)
     watch(() => list.map((item) => item.message_id + '_' + item.fake_msg),
         (newIds, oldIds = []) => {
             updateList(newIds.length, oldIds.length)
@@ -962,7 +962,9 @@ onMounted(() => {
     })
     nextTick(() => {
         setupChatPaddingObserver()
+        setupChatLayoutObserver()
         scheduleResizeMainInput()
+        scrollBottom()
     })
 })
 
@@ -980,11 +982,17 @@ onBeforeUnmount(() => {
         sendMoreResizeObserver.disconnect()
         sendMoreResizeObserver = null
     }
+    if (chatLayoutObserver !== null) {
+        chatLayoutObserver.disconnect()
+        chatLayoutObserver = null
+    }
 })
 
 let resizeMainInputFrame: number | null = null
 let chatPaddingFrame: number | null = null
 let sendMoreResizeObserver: ResizeObserver | null = null
+let chatLayoutObserver: ResizeObserver | null = null
+let shouldKeepChatAtBottom = true
 let chatPaddingAfterUpdate: Array<() => void> = []
 // scrollHeight includes a small browser-dependent inner gap for this textarea style.
 // Keep the existing compact visual height, but make the adjustment explicit.
@@ -1054,6 +1062,16 @@ function setupChatPaddingObserver() {
     scheduleChatPaddingUpdate()
 }
 
+function setupChatLayoutObserver() {
+    const pan = msgPan.value
+    if (!pan || typeof ResizeObserver === 'undefined' || chatLayoutObserver !== null) return
+    chatLayoutObserver = new ResizeObserver(() => {
+        if (shouldKeepChatAtBottom) scrollBottom(false)
+    })
+    chatLayoutObserver.observe(pan)
+    if (pan.firstElementChild) chatLayoutObserver.observe(pan.firstElementChild)
+}
+
 function resizeMainInput(target?: HTMLTextAreaElement | HTMLInputElement | null) {
     const input = target ?? mainInput.value
     if (!input) return
@@ -1120,9 +1138,13 @@ function chatScroll(event: Event, pass: boolean) {
     if (body.scrollTop === 0 && list.length > 0) {
         loadMoreHistory()
     }
-    if ((body.scrollTop + body.clientHeight + 10) >= body.scrollHeight) {
+    const atBottom = (body.scrollTop + body.clientHeight + 10) >= body.scrollHeight
+    if (atBottom) {
+        shouldKeepChatAtBottom = true
         NewMsgNum.value = 0
         tags.value.showBottomButton = false
+    } else if (shouldKeepChatAtBottom) {
+        shouldKeepChatAtBottom = false
     }
     if (
         body.scrollTop <

@@ -177,15 +177,6 @@ export async function loadHistory(info: BaseChatInfoElem) {
                 return 0
             })
             chatStore.messageList = merged.slice(-500)
-            const scrollToBottom = () => {
-                const pan = document.getElementById('msgPan')
-                if (pan) pan.scrollTop = pan.scrollHeight
-            }
-            nextTick(() => {
-                scrollToBottom()
-                setTimeout(scrollToBottom, 100)
-                setTimeout(scrollToBottom, 300)
-            })
         }
     } catch (error) {
         logger.error(error as Error, '[LocalHistory] 加载聊天记录缓存失败')
