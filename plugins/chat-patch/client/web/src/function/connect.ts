@@ -25,6 +25,7 @@ import { useContactStore } from '@renderer/state/contact'
 import { useSettingsStore } from '@renderer/state/settings'
 import { getMsgRawTxt, hasAtMe, updateBaseOnMsgList } from './utils/msgUtil'
 import { normalizeSessionId } from './utils/sessionUtil'
+import { buildQqGroupAvatar } from './utils/avatarUtil'
 import type { ConnectionHistoryItem, LoginCacheElem } from './elements/system'
 import type { UserFriendElem, UserGroupElem } from './elements/information'
 
@@ -385,6 +386,7 @@ async function resolveGroupIdentity(
   const eventAvatar = hasUsableAvatar(
     typeof msg.group_avatar === 'string' ? msg.group_avatar : '',
   ) ? (typeof msg.group_avatar === 'string' ? msg.group_avatar : '') : ''
+  const generatedAvatar = buildQqGroupAvatar(platform, sessionId)
   identityDebug('group identity: request cache', { platform, selfId, sessionId, guildId, channelId })
   const cacheResult = await requestIdentityCache({
     platform,
@@ -394,12 +396,14 @@ async function resolveGroupIdentity(
     guildId,
     channelId,
     name: eventName,
-    avatar: eventAvatar,
+    avatar: eventAvatar || generatedAvatar,
     channelType: msg.channel_type,
   }).catch(() => null)
   const cached = getObject(cacheResult)
   const cachedName = getString(cached.name)
-  const cachedAvatar = hasUsableAvatar(cached.avatar) ? getString(cached.avatar) : ''
+  const cachedAvatar = hasUsableAvatar(cached.avatar)
+    ? getString(cached.avatar)
+    : generatedAvatar
   const cachedChannelId = getString(cached.channel_id) || getString(cached.channelId) || channelId
   const cachedGuildId = getString(cached.guild_id) || getString(cached.guildId) || guildId
   if (cachedName || cachedAvatar) {
@@ -418,7 +422,7 @@ async function resolveGroupIdentity(
 
   // 后端回源失败时只使用事件自带的字段，不再每次消息都请求 guild/channel
   const name = eventName
-  const avatar = eventAvatar
+  const avatar = eventAvatar || generatedAvatar
   if (!name && !avatar) {
     markIdentityLookup(key, false)
     return
@@ -565,7 +569,7 @@ function recordBotMessage(platform: string, selfId: string, msg: Record<string, 
     ? (eventGroupName || cachedGroupInfo?.name || sessionId)
     : undefined
   const groupAvatar = isGroup
-    ? (eventGroupAvatar || cachedGroupInfo?.avatar || undefined)
+    ? (eventGroupAvatar || cachedGroupInfo?.avatar || buildQqGroupAvatar(platform, sessionId) || undefined)
     : undefined
   const contactStore = useContactStore()
   const state = contactStore.botStates.get(selfId) ?? {
@@ -751,7 +755,7 @@ export function restoreBotStateFromMessageCache(platform: string, selfId: string
       nickname: isGroup ? '' : getString(sender.nickname) || getString(sender.card) || id,
       remark: isGroup ? '' : getString(sender.nickname) || '',
       avatar: isGroup
-        ? (eventGroupAvatar || cachedGroupInfo?.avatar || '')
+        ? (eventGroupAvatar || cachedGroupInfo?.avatar || buildQqGroupAvatar(platform, id) || '')
         : hasUsableAvatar(sender.avatar) ? getString(sender.avatar) : '',
       raw_msg: isGroup && senderName ? `${senderName}: ${raw}` : raw,
       raw_msg_base: raw,
@@ -793,7 +797,7 @@ export function restoreBotStateFromMessageCache(platform: string, selfId: string
 }
 
 function onSatoriEvent(event: SatoriEvent) {
-  const oneBot = satoriEventToOneBot(event.body)
+  const oneBot = satoriEventToOneBot(event.body, String(event.platform || ''))
   identityDebug('satori event', { event, oneBot })
   if (!oneBot) return
   if (!isCurrentBotEvent(event)) {
@@ -831,7 +835,7 @@ export function flushPendingBotEvents(platform: string, selfId: string) {
   if (!events?.length) return
   pendingBotEvents.delete(key)
   for (const event of events) {
-    const oneBot = satoriEventToOneBot(event.body)
+    const oneBot = satoriEventToOneBot(event.body, String(event.platform || ''))
     if (oneBot) {
       void msgPreprocess(oneBot, {
         platform: String(event.platform || oneBot.platform || ''),
@@ -1199,7 +1203,7 @@ function selfMessageToOneBot(record: unknown): Record<string, unknown> | null {
         type: channelType === 'user' ? 1 : 0,
       },
       guild: getString(obj.guildId) ? { id: getString(obj.guildId) } : undefined,
-    })
+    }, platform)
     if (Array.isArray(synthetic?.message)) {
       message = synthetic.message as unknown[]
     }
@@ -1273,7 +1277,7 @@ export async function loadChatHistoryFromCache(params: {
   for (const record of records) {
     const recordObj = getObject(record)
     const raw = getObject(recordObj.raw)
-    const msg = satoriEventToOneBot(raw)
+    const msg = satoriEventToOneBot(raw, params.platform)
     if (!msg || !msg.message_id) continue
     const localTime = Number(recordObj.receivedAt ?? recordObj.timestampMs ?? recordObj.timestamp ?? 0)
     if (localTime) {
@@ -1336,7 +1340,10 @@ async function loadAllBotsCache() {
       const id = normalizeGroupId(getString(raw.group_id) || getString(raw.id))
       if (!id) continue
       const name = getString(raw.group_name) || getString(raw.name)
-      const avatar = hasUsableAvatar(raw.avatar) ? getString(raw.avatar) : ''
+      const avatar = hasUsableAvatar(raw.avatar)
+        ? getString(raw.avatar)
+        : buildQqGroupAvatar(platform, id)
+      if (avatar) raw.avatar = avatar
       if (!name && !avatar) continue
       identityInfoCache.set(identityCacheKey('group', platform, selfId, id), {
         name,
@@ -1454,7 +1461,11 @@ function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T | null> {
   ])
 }
 
-function buildGroupItem(raw: unknown, data: unknown): Record<string, unknown> {
+function buildGroupItem(
+  raw: unknown,
+  data: unknown,
+  platform = '',
+): Record<string, unknown> {
   const root = getObject(data)
   const guild = getObject(root.guild) || getObject(root)
   const channel = getObject(root.channel)
@@ -1470,7 +1481,7 @@ function buildGroupItem(raw: unknown, data: unknown): Record<string, unknown> {
       ? getString(channel.avatar)
       : hasUsableAvatar(item.avatar)
         ? getString(item.avatar)
-        : ''
+        : buildQqGroupAvatar(platform, id)
   if (name) item.group_name = name
   if (avatar) item.avatar = avatar
   else if (item.avatar && !hasUsableAvatar(item.avatar)) delete item.avatar
@@ -1511,7 +1522,7 @@ async function fetchGroupProfiles(
         5000,
       ),
     ])
-    const item = buildGroupItem(raw, { guild: guildData, channel: channelData })
+    const item = buildGroupItem(raw, { guild: guildData, channel: channelData }, active.platform)
     processedItems.push(item)
 
     if (updateUi && contactStore) {
@@ -1893,7 +1904,7 @@ export class Connector {
     if (!mapped) return undefined
     const active = getActiveBot()
     const data = await request(mapped.method, mapped.params, active)
-    return satoriResponseToOneBot(api, data).data
+    return satoriResponseToOneBot(api, data, active.platform).data
   }
 
   static send(action: string, value: Record<string, unknown> = {}, echo?: string) {
@@ -1910,7 +1921,7 @@ export class Connector {
     }
     void request(mapped.method, mapped.params, active)
       .then((data) => {
-        const response = satoriResponseToOneBot(action, data)
+        const response = satoriResponseToOneBot(action, data, active.platform)
         dispatch(response, echo)
       })
       .catch((error: unknown) => {

@@ -1,5 +1,7 @@
 // Satori 协议数据与 Stapxs UI 数据模型之间的转换层。
 
+import { buildQqGroupAvatar } from './utils/avatarUtil'
+
 interface SatoriElement {
   type?: unknown
   attrs?: Record<string, unknown>
@@ -403,7 +405,10 @@ function guildFromEvent(event: SatoriObject): SatoriObject {
   return getObject(event.guild)
 }
 
-export function satoriEventToOneBot(event: SatoriObject): Record<string, unknown> | null {
+export function satoriEventToOneBot(
+  event: SatoriObject,
+  platformName = '',
+): Record<string, unknown> | null {
   const type = getString(event.type)
   const user = userFromEvent(event)
   const member = memberFromEvent(event)
@@ -411,7 +416,7 @@ export function satoriEventToOneBot(event: SatoriObject): Record<string, unknown
   const guild = guildFromEvent(event)
   const message = messageFromEvent(event)
   const selfId = getString(event.selfId) || getString(getObject(getObject(event.login).user).id)
-  const platform = getString(event.platform) || getString(getObject(event.login).platform)
+  const platform = getString(event.platform) || getString(getObject(event.login).platform) || platformName
   const base = {
     self_id: selfId,
     platform,
@@ -441,7 +446,9 @@ export function satoriEventToOneBot(event: SatoriObject): Record<string, unknown
       user_id: isGroup ? userId : directChannelId,
       group_id: groupId,
       group_name: isGroup ? (getString(guild.name) || getString(channel.name) || undefined) : undefined,
-      group_avatar: isGroup ? (usableAvatar(guild.avatar) || usableAvatar(channel.avatar)) : undefined,
+      group_avatar: isGroup
+        ? (usableAvatar(guild.avatar) || usableAvatar(channel.avatar) || buildQqGroupAvatar(platform, groupId) || undefined)
+        : undefined,
       channel_id: getString(channel.id) || (isGroup ? groupId : `private:${userId}`),
       guild_id: getString(guild.id),
       target_id: selfId,
@@ -695,7 +702,11 @@ function messageListFromResponse(data: unknown): unknown[] {
   })
 }
 
-export function satoriResponseToOneBot(action: string, data: unknown): Record<string, unknown> {
+export function satoriResponseToOneBot(
+  action: string,
+  data: unknown,
+  platform = '',
+): Record<string, unknown> {
   const root = getObject(data)
   const rawData = root.data ?? data
 
@@ -738,7 +749,7 @@ export function satoriResponseToOneBot(action: string, data: unknown): Record<st
         : {
             group_id: id,
             group_name: getString(value.name) || id,
-            avatar: usableAvatar(value.avatar),
+            avatar: usableAvatar(value.avatar) || buildQqGroupAvatar(platform, id),
             guild_id: id,
             channel_id: id,
             member_count: getNumber(value.member_count),
