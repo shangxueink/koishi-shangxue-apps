@@ -22,7 +22,7 @@ import { useAuthStore } from '@renderer/state/auth'
 import { useChatStore } from '@renderer/state/chat'
 import { useContactStore } from '@renderer/state/contact'
 import { useSettingsStore } from '@renderer/state/settings'
-import { getMsgRawTxt, updateBaseOnMsgList } from './utils/msgUtil'
+import { getMsgRawTxt, hasAtMe, updateBaseOnMsgList } from './utils/msgUtil'
 import { normalizeSessionId } from './utils/sessionUtil'
 import type { ConnectionHistoryItem, LoginCacheElem } from './elements/system'
 import type { UserFriendElem, UserGroupElem } from './elements/information'
@@ -583,6 +583,7 @@ function recordBotMessage(platform: string, selfId: string, msg: Record<string, 
     avatar: isGroup ? groupAvatar : (hasUsableAvatar(sender.avatar) ? getString(sender.avatar) : undefined),
     raw_msg: rawPreview,
     raw_msg_base: raw,
+    highlight: hasAtMe(msg) ? '[有人@你]' : undefined,
     time: sessionTime,
     message_id: String(msg.message_id ?? ''),
     new_msg: true,
@@ -753,6 +754,7 @@ export function restoreBotStateFromMessageCache(platform: string, selfId: string
         : hasUsableAvatar(sender.avatar) ? getString(sender.avatar) : '',
       raw_msg: isGroup && senderName ? `${senderName}: ${raw}` : raw,
       raw_msg_base: raw,
+      highlight: hasAtMe(msg) ? '[有人@你]' : undefined,
       time: Number(msg.local_time ?? msg.timestamp_ms ?? (Number(msg.time) ? Number(msg.time) * 1000 : 0)),
       message_id: getString(msg.message_id),
       channel_id: getString(msg.channel_id),

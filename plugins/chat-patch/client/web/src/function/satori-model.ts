@@ -104,7 +104,7 @@ function parseTagAttrs(source: string): Record<string, string> {
 function findClosingTag(source: string, start: number, tagName: string): number {
   const pattern = new RegExp(`<(/?)${tagName}(?:\\s|/|>)`, 'g')
   pattern.lastIndex = start
-  let depth = 0
+  let depth = 1
   while (true) {
     const match = pattern.exec(source)
     if (!match) return -1
@@ -138,11 +138,12 @@ function pushParsedTag(
       result.push({ type: 'text', text: '\n' })
       break
     case 'at':
+      const atName = attrs.type === 'all' ? '所有人' : (attrs.name || attrs.id || '')
       result.push({
         type: 'at',
         qq: attrs.id || '',
         text: normalizeAtText(
-          attrs.name || (attrs.type === 'all' ? 'all' : attrs.id || ''),
+          atName,
           attrs.id || '',
         ),
       })
@@ -320,10 +321,11 @@ function toSegments(elements: unknown): Array<Record<string, unknown>> {
       result.push({ type: 'text', text: getString(attrs.content) })
     } else if (type === 'at') {
       const id = getString(attrs.id)
+      const name = getString(attrs.name) || (attrs.type === 'all' ? '所有人' : id)
       result.push({
         type: 'at',
         qq: id,
-        text: normalizeAtText(getString(attrs.name), id),
+        text: normalizeAtText(name, id),
       })
     } else if (type === 'img' || type === 'image') {
       const src = normalizeResourceSrc(getString(attrs.src) || getString(attrs.url) || getString(attrs.file), 'image')

@@ -22,6 +22,7 @@ import {
     getMsgData,
     parseMsgList,
     getMsgRawTxt,
+    hasAtMe,
     updateBaseOnMsgList,
     updateLastestHistory,
     sendMsgAppendInfo,
@@ -2527,6 +2528,7 @@ function formatMessageData(data: any, isGroup: boolean) {
     return {
         message_id: data.message_id,
         raw_msg: isGroup && name ? `${name}: ${raw}` : raw,
+        highlight: hasAtMe(data) ? '[有人@你]' : undefined,
         time,
         raw_msg_base: raw,
     }

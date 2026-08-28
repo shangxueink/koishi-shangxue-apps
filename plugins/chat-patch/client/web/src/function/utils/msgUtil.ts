@@ -260,6 +260,7 @@ export function parseMsgList(
 export function getMsgRawTxt(data: any): string {
     const { $t } = app.config.globalProperties
     const chatStore = useChatStore()
+    const authStore = useAuthStore()
 
     const message = data.message as [{ [key: string]: any }]
     if (!Array.isArray(message)) {
@@ -309,8 +310,7 @@ export function getMsgRawTxt(data: any): string {
                     back += message[i].text
                     break
                 case 'image':
-                    back +=
-                        (!message[i].summary || message[i].summary == '') ? '[' + $t('图片') + ']' : message[i].summary
+                    back += '[' + $t('图片') + ']'
                     break
                 case 'record':
                     back += '[' + $t('语音') + ']'
@@ -319,7 +319,7 @@ export function getMsgRawTxt(data: any): string {
                     back += '[' + $t('视频') + ']'
                     break
                 case 'file':
-                    back += '[' + $t('文件') + ']' + message[i].name
+                    back += '[' + $t('文件') + ']'
                     break
                 case 'json': {
                     try {
@@ -346,6 +346,15 @@ export function getMsgRawTxt(data: any): string {
         }
     }
     return back
+}
+
+export function hasAtMe(data: any): boolean {
+    const message = data?.message
+    if (!Array.isArray(message)) return false
+    const authStore = useAuthStore()
+    const selfId = String(authStore.loginInfo.uin ?? '')
+    if (!selfId) return false
+    return message.some((item) => item?.type === 'at' && String(item.qq) === selfId)
 }
 
 /**
