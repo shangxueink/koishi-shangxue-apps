@@ -1,7 +1,7 @@
 // Satori 连接适配层：向现有 UI 暴露兼容的 Connector 接口。
 
 import { reactive } from 'vue'
-import { dispatch } from './msg'
+import { dispatch, msgPreprocess } from './msg'
 import {
   connect as connectSatori,
   getActiveBot,
@@ -803,10 +803,20 @@ function onSatoriEvent(event: SatoriEvent) {
     pendingBotEvents.set(key, events)
   }
   if (oneBot.post_type === 'message' || oneBot.post_type === 'message_sent') {
-    recordBotMessage(event.platform, event.selfId, oneBot)
-  }
-  // 只有当前机器人写入全局 UI；其他机器人仍在上方实时记录。
-  if (isCurrentBotEvent(event)) {
+    void msgPreprocess(oneBot).then((processed) => {
+      if (!processed) return
+      recordBotMessage(event.platform, event.selfId, processed)
+      // 只有当前机器人写入全局 UI；其他机器人仍在上方实时记录。
+      if (isCurrentBotEvent(event)) {
+        dispatch(processed)
+      }
+    }).catch(() => {
+      recordBotMessage(event.platform, event.selfId, oneBot)
+      if (isCurrentBotEvent(event)) {
+        dispatch(oneBot)
+      }
+    })
+  } else if (isCurrentBotEvent(event)) {
     dispatch(oneBot)
   }
 }
@@ -818,7 +828,13 @@ export function flushPendingBotEvents(platform: string, selfId: string) {
   pendingBotEvents.delete(key)
   for (const event of events) {
     const oneBot = satoriEventToOneBot(event.body)
-    if (oneBot) dispatch(oneBot)
+    if (oneBot) {
+      void msgPreprocess(oneBot).then((processed) => {
+        if (processed) dispatch(processed)
+      }).catch(() => {
+        dispatch(oneBot)
+      })
+    }
   }
 }
 

@@ -237,7 +237,7 @@
                                         </div>
                                     </template>
                                     <div v-else>
-                                        {{ $t('暂无预览内容') }}
+                                        {{ $t('无法加载内容') }}
                                     </div>
                                 </div>
                                 <div>
