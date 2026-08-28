@@ -3,6 +3,7 @@ import {} from '@koishijs/plugin-server'
 import { createHash } from 'node:crypto'
 import { createReadStream, promises as fs } from 'node:fs'
 import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import FileType from 'file-type'
 
 import { Config } from './config'
@@ -12,6 +13,18 @@ import { PluginLogger } from './logger'
 function toExtension(value: string): string {
   const ext = value.startsWith('.') ? value : `.${value}`
   return ext.toLowerCase()
+}
+
+function toLocalFilePath(value: string): string | null {
+  if (value.startsWith('file://')) {
+    try {
+      return fileURLToPath(value)
+    } catch {
+      return null
+    }
+  }
+  if (/^[a-z]:[\\/]/i.test(value) || value.startsWith('\\\\')) return value
+  return null
 }
 
 export class MediaManager {
@@ -112,6 +125,20 @@ export class MediaManager {
   private async resolveAndDownload(url: string, channelId: string): Promise<string | null> {
     try {
       await fs.mkdir(this.mediaDir, { recursive: true })
+      const localSource = toLocalFilePath(url)
+      if (localSource && await this.exists(localSource)) {
+        const hash = createHash('md5').update(url).digest('hex')
+        const ext = path.extname(localSource).toLowerCase() || '.bin'
+        const filePath = path.join(this.mediaDir, `${hash}${ext}`)
+        if (path.normalize(filePath) !== path.normalize(localSource)) {
+          if (!(await this.exists(filePath))) {
+            await fs.copyFile(localSource, filePath)
+          }
+        }
+        await this.database.recordMedia(url, filePath, channelId)
+        this.logger.logInfo('本地媒体已缓存:', filePath)
+        return filePath
+      }
       const cached = await this.database.getMediaPath(url)
       if (cached && await this.exists(cached)) {
         return this.migrateCachedMedia(url, cached, channelId)

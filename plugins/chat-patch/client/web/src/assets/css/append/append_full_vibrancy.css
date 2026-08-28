@@ -122,8 +122,50 @@
     backdrop-filter: blur(10px);
 }
 .message.selected {
-    background: #00000010;
-    backdrop-filter: blur(5px);
+    opacity: 1;
+    background: rgba(var(--color-card-rgb), 0.78);
+    outline: 2px solid var(--color-main);
+    outline-offset: -2px;
+}
+/* 多选模式：未选中消息弱化，选中消息显示描边和勾选 */
+.message.selecting {
+    position: relative;
+    opacity: 0.55;
+    cursor: pointer;
+}
+.message.selecting.selected {
+    opacity: 1;
+    background: rgba(var(--color-card-rgb), 0.78);
+    outline: 2px solid var(--color-main);
+    outline-offset: -2px;
+}
+.message.selecting::after {
+    content: '';
+    position: absolute;
+    top: 8px;
+    right: 12px;
+    width: 18px;
+    height: 18px;
+    box-sizing: border-box;
+    border: 2px solid var(--color-font-2);
+    border-radius: 50%;
+    background: rgba(var(--color-bg-rgb), 0.6);
+    pointer-events: none;
+    z-index: 2;
+}
+.message.selecting.selected::after {
+    content: '\2713';
+    color: #fff;
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 14px;
+    text-align: center;
+    background: var(--color-main);
+    border-color: var(--color-main);
+}
+.message.selecting.me::after {
+    right: auto;
+    left: 12px;
 }
 
 .msg-replay {

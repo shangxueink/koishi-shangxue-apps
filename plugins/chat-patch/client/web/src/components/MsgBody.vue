@@ -18,13 +18,15 @@
             { 'revoke': data.revoke },
             { 'me': isMe && type != 'body' },
             { 'selected': selected },
+            { 'selecting': selecting },
             { 'right': settingsStore.sysConfig.opt_ind_message === true && type != 'body' },
             { 'body-only': type == 'body' }
         ]"
         :data-raw="getMsgRawTxt(data)"
         :data-sender="data.sender.user_id"
         :data-time="data.time"
-        @mouseleave="hiddenUserInfo">
+        @mouseleave="hiddenUserInfo"
+        @click="handleBodyClick">
         <template v-if="type != 'body'">
             <img v-menu.prevent="event => $emit('showMenu', event, data)"
                 v-user-tooltip="() => getUserById(data.sender.user_id)"
@@ -113,7 +115,7 @@
                             <div v-show="shouldShowImagePlaceholder(item, Number(index))"
                                 :title="$t('点击加载图片')"
                                 :class="imgStyle(data.message.length, Number(index), isFace(item)) + ' msg-img-placeholder'"
-                                @click="loadImage(item, Number(index))">
+                                @click="loadImage(item, Number(index), $event)">
                                 <font-awesome-icon
                                     :icon="['fas', imageLoading(getImageKey(Number(index), item.url)) ? 'spinner' : 'image']"
                                     :spin="imageLoading(getImageKey(Number(index), item.url))" />
@@ -129,7 +131,7 @@
                                 data-type="image"
                                 @load="imageLoaded"
                                 @error="imgLoadFail"
-                                @click="imgClick(item.url)">
+                                @click="imgClick(item.url, $event)">
                         </template>
                         <template v-else-if="item.type == 'face'">
                             <EmojiFace :emoji="Emoji.get(Number(item.id))" class="msg-face" />
@@ -147,7 +149,8 @@
                             </a>
                         </div>
                         <div
-                            v-else-if="item.type == 'file'" :class="'msg-file' + (isMe ? ' me' : '')">
+                            v-else-if="item.type == 'file'" :class="'msg-file' + (isMe ? ' me' : '')"
+                            @click="selectMedia($event)">
                             <div>
                                 <div>
                                     <a>
@@ -161,7 +164,7 @@
                             <div>
                                 <font-awesome-icon
                                     :icon="['fas', 'angle-down']"
-                                    @click="downloadFile(item, data.message_id)" />
+                                    @click.stop="fileActionClick($event, item, data.message_id)" />
                             </div>
                             <div v-if="data.fileView && Object.keys(data.fileView).length > 0"
                                 class="file-view">
@@ -181,9 +184,10 @@
                             </div>
                         </div>
                         <div v-else-if="item.type == 'video'"
-                            class="msg-video">
-                            <video playsinline controls muted
-                                autoplay>
+                            class="msg-video"
+                            @click="selectMedia($event)">
+                            <video playsinline :controls="!props.selecting" muted
+                                :autoplay="!props.selecting">
                                 <source :src="getMediaSrc(item.url ?? item.file)"
                                     type="video/mp4">
                                 现在还有不支持 video tag 的浏览器吗？
@@ -193,11 +197,13 @@
                             <VoiceMsg
                                 :item="item"
                                 :message-id="String(data.message_id)"
-                                :is-me="isMe" />
+                                :is-me="isMe"
+                                :selecting="props.selecting"
+                                @select="selectMedia($event)" />
                         </template>
                         <template v-else-if="item.type == 'forward'">
                             <div class="msg-raw-forward"
-                                @click="openMerge()">
+                                @click="openMerge($event)">
                                 <span>{{ $t('群聊的聊天记录') }}</span>
                                 <div class="forward-msg">
                                     <template v-if="item.content && item.content.length > 0">
@@ -442,25 +448,28 @@ defineOptions({ name: 'MsgBody' })
 
 const $t = i18n.global.t
 
+const props = defineProps<{
+    data: any
+    selected?: boolean
+    type?: 'merge' | 'body'
+    globalMe?: string
+    imageListHeader?: Img | undefined
+    selecting?: boolean
+}>()
 const {
     data,
     selected,
     type,
     globalMe,
     imageListHeader,
-} = defineProps<{
-    data: any
-    selected?: boolean
-    type?: 'merge' | 'body'
-    globalMe?: string
-    imageListHeader?: Img | undefined
-}>()
+} = props
 
 provide('message-content', data)
 
 const { viewer: viewerRef } = inject<{ viewer: any }>('viewer', { viewer: null })
 
 const emit = defineEmits<{
+    click: [event: MouseEvent, msg: Msg]
     scrollToMsg: [...args: any[]]
     imageLoaded: [...args: any[]]
     sendPoke: [...args: any[]]
@@ -654,7 +663,28 @@ function imgStyle(length: number, at: number, isFace: boolean) {
     return style
 }
 
-function imgClick(url: string) {
+function handleBodyClick(event: MouseEvent) {
+    if (props.selecting) emit('click', event, data)
+}
+
+function selectMedia(event: MouseEvent) {
+    if (!props.selecting) return
+    event.preventDefault()
+    event.stopPropagation()
+    emit('click', event, data)
+}
+
+function fileActionClick(event: MouseEvent, fileData: any, messageId: string) {
+    if (props.selecting) {
+        event.preventDefault()
+        emit('click', event, data)
+        return
+    }
+    downloadFile(fileData, messageId)
+}
+
+function imgClick(url: string, _event?: MouseEvent) {
+    if (props.selecting) return
     if (!viewerRef?.value) return
     let header = imageListHeader
     if (!header || !header.getBySrc(url)) {
@@ -684,7 +714,8 @@ function buildMessageImageList(): Img | undefined {
     return Img.fromList([...new Set(urls)])
 }
 
-async function loadImage(item: { url: string }, index: number) {
+async function loadImage(item: { url: string }, index: number, _event?: MouseEvent) {
+    if (props.selecting) return
     const key = getImageKey(index, item.url)
     if (manualImageLoads.value[key] || pendingImageLoads.value[key]) return
 
@@ -1119,13 +1150,25 @@ function sendPlay(info: MusicInfo) {
     addMusic(info, 'current', true)
 }
 
-async function openMerge() {
+async function openMerge(event?: MouseEvent) {
+    if (props.selecting) {
+        if (event) {
+            event.preventDefault()
+            event.stopPropagation()
+            emit('click', event, data)
+        }
+        return
+    }
     const seg = data.message[0]
-    if (!seg?.id) {
+    if (!seg) {
         new PopInfo().add(PopType.ERR, $t('无法获取合并转发内容'))
         return
     }
     if (!Array.isArray(seg.content) || seg.content.length === 0) {
+        if (!seg?.id) {
+            new PopInfo().add(PopType.ERR, $t('无法获取合并转发内容'))
+            return
+        }
         const resolved = await resolveForwardMessageContent(seg, {
             platform: String(data.platform ?? ''),
             selfId: String(data.self_id ?? ''),

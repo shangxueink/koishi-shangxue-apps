@@ -4,6 +4,10 @@ import { h } from "koishi";
 import { replacePlaceholders, logInfo, logError } from "./utils";
 import { loadCanvasImageSource } from "./canvas-source";
 
+// QQ 官方按钮限制：最多 5 行，每行最多 10 个按钮
+const MAX_KEYBOARD_ROWS = 5;
+const MAX_KEYBOARD_COLUMNS = 10;
+
 function clampPage(page: number, totalPages: number) {
   if (!Number.isFinite(page) || page < 1) return 1;
   return Math.min(Math.floor(page), totalPages);
@@ -13,7 +17,7 @@ function pickColumns(total: number) {
   if (total < 5) return 1;
   if (total <= 10) return 2;
   if (total <= 15) return 3;
-  return 4;
+  return Math.min(4, MAX_KEYBOARD_COLUMNS);
 }
 
 function chunk<T>(items: T[], size: number) {
@@ -65,7 +69,11 @@ function collectVisibleCommands(ctx: Context, session: Session, rootCommandName:
 function buildKeyboardRows(ctx: Context, session: Session, rootCommandName: string, page: number) {
   const commands = collectVisibleCommands(ctx, session, rootCommandName);
   const columns = pickColumns(commands.length);
-  const pageSize = columns * 5;
+  // 需要翻页时保留一行给“上一页/下一页”，命令按钮最多占 4 行
+  const fullPageSize = columns * MAX_KEYBOARD_ROWS;
+  const pageSize = commands.length > fullPageSize
+    ? columns * (MAX_KEYBOARD_ROWS - 1)
+    : fullPageSize;
   const totalPages = Math.max(1, Math.ceil(commands.length / pageSize));
   const currentPage = clampPage(page, totalPages);
   const pageItems = commands.slice((currentPage - 1) * pageSize, currentPage * pageSize);

@@ -100,6 +100,7 @@
                                      msgIndex.message.length > 0"
                             :key="msgIndex.fake_message_id ?? msgIndex.message_id"
                             :selected="multipleSelectList.includes(msgIndex.message_id) || tags.menuDisplay.menuSelectedMsgId == msgIndex.message_id"
+                            :selecting="multipleSelectList.length > 0"
                             :data="msgIndex"
                             :image-list-header="chatImg"
                             @click="msgClick($event, msgIndex)"
@@ -133,6 +134,7 @@
                                      msgIndex.message.length > 0"
                             :key="msgIndex.fake_message_id ?? msgIndex.message_id"
                             :selected="multipleSelectList.includes(msgIndex.message_id) || tags.menuDisplay.menuSelectedMsgId == msgIndex.message_id"
+                            :selecting="multipleSelectList.length > 0"
                             :data="msgIndex"
                             @scroll-to-msg="scrollToMsg"
                             @show-menu="showMsgMeun"
@@ -537,17 +539,14 @@
                     <input id="chat-forward-search" :placeholder="$t('搜索 ……')" @input="searchForward">
                     <div>
                         <div v-for="data in forwardList"
-                            :key=" 'forwardList-' + data.user_id ? data.user_id : data.group_id"
+                            :key=" 'forwardList-' + (data.user_id ?? data.group_id)"
                             @click="forwardMsg(data)">
                             <img loading="lazy"
-                                :title="getShowName(data.group_name || data.nickname, data.remark)"
+                                :title="forwardDisplayName(data)"
                                 :src="data.avatar || '/img/icons/icon.svg'">
                             <div>
                                 <p>
-                                    {{ data.group_name ?
-                                        data.group_name : data.remark === data.nickname ?
-                                            data.nickname : data.remark + '（' + data.nickname + '）'
-                                    }}
+                                    {{ forwardDisplayName(data) }}
                                 </p>
                                 <span>{{ data.group_id ? $t('群组') : $t('好友') }}</span>
                             </div>
@@ -606,7 +605,6 @@ import {
 import {
     getMsgRawTxt,
     sendMsgRaw,
-    getShowName,
     isShowTime,
     isDeleteMsg,
     getImageUrlData,
@@ -739,10 +737,82 @@ const forwardList = ref(contactStore.userList)
 const chatImg = ref<any>(undefined)
 const trueLang = getTrueLang()
 const isDev = import.meta.env.DEV
+let selfRefreshTimer: number | null = null
 
 function ensureChannelPrefix(channelId: string, prefix: string): string {
     if (/^(?:group|room|chat|channel|guild|private):/i.test(channelId)) return channelId
     return `${prefix}:${channelId}`
+}
+
+function messageLocalTimeMs(item: any): number {
+    const local = Number(item?.local_time ?? item?.timestamp_ms ?? item?.time_ms ?? 0)
+    if (local) return local
+    const time = Number(item?.time ?? 0)
+    return Number.isFinite(time) && time > 0 ? time * 1000 : 0
+}
+
+async function refreshSelfHistory() {
+    const id = chat.show.id
+    if (!id || id === 0 || details.value[3].open || tags.value.showForwardPan) return
+    const channelId = chat.show.type === 'group'
+        ? ensureChannelPrefix(String(chat.show.channel_id ?? id), 'group')
+        : ensureChannelPrefix(String(chat.show.channel_id ?? id), 'private')
+    let cached: Record<string, unknown>[] = []
+    try {
+        cached = await loadChatHistoryFromCache({
+            platform: String(authStore.loginInfo.platform ?? ''),
+            selfId: String(authStore.loginInfo.uin ?? ''),
+            channelId,
+            limit: 30,
+        })
+    } catch {
+        return
+    }
+    if (!cached.length || String(chat.show.id) !== String(id)) return
+
+    const seen = new Set<string>()
+    const addSeen = (item: any) => {
+        const messageId = String(item?.message_id ?? '')
+        const fakeId = String(item?.fake_message_id ?? '')
+        if (messageId) seen.add(messageId)
+        if (fakeId) seen.add(fakeId)
+    }
+    const merged = [...chatStore.messageList]
+    for (const item of merged) addSeen(item)
+
+    let added = false
+    for (const item of cached) {
+        const messageId = String(item.message_id ?? '')
+        const fakeId = String(item.fake_message_id ?? '')
+        if ((messageId && seen.has(messageId)) || (fakeId && seen.has(fakeId))) continue
+        if (!messageId && !fakeId) continue
+        addSeen(item)
+        merged.push(item)
+        added = true
+    }
+    if (!added) return
+
+    merged.sort((a, b) => messageLocalTimeMs(a) - messageLocalTimeMs(b))
+    chatStore.messageList.splice(0, chatStore.messageList.length, ...merged)
+}
+
+function startSelfRefresh() {
+    if (selfRefreshTimer !== null) {
+        window.clearInterval(selfRefreshTimer)
+        selfRefreshTimer = null
+    }
+    if (!chat.show.id) return
+    void refreshSelfHistory()
+    selfRefreshTimer = window.setInterval(() => {
+        void refreshSelfHistory()
+    }, 2500)
+}
+
+function stopSelfRefresh() {
+    if (selfRefreshTimer !== null) {
+        window.clearInterval(selfRefreshTimer)
+        selfRefreshTimer = null
+    }
 }
 
 //#region == 窗口移动相关 ==================================================
@@ -849,6 +919,7 @@ watch(() => chat, () => {
         scheduleResizeMainInput()
         scrollBottom()
     })
+    startSelfRefresh()
     const history = useSessionHistoryStore()
     const sessionId = chat.show.id
     const session = [...contactStore.userList].find(i => (i.user_id ?? i.group_id) === sessionId)
@@ -861,6 +932,7 @@ watch(() => msg.value, (_newMsg, oldMsgVal) => {
 })
 
 onMounted(() => {
+    startSelfRefresh()
     const history = useSessionHistoryStore()
     const sessionId = chat.show.id
     const session = [...contactStore.userList].find(i => (i.user_id ?? i.group_id) === sessionId)
@@ -895,6 +967,7 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
+    stopSelfRefresh()
     if (resizeMainInputFrame !== null) {
         cancelAnimationFrame(resizeMainInputFrame)
         resizeMainInputFrame = null
@@ -1686,17 +1759,37 @@ function cancelForward() {
     closeMsgMenu()
 }
 
+function contactField(data: UserFriendElem & UserGroupElem, ...keys: string[]): string {
+    const record = data as unknown as Record<string, unknown>
+    for (const key of keys) {
+        const value = record[key]
+        const text = typeof value === 'string' || typeof value === 'number' ? String(value) : ''
+        if (text && text !== 'undefined') return text
+    }
+    return ''
+}
+
+function forwardDisplayName(data: UserFriendElem & UserGroupElem): string {
+    if (data.group_id) {
+        return contactField(data, 'group_name', 'name') || String(data.group_id)
+    }
+    const name = contactField(data, 'nickname', 'name', 'nick', 'username', 'remark')
+        || String(data.user_id ?? '')
+    const id = String(data.user_id ?? '')
+    return id ? `${name}（${id}）` : name
+}
+
 function searchForward(event: Event) {
     const value = (event.target as HTMLInputElement).value
     forwardList.value = contactStore.userList.filter(
         (item: UserFriendElem & UserGroupElem) => {
-            const name = (
-                item.user_id? item.nickname + item.remark: item.group_name
-            ).toLowerCase()
-            const id = item.user_id ? item.user_id : item.group_id
+            const rawName = item.user_id
+                ? contactField(item, 'nickname', 'name', 'nick', 'remark') || String(item.user_id)
+                : contactField(item, 'group_name', 'name') || String(item.group_id || '')
+            const id = String(item.user_id ?? item.group_id ?? '')
             return (
-                name.indexOf(value.toLowerCase()) !== -1 ||
-                id.toString() === value
+                rawName.toLowerCase().indexOf(value.toLowerCase()) !== -1 ||
+                (id.length > 0 && id === value)
             )
         },
     )
@@ -1797,6 +1890,7 @@ function forwardMsg(data: UserFriendElem & UserGroupElem) {
                         })
                         multipleSelectList.value = []
                         uiStore.popBoxList.shift()
+                        finishForward(data, id)
                     },
                 },
             ],
@@ -1947,6 +2041,7 @@ function forwardMsg(data: UserFriendElem & UserGroupElem) {
                         }
                         multipleSelectList.value = []
                         uiStore.popBoxList.shift()
+                        finishForward(data, id)
                     },
                 },
             ],
@@ -1978,12 +2073,16 @@ function forwardMsg(data: UserFriendElem & UserGroupElem) {
                             targetGuildId || undefined,
                         )
                         uiStore.popBoxList.shift()
+                        finishForward(data, id)
                     },
                 },
             ],
         }
         uiStore.popBoxList.push(popInfo)
     }
+}
+
+function finishForward(data: UserFriendElem & UserGroupElem, id: string | number) {
     cancelForward()
     if(contactStore.baseOnMsgList.get(normalizeSessionId(id)) == undefined) {
         contactStore.baseOnMsgList.set(normalizeSessionId(id), data)

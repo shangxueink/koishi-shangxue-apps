@@ -8,7 +8,7 @@
 <template>
     <div class="voice-msg"
         :class="{ me: isMe, loading: isLoading, playing: isPlaying }"
-        @click.stop="togglePlay">
+        @click.stop="handleClick">
         <!-- 播放/加载图标 -->
         <div class="voice-icon">
             <font-awesome-icon v-if="isLoading" :icon="['fas', 'spinner']" spin />
@@ -82,6 +82,12 @@ const props = defineProps<{
     messageId?: string
     /** 是否为本人发送的消息 */
     isMe?: boolean
+    /** 多选模式下点击只负责选中消息，不播放语音 */
+    selecting?: boolean
+}>()
+
+const emit = defineEmits<{
+    select: [event: MouseEvent]
 }>()
 
 // ============================================================================
@@ -336,6 +342,14 @@ function togglePlay() {
     } else {
         audio.pause()
     }
+}
+
+function handleClick(event: MouseEvent) {
+    if (props.selecting) {
+        emit('select', event)
+        return
+    }
+    togglePlay()
 }
 
 function seekPosition(clientX: number) {

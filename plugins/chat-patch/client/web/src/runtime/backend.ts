@@ -45,11 +45,19 @@ export const backend = {
      * @returns 转换后的 URL
      */
     proxyUrl(url: string) {
-        if (!url || url.startsWith('data:') || url.startsWith('blob:') || url.startsWith('/chat-patch/web/media')) {
+        if (!url || url.startsWith('data:') || url.startsWith('blob:')
+            || url.startsWith('/chat-patch/web/media') || url.startsWith('/chat-patch/api/media')) {
             return url
         }
         if (url.startsWith('/vite/') || url.startsWith('/satori/')) {
             return url
+        }
+        if (/^file:/i.test(url) || /^[a-z]:[\\/]/i.test(url) || url.startsWith('\\\\')) {
+            const fileName = url
+                .replace(/^file:\/\/\/?/i, '')
+                .split(/[\\/]/)
+                .pop() || url
+            return `/chat-patch/api/media?file=${encodeURIComponent(fileName)}`
         }
         if (this.proxy && url && url.startsWith('http')) {
             return `http://localhost:${this.proxy}/proxy?url=${encodeURIComponent(url)}`
