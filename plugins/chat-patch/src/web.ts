@@ -32,19 +32,79 @@ export function registerWeb(
     return ext.toLowerCase()
   }
 
+  const mimeToExt: Record<string, string> = {
+    'audio/mpeg': '.mp3',
+    'audio/mp3': '.mp3',
+    'audio/mp4': '.m4a',
+    'audio/x-m4a': '.m4a',
+    'audio/wav': '.wav',
+    'audio/x-wav': '.wav',
+    'audio/webm': '.webm',
+    'audio/ogg': '.ogg',
+    'audio/aac': '.aac',
+    'audio/flac': '.flac',
+    'image/jpeg': '.jpg',
+    'image/png': '.png',
+    'image/gif': '.gif',
+    'image/webp': '.webp',
+    'video/mp4': '.mp4',
+    'video/webm': '.webm',
+    'video/quicktime': '.mov',
+    'video/x-msvideo': '.avi',
+    'video/x-matroska': '.mkv',
+    'video/x-flv': '.flv',
+    'video/3gpp': '.3gp',
+    'video/ogg': '.ogv',
+    'video/mp2t': '.ts',
+  }
+  const MAX_UPLOAD_BYTES = 500 * 1024 * 1024
+
   ctx.server.post(`${config.basePath}/api/upload-media`, async (koa) => {
     const requestBody = (koa.request as unknown as { body?: unknown }).body
     const body = (requestBody ?? {}) as Record<string, unknown>
     let source = String(body.dataUrl ?? body.data ?? '')
-    if (source.startsWith('base64://')) source = source.slice(9)
-    if (!source) {
+    let name = String(body.name ?? '')
+    let mime = ''
+    let buffer: Buffer | null = null
+    if (source) {
+      if (source.startsWith('base64://')) source = source.slice(9)
+      const comma = source.indexOf('base64,')
+      const base64 = comma >= 0 ? source.slice(comma + 7) : source
+      const normalizedBase64 = base64.replace(/-/g, '+').replace(/_/g, '/')
+      try {
+        buffer = Buffer.from(normalizedBase64, 'base64')
+      } catch {
+        koa.status = 400
+        koa.body = { error: 'invalid media data' }
+        return
+      }
+      mime = source.startsWith('data:')
+        ? source.slice(5, source.indexOf(';')).toLowerCase()
+        : ''
+    } else {
+      const chunks: Buffer[] = []
+      for await (const chunk of koa.req as AsyncIterable<Buffer | string>) {
+        chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk))
+      }
+      buffer = Buffer.concat(chunks)
+      name = String(koa.query.name ?? koa.get('x-file-name') ?? '')
+      try {
+        name = decodeURIComponent(name)
+      } catch {
+        // 保持原始名称即可
+      }
+      mime = String(koa.get('content-type') ?? '').split(';')[0].trim().toLowerCase()
+    }
+    if (!buffer || !buffer.length) {
       koa.status = 400
       koa.body = { error: 'missing media data' }
       return
     }
-    const comma = source.indexOf('base64,')
-    const base64 = comma >= 0 ? source.slice(comma + 7) : source
-    const buffer = Buffer.from(base64, 'base64')
+    if (buffer.length > MAX_UPLOAD_BYTES) {
+      koa.status = 413
+      koa.body = { error: 'media file too large' }
+      return
+    }
     if (!buffer.length) {
       koa.status = 400
       koa.body = { error: 'invalid media data' }
@@ -52,11 +112,19 @@ export function registerWeb(
     }
 
     await fs.mkdir(uploadDir, { recursive: true })
-    const detected = await FileType.fromBuffer(buffer)
-    const nameExt = path.extname(String(body.name ?? '')).toLowerCase()
+    let detected: { ext?: string } | undefined
+    try {
+      const result = await FileType.fromBuffer(buffer)
+      detected = result ?? undefined
+    } catch {
+      // 部分音频/文件无法识别时继续用 MIME 或文件名兜底
+      detected = undefined
+    }
+    const mimeExt = mimeToExt[mime] || ''
+    const nameExt = path.extname(name).toLowerCase()
     const ext = detected?.ext
       ? toExtension(detected.ext)
-      : nameExt || '.bin'
+      : mimeExt || nameExt || '.bin'
     const filename = `${createHash('md5').update(buffer).digest('hex')}${ext}`
     const filePath = path.join(uploadDir, filename)
     if (!existsSync(filePath)) {

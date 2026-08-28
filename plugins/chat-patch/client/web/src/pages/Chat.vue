@@ -342,6 +342,14 @@
                             style="display: none" @change="selectFile">
                         <label for="choice-file" class="sr-only">{{ $t('选择文件') }}</label>
                     </div>
+                    <div
+                        :title="$t('视频')"
+                        @click="runSelectVideo">
+                        <font-awesome-icon :icon="['fas', 'video']" />
+                        <input id="choice-video" type="file" accept="video/*"
+                            style="display: none" @change="selectVideo">
+                        <label for="choice-video" class="sr-only">{{ $t('选择视频') }}</label>
+                    </div>
                     <div class="voice-menu-wrap">
                         <div
                             :title="voiceRecording ? $t('停止录音') : $t('发送语音')"
@@ -2235,6 +2243,13 @@ function runSelectFile() {
     }
 }
 
+function runSelectVideo() {
+    const input = document.getElementById('choice-video')
+    if (input) {
+        input.click()
+    }
+}
+
 function selectFile(event: Event) {
     tags.value.showMoreDetail = false
     const sender = event.target as HTMLInputElement
@@ -2242,10 +2257,10 @@ function selectFile(event: Event) {
         const file = sender.files[0]
         const fileName = file.name
         const size = file.size
-        if (size > 1073741824) {
+        if (size > 500 * 1024 * 1024) {
             const popInfo = {
                 title: $t('提醒'),
-                html: `<span>${$t('文件大于 1GB。发送速度可能会非常缓慢；确认要发送吗？')}</span>`,
+                html: `<span>${$t('文件大于 500MB。发送速度可能会非常缓慢；确认要发送吗？')}</span>`,
                 button: [
                     {
                         text: $t('发送'),
@@ -2270,7 +2285,23 @@ function selectFile(event: Event) {
     }
 }
 
-function sendFile(file: File, fileName: string | null) {
+function selectVideo(event: Event) {
+    tags.value.showMoreDetail = false
+    const sender = event.target as HTMLInputElement
+    if (sender.files != null) {
+        const file = sender.files[0]
+        const fileName = file.name
+        const size = file.size
+        if (size > 500 * 1024 * 1024) {
+            new PopInfo().add(PopType.ERR, $t('视频文件不能超过 500MB'))
+        } else {
+            sendVideo(file, fileName)
+        }
+        sender.value = ''
+    }
+}
+
+function sendMedia(file: File, fileName: string | null, type: string) {
     const displayName = fileName ?? file.name ?? $t('未知文件')
     const taskId = addUploadTask({
         fileName: displayName,
@@ -2295,7 +2326,7 @@ function sendFile(file: File, fileName: string | null) {
                 addSpecialMsg({
                     addText: true,
                     msgObj: {
-                        type: 'file',
+                        type,
                         file: 'base64://' + base64data,
                         name: displayName,
                     },
@@ -2307,6 +2338,14 @@ function sendFile(file: File, fileName: string | null) {
             }
         }
     })
+}
+
+function sendFile(file: File, fileName: string | null) {
+    sendMedia(file, fileName, 'file')
+}
+
+function sendVideo(file: File, fileName: string | null) {
+    sendMedia(file, fileName, 'video')
 }
 
 async function setImg(file: File | null) {

@@ -515,13 +515,20 @@ async function uploadBase64Source(source: string, name = ''): Promise<string> {
         const info = await getBootstrap()
         const basePath = info.basePath || '/chat-patch'
         const normalized = source.startsWith('base64://') ? source.slice(9) : source
-        const response = await fetch(`${location.origin}${basePath}/api/upload-media`, {
+        const base64 = normalized.includes('base64,')
+            ? normalized.slice(normalized.indexOf('base64,') + 7)
+            : normalized
+        const binary = atob(base64)
+        const bytes = new Uint8Array(binary.length)
+        for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
+        const mime = normalized.startsWith('data:')
+            ? normalized.slice(5, normalized.indexOf(';')).toLowerCase()
+            : 'application/octet-stream'
+        const query = name ? `?name=${encodeURIComponent(name)}` : ''
+        const response = await fetch(`${location.origin}${basePath}/api/upload-media${query}`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                dataUrl: normalized,
-                name,
-            }),
+            headers: { 'Content-Type': mime || 'application/octet-stream' },
+            body: bytes,
         })
         if (!response.ok) return ''
         const result = await response.json() as Record<string, unknown>
@@ -545,9 +552,8 @@ async function persistBase64Markup(markup: string): Promise<string> {
         const nameMatch = /\bname\s*=\s*(["'])(.*?)\1/i.exec(attrs)
         if (srcMatch && isBase64Source(srcMatch[2])) {
             const localUrl = await uploadBase64Source(srcMatch[2], nameMatch?.[2] ?? '')
-            if (localUrl) {
-                attrs = attrs.replace(srcMatch[0], `src="${escapeMarkupAttr(localUrl)}"`)
-            }
+            if (!localUrl) throw new Error('媒体上传失败，未发送原始 Base64')
+            attrs = attrs.replace(srcMatch[0], `src="${escapeMarkupAttr(localUrl)}"`)
         }
         output += markup.slice(last, match.index)
         output += `<${tag}${attrs}${selfClosing ? '/>' : '>'}`
@@ -563,7 +569,7 @@ async function persistBase64Media(msg: string | any[] | undefined): Promise<stri
         const source = getBase64Source(item)
         if (!source) return item
         const localUrl = await uploadBase64Source(source, item?.fileName ?? item?.name ?? '')
-        if (!localUrl) return item
+        if (!localUrl) throw new Error('媒体上传失败，未发送原始 Base64')
         return {
             ...item,
             file: localUrl,
@@ -660,7 +666,12 @@ export async function sendMsgRaw(
         }
     }
     // 预发送保留 Base64 用于本地预览；真正发送前先写入后端临时目录
-    msg = await persistBase64Media(msg)
+    try {
+        msg = await persistBase64Media(msg)
+    } catch (error) {
+        logger.error(error as Error, '媒体上传失败，已阻止发送原始 Base64')
+        return
+    }
     // 检查消息体是否需要处理
     if (uiStore.msgType == BotMsgType.Array) {
         if (msg && typeof msg != 'string') {

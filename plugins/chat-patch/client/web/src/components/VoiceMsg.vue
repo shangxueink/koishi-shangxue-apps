@@ -448,6 +448,7 @@ onBeforeUnmount(() => {
     display: flex;
     align-items: center;
     gap: 10px;
+    max-width: 100%;
     cursor: pointer;
     border-radius: 10px;
     transition: all 0.2s ease;
@@ -498,11 +499,12 @@ onBeforeUnmount(() => {
     align-items: center;
     gap: 8px;
     min-width: 0;
+    max-width: 100%;
 }
 
 .voice-spectrum-wrap {
     position: relative;
-    flex: 1;
+    flex: 1 1 auto;
     min-width: 0;
     height: 22px;
     cursor: pointer;
@@ -518,8 +520,10 @@ onBeforeUnmount(() => {
 }
 
 .voice-spectrum {
-    position: absolute;
-    inset: 0;
+    position: relative;
+    flex: 1;
+    min-width: 0;
+    height: 100%;
     display: flex;
     align-items: center;
     gap: 2px;
