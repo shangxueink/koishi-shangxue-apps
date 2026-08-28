@@ -1,9 +1,8 @@
 import { Context } from 'koishi'
 import {} from '@koishijs/plugin-server'
 import { createHash } from 'node:crypto'
-import { promises as fs } from 'node:fs'
+import { createReadStream, promises as fs } from 'node:fs'
 import path from 'node:path'
-import send from 'koa-send'
 import FileType from 'file-type'
 
 import { Config } from './config'
@@ -45,7 +44,44 @@ export class MediaManager {
         koa.body = 'download failed'
         return
       }
-      await send(koa, path.basename(filePath), { root: this.mediaDir })
+      const size = (await fs.stat(filePath)).size
+      koa.type = path.extname(filePath) || 'application/octet-stream'
+      koa.set('Accept-Ranges', 'bytes')
+
+      const range = koa.headers.range
+      if (range) {
+        const match = /^bytes=(\d*)-(\d*)$/.exec(String(range))
+        if (!match) {
+          koa.status = 416
+          koa.set('Content-Range', `bytes */${size}`)
+          koa.body = ''
+          return
+        }
+        let start = 0
+        let end = size - 1
+        if (match[1] === '' && match[2]) {
+          start = Math.max(0, size - Number(match[2]))
+        } else if (match[1]) {
+          start = Number(match[1])
+          end = match[2] ? Number(match[2]) : end
+        }
+        if (!Number.isFinite(start) || !Number.isFinite(end) || start < 0 || start >= size) {
+          koa.status = 416
+          koa.set('Content-Range', `bytes */${size}`)
+          koa.body = ''
+          return
+        }
+        if (end >= size) end = size - 1
+        if (end < start) end = start
+        koa.status = 206
+        koa.set('Content-Range', `bytes ${start}-${end}/${size}`)
+        koa.set('Content-Length', String(end - start + 1))
+        koa.body = createReadStream(filePath, { start, end })
+        return
+      }
+
+      koa.set('Content-Length', String(size))
+      koa.body = createReadStream(filePath)
     })
 
     this.cleanupTimer = this.ctx.setInterval(() => {
