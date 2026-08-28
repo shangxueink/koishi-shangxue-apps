@@ -196,7 +196,7 @@ import anime from 'animejs'
 import packageInfo from '../package.json'
 
 import { computed, watch, onMounted, onUnmounted, shallowReactive, shallowRef, provide } from 'vue'
-import { Connector, login as loginInfo, loadConnectionHistory, loadConnectionFromHistory, deleteConnectionHistory, decodeStoredToken, loadContactsFromCache } from '@renderer/function/connect'
+import { Connector, login as loginInfo, loadConnectionHistory, loadConnectionFromHistory, deleteConnectionHistory, decodeStoredToken, loadContactsFromCache, loadGroupMembersFromCache } from '@renderer/function/connect'
 import { Logger, popList, PopInfo, LogType } from '@renderer/function/base'
 import { setLoginWaveTimer } from '@renderer/function/msg'
 import { BaseChatInfoElem } from '@renderer/function/elements/information'
@@ -612,13 +612,8 @@ function changeChat(data: BaseChatInfoElem) {
             },
             'getUserInfoInGroup',
         )
-        // 获取群成员列表
-        // PS：部分功能不返回用户名需要进来查找所以提前获取
-        Connector.send(
-            'get_group_member_list',
-            { group_id: guildId, guild_id: guildId, channel_id: channelId, no_cache: true },
-            'getGroupMemberList',
-        )
+        // 获取群成员列表改为读取本地缓存，不再请求 guild.member.list
+        void loadGroupMembersFromCache(String(data.id))
     }
 
     // 清理通知

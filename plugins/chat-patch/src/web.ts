@@ -89,6 +89,23 @@ export function registerWeb(
         koa.body = contact ?? null
         return
       }
+      if (type === 'member') {
+        const groupId = String(koa.query.groupId ?? koa.query.id ?? '')
+        if (!groupId) {
+          koa.status = 400
+          koa.body = { error: 'missing groupId' }
+          return
+        }
+        const memberId = String(koa.query.userId ?? '')
+        if (memberId) {
+          koa.body = await database.getGroupMember(platform, selfId, groupId, memberId) ?? null
+          return
+        }
+        koa.body = {
+          members: await database.getGroupMembers(platform, selfId, groupId),
+        }
+        return
+      }
       koa.status = 400
       koa.body = { error: 'unsupported cache type' }
       return
@@ -114,6 +131,21 @@ export function registerWeb(
       return
     }
     const normalizedType = cacheType(type)
+    if (type === 'member' && body.groupId) {
+      const groupId = String(body.groupId)
+      const contacts = Array.isArray(body.contacts) ? body.contacts as ContactCacheItem[] : []
+      if (body.append === true) {
+        for (const contact of contacts) {
+          await database.appendGroupMember(platform, selfId, groupId, contact)
+        }
+      } else {
+        await database.setGroupMembers(platform, selfId, groupId, contacts)
+      }
+      koa.body = {
+        members: await database.getGroupMembers(platform, selfId, groupId),
+      }
+      return
+    }
     if (Array.isArray(body.contacts)) {
       const contacts = body.contacts as ContactCacheItem[]
       if (body.append === true) {

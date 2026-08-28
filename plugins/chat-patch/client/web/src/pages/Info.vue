@@ -237,7 +237,7 @@ import BcTab from 'vue3-bcui/packages/bc-tab'
 import { RecycleScroller } from 'vue-virtual-scroller'
 import 'vue-virtual-scroller/dist/vue-virtual-scroller.css'
 
-import { Connector } from '@renderer/function/connect'
+import { Connector, loadGroupMembersFromCache } from '@renderer/function/connect'
 import { PopInfo, PopType } from '@renderer/function/base'
 import { toRaw, ref, nextTick } from 'vue'
 import { delay, getTrueLang } from '@renderer/function/utils/systemUtil'
@@ -334,18 +334,10 @@ function removeUser(nickname: string, group_id: number, user_id: number) {
                     uiStore.popBoxList.push(popInfo)
                     // 稍微等一下再刷新成员列表
                     delay(1000).then(() => {
-                        Connector.send(
-                            'get_group_member_list',
-                            { group_id: chatStore.chatInfo.show.id, no_cache: true },
-                            'getGroupMemberList',
-                        )
+                        void loadGroupMembersFromCache(String(chatStore.chatInfo.show.id))
                         return delay(1000)
                     }).then(() => {
-                        Connector.send(
-                            'get_group_member_list',
-                            { group_id: chatStore.chatInfo.show.id, no_cache: true },
-                            'getGroupMemberList',
-                        )
+                        void loadGroupMembersFromCache(String(chatStore.chatInfo.show.id))
                         uiStore.popBoxList.shift()
                     })
                 },

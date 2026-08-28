@@ -643,6 +643,8 @@ async function requestContactCache(params: {
   platform: string
   selfId: string
   type: string
+  groupId?: string
+  userId?: string
   contacts?: Record<string, unknown>[]
   append?: boolean
 }) {
@@ -656,14 +658,15 @@ async function requestContactCache(params: {
   const info = await getBootstrap()
   const basePath = info.basePath || '/chat-patch'
   const method = params.contacts ? 'POST' : 'GET'
-  const query = method === 'GET'
-    ? `?${new URLSearchParams({
-        platform: params.platform,
-        selfId: params.selfId,
-        type: params.type,
-      }).toString()}`
-    : ''
-  const url = `${location.origin}${basePath}/api/cache${query}`
+  const query = new URLSearchParams()
+  if (method === 'GET') {
+    query.set('platform', params.platform)
+    query.set('selfId', params.selfId)
+    query.set('type', params.type)
+    if (params.groupId) query.set('groupId', params.groupId)
+    if (params.userId) query.set('userId', params.userId)
+  }
+  const url = `${location.origin}${basePath}/api/cache${method === 'GET' ? `?${query.toString()}` : ''}`
   const response = await fetch(url, {
     method,
     headers: params.contacts ? { 'Content-Type': 'application/json' } : undefined,
@@ -865,22 +868,6 @@ function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T | null> {
   ])
 }
 
-async function requestFriendList(active: { platform: string; selfId: string }): Promise<unknown[]> {
-  let next: string | undefined
-  const users: unknown[] = []
-  do {
-    const data = await request('friend.list', next ? { next } : {}, active)
-    const root = getObject(data)
-    const page = asArray(root.data)
-      ?? asArray(data)
-      ?? asArray(getObject(root.data).data)
-      ?? []
-    users.push(...page)
-    next = getString(root.next) || getString(getObject(root.data).next) || undefined
-  } while (next)
-  return users
-}
-
 function buildGroupItem(raw: unknown, data: unknown): Record<string, unknown> {
   const root = getObject(data)
   const guild = getObject(root.guild) || getObject(root)
@@ -975,59 +962,13 @@ async function fetchGroupProfiles(
   return processedItems
 }
 
-async function cacheBotContacts(bot: { platform: string; selfId: string }) {
-  try {
-    const groupPromise = request('guild.list', {}, bot).catch(() => null)
-    const friendPromise = requestFriendList(bot).catch(() => [])
-    const [groupData, friendUsers] = await Promise.all([groupPromise, friendPromise])
-    const groupResponse = satoriResponseToOneBot('get_group_list', groupData)
-    const groups = asArray(groupResponse.data) ?? []
-    const friendResponse = satoriResponseToOneBot('get_friend_list', friendUsers)
-    const friends = asArray(friendResponse.data) ?? []
-
-    if (groups.length > 0) {
-      void withTimeout(saveContactCache('get_group_list', groups, bot), 3000).catch(() => {})
-      if (isActiveBot(bot)) {
-        dispatch({ retcode: 0, data: groups }, 'getGroupList')
-      }
-      // 群组列表拿到后，再逐个请求群组和频道信息
-      const groupItems = await fetchGroupProfiles(bot, groups, isActiveBot(bot))
-      if (groupItems.length > 0) {
-        await withTimeout(
-          saveContactCache('get_group_list', groupItems, bot),
-          5000,
-        ).catch(() => {})
-      }
-    }
-
-    if (friends.length > 0) {
-      if (isActiveBot(bot)) {
-        dispatch({ retcode: 0, data: friends }, 'getFriendList')
-      }
-      // 当前机器人直接更新界面；非当前机器人只写缓存。
-      const friendItems = await fetchFriendProfiles(bot, friends, isActiveBot(bot))
-      if (friendItems.length > 0) {
-        await withTimeout(
-          saveContactCache('get_friend_list', friendItems, bot),
-          5000,
-        ).catch(() => {})
-      }
-    }
-  } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : String(error)
-    logger.add(LogType.ERR, `初始化机器人联系人缓存失败 ${bot.platform}:${bot.selfId}: ${message}`)
-  }
+async function cacheBotContacts(_bot: { platform: string; selfId: string }) {
+  // 联系人缓存已改为收到消息时写入，不再请求 guild.list / friend.list
 }
 
 export async function refreshAllBots() {
   useContactStore().botStates.clear()
-  for (const bot of getLogins()) {
-    if (!bot.platform || !bot.selfId) continue
-    await cacheBotContacts({
-      platform: bot.platform,
-      selfId: bot.selfId,
-    })
-  }
+  await loadContactsFromCache()
 }
 
 async function fetchFriendProfiles(
@@ -1208,6 +1149,43 @@ async function loadContactType(
   }
 }
 
+export async function loadGroupMembersFromCache(groupId: string) {
+  const active = getActiveBot()
+  if (!active || !groupId || groupId === '0') return
+  try {
+    const result = await requestContactCache({
+      platform: active.platform,
+      selfId: active.selfId,
+      type: 'member',
+      groupId,
+    })
+    const members = Array.isArray(getObject(result).members)
+      ? getObject(result).members as unknown[]
+      : []
+    const mapped = members.map((contact) => {
+      const cached = getObject(contact)
+      const raw = getObject(cached.raw) || cached
+      const id = getString(raw.user_id) || getString(raw.id)
+      const avatar = hasUsableAvatar(raw.avatar)
+        ? getString(raw.avatar)
+        : hasUsableAvatar(cached.avatar)
+          ? getString(cached.avatar)
+          : ''
+      return {
+        user_id: id,
+        nickname: getString(raw.nickname) || getString(raw.name) || id,
+        card: getString(raw.card) || '',
+        role: getString(raw.role) || getString(raw.title) || '',
+        avatar,
+      }
+    })
+    dispatch({ retcode: 0, data: mapped }, 'getGroupMemberList')
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error)
+    logger.add(LogType.ERR, `加载群成员缓存失败: ${message}`)
+  }
+}
+
 export async function loadContactsFromCache() {
   const current = getActiveBot()
   const active = current ?? (login.platform && login.uin
@@ -1283,30 +1261,15 @@ export class Connector {
       return
     }
     const active = getActiveBot()
-    if (action === 'get_friend_list' && active) {
-      void requestFriendList(active)
-        .then((data) => {
-          const response = satoriResponseToOneBot('get_friend_list', data)
-          const friends = asArray(response.data) ?? []
-          void handleFriendListResponse(active, friends)
-        })
-        .catch((error: unknown) => {
-          const message = error instanceof Error ? error.message : String(error)
-          logger.error(
-            new Error(message),
-            '当前机器人不支持 friend.list，无法刷新好友列表',
-          )
-          dispatch({ retcode: -1, data: null, error: message }, echo)
-        })
+    if (active && (action === 'get_friend_list' || action === 'get_group_list')) {
+      const type = action === 'get_friend_list' ? 'friend' : 'group'
+      void loadContactType(active, { type, action, echo })
       return
     }
     void request(mapped.method, mapped.params, active)
       .then((data) => {
         const response = satoriResponseToOneBot(action, data)
         dispatch(response, echo)
-        if (action === 'get_group_list' && Array.isArray(response.data)) {
-          void saveContactCache(action, response.data)
-        }
       })
       .catch((error: unknown) => {
         dispatch({ retcode: -1, data: null, error: String(error) }, echo)

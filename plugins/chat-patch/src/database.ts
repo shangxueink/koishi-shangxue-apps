@@ -159,6 +159,51 @@ export class ChatDatabase {
     await this.setContacts(platform, selfId, type, next)
   }
 
+  async getGroupMembers(
+    platform: string,
+    selfId: string,
+    groupId: string,
+  ): Promise<ContactCacheItem[]> {
+    try {
+      const value = await this.db.get(`gm:${platform}:${selfId}:${groupId}`)
+      const parsed = JSON.parse(value) as unknown
+      return Array.isArray(parsed) ? parsed as ContactCacheItem[] : []
+    } catch {
+      return []
+    }
+  }
+
+  async setGroupMembers(
+    platform: string,
+    selfId: string,
+    groupId: string,
+    members: ContactCacheItem[],
+  ) {
+    await this.db.put(`gm:${platform}:${selfId}:${groupId}`, JSON.stringify(members))
+  }
+
+  async getGroupMember(
+    platform: string,
+    selfId: string,
+    groupId: string,
+    userId: string,
+  ): Promise<ContactCacheItem | null> {
+    const members = await this.getGroupMembers(platform, selfId, groupId)
+    return members.find((item) => item.id === userId) ?? null
+  }
+
+  async appendGroupMember(
+    platform: string,
+    selfId: string,
+    groupId: string,
+    member: ContactCacheItem,
+  ) {
+    const members = await this.getGroupMembers(platform, selfId, groupId)
+    const next = members.filter((item) => item.id !== member.id)
+    next.push(member)
+    await this.setGroupMembers(platform, selfId, groupId, next)
+  }
+
   async getAllContacts(): Promise<Array<{
     platform: string
     selfId: string

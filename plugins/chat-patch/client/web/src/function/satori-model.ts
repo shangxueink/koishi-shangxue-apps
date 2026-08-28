@@ -580,7 +580,7 @@ export function mapAction(action: string, params: Record<string, unknown>): {
     : getString(params.message) || getString(params.content)
 
   if (
-    ['get_group_member_info', 'get_group_member_list'].includes(normalized) &&
+    ['get_group_member_info'].includes(normalized) &&
     (!guildId || guildId === '0')
   ) {
     return null
@@ -594,11 +594,8 @@ export function mapAction(action: string, params: Record<string, unknown>): {
 
   const table: Record<string, { method: string; params: Record<string, unknown> }> = {
     get_login_info: { method: 'login.get', params: {} },
-    get_friend_list: { method: 'friend.list', params: {} },
-    get_group_list: { method: 'guild.list', params: {} },
     get_stranger_info: { method: 'user.get', params: { user_id: userId } },
     get_group_member_info: { method: 'guild.member.get', params: { guild_id: guildId, user_id: userId } },
-    get_group_member_list: { method: 'guild.member.list', params: { guild_id: guildId } },
     delete_msg: { method: 'message.delete', params: { channel_id: channelId, message_id: messageId } },
     get_msg: { method: 'message.get', params: { channel_id: channelId, message_id: messageId } },
     send_msg: { method: 'message.create', params: { channel_id: channelId, content } },

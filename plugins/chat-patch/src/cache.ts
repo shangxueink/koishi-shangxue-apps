@@ -151,6 +151,17 @@ export class ContactCacheService {
     })
   }
 
+  // 收到群消息时更新该群对应的群友表
+  async recordGroupMember(
+    platform: string,
+    selfId: string,
+    groupId: string,
+    member: ContactCacheItem,
+  ) {
+    if (!platform || !selfId || !groupId || !member.id) return
+    await this.database.appendGroupMember(platform, selfId, groupId, member)
+  }
+
   // 同一身份的并发请求合并，避免首条消息同时触发多个回源
   private resolve(
     platform: string,

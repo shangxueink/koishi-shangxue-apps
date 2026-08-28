@@ -41,7 +41,7 @@ import {
 } from '@renderer/function/utils/appUtil'
 import { reactive, markRaw, nextTick } from 'vue'
 import { PopInfo, PopType, Logger, LogType } from './base'
-import { Connector, getCachedUserAvatar, login, requestUserAvatar, saveConnectionToHistory } from './connect'
+import { Connector, getCachedUserAvatar, loadGroupMembersFromCache, login, requestUserAvatar, saveConnectionToHistory } from './connect'
 import {
     GroupFileElem,
     GroupFileFolderElem,
@@ -489,18 +489,10 @@ const noticeFunctions = {
         if (groupId == chatStore.chatInfo.show.id) {
             // 稍微等一下再刷新成员列表
             delay(1000).then(() => {
-                Connector.send(
-                    'get_group_member_list',
-                    { group_id: chatStore.chatInfo.show.id, no_cache: true },
-                    'getGroupMemberList',
-                )
+                void loadGroupMembersFromCache(String(chatStore.chatInfo.show.id))
                 return delay(1000)
             }).then(() => {
-                Connector.send(
-                    'get_group_member_list',
-                    { group_id: chatStore.chatInfo.show.id, no_cache: true },
-                    'getGroupMemberList',
-                )
+                void loadGroupMembersFromCache(String(chatStore.chatInfo.show.id))
             })
         }
     },
@@ -575,11 +567,7 @@ const noticeFunctions = {
         // 如果的当前打开的会话
         if (groupId == chatStore.chatInfo.show.id) {
             // 刷新群成员列表
-            Connector.send(
-                'get_group_member_list',
-                { group_id: groupId, no_cache: true },
-                'getGroupMemberList',
-            )
+            void loadGroupMembersFromCache(String(groupId))
             // 获取到用户信息
             const user = chatStore.chatInfo.info.group_members.find(
                 (item) => {
@@ -631,18 +619,10 @@ const msgFunctions = {
         uiStore.popBoxList.push(popInfo)
         // 稍微等一下再刷新成员列表
         delay(1000).then(() => {
-            Connector.send(
-                'get_group_member_list',
-                { group_id: chatStore.chatInfo.show.id, no_cache: true },
-                'getGroupMemberList',
-            )
+            void loadGroupMembersFromCache(String(chatStore.chatInfo.show.id))
             return delay(1000)
         }).then(() => {
-            Connector.send(
-                'get_group_member_list',
-                { group_id: chatStore.chatInfo.show.id, no_cache: true },
-                'getGroupMemberList',
-            )
+            void loadGroupMembersFromCache(String(chatStore.chatInfo.show.id))
             uiStore.popBoxList.shift()
         })
     },

@@ -45,7 +45,7 @@ export async function apply(ctx: Context, config: Config) {
   const media = new MediaManager(ctx, config, database, pluginLogger)
   media.start()
 
-  const recorder = new Recorder(ctx, config, database, media, pluginLogger)
+  const recorder = new Recorder(ctx, config, database, media, contactCache, pluginLogger)
   recorder.start()
 
   registerBootstrap(ctx, config, database, pluginLogger)
