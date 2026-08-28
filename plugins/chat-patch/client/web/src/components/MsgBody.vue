@@ -166,11 +166,11 @@
                             <div v-if="data.fileView && Object.keys(data.fileView).length > 0"
                                 class="file-view">
                                 <img v-if="['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'].includes(data.fileView.ext)"
-                                    :src="data.fileView.url">
+                                    :src="getMediaSrc(data.fileView.url)">
                                 <video v-else-if="['mp4', 'avi', 'mkv', 'flv'].includes(data.fileView.ext)"
                                     playsinline controls muted
                                     autoplay>
-                                    <source :src="data.fileView.url"
+                                    <source :src="getMediaSrc(data.fileView.url)"
                                         :type="'video/' + data.fileView.ext">
                                     现在还有不支持 video tag 的浏览器吗？
                                 </video>
@@ -184,7 +184,7 @@
                             class="msg-video">
                             <video playsinline controls muted
                                 autoplay>
-                                <source :src="item.url"
+                                <source :src="getMediaSrc(item.url ?? item.file)"
                                     type="video/mp4">
                                 现在还有不支持 video tag 的浏览器吗？
                             </video>
@@ -394,7 +394,7 @@ import { Connector } from '@renderer/function/connect'
 import { useSettingsStore } from '@renderer/state/settings'
 import { Logger, LogType, PopInfo, PopType } from '@renderer/function/base'
 import { StringifyOptions } from 'querystring'
-import { getMsgRawTxt, pokeAnime } from '@renderer/function/utils/msgUtil'
+import { getLocalMediaUrl, getMsgRawTxt, pokeAnime } from '@renderer/function/utils/msgUtil'
 import {
     isRobot,
     openLink,
@@ -572,7 +572,17 @@ function getImgSrc(url: string): string {
     if (url.startsWith('base64://')) {
         return `data:image/png;base64,${url.slice(9)}`
     }
+    if (url.startsWith('/chat-patch/api/media')) return url
+    const localUrl = getLocalMediaUrl(url)
+    if (localUrl !== url) return localUrl
     return resolvedImages.value[url] ?? backend.proxyUrl(url)
+}
+
+function getMediaSrc(url: string): string {
+    if (!url) return ''
+    if (url.startsWith('/chat-patch/api/media')) return url
+    const localUrl = getLocalMediaUrl(url)
+    return localUrl !== url ? localUrl : backend.proxyUrl(url)
 }
 
 function getImageKey(index: number, url: string) {

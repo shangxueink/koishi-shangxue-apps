@@ -506,6 +506,19 @@ function isBase64Source(source: string): boolean {
     return source.startsWith('base64://') || source.startsWith('data:')
 }
 
+export function getLocalMediaUrl(value: string): string {
+    if (!value) return value
+    const isLocalPath = value.startsWith('file:') ||
+        /^[a-z]:[\\/]/i.test(value) ||
+        value.startsWith('\\\\')
+    if (!isLocalPath) return value
+    const fileName = value
+        .replace(/^file:\/\//i, '')
+        .split(/[\\/]/)
+        .pop() || value
+    return `${location.origin}/chat-patch/api/media?file=${encodeURIComponent(fileName)}`
+}
+
 function escapeMarkupAttr(value: string): string {
     return value.replace(/&/g, '&amp;').replace(/"/g, '&quot;')
 }
@@ -671,6 +684,17 @@ export async function sendMsgRaw(
     } catch (error) {
         logger.error(error as Error, '媒体上传失败，已阻止发送原始 Base64')
         return
+    }
+    const fakeMessage = chatStore.messageList.find((item) => {
+        return String(item.fake_message_id ?? '') === msgUUID
+    })
+    if (fakeMessage) {
+        if (typeof msg === 'string') {
+            fakeMessage.message = parsePreviewMarkup(msg)
+        } else if (Array.isArray(msg)) {
+            fakeMessage.message = msg
+        }
+        fakeMessage.raw_message = getMsgRawTxt(fakeMessage)
     }
     // 检查消息体是否需要处理
     if (uiStore.msgType == BotMsgType.Array) {
