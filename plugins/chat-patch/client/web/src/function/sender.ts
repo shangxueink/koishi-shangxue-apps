@@ -14,6 +14,7 @@ function escapeAttr(value: string): string {
 }
 
 const satoriMarkupPattern = /<(\/?)(quote|at|img|image|audio|record|video|file|mface|face|sharp|p|br|message|text|json|xml|markdown|keyboard)(?:\s[^>]*)?\/?>/gi
+const sqTokenPattern = /(\[SQ:\d+\]|\[图片\]|\[@[^\]]+\])/g
 
 function escapeTextPreservingMarkup(value: string): string {
   const decoded = value
@@ -121,7 +122,7 @@ export function buildForwardMessage(nodes: unknown[]): string {
 
 export function parseMsg(msg: string, cache: MsgItemElem[], _img: string[]): string {
   let output = ''
-  const pattern = /(\[SQ:\d+\]|\[图片\])/g
+  const pattern = sqTokenPattern
   const consumed = new Set<number>()
   let match: RegExpExecArray | null
   let cursor = 0
@@ -135,6 +136,16 @@ export function parseMsg(msg: string, cache: MsgItemElem[], _img: string[]): str
       if (segment) {
         output += segmentToSatori(segment)
         consumed.add(index)
+      }
+    } else if (token.startsWith('[@')) {
+      const atIndex = cache.findIndex((segment, index) => {
+        return !consumed.has(index) && segment?.type === 'at'
+      })
+      if (atIndex >= 0) {
+        output += segmentToSatori(cache[atIndex])
+        consumed.add(atIndex)
+      } else {
+        output += escapeTextPreservingMarkup(token)
       }
     } else {
       const imageIndex = cache.findIndex((segment, index) => {
@@ -154,7 +165,7 @@ export function parseMsg(msg: string, cache: MsgItemElem[], _img: string[]): str
 }
 
 export function getSQList(msg: string): RegExpMatchArray | null {
-  return msg.match(/\[SQ:\d+\]|\[图片\]/g)
+  return msg.match(sqTokenPattern)
 }
 
 export default {

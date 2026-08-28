@@ -2388,7 +2388,16 @@ function removeNthOccurrence(source: string, token: string, ordinal: number): st
 
 function mediaToken(index: number): string {
     const segment = sendCache.value[index]
-    return segment?.type === 'image' ? '[图片]' : '[SQ:' + index + ']'
+    if (segment?.type === 'image') return '[图片]'
+    if (segment?.type === 'at') {
+        const id = String(segment.qq ?? segment.id ?? '')
+        const member = chatStore.chatInfo.info.group_members.find((item) => {
+            return String(item.user_id) === id
+        })
+        const name = member?.card || member?.nickname || id
+        return '[@' + name + ']'
+    }
+    return '[SQ:' + index + ']'
 }
 
 function deleteImg(index: number) {
@@ -3115,6 +3124,11 @@ async function handleInput(event: Event) {
             if(!isNaN(num) && imgCache.value.has(num)) {
                 deleteImg(num)
             }
+        }
+        const atMatch = oldMsg.value.substring(0, end).match(/\[@[^\]]+\]$/)
+        if (atMatch) {
+            const atIndex = sendCache.value.findIndex((segment) => segment?.type === 'at')
+            if (atIndex >= 0) sendCache.value.splice(atIndex, 1)
         }
     }
 
