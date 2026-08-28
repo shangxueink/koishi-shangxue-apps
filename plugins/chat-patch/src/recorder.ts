@@ -48,6 +48,8 @@ export class Recorder {
       guildId: session.guildId,
       userId: session.userId,
       timestamp: session.timestamp,
+      timestampMs: session.timestamp,
+      receivedAt: Date.now(),
       content: session.content || message?.content,
       elements: message?.elements as unknown[] | undefined,
       raw: event,

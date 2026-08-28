@@ -536,6 +536,9 @@ export function sendMsgRaw(
             fake_message_id: msgUUID,       // 用来作为这条消息的唯一标识，防止 message_id 刷新导致的闪烁
             message_type: chatStore.chatInfo.show.type,
             time: parseInt(String(new Date().getTime() / 1000)),
+            local_time: Date.now(),
+            timestamp_ms: Date.now(),
+            time_ms: Date.now(),
             post_type: 'message',
             sender: {
                 user_id: authStore.loginInfo.uin,

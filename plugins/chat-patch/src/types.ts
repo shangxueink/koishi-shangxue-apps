@@ -17,6 +17,8 @@ export interface MessageRecord {
   guildId?: string
   userId?: string
   timestamp: number
+  timestampMs?: number
+  receivedAt?: number
   content?: string
   elements?: unknown[]
   raw?: unknown

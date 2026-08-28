@@ -377,6 +377,8 @@ export function satoriEventToOneBot(event: SatoriObject): Record<string, unknown
     self_id: selfId,
     platform,
     sn: getNumber(event.sn),
+    timestamp_ms: getNumber(event.timestamp) ? normalizeTimestampMs(event.timestamp) : 0,
+    local_time: Date.now(),
     time: Math.floor(normalizeTimestampMs(event.timestamp) / 1000),
     message_seq: getNumber(event.sn),
     seq_id: getNumber(event.sn),
@@ -476,6 +478,92 @@ export function satoriElementsToText(elements: unknown): string {
     .join('')
 }
 
+function escapeText(value: unknown): string {
+  return getString(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+}
+
+function escapeAttr(value: unknown): string {
+  return escapeText(value).replace(/"/g, '&quot;')
+}
+
+function serializeMessageSegment(segment: unknown): string {
+  if (typeof segment === 'string') return escapeText(segment)
+  const item = getObject(segment)
+  const attrs = getObject(item.data)
+  const type = getString(item.type)
+  const pick = (...keys: string[]) => {
+    for (const key of keys) {
+      const value = getString(item[key]) || getString(attrs[key])
+      if (value) return value
+    }
+    return ''
+  }
+
+  switch (type) {
+    case 'text':
+      return escapeText(pick('text', 'content'))
+    case 'image':
+    case 'img': {
+      const src = pick('url', 'file', 'src')
+      return src ? `<img src="${escapeAttr(src)}"/>` : ''
+    }
+    case 'record':
+    case 'audio': {
+      const src = pick('url', 'file', 'src')
+      return src ? `<audio src="${escapeAttr(src)}"/>` : ''
+    }
+    case 'video': {
+      const src = pick('url', 'file', 'src')
+      return src ? `<video src="${escapeAttr(src)}"/>` : ''
+    }
+    case 'file': {
+      const src = pick('url', 'file', 'src')
+      const name = pick('name', 'title')
+      return src ? `<file src="${escapeAttr(src)}"${name ? ` name="${escapeAttr(name)}"` : ''}/>` : ''
+    }
+    case 'at': {
+      const id = pick('qq', 'id')
+      const name = pick('name')
+      return id ? `<at id="${escapeAttr(id)}"${name ? ` name="${escapeAttr(name)}"` : ''}/>` : ''
+    }
+    case 'reply':
+    case 'quote': {
+      const id = pick('id')
+      return id ? `<quote id="${escapeAttr(id)}"/>` : ''
+    }
+    case 'face': {
+      const src = pick('url', 'file', 'src')
+      if (src) return `<img src="${escapeAttr(src)}"/>`
+      const id = pick('id', 'face_id', 'qq')
+      const name = pick('name', 'text')
+      return id ? `<face id="${escapeAttr(id)}"${name ? ` name="${escapeAttr(name)}"` : ''}/>` : ''
+    }
+    case 'json': {
+      const data = pick('data', 'content')
+      return data ? `<json data="${escapeAttr(data)}"/>` : ''
+    }
+    case 'xml': {
+      const data = pick('data', 'content')
+      return data ? `<xml data="${escapeAttr(data)}"/>` : ''
+    }
+    case 'markdown': {
+      const content = pick('content')
+      return content ? `<markdown content="${escapeAttr(content)}"/>` : ''
+    }
+    default:
+      return ''
+  }
+}
+
+function serializeSatoriContent(segments: unknown): string {
+  if (typeof segments === 'string') return segments
+  if (!Array.isArray(segments)) return ''
+  return segments.map(serializeMessageSegment).join('')
+}
+
 export function mapAction(action: string, params: Record<string, unknown>): {
   method: string
   params: Record<string, unknown>
@@ -487,7 +575,9 @@ export function mapAction(action: string, params: Record<string, unknown>): {
   const messageId = getString(params.message_id)
   const directChannel = userId && !userId.includes(':') ? `private:${userId}` : userId
   const channelId = getString(params.channel_id) || guildId || directChannel || userId
-  const content = getString(params.message) || getString(params.content)
+  const content = Array.isArray(params.message)
+    ? serializeSatoriContent(params.message)
+    : getString(params.message) || getString(params.content)
 
   if (
     ['get_group_member_info', 'get_group_member_list'].includes(normalized) &&
@@ -561,6 +651,7 @@ function messageListFromResponse(data: unknown): unknown[] {
     return {
       message_id: getString(message.id),
       sn: getNumber(message.sn),
+      timestamp_ms: getNumber(message.timestamp) ? normalizeTimestampMs(message.timestamp) : 0,
       time: Math.floor(normalizeTimestampMs(message.timestamp) / 1000),
       message_seq: getNumber(message.sn) || getNumber(message.seq),
       seq_id: getNumber(message.sn) || getNumber(message.seq),
@@ -573,6 +664,7 @@ function messageListFromResponse(data: unknown): unknown[] {
         user_id: userId,
         nickname: getString(user.name) || getString(user.nick) || userId,
         card: getString(member.nick) || getString(member.name) || '',
+        avatar: usableAvatar(user.avatar) || usableAvatar(member.avatar),
       },
       message: messageSegments(message),
       raw_message: getString(message.content),

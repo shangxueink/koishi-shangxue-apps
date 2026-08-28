@@ -298,6 +298,10 @@ async function resolveGroupIdentity(
     return
   }
 
+  const eventName = typeof msg.group_name === 'string' ? msg.group_name : ''
+  const eventAvatar = hasUsableAvatar(
+    typeof msg.group_avatar === 'string' ? msg.group_avatar : '',
+  ) ? (typeof msg.group_avatar === 'string' ? msg.group_avatar : '') : ''
   identityDebug('group identity: request cache', { platform, selfId, sessionId, guildId, channelId })
   const cacheResult = await requestIdentityCache({
     platform,
@@ -306,6 +310,8 @@ async function resolveGroupIdentity(
     id: sessionId,
     guildId,
     channelId,
+    name: eventName,
+    avatar: eventAvatar,
   }).catch(() => null)
   const cached = getObject(cacheResult)
   const cachedName = getString(cached.name)
@@ -322,10 +328,8 @@ async function resolveGroupIdentity(
   }
 
   // 后端回源失败时只使用事件自带的字段，不再每次消息都请求 guild/channel
-  const name = typeof msg.group_name === 'string' ? msg.group_name : ''
-  const avatar = hasUsableAvatar(
-    typeof msg.group_avatar === 'string' ? msg.group_avatar : '',
-  ) ? (typeof msg.group_avatar === 'string' ? msg.group_avatar : '') : ''
+  const name = eventName
+  const avatar = eventAvatar
   if (!name && !avatar) {
     markIdentityLookup(key, false)
     return
@@ -365,13 +369,18 @@ async function fetchUserIdentity(
     }
 
     const guildId = getString(msg.guild_id) || getString(msg.group_id)
-    identityDebug('user identity: request cache', { platform, selfId, userId, guildId })
+    const sender = getObject(msg.sender)
+    const senderName = getString(sender.nickname) || getString(sender.card) || getString(sender.name)
+    const senderAvatar = hasUsableAvatar(sender.avatar) ? getString(sender.avatar) : ''
+    identityDebug('user identity: request cache', { platform, selfId, userId, guildId, senderName })
     const data = await requestIdentityCache({
       platform,
       selfId,
       type: 'user',
       id: userId,
       guildId,
+      name: senderName,
+      avatar: senderAvatar,
     }).catch(() => null)
     const root = getObject(data)
     const name = getString(root.name)
@@ -674,6 +683,8 @@ async function requestIdentityCache(params: {
   id: string
   guildId?: string
   channelId?: string
+  name?: string
+  avatar?: string
 }): Promise<Record<string, unknown> | null> {
   if (!params.platform || !params.selfId || !params.id) return null
   const info = await getBootstrap()
@@ -686,6 +697,8 @@ async function requestIdentityCache(params: {
   })
   if (params.guildId) query.set('guildId', params.guildId)
   if (params.channelId) query.set('channelId', params.channelId)
+  if (params.name) query.set('name', params.name)
+  if (params.avatar) query.set('avatar', params.avatar)
 
   const response = await fetch(`${location.origin}${basePath}/api/cache?${query.toString()}`)
   if (!response.ok) {

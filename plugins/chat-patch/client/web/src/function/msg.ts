@@ -1006,7 +1006,7 @@ const msgFunctions = {
             // PS：其实有消息通知的情况下不需要再去主动获取了
             // 但是为了兼容没有开启自身消息通知的情况，还是保留了这个功能
             Connector.send(
-                authStore.jsonMap.get_message.name ?? 'get_msg',
+                authStore.jsonMap.get_message?.name ?? 'get_msg',
                 { message_id: msg.message_id },
                 'getSendMsg_' + msg.message_id,
             )
@@ -1275,7 +1275,7 @@ const msgFunctions = {
                 // 返回的不是这条消息，重新请求
                 setTimeout(() => {
                     Connector.send(
-                        authStore.jsonMap.get_message.name ?? 'get_msg',
+                        authStore.jsonMap.get_message?.name ?? 'get_msg',
                         { message_id: echoList[1] },
                         'getSendMsg_' + echoList[1]
                     )
@@ -1950,13 +1950,20 @@ function getMessageTimestamp(msg: any): number {
 }
 
 function buildFallbackMessageKey(msg: any): string {
-    const seq = msg?.message_seq ?? msg?.seq_id ?? msg?.seq ?? msg?.sn ?? ''
+    const local = msg?.time_ms ?? msg?.local_time ?? msg?.timestamp_ms ?? ''
+    const seq = local || (msg?.message_seq ?? msg?.seq_id ?? msg?.seq ?? msg?.sn ?? '')
     const sender = msg?.sender?.user_id ?? msg?.user_id ?? msg?.sender_id ?? ''
     const ts = getMessageTimestamp(msg)
     return `${ts}|${sender}|${seq}`
 }
 
 function compareMessageOrder(a: any, b: any): number {
+    const localA = Number(a?.time_ms ?? a?.local_time ?? a?.timestamp_ms ?? 0)
+    const localB = Number(b?.time_ms ?? b?.local_time ?? b?.timestamp_ms ?? 0)
+    if (localA > 0 && localB > 0 && localA !== localB) {
+        return localA - localB
+    }
+
     const ta = getMessageTimestamp(a)
     const tb = getMessageTimestamp(b)
     if (ta !== tb) return ta - tb

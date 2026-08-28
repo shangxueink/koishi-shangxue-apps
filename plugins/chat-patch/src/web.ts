@@ -68,6 +68,8 @@ export function registerWeb(
           selfId,
           id,
           String(koa.query.guildId ?? ''),
+          String(koa.query.name ?? ''),
+          String(koa.query.avatar ?? ''),
         )
         koa.body = contact ?? null
         return
@@ -81,6 +83,8 @@ export function registerWeb(
           id,
           guildId,
           channelId,
+          String(koa.query.name ?? ''),
+          String(koa.query.avatar ?? ''),
         )
         koa.body = contact ?? null
         return

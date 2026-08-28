@@ -85,9 +85,15 @@ async function callDb(
     }
 }
 
-function serializeMsgSegments(segments: any[] | undefined): string {
+const META_SEGMENT_TYPE = 'chat-patch-meta'
+
+function serializeMsgSegments(segments: any[] | undefined, timeMs?: number): string {
     try {
-        return JSON.stringify(segments ?? [])
+        const next = [...(segments ?? [])]
+        if (Number.isFinite(timeMs) && timeMs && timeMs > 0) {
+            next.push({ type: META_SEGMENT_TYPE, time: timeMs })
+        }
+        return JSON.stringify(next)
     } catch {
         return '[]'
     }
@@ -164,7 +170,11 @@ export function msgToRecord(msg: any): LocalMsgRecord | null {
         (msg.sender?.card && msg.sender.card !== '') ? msg.sender.card : (msg.sender?.nickname ?? null)
 
     const rawMessage = computeRawMessage(msg)
-    const messageSerialized = serializeMsgSegments(msg.message)
+    const timeMs = Number(msg.local_time ?? msg.timestamp_ms ?? msg.time_ms ?? 0)
+    const messageSerialized = serializeMsgSegments(
+        msg.message,
+        Number.isFinite(timeMs) && timeMs > 0 ? timeMs : undefined,
+    )
 
     return {
         message_id: String(messageId),
@@ -464,7 +474,10 @@ async function cacheSingleImage(selfId: string | number, url: string): Promise<v
  */
 function deserializeRecord(record: LocalMsgRecord): any {
     const authStore = useAuthStore()
-    const message = deserializeMsgSegments(record.message)
+    const parsed = deserializeMsgSegments(record.message)
+    const meta = parsed.find((item) => item?.type === META_SEGMENT_TYPE)
+    const timeMs = Number(meta?.time ?? 0)
+    const message = parsed.filter((item) => item?.type !== META_SEGMENT_TYPE)
 
     // 判断是否为自己发送的消息，还原 post_type
     const isSelf = record.sender_id === Number(authStore.loginInfo.uin)
@@ -489,6 +502,9 @@ function deserializeRecord(record: LocalMsgRecord): any {
         ...(isGroup ? { group_id: record.chat_id } : { user_id: record.chat_id }),
         sender,
         time: record.time,
+        timestamp_ms: timeMs || undefined,
+        local_time: timeMs || undefined,
+        time_ms: timeMs || undefined,
         message,
         infoList,
         raw_message: record.raw_message ?? '',

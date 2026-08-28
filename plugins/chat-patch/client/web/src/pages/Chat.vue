@@ -1886,7 +1886,7 @@ function sendRespond(num: number) {
     if (msgData !== null) {
         const msgId = msgData.message_id
         Connector.send(
-            authStore.jsonMap.send_respond.name,
+            authStore.jsonMap.send_respond?.name ?? 'send_respond',
             {
                 group_id: chat.show.id,
                 message_id: msgId,

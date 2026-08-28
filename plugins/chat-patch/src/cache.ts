@@ -8,6 +8,10 @@ function getString(value: unknown): string {
   return typeof value === 'string' ? value : ''
 }
 
+function isUsableName(value: string, id: string): boolean {
+  return Boolean(value) && value !== id && !/unknown user|unknown guild|unknown channel/i.test(value)
+}
+
 function normalizeCacheType(type: string): 'group' | 'friend' {
   if (type === 'user' || type === 'friend') return 'friend'
   return 'group'
@@ -30,6 +34,8 @@ export class ContactCacheService {
     selfId: string,
     userId: string,
     guildId?: string,
+    fallbackName?: string,
+    fallbackAvatar?: string,
   ): Promise<ContactCacheItem | null> {
     if (!userId || userId === '0') return null
     const guild = guildId && guildId !== '0' ? guildId : undefined
@@ -64,6 +70,13 @@ export class ContactCacheService {
           || getString(member?.user?.avatar)
       }
 
+      const eventName = getString(fallbackName)
+      const eventAvatar = getString(fallbackAvatar)
+      if (!isUsableName(name, userId) && isUsableName(eventName, userId)) {
+        name = eventName
+      }
+      if (!avatar && eventAvatar) avatar = eventAvatar
+
       if (!name && !avatar) return null
       this.logger.logInfo('用户身份已回源并写入缓存:', userId, name)
       return {
@@ -78,6 +91,9 @@ export class ContactCacheService {
           avatar: avatar || undefined,
         },
       }
+    }, {
+      name: fallbackName,
+      avatar: fallbackAvatar,
     })
   }
 
@@ -88,6 +104,8 @@ export class ContactCacheService {
     id: string,
     guildId?: string,
     channelId?: string,
+    fallbackName?: string,
+    fallbackAvatar?: string,
   ): Promise<ContactCacheItem | null> {
     const guild = guildId && guildId !== '0' ? guildId : undefined
     const channel = channelId && channelId !== '0' ? channelId : undefined
@@ -105,8 +123,14 @@ export class ContactCacheService {
           : Promise.resolve(null),
       ])
 
-      const name = getString(guildData?.name) || getString(channelData?.name)
-      const avatar = getString(guildData?.avatar) || getString(channelData?.avatar)
+      let name = getString(guildData?.name) || getString(channelData?.name)
+      let avatar = getString(guildData?.avatar) || getString(channelData?.avatar)
+      const eventName = getString(fallbackName)
+      const eventAvatar = getString(fallbackAvatar)
+      if (!isUsableName(name, cacheId) && isUsableName(eventName, cacheId)) {
+        name = eventName
+      }
+      if (!avatar && eventAvatar) avatar = eventAvatar
       if (!name && !avatar) return null
       this.logger.logInfo('群组身份已回源并写入缓存:', cacheId, name)
       return {
@@ -121,6 +145,9 @@ export class ContactCacheService {
           avatar: avatar || undefined,
         },
       }
+    }, {
+      name: fallbackName,
+      avatar: fallbackAvatar,
     })
   }
 
@@ -131,13 +158,14 @@ export class ContactCacheService {
     type: string,
     id: string,
     fetcher: FetchContact,
+    fallback?: { name?: string; avatar?: string },
   ): Promise<ContactCacheItem | null> {
     const canonical = normalizeCacheType(type)
     const key = `${platform}:${selfId}:${canonical}:${id}`
     const existing = this.inflight.get(key)
     if (existing) return existing
 
-    const task = this.resolveUncached(platform, selfId, canonical, id, fetcher)
+    const task = this.resolveUncached(platform, selfId, canonical, id, fetcher, fallback)
       .finally(() => this.inflight.delete(key))
     this.inflight.set(key, task)
     return task
@@ -149,19 +177,56 @@ export class ContactCacheService {
     type: 'group' | 'friend',
     id: string,
     fetcher: FetchContact,
+    fallback?: { name?: string; avatar?: string },
   ): Promise<ContactCacheItem | null> {
     const cached = await this.database.getContact(platform, selfId, type, id)
-    if (cached) return this.publicContact(cached)
+    if (cached && !this.shouldRefreshWithFallback(cached, id, fallback)) {
+      return this.publicContact(cached)
+    }
 
     const bot = this.ctx.bots.find((item) => {
       return item.platform === platform && item.selfId === selfId
     })
-    if (!bot) return null
+    if (!bot) {
+      const fallbackItem = this.toFallbackContact(id, fallback)
+      if (fallbackItem) {
+        await this.database.appendContact(platform, selfId, type, fallbackItem)
+        return this.publicContact(fallbackItem)
+      }
+      return null
+    }
 
     const item = await fetcher(bot)
     if (!item) return null
     await this.database.appendContact(platform, selfId, type, item)
     return this.publicContact(item)
+  }
+
+  private shouldRefreshWithFallback(
+    cached: ContactCacheItem,
+    id: string,
+    fallback?: { name?: string; avatar?: string },
+  ): boolean {
+    if (!fallback) return false
+    const cachedNameUsable = isUsableName(cached.name, id)
+    const fallbackNameUsable = isUsableName(getString(fallback.name), id)
+    const hasCachedAvatar = Boolean(cached.avatar)
+    const hasFallbackAvatar = Boolean(getString(fallback.avatar))
+    return (!cachedNameUsable && fallbackNameUsable) || (!hasCachedAvatar && hasFallbackAvatar)
+  }
+
+  private toFallbackContact(
+    id: string,
+    fallback?: { name?: string; avatar?: string },
+  ): ContactCacheItem | null {
+    const name = isUsableName(getString(fallback?.name), id) ? getString(fallback.name) : ''
+    const avatar = getString(fallback?.avatar)
+    if (!name && !avatar) return null
+    return {
+      id,
+      name: name || id,
+      avatar: avatar || undefined,
+    }
   }
 
   private async safeGet<T>(getter: () => Promise<T>): Promise<T | null> {
