@@ -450,6 +450,8 @@ export function satoriEventToOneBot(
     const card = getString(member.nick) || getString(member.name) || ''
     return {
       ...base,
+      // 所有 Satori 平台统一保留原始报文
+      _rawSatori: event,
       post_type: type === 'send' ? 'message_sent' : 'message',
       message_type: isGroup ? 'group' : 'private',
       channel_type: channel.type,

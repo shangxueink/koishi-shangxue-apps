@@ -1806,7 +1806,7 @@ function cancelReply() {
 function consoleLogMsg() {
     if (!selectedMsg.value) return
     // eslint-disable-next-line no-console
-    console.log(selectedMsg.value)
+    console.log(selectedMsg.value?._rawSatori ?? selectedMsg.value)
     closeMsgMenu()
 }
 
