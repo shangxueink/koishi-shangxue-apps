@@ -287,6 +287,9 @@ export const backend = {
                 this.listener(type, name, callBack)
                 return
             }
+        } else if (this.isWeb()) {
+            // Web 模式没有原生事件桥，忽略监听注册
+            return
         }
         logger.error(null, `添加后端监听失败：${name}(${type})`)
     },
