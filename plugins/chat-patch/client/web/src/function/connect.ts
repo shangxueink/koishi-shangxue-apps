@@ -1019,11 +1019,13 @@ export async function fetchForwardMessage(
   platform: string,
   selfId: string,
   id: string,
+  channelId?: string,
 ): Promise<unknown[] | null> {
   if (!platform || !selfId || !id) return null
   const info = await getBootstrap()
   const basePath = info.basePath || '/chat-patch'
   const query = new URLSearchParams({ platform, selfId, id })
+  if (channelId) query.set('channelId', channelId)
   try {
     const response = await fetch(`${location.origin}${basePath}/api/forward?${query.toString()}`)
     if (!response.ok) return null
@@ -1042,26 +1044,53 @@ export async function fetchForwardMessage(
   }
 }
 
+export interface SendForwardResult {
+  ok: boolean
+  native: boolean
+  messageId?: string
+}
+
+function extractFirstMessageId(data: unknown): string | undefined {
+  const root = getObject(data)
+  const list = Array.isArray(data)
+    ? data as unknown[]
+    : Array.isArray(root.data)
+      ? root.data as unknown[]
+      : []
+  const first = list.length > 0 ? getObject(list[0]) : root
+  return getString(first.id) || getString(first.message_id) || undefined
+}
+
 export async function sendForwardMessage(
   platform: string,
   selfId: string,
   type: 'group' | 'user',
   id: string,
   messages: unknown[],
-): Promise<boolean> {
-  if (!platform || !selfId || !id || messages.length === 0) return false
-  // 优先走 Satori 原生合并转发，避免依赖后端热重载后的 send-forward API
-  if (platform === 'onebot') {
+): Promise<SendForwardResult> {
+  if (!platform || !selfId || !id || messages.length === 0) {
+    return { ok: false, native: false }
+  }
+  // 优先走 Satori 原生合并转发，避免依赖 onebot 专属的 send-forward API
+  if (platform) {
     const channelId = type === 'group'
-      ? id
+      ? /^(?:group|room|chat|channel|guild):/i.test(id)
+        ? id
+        : platform === 'yunhu'
+          ? `group:${id}`
+          : id
       : /^(?:private|direct):/i.test(id)
         ? id
         : `private:${id}`
     const content = buildForwardMessage(messages)
     if (content) {
       try {
-        await request('message.create', { channel_id: channelId, content }, { platform, selfId })
-        return true
+        const data = await request('message.create', { channel_id: channelId, content }, { platform, selfId })
+        return {
+          ok: true,
+          native: true,
+          messageId: extractFirstMessageId(data),
+        }
       } catch {
         // 原生路径失败时回退到旧 API，方便兼容尚未热重载的 Koishi 后端
       }
@@ -1075,10 +1104,147 @@ export async function sendForwardMessage(
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ platform, selfId, type, id, messages }),
     })
+    return { ok: response.ok, native: false }
+  } catch {
+    return { ok: false, native: false }
+  }
+}
+
+export interface SaveSelfMessagePayload {
+  id?: string
+  platform: string
+  selfId: string
+  channelId: string
+  guildId?: string
+  channelType: 'group' | 'user'
+  messageId?: string
+  content?: string
+  elements?: unknown[]
+  message?: unknown[]
+  forwardId?: string
+  forwardContent?: unknown[]
+  sentAt?: number
+  source?: 'webui' | 'bot' | 'plugin'
+  kind?: string
+}
+
+export async function saveSentSelfMessage(payload: SaveSelfMessagePayload): Promise<boolean> {
+  if (!payload.platform || !payload.selfId || !payload.channelId) return false
+  try {
+    const info = await getBootstrap()
+    const basePath = info.basePath || '/chat-patch'
+    const response = await fetch(`${location.origin}${basePath}/api/self-messages`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
     return response.ok
   } catch {
     return false
   }
+}
+
+// 把后端自消息缓存转换为前端 message_sent 结构
+function selfMessageToOneBot(record: unknown): Record<string, unknown> | null {
+  const obj = getObject(record)
+  const platform = getString(obj.platform)
+  const selfId = getString(obj.selfId)
+  const channelId = getString(obj.channelId)
+  const sentAt = Number(obj.sentAt ?? Date.now())
+  const messageId = getString(obj.messageId)
+  const localId = getString(obj.id) || `self-${sentAt}`
+  const channelType = getString(obj.channelType) === 'user'
+    || /^(?:private|direct):/i.test(channelId)
+    ? 'user'
+    : 'group'
+  if (!platform || !selfId || !channelId) return null
+
+  const login = getLogins().find((item) => {
+    return item.platform === platform && item.selfId === selfId
+  })
+  const forwardContent = Array.isArray(obj.forwardContent)
+    ? obj.forwardContent as unknown[]
+    : []
+  let message = Array.isArray(obj.message)
+    ? obj.message as unknown[]
+    : []
+  if (forwardContent.length > 0) {
+    const forwardIndex = message.findIndex((segment) => getObject(segment).type === 'forward')
+    if (forwardIndex >= 0) {
+      const existing = getObject(message[forwardIndex])
+      const existingContent = Array.isArray(existing.content) ? existing.content as unknown[] : []
+      if (existingContent.length === 0) {
+        message[forwardIndex] = { ...existing, content: forwardContent }
+      }
+    } else if (message.length === 0) {
+      message = [{
+        type: 'forward',
+        id: messageId || localId,
+        content: forwardContent,
+      }]
+    }
+  }
+  if (message.length === 0) {
+    const synthetic = satoriEventToOneBot({
+      type: 'send',
+      platform,
+      selfId,
+      timestamp: sentAt,
+      message: {
+        content: getString(obj.content),
+        elements: Array.isArray(obj.elements) ? obj.elements : undefined,
+      },
+      channel: {
+        id: channelId,
+        type: channelType === 'user' ? 1 : 0,
+      },
+      guild: getString(obj.guildId) ? { id: getString(obj.guildId) } : undefined,
+    })
+    if (Array.isArray(synthetic?.message)) {
+      message = synthetic.message as unknown[]
+    }
+  }
+  if (message.length === 0) return null
+
+  const groupId = channelType === 'group' ? normalizeGroupId(channelId) : ''
+  const userId = channelType === 'user' ? channelId.replace(/^(?:private|direct):/i, '') : ''
+  const guildId = getString(obj.guildId)
+  const fallbackId = messageId || `self-${localId}`
+  const rawMessage = getString(obj.content) || getMsgRawTxt({ message })
+  const msg: Record<string, unknown> = {
+    post_type: 'message_sent',
+    message_type: channelType === 'group' ? 'group' : 'private',
+    channel_type: channelType === 'group' ? 0 : 1,
+    message_id: fallbackId,
+    fake_message_id: localId,
+    user_id: groupId ? '' : userId,
+    group_id: groupId || undefined,
+    channel_id: channelId,
+    guild_id: guildId || undefined,
+    target_id: selfId,
+    time: Math.floor(sentAt / 1000) || Math.floor(Date.now() / 1000),
+    local_time: sentAt,
+    timestamp_ms: sentAt,
+    time_ms: sentAt,
+    sender: {
+      user_id: selfId,
+      nickname: getString(login?.name) || selfId,
+      avatar: getString(login?.avatar) || undefined,
+    },
+    message,
+    raw_message: rawMessage,
+    infoList: {
+      message_id: fallbackId,
+      private_id: groupId ? '' : userId,
+      group_id: groupId || undefined,
+      channel_id: channelId,
+      guild_id: guildId || undefined,
+      target_id: selfId,
+      sender: selfId,
+    },
+    _from_self_cache: true,
+  }
+  return msg
 }
 
 export async function loadChatHistoryFromCache(params: {
@@ -1128,6 +1294,22 @@ export async function loadChatHistoryFromCache(params: {
     }
     messages.push(msg)
   }
+  const existingIds = new Set(messages.map((item) => getString(item.message_id)))
+  const selfRecords = Array.isArray(result.selfMessages) ? result.selfMessages as unknown[] : []
+  for (const record of selfRecords) {
+    const msg = selfMessageToOneBot(record)
+    if (!msg) continue
+    const messageId = getString(msg.message_id)
+    const fakeId = getString(msg.fake_message_id)
+    if (existingIds.has(messageId) || (fakeId && existingIds.has(fakeId))) continue
+    existingIds.add(messageId)
+    messages.push(msg)
+  }
+  messages.sort((a, b) => {
+    const timeA = Number(a.local_time ?? a.timestamp_ms ?? a.time_ms ?? 0)
+    const timeB = Number(b.local_time ?? b.timestamp_ms ?? b.time_ms ?? 0)
+    return timeA - timeB
+  })
   return messages
 }
 

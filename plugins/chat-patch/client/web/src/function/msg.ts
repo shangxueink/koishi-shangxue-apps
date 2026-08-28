@@ -43,7 +43,7 @@ import {
 } from '@renderer/function/utils/appUtil'
 import { reactive, markRaw, nextTick } from 'vue'
 import { PopInfo, PopType, Logger, LogType } from './base'
-import { Connector, fetchForwardMessage, getCachedUserAvatar, loadGroupMembersFromCache, login, requestUserAvatar, saveConnectionToHistory } from './connect'
+import { Connector, fetchForwardMessage, getCachedUserAvatar, loadGroupMembersFromCache, login, requestUserAvatar, saveConnectionToHistory, saveSentSelfMessage } from './connect'
 import {
     GroupFileElem,
     GroupFileFolderElem,
@@ -964,9 +964,13 @@ const msgFunctions = {
     ) => {
         const authStore = useAuthStore()
         const chatStore = useChatStore()
-        if (msg.message_id == undefined) {
-            msg.message_id = msg.data.message_id
-        }
+        const rawData = msg.data
+        const firstData = Array.isArray(rawData) ? rawData[0] : rawData
+        const realMessageId = getString(msg.message_id)
+            || getString(getDataObject(rawData).message_id)
+            || getString(getDataObject(firstData).id)
+            || getString(getDataObject(firstData).message_id)
+        if (realMessageId) msg.message_id = realMessageId
         if (echoList[1] == 'forward') {
             // PS：这儿写是写了转发成功，事实上不确定消息有没有真的发送出去（x
             popInfo.add(
@@ -984,6 +988,32 @@ const msgFunctions = {
                     return
                 }
             })
+            const sentItem = chatStore.messageList.find((item) => {
+                return String(item.fake_message_id ?? item.message_id) === String(messageId)
+            })
+            const chatInfo = chatStore.chatInfo.show
+            const channelType = chatInfo.type === 'group' ? 'group' as const : 'user' as const
+            const channelId = getString(msg.channel_id)
+                || getString(msg.channelId)
+                || getString(chatInfo.channel_id)
+                || String(chatInfo.id)
+            const guildId = getString(msg.guild_id) || getString(msg.guildId) || getString(chatInfo.guild_id)
+            if (realMessageId) {
+                void saveSentSelfMessage({
+                    id: messageId,
+                    platform: getString(authStore.loginInfo.platform),
+                    selfId: getString(authStore.loginInfo.uin),
+                    channelId,
+                    guildId: guildId || undefined,
+                    channelType,
+                    messageId: realMessageId,
+                    content: getString(sentItem?.raw_message) || getMsgRawTxt(sentItem ?? {}),
+                    message: Array.isArray(sentItem?.message) ? sentItem.message : [],
+                    source: 'webui',
+                    sentAt: Number(sentItem?.local_time ?? sentItem?.timestamp_ms ?? Date.now()),
+                    kind: String(sentItem?.message?.[0]?.type ?? 'text'),
+                })
+            }
             // 请求消息内容
             // PS：其实有消息通知的情况下不需要再去主动获取了
             // 但是为了兼容没有开启自身消息通知的情况，还是保留了这个功能
@@ -2102,7 +2132,7 @@ export async function getMessageList(
  */
 export async function resolveForwardMessageContent(
     segment: { id?: unknown; content?: unknown },
-    options?: { platform?: string; selfId?: string },
+    options?: { platform?: string; selfId?: string; channelId?: string },
 ): Promise<unknown[] | undefined> {
     const authStore = useAuthStore()
     const platform = String(options?.platform || authStore.loginInfo.platform || '')
@@ -2110,8 +2140,13 @@ export async function resolveForwardMessageContent(
     if (Array.isArray(segment.content) && segment.content.length > 0) {
         return getMessageList(segment.content, options)
     }
-    if (platform !== 'onebot' || !segment.id) return undefined
-    const originData = await fetchForwardMessage(platform, selfId, String(segment.id))
+    if (!segment.id) return undefined
+    const originData = await fetchForwardMessage(
+        platform,
+        selfId,
+        String(segment.id),
+        options?.channelId,
+    )
     if (!Array.isArray(originData)) return undefined
     const normalized = originData.map((raw) => {
         const item = typeof raw === 'object' && raw !== null

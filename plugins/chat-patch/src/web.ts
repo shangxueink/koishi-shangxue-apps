@@ -12,7 +12,7 @@ import { Config } from './config'
 import { ContactCacheService } from './cache'
 import { ChatDatabase } from './database'
 import { PluginLogger } from './logger'
-import { ContactCacheItem } from './types'
+import { ContactCacheItem, SelfMessagePayload, SelfMessageRecord } from './types'
 
 export function registerWeb(
   ctx: Context,
@@ -262,23 +262,117 @@ export function registerWeb(
       messages = await queryMessages(candidate)
       if (messages.length) break
     }
+    let selfMessages: SelfMessageRecord[] = []
+    const querySelfMessages = async (cid: string): Promise<SelfMessageRecord[]> => {
+      return Number.isFinite(beforeTime) && beforeTime > 0
+        ? database.listSelfMessagesBefore(platform, selfId, cid, beforeTime, limit)
+        : database.listSelfMessages(platform, selfId, cid, limit)
+    }
+    for (const candidate of historyChannelCandidates(channelId)) {
+      selfMessages = await querySelfMessages(candidate)
+      if (selfMessages.length) break
+    }
     // 统一按本地收到时间排序，避免平台时间不准导致顺序颠倒
     messages.sort((a, b) => {
       const timeA = Number(a?.receivedAt ?? a?.timestampMs ?? a?.timestamp ?? 0)
       const timeB = Number(b?.receivedAt ?? b?.timestampMs ?? b?.timestamp ?? 0)
       return timeA - timeB
     })
+    selfMessages.sort((a, b) => a.sentAt - b.sentAt)
+    koa.body = { messages, selfMessages }
+  })
+
+  ctx.server.get(`${config.basePath}/api/self-messages`, async (koa) => {
+    const platform = String(koa.query.platform ?? '')
+    const selfId = String(koa.query.selfId ?? '')
+    const channelId = String(koa.query.channelId ?? '')
+    if (!platform || !selfId || !channelId) {
+      koa.status = 400
+      koa.body = { error: 'missing self-message params' }
+      return
+    }
+    const parsedLimit = Number(koa.query.limit ?? config.historyPageSize)
+    const limit = Number.isFinite(parsedLimit) && parsedLimit > 0 ? parsedLimit : config.historyPageSize
+    const beforeTime = Number(koa.query.beforeTime ?? 0)
+    let messages: SelfMessageRecord[] = []
+    for (const candidate of historyChannelCandidates(channelId)) {
+      messages = Number.isFinite(beforeTime) && beforeTime > 0
+        ? await database.listSelfMessagesBefore(platform, selfId, candidate, beforeTime, limit)
+        : await database.listSelfMessages(platform, selfId, candidate, limit)
+      if (messages.length) break
+    }
+    messages.sort((a, b) => a.sentAt - b.sentAt)
     koa.body = { messages }
+  })
+
+  ctx.server.post(`${config.basePath}/api/self-messages`, async (koa) => {
+    const requestBody = (koa.request as unknown as { body?: unknown }).body
+    const body = (requestBody ?? {}) as Record<string, unknown>
+    const payload: SelfMessagePayload = {
+      id: typeof body.id === 'string' ? body.id : undefined,
+      platform: String(body.platform ?? ''),
+      selfId: String(body.selfId ?? ''),
+      channelId: String(body.channelId ?? ''),
+      guildId: typeof body.guildId === 'string' ? body.guildId : undefined,
+      channelType: body.channelType === 'user' ? 'user' : 'group',
+      messageId: typeof body.messageId === 'string' ? body.messageId : undefined,
+      content: typeof body.content === 'string' ? body.content : undefined,
+      elements: Array.isArray(body.elements) ? body.elements as unknown[] : undefined,
+      message: Array.isArray(body.message) ? body.message as unknown[] : undefined,
+      forwardId: typeof body.forwardId === 'string' ? body.forwardId : undefined,
+      forwardContent: Array.isArray(body.forwardContent) ? body.forwardContent as unknown[] : undefined,
+      sentAt: typeof body.sentAt === 'number' && Number.isFinite(body.sentAt)
+        ? body.sentAt
+        : Date.now(),
+      sequence: typeof body.sequence === 'number' && Number.isFinite(body.sequence)
+        ? body.sequence
+        : 0,
+      source: body.source === 'plugin' ? 'plugin' : 'webui',
+      kind: typeof body.kind === 'string' ? body.kind : 'text',
+    }
+    if (!payload.platform || !payload.selfId || !payload.channelId) {
+      koa.status = 400
+      koa.body = { error: 'missing self-message params' }
+      return
+    }
+    const record: SelfMessageRecord = {
+      id: payload.id || `web-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+      platform: payload.platform,
+      selfId: payload.selfId,
+      channelId: payload.channelId,
+      guildId: payload.guildId,
+      channelType: payload.channelType,
+      messageId: payload.messageId,
+      content: payload.content,
+      elements: payload.elements,
+      message: payload.message,
+      forwardId: payload.forwardId,
+      forwardContent: payload.forwardContent,
+      sentAt: payload.sentAt ?? Date.now(),
+      sequence: payload.sequence ?? 0,
+      source: payload.source ?? 'webui',
+      kind: payload.kind ?? 'text',
+    }
+    await database.upsertSelfMessage(record)
+    koa.body = { ok: true, message: record }
   })
 
   ctx.server.get(`${config.basePath}/api/forward`, async (koa) => {
     const platform = String(koa.query.platform ?? '')
     const selfId = String(koa.query.selfId ?? '')
+    const channelId = String(koa.query.channelId ?? '')
     const id = String(koa.query.id ?? '')
     if (!platform || !selfId || !id) {
       koa.status = 400
       koa.body = { error: 'missing forward params' }
       return
+    }
+    if (channelId) {
+      const cached = await database.findSelfForwardContent(platform, selfId, channelId, id)
+      if (cached) {
+        koa.body = cached
+        return
+      }
     }
     if (platform !== 'onebot') {
       koa.status = 501

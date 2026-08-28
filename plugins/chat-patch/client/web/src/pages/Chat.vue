@@ -610,10 +610,11 @@ import {
     isShowTime,
     isDeleteMsg,
     getImageUrlData,
-    getDifferencesWithRanges
+    getDifferencesWithRanges,
+    updateBaseOnMsgList,
 } from '@renderer/function/utils/msgUtil'
 import { Logger, LogType, PopInfo, PopType } from '@renderer/function/base'
-import { Connector, loadChatHistoryFromCache, sendForwardMessage } from '@renderer/function/connect'
+import { Connector, loadChatHistoryFromCache, saveSentSelfMessage, sendForwardMessage } from '@renderer/function/connect'
 import {
     BaseChatInfoElem,
     MsgItemElem,
@@ -1860,15 +1861,89 @@ function forwardMsg(data: UserFriendElem & UserGroupElem) {
                                 content: cloneMessagePayload(item.message),
                             }
                         })
-                        const ok = await sendForwardMessage(
+                        const result = await sendForwardMessage(
                             String(authStore.loginInfo.platform ?? ''),
                             String(authStore.loginInfo.uin ?? ''),
                             targetType as 'group' | 'user',
                             targetId,
                             msgBody,
                         )
-                        if (!ok) {
+                        if (!result.ok) {
                             new PopInfo().add(PopType.ERR, $t('合并转发发送失败'))
+                        } else {
+                            // 部分 adapter 不广播机器人自身的发送事件，这里先本地补一条渲染
+                            const sentTime = Date.now()
+                            const sentMsg = {
+                                fake_msg: 'pending',
+                                message_id: 'forward-' + sentTime,
+                                fake_message_id: 'forward-' + sentTime,
+                                message_type: targetType,
+                                channel_type: targetType === 'group' ? 0 : 1,
+                                time: Math.floor(sentTime / 1000),
+                                local_time: sentTime,
+                                timestamp_ms: sentTime,
+                                post_type: 'message',
+                                sender: {
+                                    user_id: String(authStore.loginInfo.uin ?? ''),
+                                    nickname: String(authStore.loginInfo.nickname ?? ''),
+                                    avatar: String(authStore.loginInfo.avatar ?? ''),
+                                },
+                                message: [{
+                                    type: 'forward',
+                                    id: '',
+                                    content: msgBody.map((node) => ({
+                                        message_id: String(node.id ?? ''),
+                                        time: Number(node.time ?? Math.floor(sentTime / 1000)),
+                                        sender: {
+                                            user_id: String(node.user_id ?? ''),
+                                            nickname: String(node.nickname ?? ''),
+                                        },
+                                        message: node.content ?? [],
+                                    })),
+                                }],
+                                raw_message: `[${$t('聊天记录')}]`,
+                            }
+                            if (shouldPreShow()) {
+                                chatStore.messageList.push(sentMsg)
+                                nextTick(() => {
+                                    scrollToMsg('chat-' + sentMsg.message_id, true)
+                                })
+                            }
+                            const sentChannelId = targetType === 'group'
+                                ? (targetChannelId || targetId)
+                                : /^(?:private|direct):/i.test(targetChannelId || '')
+                                  ? targetChannelId
+                                  : `private:${targetId}`
+                            if (result.native && !result.messageId) {
+                                // 原生路径已经由后端 before-send/发送拦截写入，缺少消息 id 时不再重复写入
+                            } else {
+                                await saveSentSelfMessage({
+                                    id: String(sentMsg.fake_message_id ?? ''),
+                                    platform: String(authStore.loginInfo.platform ?? ''),
+                                    selfId: String(authStore.loginInfo.uin ?? ''),
+                                    channelId: sentChannelId,
+                                    guildId: targetGuildId || undefined,
+                                    channelType: targetType,
+                                    messageId: result.messageId,
+                                    content: String(sentMsg.raw_message ?? ''),
+                                    message: sentMsg.message,
+                                    forwardContent: msgBody,
+                                    source: 'webui',
+                                    sentAt: sentTime,
+                                    kind: 'forward',
+                                })
+                            }
+                            const targetSession = contactStore.baseOnMsgList.get(normalizeSessionId(targetId))
+                            if (targetSession) {
+                                const preview = `[${$t('聊天记录')}]`
+                                targetSession.raw_msg_base = preview
+                                targetSession.raw_msg = targetSession.group_id
+                                    ? `${String(authStore.loginInfo.nickname ?? '')}: ${preview}`
+                                    : preview
+                                targetSession.time = Math.floor(sentTime / 1000)
+                                contactStore.baseOnMsgList.set(normalizeSessionId(targetId), targetSession)
+                                updateBaseOnMsgList()
+                            }
                         }
                         multipleSelectList.value = []
                         uiStore.popBoxList.shift()

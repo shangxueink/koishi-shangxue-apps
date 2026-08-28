@@ -4,7 +4,7 @@ import path from 'node:path'
 import { createHash } from 'node:crypto'
 
 import { Config } from './config'
-import { ContactCacheItem, MessageRecord, PinnedState } from './types'
+import { ContactCacheItem, MessageRecord, PinnedState, SelfMessageRecord } from './types'
 import { PluginLogger } from './logger'
 
 function encodeKeyPart(value: string): string {
@@ -30,6 +30,16 @@ function legacyMessagePrefix(platform: string, selfId: string, channelId: string
 function messageKey(record: MessageRecord): string {
   const time = String(record.timestamp).padStart(16, '0')
   return `${messagePrefix(record.platform, record.selfId, record.channelId || '')}${time}:${encodeKeyPart(record.id || 'unknown')}`
+}
+
+// 独立命名空间保存机器人自身消息，避免和收到的用户消息混用
+function selfMessagePrefix(platform: string, selfId: string, channelId: string): string {
+  return `sm:${encodeKeyPart(platform)}:${encodeKeyPart(selfId)}:${encodeKeyPart(channelId)}:`
+}
+
+function selfMessageKey(record: SelfMessageRecord): string {
+  const time = String(record.sentAt).padStart(16, '0')
+  return `${selfMessagePrefix(record.platform, record.selfId, record.channelId)}${time}:${encodeKeyPart(record.id || 'unknown')}`
 }
 
 function contactKey(platform: string, selfId: string, type: string): string {
@@ -101,6 +111,156 @@ export class ChatDatabase {
     await this.trimMessages(record.platform, record.selfId, record.channelId || '')
   }
 
+  async upsertSelfMessage(record: SelfMessageRecord) {
+    if (record.messageId) {
+      await this.removeSelfMessageByMessageId(
+        record.platform,
+        record.selfId,
+        record.channelId,
+        record.messageId,
+        record.id,
+      )
+    }
+    await this.db.put(selfMessageKey(record), JSON.stringify(record))
+    await this.trimSelfMessages(record.platform, record.selfId, record.channelId)
+  }
+
+  async listSelfMessages(
+    platform: string,
+    selfId: string,
+    channelId: string,
+    limit = this.config.historyPageSize,
+  ): Promise<SelfMessageRecord[]> {
+    const result: SelfMessageRecord[] = []
+    const prefix = selfMessagePrefix(platform, selfId, channelId)
+    for await (const [, value] of this.db.iterator<string, string>({
+      gte: prefix,
+      lte: `${prefix}\uffff`,
+      reverse: true,
+      limit,
+    })) {
+      const parsed = this.parseSelfMessage(value)
+      if (parsed) result.push(parsed)
+    }
+    return result
+  }
+
+  async listSelfMessagesBefore(
+    platform: string,
+    selfId: string,
+    channelId: string,
+    beforeTime: number,
+    limit = this.config.historyPageSize,
+  ): Promise<SelfMessageRecord[]> {
+    const result: SelfMessageRecord[] = []
+    const prefix = selfMessagePrefix(platform, selfId, channelId)
+    const before = `${prefix}${String(beforeTime).padStart(16, '0')}`
+    for await (const [, value] of this.db.iterator<string, string>({
+      gte: prefix,
+      lt: before,
+      reverse: true,
+      limit,
+    })) {
+      const parsed = this.parseSelfMessage(value)
+      if (parsed) result.push(parsed)
+    }
+    return result
+  }
+
+  async updateSelfMessageByMessageId(
+    platform: string,
+    selfId: string,
+    _channelId: string,
+    messageId: string,
+    patch: Partial<SelfMessageRecord>,
+  ): Promise<boolean> {
+    const prefix = `sm:${encodeKeyPart(platform)}:${encodeKeyPart(selfId)}:`
+    for await (const [key, value] of this.db.iterator<string, string>({
+      gte: prefix,
+      lte: `${prefix}\uffff`,
+    })) {
+      const parsed = this.parseSelfMessage(value)
+      if (!parsed || parsed.messageId !== messageId) continue
+      const next: SelfMessageRecord = {
+        ...parsed,
+        ...patch,
+        id: parsed.id,
+        sentAt: parsed.sentAt,
+      }
+      await this.db.put(key, JSON.stringify(next))
+      return true
+    }
+    return false
+  }
+
+  async findSelfForwardContent(
+    platform: string,
+    selfId: string,
+    channelId: string,
+    id: string,
+  ): Promise<unknown[] | null> {
+    const prefixes = channelId
+      ? [selfMessagePrefix(platform, selfId, channelId)]
+      : [`sm:${encodeKeyPart(platform)}:${encodeKeyPart(selfId)}:`]
+    for (const prefix of prefixes) {
+      for await (const [, value] of this.db.iterator<string, string>({
+        gte: prefix,
+        lte: `${prefix}\uffff`,
+      })) {
+        const parsed = this.parseSelfMessage(value)
+        if (!parsed) continue
+        if (parsed.forwardId === id || parsed.messageId === id) {
+          if (Array.isArray(parsed.forwardContent) && parsed.forwardContent.length > 0) {
+            return parsed.forwardContent
+          }
+        }
+      }
+    }
+    return null
+  }
+
+  private async removeSelfMessageByMessageId(
+    platform: string,
+    selfId: string,
+    _channelId: string,
+    messageId: string,
+    exceptId: string,
+  ) {
+    const prefix = `sm:${encodeKeyPart(platform)}:${encodeKeyPart(selfId)}:`
+    const toDelete: string[] = []
+    for await (const [key, value] of this.db.iterator<string, string>({
+      gte: prefix,
+      lte: `${prefix}\uffff`,
+    })) {
+      const parsed = this.parseSelfMessage(value)
+      if (parsed && parsed.messageId === messageId && parsed.id !== exceptId) {
+        toDelete.push(key)
+      }
+    }
+    if (toDelete.length) {
+      await this.db.batch(toDelete.map((key) => ({ type: 'del', key })))
+    }
+  }
+
+  private parseSelfMessage(value: string): SelfMessageRecord | null {
+    try {
+      const parsed = JSON.parse(value) as unknown
+      if (typeof parsed === 'object' && parsed !== null) {
+        const record = parsed as Partial<SelfMessageRecord>
+        if (typeof record.id === 'string'
+          && typeof record.platform === 'string'
+          && typeof record.selfId === 'string'
+          && typeof record.channelId === 'string'
+          && typeof record.sentAt === 'number') {
+          return record as SelfMessageRecord
+        }
+      }
+    } catch {
+      this.logger.warn('机器人消息解析失败:', value.slice(0, 120))
+    }
+    return null
+  }
+
   async listMessages(
     platform: string,
     selfId: string,
@@ -168,6 +328,13 @@ export class ChatDatabase {
       })) {
         operations.push({ type: 'del', key })
       }
+    }
+    const selfPrefix = selfMessagePrefix(platform, selfId, channelId)
+    for await (const [key] of this.db.iterator<string, string>({
+      gte: selfPrefix,
+      lte: `${selfPrefix}\uffff`,
+    })) {
+      operations.push({ type: 'del', key })
     }
     if (operations.length) await this.db.batch(operations)
   }
@@ -463,5 +630,21 @@ export class ChatDatabase {
     if (!toDelete.length) return
     await this.db.batch(toDelete.map((key) => ({ type: 'del', key })))
     this.logger.logInfo(`频道历史已裁剪 ${toDelete.length} 条`)
+  }
+
+  private async trimSelfMessages(platform: string, selfId: string, channelId: string) {
+    let count = 0
+    const toDelete: string[] = []
+    const prefix = selfMessagePrefix(platform, selfId, channelId)
+    for await (const [key] of this.db.iterator<string, string>({
+      gte: prefix,
+      lte: `${prefix}\uffff`,
+    })) {
+      count += 1
+      if (count > this.config.maxMessagesPerChannel) toDelete.push(key)
+    }
+    if (!toDelete.length) return
+    await this.db.batch(toDelete.map((key) => ({ type: 'del', key })))
+    this.logger.logInfo(`机器人消息已裁剪 ${toDelete.length} 条`)
   }
 }

@@ -24,6 +24,48 @@ export interface MessageRecord {
   raw?: unknown
 }
 
+export type SelfMessageChannelType = 'group' | 'user'
+export type SelfMessageSource = 'webui' | 'bot' | 'plugin'
+
+export interface SelfMessageRecord {
+  id: string
+  platform: string
+  selfId: string
+  channelId: string
+  guildId?: string
+  channelType?: SelfMessageChannelType
+  messageId?: string
+  content?: string
+  elements?: unknown[]
+  message?: unknown[]
+  forwardId?: string
+  forwardContent?: unknown[]
+  sentAt: number
+  sequence: number
+  source: SelfMessageSource
+  kind: string
+  fingerprint?: string
+}
+
+export interface SelfMessagePayload {
+  id?: string
+  platform: string
+  selfId: string
+  channelId: string
+  guildId?: string
+  channelType?: SelfMessageChannelType
+  messageId?: string
+  content?: string
+  elements?: unknown[]
+  message?: unknown[]
+  forwardId?: string
+  forwardContent?: unknown[]
+  sentAt?: number
+  sequence?: number
+  source?: SelfMessageSource
+  kind?: string
+}
+
 export interface HistoryQuery {
   platform: string
   selfId: string

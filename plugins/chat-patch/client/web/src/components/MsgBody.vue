@@ -1129,6 +1129,7 @@ async function openMerge() {
         const resolved = await resolveForwardMessageContent(seg, {
             platform: String(data.platform ?? ''),
             selfId: String(data.self_id ?? ''),
+            channelId: String(data.channel_id ?? data.channelId ?? ''),
         }).catch(() => undefined)
         if (!resolved || resolved.length === 0) {
             new PopInfo().add(PopType.ERR, $t('无法获取合并转发内容'))

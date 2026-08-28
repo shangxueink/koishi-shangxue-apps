@@ -7,7 +7,7 @@ import { MediaManager } from './media'
 import { MessageRecord } from './types'
 import { PluginLogger } from './logger'
 
-const MESSAGE_TYPES = new Set(['message', 'message-created', 'send'])
+const MESSAGE_TYPES = new Set(['message', 'message-created'])
 
 function normalizeGroupId(value: string): string {
   const raw = value.replace(/^(?:group|room|chat|channel|guild):/i, '').trim()

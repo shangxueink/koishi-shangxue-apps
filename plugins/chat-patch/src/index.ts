@@ -8,6 +8,7 @@ import { ContactCacheService } from './cache'
 import { ChatDatabase } from './database'
 import { Recorder } from './recorder'
 import { MediaManager } from './media'
+import { SelfMessageRecorder } from './self-message'
 import { registerBootstrap } from './bootstrap'
 import { registerWeb } from './web'
 
@@ -48,6 +49,9 @@ export async function apply(ctx: Context, config: Config) {
   const recorder = new Recorder(ctx, config, database, media, contactCache, pluginLogger)
   recorder.start()
 
+  const selfMessages = new SelfMessageRecorder(ctx, config, database, pluginLogger)
+  selfMessages.start()
+
   registerBootstrap(ctx, config, database, pluginLogger)
   registerWeb(ctx, config, database, contactCache, pluginLogger)
 
@@ -57,6 +61,7 @@ export async function apply(ctx: Context, config: Config) {
   })
 
   ctx.on('dispose', () => {
+    selfMessages.dispose()
     media.dispose()
     void database.dispose()
     pluginLogger.logInfo('chat-patch 已卸载')
