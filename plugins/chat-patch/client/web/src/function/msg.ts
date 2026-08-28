@@ -28,6 +28,7 @@ import {
     updateLastestHistory,
     sendMsgAppendInfo,
 } from '@renderer/function/utils/msgUtil'
+import { parseSatoriMarkup } from '@renderer/function/satori-model'
 import {
     delay,
     getViewTime,
@@ -41,6 +42,21 @@ import {
     sendIdentifyData,
     sendStatEvent,
 } from '@renderer/function/utils/appUtil'
+
+const SATORI_MARKUP_PATTERN = /<(?:img|image|audio|video|file|mface|face|quote|at|forward|json|xml|markdown|keyboard|p|br|i18n|a|text|sharp)(?:\s|\/|>)/i
+
+function splitSatoriMarkupText(message: any[]): any[] {
+    return message.flatMap((segment) => {
+        if (
+            segment?.type === 'text' &&
+            typeof segment.text === 'string' &&
+            SATORI_MARKUP_PATTERN.test(segment.text)
+        ) {
+            return parseSatoriMarkup(segment.text)
+        }
+        return [segment]
+    })
+}
 import { reactive, markRaw, nextTick } from 'vue'
 import { PopInfo, PopType, Logger, LogType } from './base'
 import { Connector, fetchForwardMessage, getCachedUserAvatar, loadGroupMembersFromCache, login, requestUserAvatar, saveConnectionToHistory, saveSentSelfMessage } from './connect'
@@ -2099,6 +2115,9 @@ export async function getMessageList(
         msgPath.message_list.type,
         msgPath.message_value,
     )
+    list.forEach((item) => {
+        if (Array.isArray(item.message)) item.message = splitSatoriMarkupText(item.message)
+    })
     // 倒序处理
     if (msgPath.message_list.order === 'reverse') {
         list.reverse()
@@ -2182,6 +2201,7 @@ export async function msgPreprocess(
     options?: { platform?: string; selfId?: string },
 ): Promise<any> {
     if (!Array.isArray(msg.message)) return msg
+    msg.message = splitSatoriMarkupText(msg.message)
     //#region == json 合并转发 ============================
     if (msg.message.at(0)?.type === 'json') {
         try {

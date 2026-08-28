@@ -19,6 +19,7 @@ export class MsgBodyFuns {
             case 'at':
             case 'text':
             case 'face':
+            case 'i18n':
                 return true
             case 'bface':
             case 'image':

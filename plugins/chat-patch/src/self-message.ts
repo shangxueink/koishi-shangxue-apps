@@ -27,6 +27,13 @@ interface SatoriElement {
   children?: SatoriElement[]
 }
 
+const KOISHI_STATUS_I18N_FALLBACK: Record<string, string> = {
+  'commands.status.messages.status.0': '离线',
+  'commands.status.messages.status.1': '运行中',
+  'commands.status.messages.status.2': '连接中',
+  'commands.status.messages.status.3': '异常',
+}
+
 function getString(value: unknown): string {
   return typeof value === 'string' ? value : ''
 }
@@ -68,7 +75,10 @@ function isPrivateChannel(value: string): boolean {
   return /^(?:private|direct):/i.test(value)
 }
 
-function toSegments(elements: unknown[]): unknown[] {
+function toSegments(
+  elements: unknown[],
+  resolveI18n?: (attrs: Record<string, unknown>) => string,
+): unknown[] {
   const result: unknown[] = []
   for (const raw of elements) {
     const element = toSatoriElement(raw)
@@ -104,12 +114,19 @@ function toSegments(elements: unknown[]): unknown[] {
       result.push({
         type: 'forward',
         id: getString(attrs.id),
-        content: toForwardNodes(element.children ?? []) ?? [],
+        content: toForwardNodes(element.children ?? [], resolveI18n) ?? [],
       })
-    } else if (type === 'p' || type === 'br') {
+    } else if (type === 'p') {
+      result.push(...toSegments(element.children ?? [], resolveI18n))
       result.push({ type: 'text', text: '\n' })
+    } else if (type === 'br') {
+      result.push({ type: 'text', text: '\n' })
+    } else if (type === 'i18n') {
+      const path = getString(attrs.path)
+      const resolved = resolveI18n ? resolveI18n(attrs) : ''
+      result.push({ type: 'text', text: resolved || `[${path || 'i18n'}]` })
     } else if (element.children?.length) {
-      result.push(...toSegments(element.children))
+      result.push(...toSegments(element.children, resolveI18n))
     } else if (type && type !== 'author' && type !== 'button' && type !== 'keyboard') {
       result.push({ type: 'text', text: `[${type}]` })
     }
@@ -118,7 +135,10 @@ function toSegments(elements: unknown[]): unknown[] {
 }
 
 // 将 Satori figure/message 转换为前端可直接渲染的合并转发节点
-function toForwardNodes(elements: unknown[]): unknown[] | undefined {
+function toForwardNodes(
+  elements: unknown[],
+  resolveI18n?: (attrs: Record<string, unknown>) => string,
+): unknown[] | undefined {
   const nodes: unknown[] = []
   const collect = (list: SatoriElement[]) => {
     for (const element of list) {
@@ -144,7 +164,7 @@ function toForwardNodes(elements: unknown[]): unknown[] | undefined {
           nickname: getString(authorAttrs.name),
           avatar: getString(authorAttrs.avatar),
         },
-        message: toSegments(content),
+        message: toSegments(content, resolveI18n),
       })
     }
   }
@@ -358,6 +378,21 @@ export class SelfMessageRecorder {
     await this.database.upsertSelfMessage(record)
   }
 
+  private resolveI18nElement(attrs: Record<string, unknown>): string {
+    const path = getString(attrs.path)
+    if (!path || !this.ctx.i18n) return `[${path || 'i18n'}]`
+    try {
+      const locales = this.ctx.i18n.fallback([])
+      const text = this.ctx.i18n.render(locales, [path], attrs || {})
+      if (text && typeof text === 'string') return text
+    } catch {
+      // 使用 path 原文兜底，避免 i18n 解析失败时整段丢失
+    }
+    const knownFallback = KOISHI_STATUS_I18N_FALLBACK[path]
+    if (knownFallback) return knownFallback
+    return `[${path}]`
+  }
+
   private buildRecord(
     platform: string,
     selfId: string,
@@ -397,9 +432,9 @@ export class SelfMessageRecorder {
       messageId,
       content: contentText,
       elements: JSON.parse(JSON.stringify(elements)) as unknown[],
-      message: toSegments(elements),
+      message: toSegments(elements, (attrs) => this.resolveI18nElement(attrs)),
       forwardId: forwardId(elements),
-      forwardContent: toForwardNodes(elements),
+      forwardContent: toForwardNodes(elements, (attrs) => this.resolveI18nElement(attrs)),
       sentAt: Date.now(),
       sequence: ++this.sequence,
       source,

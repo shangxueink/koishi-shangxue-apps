@@ -91,6 +91,7 @@
                         :class="View.isMsgInline(item.type) ? 'msg-inline' : ''">
                         <div v-if="item.type === undefined" />
                         <span v-else-if="isDebugMsg" class="msg-text">{{ item }}</span>
+                        <span v-else-if="item.type == 'i18n'" class="msg-text">{{ item.path ? $t(item.path, item.params ?? {}) : '[i18n]' }}</span>
                         <template v-else-if="item.type == 'text'">
                             <div v-if="hasMarkdown()" class="msg-md-title" />
                             <span v-else v-show="item.text !== ''"
@@ -398,6 +399,7 @@ import { MsgBodyFuns as ViewFuns } from '@renderer/function/model/msg-body'
 import { watch, onMounted, nextTick, provide, inject, useTemplateRef, ref, toRaw } from 'vue'
 import { Connector } from '@renderer/function/connect'
 import { resolveForwardMessageContent } from '@renderer/function/msg'
+import { parseSatoriMarkup } from '@renderer/function/satori-model'
 import { useSettingsStore } from '@renderer/state/settings'
 import { Logger, LogType, PopInfo, PopType } from '@renderer/function/base'
 import { StringifyOptions } from 'querystring'
@@ -782,7 +784,11 @@ async function parseText(index: number) {
     let text = data.message[index].text
 
     const logger = new Logger()
-    text = ViewFuns.parseText(text)
+    if (/(?:<(?:\/?)(?:p|br|i18n|a|text|sharp)(?:\s|\/|>))/i.test(text)) {
+        text = renderSatoriMarkupText(text)
+    } else {
+        text = ViewFuns.parseText(text)
+    }
     const filtedText = text.replace(/(.)(\1{10,})/g, '$1<span style="opacity:0.7;margin-right:10px;">...</span>')
     if(filtedText != text) {
         const style = 'display:block;margin-top:10px;opacity:0.7;cursor:pointer;'
@@ -885,6 +891,31 @@ function loadLinkPreview(domain: string, res: any) {
             pageViewInfo.value = res
         }
     }
+}
+
+function escapeHtmlText(value: string): string {
+    return value
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;')
+}
+
+function renderSatoriMarkupText(source: string): string {
+    return parseSatoriMarkup(source).map((segment) => {
+        if (segment.type === 'i18n') {
+            const path = String(segment.path || '[i18n]')
+            const params = typeof segment.params === 'object' && segment.params !== null
+                ? segment.params as Record<string, unknown>
+                : {}
+            return escapeHtmlText($t(path, params))
+        }
+        if (segment.type === 'text') {
+            return escapeHtmlText(String(segment.text)).replace(/\n/g, '<br>')
+        }
+        return escapeHtmlText(String(segment.text || segment.path || ''))
+    }).join('')
 }
 
 function linkViewPicFin() {

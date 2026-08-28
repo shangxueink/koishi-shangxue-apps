@@ -300,6 +300,9 @@ export function getMsgRawTxt(data: any): string {
                         .replaceAll('\n', ' ')
                         .replaceAll('\r', ' ')
                     break
+                case 'i18n':
+                    back += message[i].path || '[i18n]'
+                    break
                 case 'forward':
                     back += '[' + $t('聊天记录') + ']'
                     break

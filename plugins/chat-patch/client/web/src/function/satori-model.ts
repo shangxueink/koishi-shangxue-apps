@@ -139,6 +139,9 @@ function pushParsedTag(
     case 'br':
       result.push({ type: 'text', text: '\n' })
       break
+    case 'i18n':
+      result.push({ type: 'i18n', path: attrs.path || '', params: attrs })
+      break
     case 'at':
       const atName = attrs.type === 'all' ? '所有人' : (attrs.name || attrs.id || '')
       result.push({
@@ -219,7 +222,7 @@ function pushParsedTag(
 }
 
 function childrenText(children: Array<Record<string, unknown>>): string {
-  return children.map((item) => getString(item.text) || getString(item.summary) || getString(item.name)).join('')
+  return children.map((item) => getString(item.text) || getString(item.path) || getString(item.summary) || getString(item.name)).join('')
 }
 
 function normalizeAtText(name: string, id: string): string {
@@ -228,7 +231,7 @@ function normalizeAtText(name: string, id: string): string {
 }
 
 function containsElementMarkup(source: string): boolean {
-  return /<(img|image|audio|video|file|mface|face|quote|at|forward|json|xml|markdown|keyboard)(?:\s|\/|>)/i.test(source)
+  return /<(img|image|audio|video|file|mface|face|quote|at|forward|json|xml|markdown|keyboard|p|br|i18n|a|text|sharp)(?:\s|\/|>)/i.test(source)
 }
 
 function splitMarkupTextSegments(
@@ -246,7 +249,7 @@ function splitMarkupTextSegments(
   return result
 }
 
-function parseSatoriMarkup(source: string): Array<Record<string, unknown>> {
+export function parseSatoriMarkup(source: string): Array<Record<string, unknown>> {
   const result: Array<Record<string, unknown>> = []
   let index = 0
   while (index < source.length) {
@@ -374,8 +377,13 @@ function toSegments(elements: unknown): Array<Record<string, unknown>> {
       // 按钮段不渲染
     } else if (type === 'message' && ('forward' in attrs || attrs.forward)) {
       result.push({ type: 'forward', id: getString(attrs.id), content: children })
-    } else if (type === 'p' || type === 'br') {
+    } else if (type === 'p') {
+      result.push(...toSegments(children))
       result.push({ type: 'text', text: '\n' })
+    } else if (type === 'br') {
+      result.push({ type: 'text', text: '\n' })
+    } else if (type === 'i18n') {
+      result.push({ type: 'i18n', path: getString(attrs.path), params: attrs })
     } else if (children.length > 0) {
       result.push(...toSegments(children))
     } else {
@@ -386,7 +394,10 @@ function toSegments(elements: unknown): Array<Record<string, unknown>> {
 }
 
 function messageFromEvent(event: SatoriObject): SatoriObject {
-  return getObject(event.message)
+  const message = event.message
+  if (typeof message === 'string') return { content: message }
+  if (Array.isArray(message)) return { elements: message }
+  return getObject(message)
 }
 
 function userFromEvent(event: SatoriObject): SatoriObject {
@@ -517,7 +528,7 @@ export function satoriEventToOneBot(
 
 export function satoriElementsToText(elements: unknown): string {
   return toSegments(elements)
-    .map((segment) => getString(segment.text))
+    .map((segment) => getString(segment.text) || getString(segment.path))
     .join('')
 }
 
