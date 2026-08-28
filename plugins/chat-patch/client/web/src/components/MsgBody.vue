@@ -17,7 +17,7 @@
             'message', type ?? '',
             { 'revoke': data.revoke },
             { 'me': isMe && type != 'body' },
-            { 'selected': selected },
+            { 'selected': props.selected },
             { 'selecting': selecting },
             { 'right': settingsStore.sysConfig.opt_ind_message === true && type != 'body' },
             { 'body-only': type == 'body' }
@@ -59,7 +59,7 @@
                 <a v-else>
                     {{ isMe ? authStore.loginInfo.nickname : chatStore.chatInfo.show.name }}
                 </a>
-                <a v-if="selected" class="time">
+                <a v-if="props.selected" class="time">
                     {{ Intl.DateTimeFormat(trueLang, {
                         year: 'numeric',
                         month: '2-digit',
@@ -458,7 +458,6 @@ const props = defineProps<{
 }>()
 const {
     data,
-    selected,
     type,
     globalMe,
     imageListHeader,

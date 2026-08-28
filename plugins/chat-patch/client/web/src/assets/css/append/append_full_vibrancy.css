@@ -130,6 +130,7 @@
 /* 多选模式：未选中消息弱化，选中消息显示描边和勾选 */
 .message.selecting {
     position: relative;
+    padding-left: 36px;
     opacity: 0.55;
     cursor: pointer;
 }
@@ -143,7 +144,8 @@
     content: '';
     position: absolute;
     top: 8px;
-    right: 12px;
+    left: 10px;
+    right: auto;
     width: 18px;
     height: 18px;
     box-sizing: border-box;
@@ -154,18 +156,9 @@
     z-index: 2;
 }
 .message.selecting.selected::after {
-    content: '\2713';
-    color: #fff;
-    font-size: 12px;
-    font-weight: 700;
-    line-height: 14px;
-    text-align: center;
+    content: '';
     background: var(--color-main);
     border-color: var(--color-main);
-}
-.message.selecting.me::after {
-    right: auto;
-    left: 12px;
 }
 
 .msg-replay {
