@@ -17,6 +17,7 @@ import {
   satoriEventToOneBot,
   satoriResponseToOneBot,
 } from './satori-model'
+import { buildForwardMessage } from './sender'
 import { Logger, LogType } from './base'
 import { useAuthStore } from '@renderer/state/auth'
 import { useChatStore } from '@renderer/state/chat'
@@ -1049,6 +1050,23 @@ export async function sendForwardMessage(
   messages: unknown[],
 ): Promise<boolean> {
   if (!platform || !selfId || !id || messages.length === 0) return false
+  // 优先走 Satori 原生合并转发，避免依赖后端热重载后的 send-forward API
+  if (platform === 'onebot') {
+    const channelId = type === 'group'
+      ? id
+      : /^(?:private|direct):/i.test(id)
+        ? id
+        : `private:${id}`
+    const content = buildForwardMessage(messages)
+    if (content) {
+      try {
+        await request('message.create', { channel_id: channelId, content }, { platform, selfId })
+        return true
+      } catch {
+        // 原生路径失败时回退到旧 API，方便兼容尚未热重载的 Koishi 后端
+      }
+    }
+  }
   const info = await getBootstrap()
   const basePath = info.basePath || '/chat-patch'
   try {

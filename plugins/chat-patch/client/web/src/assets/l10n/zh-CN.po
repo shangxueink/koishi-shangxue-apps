@@ -414,6 +414,9 @@ msgstr ""
 msgid "加载图片失败"
 msgstr ""
 
+msgid "图片加载失败"
+msgstr ""
+
 msgid "精华消息"
 msgstr ""
 

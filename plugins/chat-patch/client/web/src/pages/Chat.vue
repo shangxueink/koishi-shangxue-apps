@@ -1854,8 +1854,9 @@ function forwardMsg(data: UserFriendElem & UserGroupElem) {
                             return {
                                 type: 'node',
                                 id: item.message_id,
-                                user_id: item.sender.user_id,
-                                nickname: item.sender.nickname,
+                                user_id: String(item.sender?.user_id ?? ''),
+                                nickname: String(item.sender?.card || item.sender?.nickname || ''),
+                                time: item.time,
                                 content: cloneMessagePayload(item.message),
                             }
                         })

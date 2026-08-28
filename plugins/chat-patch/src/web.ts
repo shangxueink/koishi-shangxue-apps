@@ -340,10 +340,12 @@ export function registerWeb(
         sendPrivateForwardMsg?: (userId: string, messages: unknown[]) => Promise<unknown>
       }
     }).internal
-    const method = type === 'group'
-      ? internal?.sendGroupForwardMsg
-      : internal?.sendPrivateForwardMsg
-    if (!method) {
+    if (type === 'group' && !internal?.sendGroupForwardMsg) {
+      koa.status = 501
+      koa.body = { error: 'forward api not supported' }
+      return
+    }
+    if (type !== 'group' && !internal?.sendPrivateForwardMsg) {
       koa.status = 501
       koa.body = { error: 'forward api not supported' }
       return
@@ -361,11 +363,17 @@ export function registerWeb(
         : Array.isArray(nodeData.content)
           ? nodeData.content as unknown[]
           : []
+      const userId = String(item.user_id ?? nodeData.user_id ?? nodeData.uin ?? '')
+      const nickname = String(item.nickname ?? nodeData.nickname ?? nodeData.name ?? '')
       return {
         type: 'node',
         data: {
-          user_id: String(item.user_id ?? nodeData.user_id ?? ''),
-          nickname: String(item.nickname ?? nodeData.nickname ?? ''),
+          user_id: userId,
+          nickname,
+          // koishi 的 OneBot adapter 发送自定义转发节点时使用 uin/name
+          uin: userId,
+          name: nickname,
+          time: String(item.time ?? nodeData.time ?? Math.floor(Date.now() / 1000)),
           content: content.map((segmentRaw) => {
             const segment = typeof segmentRaw === 'object' && segmentRaw !== null
               ? segmentRaw as Record<string, unknown>
@@ -379,7 +387,10 @@ export function registerWeb(
       }
     })
     try {
-      koa.body = await method(id, nodes)
+      // 必须从 internal 上直接调用，避免方法被取出后丢失 this
+      koa.body = type === 'group'
+        ? await internal?.sendGroupForwardMsg?.(id, nodes)
+        : await internal?.sendPrivateForwardMsg?.(id, nodes)
     } catch (error) {
       koa.status = 502
       koa.body = { error: 'send forward failed' }

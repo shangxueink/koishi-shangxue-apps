@@ -73,7 +73,50 @@ function segmentToSatori(segment: MsgItemElem): string {
     const name = String(segment.name ?? '')
     return src ? `<file src="${escapeAttr(src)}"${name ? ` name="${escapeAttr(name)}"` : ''}/>` : ''
   }
+  if (type === 'json') {
+    const data = String(segment.data ?? segment.content ?? '')
+    return data ? `<json data="${escapeAttr(data)}"/>` : ''
+  }
+  if (type === 'xml') {
+    const data = String(segment.data ?? segment.content ?? '')
+    return data ? `<xml data="${escapeAttr(data)}"/>` : ''
+  }
+  if (type === 'markdown') {
+    const content = String(segment.content ?? '')
+    return content ? `<markdown content="${escapeAttr(content)}"/>` : ''
+  }
+  if (type === 'forward') {
+    const id = String(segment.id ?? '')
+    return id ? `<forward id="${escapeAttr(id)}"/>` : ''
+  }
   return escapeText(String(segment.text ?? `[${type}]`))
+}
+
+/**
+ * 将一组消息节点构建为 Satori 合并转发元素
+ */
+export function buildForwardMessage(nodes: unknown[]): string {
+  const messages = nodes.map((raw) => {
+    const item = typeof raw === 'object' && raw !== null
+      ? raw as Record<string, unknown>
+      : {}
+    const nodeData = typeof item.data === 'object' && item.data !== null
+      ? item.data as Record<string, unknown>
+      : item
+    const userId = String(item.user_id ?? nodeData.user_id ?? nodeData.uin ?? '')
+    const nickname = String(item.nickname ?? nodeData.nickname ?? nodeData.name ?? '')
+    const displayName = nickname || userId
+    const time = String(item.time ?? nodeData.time ?? '')
+    const content = Array.isArray(item.content)
+      ? item.content as unknown[]
+      : Array.isArray(nodeData.content)
+        ? nodeData.content as unknown[]
+        : []
+    const inner = content.map((segment) => segmentToSatori(segment as MsgItemElem)).join('')
+    const author = `<author id="${escapeAttr(userId)}" name="${escapeAttr(displayName)}"${time ? ` time="${escapeAttr(time)}"` : ''}/>`
+    return `<message>${author}${inner}</message>`
+  }).join('')
+  return `<figure>${messages}</figure>`
 }
 
 export function parseMsg(msg: string, cache: MsgItemElem[], _img: string[]): string {
