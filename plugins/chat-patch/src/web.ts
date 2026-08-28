@@ -33,7 +33,7 @@ export function registerWeb(
   }
 
   const normalizeGroupId = (value: string): string => {
-    const raw = value.replace(/^(?:group|room|chat|channel|guild|private):/i, '').trim()
+    const raw = value.replace(/^(?:group|room|chat|channel|guild):/i, '').trim()
     const wrapped = raw.match(/^\[_?([\s\S]+?)_?\]$/)
     return wrapped ? wrapped[1] : raw || value
   }
@@ -304,6 +304,7 @@ export function registerWeb(
       if (type === 'group') {
         const guildId = String(koa.query.guildId ?? '')
         const channelId = String(koa.query.channelId ?? '')
+        const channelType = koa.query.channelType
         const contact = await contactCache.getGroup(
           platform,
           selfId,
@@ -312,6 +313,7 @@ export function registerWeb(
           channelId,
           String(koa.query.name ?? ''),
           String(koa.query.avatar ?? ''),
+          channelType,
         )
         koa.body = contact ?? null
         return

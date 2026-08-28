@@ -19,9 +19,31 @@ function getString(value: unknown): string {
 }
 
 function normalizeGroupId(value: string): string {
-  const raw = value.replace(/^(?:group|room|chat|channel|guild|private):/i, '').trim()
+  const raw = value.replace(/^(?:group|room|chat|channel|guild):/i, '').trim()
   const wrapped = raw.match(/^\[_?([\s\S]+?)_?\]$/)
   return wrapped ? wrapped[1] : raw || value
+}
+
+function isDirectChannelType(channel: SatoriObject): boolean {
+  const raw = channel.type
+  const num = Number(raw)
+  if (Number.isFinite(num)) return num === 1
+  const text = String(raw ?? '').toLowerCase()
+  return text === 'direct' || text === 'private'
+}
+
+function isGroupChannelType(channel: SatoriObject): boolean {
+  const raw = channel.type
+  const num = Number(raw)
+  if (Number.isFinite(num)) return num === 0
+  const text = String(raw ?? '').toLowerCase()
+  return ['text', 'group', 'room', 'chat', 'channel'].includes(text)
+}
+
+function isGroupChannel(channel: SatoriObject, guild: SatoriObject): boolean {
+  if (isDirectChannelType(channel)) return false
+  if (isGroupChannelType(channel)) return true
+  return Boolean(getString(guild.id))
 }
 
 function usableAvatar(value: unknown): string | undefined {
@@ -390,10 +412,7 @@ export function satoriEventToOneBot(event: SatoriObject): Record<string, unknown
   }
 
   if (type === 'message' || type === 'message-created' || type === 'send') {
-    const hasChannelType = channel.type !== undefined && channel.type !== null
-    const channelType = getNumber(channel.type)
-    const isGroup = Boolean(guild.id)
-      || (hasChannelType && channelType === 0)
+    const isGroup = isGroupChannel(channel, guild)
     const userId = getString(user.id)
       || (isGroup ? '' : getString(channel.id).replace(/^private:/, ''))
     const groupId = isGroup
@@ -406,6 +425,7 @@ export function satoriEventToOneBot(event: SatoriObject): Record<string, unknown
       ...base,
       post_type: type === 'send' ? 'message_sent' : 'message',
       message_type: isGroup ? 'group' : 'private',
+      channel_type: channel.type,
       message_id: getString(message.id),
       user_id: isGroup ? userId : directChannelId,
       group_id: groupId,
@@ -632,7 +652,7 @@ function messageListFromResponse(data: unknown): unknown[] {
     const channel = getObject(message.channel)
     const guild = getObject(message.guild)
     const member = getObject(message.member)
-    const isGroup = Boolean(guild.id) || getNumber(channel.type) === 0
+    const isGroup = isGroupChannel(channel, guild)
     const groupId = isGroup
       ? getString(guild.id) || normalizeGroupId(getString(channel.id))
       : ''
@@ -647,6 +667,7 @@ function messageListFromResponse(data: unknown): unknown[] {
       message_seq: getNumber(message.sn) || getNumber(message.seq),
       seq_id: getNumber(message.sn) || getNumber(message.seq),
       message_type: isGroup ? 'group' : 'private',
+      channel_type: channel.type,
       group_id: groupId,
       user_id: groupId ? userId : directChannelId,
       channel_id: getString(channel.id) || (isGroup ? groupId : `private:${userId}`),

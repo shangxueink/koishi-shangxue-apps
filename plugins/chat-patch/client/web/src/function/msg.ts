@@ -2205,7 +2205,19 @@ function newMsg(_: string, data: any) {
         getString(data.user_id)
     const senderObj = getDataObject(data.sender)
     const targetId = getString(rawInfo.target_id) || getString(data.target_id) || loginId
-    const isGroupMessage = data.message_type === 'group' || Boolean(data.group_id) || Boolean(rawInfo.group_id)
+    const rawChannelType = rawInfo.channel_type ?? data.channel_type
+    const channelTypeNum = Number(rawChannelType)
+    const hasDirectType = Number.isFinite(channelTypeNum)
+      ? channelTypeNum === 1
+      : ['direct', 'private'].includes(String(rawChannelType ?? '').toLowerCase())
+    const hasGroupType = Number.isFinite(channelTypeNum)
+      ? channelTypeNum === 0
+      : ['text', 'group', 'room', 'chat', 'channel'].includes(String(rawChannelType ?? '').toLowerCase())
+    const isGroupMessage = hasDirectType
+      ? false
+      : hasGroupType
+        ? true
+        : data.message_type === 'group' || Boolean(data.group_id) || Boolean(rawInfo.group_id)
     const sessionChannelId = getString(rawInfo.channel_id) || getString(data.channel_id)
     const sessionGuildId = getString(rawInfo.guild_id) || getString(data.guild_id)
     if (!id || id === '0') return
@@ -2348,7 +2360,7 @@ function newMsg(_: string, data: any) {
         }
         // 检查群组有没有开启通知
         let isGroupNotice = false
-        if (data.message_type === 'group') {
+        if (isGroupMessage) {
             const noticeInfo = Option.get('notice_group') ?? {}
             const list = noticeInfo[authStore.loginInfo.uin]
             if (list) {
@@ -2460,11 +2472,11 @@ function newMsg(_: string, data: any) {
 
                     title: data.group_name ?? senderObj.nickname,
                     body:
-                        data.message_type === 'group' ? String(senderObj.nickname ?? '') + ':' + raw : raw,
+                        isGroupMessage ? String(senderObj.nickname ?? '') + ':' + raw : raw,
                     tag: `${sessionId}/${data.message_id}`,
                     icon: '/img/icons/icon.svg',
                     image: undefined as any,
-                    type: data.group_id ? 'group' : 'user',
+                    type: isGroupMessage ? 'group' : 'user',
                     is_important: isImportant,
                 } as NotifyInfo
                 if (Array.isArray(data.message)) {

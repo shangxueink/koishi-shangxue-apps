@@ -654,7 +654,9 @@ export async function sendMsgRaw(
         } as { [key: string]: any }
         showMsg.raw_message = getMsgRawTxt(showMsg)
 
-        if (showMsg.message_type == 'group') {
+        const isGroupChat = chatStore.chatInfo.show.type === 'group'
+        showMsg.channel_type = isGroupChat ? 0 : 1
+        if (isGroupChat) {
             showMsg.group_id = chatStore.chatInfo.show.id
         } else {
             showMsg.user_id = chatStore.chatInfo.show.id

@@ -52,11 +52,20 @@ function isPrivateChannelId(value: unknown): boolean {
   return typeof value === 'string' && /^(?:private|direct):/i.test(value)
 }
 
+function isPrivateChannelType(value: unknown): boolean {
+  const num = Number(value)
+  if (Number.isFinite(num)) return num === 1
+  const text = String(value ?? '').toLowerCase()
+  return text === 'direct' || text === 'private'
+}
+
 function isUsableGroupContact(item: ContactCacheItem): boolean {
   if (isPrivateChannelId(item.channelId)) return false
   if (typeof item.raw === 'object' && item.raw !== null) {
     const raw = item.raw as Record<string, unknown>
-    if (isPrivateChannelId(raw.channel_id) || isPrivateChannelId(raw.channelId)) return false
+    if (isPrivateChannelType(raw.channel_type)
+      || isPrivateChannelId(raw.channel_id)
+      || isPrivateChannelId(raw.channelId)) return false
   }
   return true
 }

@@ -35,6 +35,42 @@ function encodeKeyPart(value: string): string {
   return encodeURIComponent(value)
 }
 
+function getChannelKind(value: unknown): 'group' | 'direct' | 'unknown' {
+  if (typeof value === 'number') {
+    if (value === 0) return 'group'
+    if (value === 1) return 'direct'
+    return 'unknown'
+  }
+  if (typeof value === 'string' && value !== '') {
+    const num = Number(value)
+    if (Number.isFinite(num)) {
+      if (num === 0) return 'group'
+      if (num === 1) return 'direct'
+      return 'unknown'
+    }
+    const lower = value.toLowerCase()
+    if (['text', 'group', 'room', 'chat', 'channel'].includes(lower)) return 'group'
+    if (lower === 'direct' || lower === 'private') return 'direct'
+  }
+  return 'unknown'
+}
+
+function isGroupMessage(msg: Record<string, unknown>): boolean {
+  const kind = getChannelKind(msg.channel_type)
+  if (kind !== 'unknown') return kind === 'group'
+  const messageType = getString(msg.message_type)
+  if (messageType) return messageType === 'group'
+  return Boolean(msg.group_id)
+}
+
+function isPrivateMessage(msg: Record<string, unknown>): boolean {
+  const kind = getChannelKind(msg.channel_type)
+  if (kind !== 'unknown') return kind === 'direct'
+  const messageType = getString(msg.message_type)
+  if (messageType) return messageType === 'private'
+  return !Boolean(msg.group_id)
+}
+
 function identityDebug(...args: unknown[]) {
   if (import.meta.env.DEV) {
     console.log('[chat-patch-identity]', ...args)
@@ -358,6 +394,7 @@ async function resolveGroupIdentity(
     channelId,
     name: eventName,
     avatar: eventAvatar,
+    channelType: msg.channel_type,
   }).catch(() => null)
   const cached = getObject(cacheResult)
   const cachedName = getString(cached.name)
@@ -445,7 +482,7 @@ async function fetchUserIdentity(
     }
 
     const guildId = getString(msg.guild_id) || getString(msg.group_id)
-    const isPrivate = !getString(msg.group_id)
+    const isPrivate = isPrivateMessage(msg)
     const channelId = isPrivate
       ? (getString(msg.channel_id) || `private:${userId}`)
       : ''
@@ -496,7 +533,7 @@ function recordBotMessage(platform: string, selfId: string, msg: Record<string, 
     channel_id: msg.channel_id,
     sender: msg.sender,
   })
-  const isGroup = Boolean(msg.group_id) || msg.message_type === 'group'
+  const isGroup = isGroupMessage(msg)
   const channelId = typeof msg.channel_id === 'string' ? msg.channel_id : ''
   const sessionId = String(
     msg.group_id
@@ -692,7 +729,7 @@ export function restoreBotStateFromMessageCache(platform: string, selfId: string
     if (!key.startsWith(prefix)) continue
     const msg = messages[messages.length - 1]
     if (!msg) continue
-    const isGroup = Boolean(msg.group_id)
+    const isGroup = isGroupMessage(msg)
     const id = String(isGroup ? msg.group_id : msg.user_id)
     if (!id || id === '0') continue
     const sender = getObject(msg.sender)
@@ -838,7 +875,7 @@ function contactId(item: unknown): string {
 }
 
 function normalizeGroupId(value: string): string {
-  const raw = value.replace(/^(?:group|room|chat|channel|guild|private):/i, '').trim()
+  const raw = value.replace(/^(?:group|room|chat|channel|guild):/i, '').trim()
   const wrapped = raw.match(/^\[_?([\s\S]+?)_?\]$/)
   return wrapped ? wrapped[1] : raw || value
 }
@@ -906,6 +943,7 @@ async function requestIdentityCache(params: {
   id: string
   guildId?: string
   channelId?: string
+  channelType?: unknown
   name?: string
   avatar?: string
 }): Promise<Record<string, unknown> | null> {
@@ -920,6 +958,9 @@ async function requestIdentityCache(params: {
   })
   if (params.guildId) query.set('guildId', params.guildId)
   if (params.channelId) query.set('channelId', params.channelId)
+  if (params.channelType !== undefined && params.channelType !== null) {
+    query.set('channelType', String(params.channelType))
+  }
   if (params.name) query.set('name', params.name)
   if (params.avatar) query.set('avatar', params.avatar)
 

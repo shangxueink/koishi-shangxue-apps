@@ -10,7 +10,7 @@ import { PluginLogger } from './logger'
 const MESSAGE_TYPES = new Set(['message', 'message-created', 'send'])
 
 function normalizeGroupId(value: string): string {
-  const raw = value.replace(/^(?:group|room|chat|channel|guild|private):/i, '').trim()
+  const raw = value.replace(/^(?:group|room|chat|channel|guild):/i, '').trim()
   const wrapped = raw.match(/^\[_?([\s\S]+?)_?\]$/)
   return wrapped ? wrapped[1] : raw || value
 }
@@ -87,9 +87,9 @@ export class Recorder {
     const guildId = guild?.id || ''
     const channelId = channel?.id || ''
     const channelType = String(channel?.type ?? '')
-    const isPrivateChannel = /^private:/i.test(channelId)
-      || channelType === '1'
+    const isPrivateChannel = channelType === '1'
       || ['direct', 'private'].includes(channelType.toLowerCase())
+      || (!channelType && /^private:/i.test(channelId))
     const groupId = guildId || (isPrivateChannel ? '' : normalizeGroupId(channelId)) || ''
     const userName = user?.name || user?.nick || member?.nick || member?.name || ''
     const userAvatar = user?.avatar || member?.avatar || ''
@@ -105,6 +105,7 @@ export class Recorder {
         channelId || groupId,
         groupName,
         groupAvatar,
+        channel?.type,
       )
       if (userId) {
         const userItem = await this.contactCache.getUser(

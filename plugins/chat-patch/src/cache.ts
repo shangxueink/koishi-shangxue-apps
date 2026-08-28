@@ -13,9 +13,16 @@ function isUsableName(value: string, id: string): boolean {
 }
 
 function normalizeGroupId(value: string): string {
-  const raw = value.replace(/^(?:group|room|chat|channel|guild|private):/i, '').trim()
+  const raw = value.replace(/^(?:group|room|chat|channel|guild):/i, '').trim()
   const wrapped = raw.match(/^\[_?([\s\S]+?)_?\]$/)
   return wrapped ? wrapped[1] : raw || value
+}
+
+function isPrivateChannelType(value: unknown): boolean {
+  const num = Number(value)
+  if (Number.isFinite(num)) return num === 1
+  const text = String(value ?? '').toLowerCase()
+  return text === 'direct' || text === 'private'
 }
 
 function normalizeCacheType(type: string): 'group' | 'friend' {
@@ -134,10 +141,13 @@ export class ContactCacheService {
     channelId?: string,
     fallbackName?: string,
     fallbackAvatar?: string,
+    channelType?: unknown,
   ): Promise<ContactCacheItem | null> {
     const guild = guildId && guildId !== '0' ? guildId : undefined
     const channel = channelId && channelId !== '0' ? channelId : undefined
-    if (/^(?:private|direct):/i.test(id) || /^(?:private|direct):/i.test(channel || '')) return null
+    if (isPrivateChannelType(channelType)) return null
+    if (channelType === undefined
+      && (/^(?:private|direct):/i.test(id) || /^(?:private|direct):/i.test(channel || ''))) return null
     const rawId = id && id !== '0' ? normalizeGroupId(id) : ''
     const cacheId = rawId || guild || normalizeGroupId(channel || '') || ''
     if (!cacheId) return null
@@ -174,6 +184,7 @@ export class ContactCacheService {
           group_name: name,
           avatar: avatar || undefined,
           channel_id: channel || undefined,
+          channel_type: channelType ?? undefined,
           guild_id: guild || undefined,
         },
       }
