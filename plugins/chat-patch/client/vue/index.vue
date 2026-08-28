@@ -1,6 +1,6 @@
 <template>
   <div class="chat-patch-frame">
-    <iframe ref="frameRef" :src="frameSrc" class="chat-patch-iframe" allow="clipboard-read; clipboard-write" />
+    <iframe ref="frameRef" :src="frameSrc" class="chat-patch-iframe" allow="clipboard-read; clipboard-write; microphone" />
   </div>
 </template>
 

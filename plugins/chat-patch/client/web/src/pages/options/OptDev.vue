@@ -27,8 +27,7 @@
                         name="msg_type"
                         title="msg_type"
                         @change="save">
-                        <option v-for="item in Object.values(BotMsgType)
-                                    .filter(value => typeof value === 'number')"
+                        <option v-for="item in botTypeOptions"
                             :key="item"
                             :value="item">
                             {{ getBotTypeName(item) }}
@@ -314,6 +313,7 @@ import packageInfo from '../../../package.json'
     const settingsStore = useSettingsStore()
     const authStore = useAuthStore()
     const uiStore = useUIStore()
+    const botTypeOptions = Object.values(BotMsgType).filter((value): value is BotMsgType => typeof value === 'number')
 
     defineOptions({ name: 'ViewOptDev' })
 
