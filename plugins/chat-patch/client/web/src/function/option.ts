@@ -101,7 +101,7 @@ export const optDefault: { [key: string]: any } = {
     quick_send: 'default',
     group_notice_type: 'none',
     send_face: false,
-    send_key: 'ctrl',
+    send_key: 'none',
     close_ga: false,
     open_ga_bot: true,
     record_recent_emoji: '100times' as 'none' | 'order' | '100times' | '500times',
@@ -540,17 +540,12 @@ function loadOptData(data: { [key: string]: any }) {
 		if (optDefault[key] === undefined)
 			needless.push(key)
 	}
-    if (!import.meta.env.DEV){
+    if (needless.length > 0) {
         for (const key of needless) {
-			delete options[key]
-		}
-    }else if (needless.length > 0) {
-		new PopInfo().add(
-			PopType.INFO,
-			'发现' + needless.length + '条未使用的配置属性: ' + needless.join(', '),
-			false,
-		)
-	}
+            delete options[key]
+        }
+        optChanged = true
+    }
 
     // 保存
     if (optChanged) {

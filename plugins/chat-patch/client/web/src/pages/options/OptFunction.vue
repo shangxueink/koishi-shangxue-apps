@@ -131,27 +131,6 @@
                 </div>
             </div>
         </div>
-        <div class="ss-card">
-            <header>{{ $t('浏览选项') }}</header>
-            <div v-if="backend.isDesktop()"
-                class="opt-item">
-                <div :class="checkDefault('opt_always_top')" />
-                <font-awesome-icon :icon="['fas', 'angle-up']" />
-                <div>
-                    <label for="opt-function-always-top">{{ $t('置顶窗口') }}</label>
-                    <span>{{
-                        $t('你也不想想让 ta 知道你不在看消息吧 ~')
-                    }}</span>
-                </div>
-                <label class="ss-switch">
-                    <input id="opt-function-always-top" v-model="settingsStore.sysConfig.opt_always_top"
-                        type="checkbox" name="opt_always_top" @change="save">
-                    <div>
-                        <div />
-                    </div>
-                </label>
-            </div>
-        </div>
         <div v-if="backend.type === 'tauri'" class="ss-card">
             <header>{{ $t('消息存储') }}</header>
             <div

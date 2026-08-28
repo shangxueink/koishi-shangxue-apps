@@ -51,55 +51,17 @@
                     </div>
                 </label>
             </div>
-            <div v-if="!napcat" class="opt-item">
-                <font-awesome-icon :icon="['fas', 'palette']" />
+            <div class="opt-item">
+                <font-awesome-icon :icon="['fas', 'rotate-left']" />
                 <div>
-                    <span>{{ $t('注入自定义样式') }}</span>
-                    <span v-if="!customCssLoaded">{{ $t('选择一个 CSS 文件上传') }}</span>
-                    <span v-else style="color: var(--color-main)">
-                        {{ $t('已加载自定义样式') }}
-                        ({{ customCssSize }})
-                    </span>
-                </div>
-                <input
-                    id="opt-dev-custom-css"
-                    ref="cssFileInput"
-                    type="file"
-                    accept=".css"
-                    style="display: none"
-                    @change="handleCssFileUpload">
-                <label for="opt-dev-custom-css" class="sr-only">{{ $t('注入自定义样式') }}</label>
-                <button
-                    style="width: 100px; font-size: 0.8rem"
-                    class="ss-button"
-                    @click="selectCssFile">
-                    {{ customCssLoaded ? $t('更换') : $t('上传') }}
-                </button>
-            </div>
-            <div v-if="customCssLoaded" class="opt-item">
-                <font-awesome-icon :icon="['fas', 'eye']" />
-                <div>
-                    <span>{{ $t('查看自定义样式') }}</span>
-                    <span>{{ $t('查看当前加载的样式') }}</span>
+                    <span>{{ $t('恢复 WebUI 所有默认配置项') }}</span>
+                    <span>{{ $t('将所有 WebUI 配置恢复为默认值') }}</span>
                 </div>
                 <button
                     style="width: 100px; font-size: 0.8rem"
                     class="ss-button"
-                    @click="viewCustomCss">
-                    {{ $t('查看') }}
-                </button>
-            </div>
-            <div v-if="customCssLoaded" class="opt-item">
-                <font-awesome-icon :icon="['fas', 'trash']" />
-                <div>
-                    <span>{{ $t('清除自定义样式') }}</span>
-                    <span>{{ $t('移除已注入的自定义样式') }}</span>
-                </div>
-                <button
-                    style="width: 100px; font-size: 0.8rem"
-                    class="ss-button"
-                    @click="clearCustomCss">
-                    {{ $t('清除') }}
+                    @click="resetDefaults">
+                    {{ $t('恢复') }}
                 </button>
             </div>
         </div>
@@ -163,6 +125,36 @@ import packageInfo from '../../../package.json'
         // 检查是否已加载自定义 CSS
         updateCustomCssStatus()
     })
+
+    function resetDefaults() {
+        const popInfo = {
+            title: $t('提醒'),
+            html: `<span>${$t('确认要将 WebUI 所有配置恢复为默认值吗？')}</span>`,
+            button: [
+                {
+                    text: $t('确认'),
+                    fun: () => {
+                        uiStore.popBoxList.shift()
+                        settingsStore.sysConfig = JSON.parse(JSON.stringify(optDefault))
+                        saveAll(settingsStore.sysConfig)
+                        if (backend.isDesktop()) {
+                            backend.call(undefined, 'win:relaunch', false)
+                        } else {
+                            location.reload()
+                        }
+                    },
+                },
+                {
+                    text: $t('取消'),
+                    master: true,
+                    fun: () => {
+                        uiStore.popBoxList.shift()
+                    },
+                },
+            ],
+        }
+        uiStore.popBoxList.push(popInfo)
+    }
 
     function sendTestWs(event: KeyboardEvent) {
         // 发送测试 WS 消息
