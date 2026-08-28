@@ -309,6 +309,83 @@ export function registerWeb(
     }
   })
 
+  ctx.server.post(`${config.basePath}/api/send-forward`, async (koa) => {
+    const requestBody = (koa.request as unknown as { body?: unknown }).body
+    const body = (requestBody ?? {}) as Record<string, unknown>
+    const platform = String(body.platform ?? '')
+    const selfId = String(body.selfId ?? '')
+    const type = String(body.type ?? '')
+    const id = String(body.id ?? '')
+    if (!platform || !selfId || !type || !id) {
+      koa.status = 400
+      koa.body = { error: 'missing send-forward params' }
+      return
+    }
+    if (platform !== 'onebot') {
+      koa.status = 501
+      koa.body = { error: 'forward api not supported' }
+      return
+    }
+    const bot = ctx.bots.find((item) => {
+      return item.platform === platform && item.selfId === selfId
+    })
+    if (!bot) {
+      koa.status = 404
+      koa.body = { error: 'bot not found' }
+      return
+    }
+    const internal = (bot as unknown as {
+      internal?: {
+        sendGroupForwardMsg?: (groupId: string, messages: unknown[]) => Promise<unknown>
+        sendPrivateForwardMsg?: (userId: string, messages: unknown[]) => Promise<unknown>
+      }
+    }).internal
+    const method = type === 'group'
+      ? internal?.sendGroupForwardMsg
+      : internal?.sendPrivateForwardMsg
+    if (!method) {
+      koa.status = 501
+      koa.body = { error: 'forward api not supported' }
+      return
+    }
+    const messages = Array.isArray(body.messages) ? body.messages as unknown[] : []
+    const nodes = messages.map((raw) => {
+      const item = typeof raw === 'object' && raw !== null
+        ? raw as Record<string, unknown>
+        : {}
+      const nodeData = typeof item.data === 'object' && item.data !== null
+        ? item.data as Record<string, unknown>
+        : item
+      const content = Array.isArray(item.content)
+        ? item.content as unknown[]
+        : Array.isArray(nodeData.content)
+          ? nodeData.content as unknown[]
+          : []
+      return {
+        type: 'node',
+        data: {
+          user_id: String(item.user_id ?? nodeData.user_id ?? ''),
+          nickname: String(item.nickname ?? nodeData.nickname ?? ''),
+          content: content.map((segmentRaw) => {
+            const segment = typeof segmentRaw === 'object' && segmentRaw !== null
+              ? segmentRaw as Record<string, unknown>
+              : {}
+            const copy = { ...segment }
+            const segmentType = String(copy.type ?? 'text')
+            delete copy.type
+            return { type: segmentType, data: copy }
+          }),
+        },
+      }
+    })
+    try {
+      koa.body = await method(id, nodes)
+    } catch (error) {
+      koa.status = 502
+      koa.body = { error: 'send forward failed' }
+    }
+  })
+
   ctx.server.get(`${config.basePath}/api/cache`, async (koa) => {
     const platform = String(koa.query.platform ?? '')
     let selfId = String(koa.query.selfId ?? '')

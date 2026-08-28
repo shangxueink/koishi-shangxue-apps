@@ -23,6 +23,7 @@ import {
     parseMsgList,
     getMsgRawTxt,
     hasAtMe,
+    parseCQ,
     updateBaseOnMsgList,
     updateLastestHistory,
     sendMsgAppendInfo,
@@ -1848,7 +1849,7 @@ export async function normalizeMessagesForPreview(payload: any): Promise<any[]> 
         )
 
         if (directList.length === 0) return []
-        return Promise.all(directList.map(msgPreprocess))
+        return Promise.all(directList.map((item) => msgPreprocess(item)))
     }
 
     if (!map?.message_list) return []
@@ -1880,7 +1881,7 @@ export async function normalizeMessagesForPreview(payload: any): Promise<any[]> 
         }
     })
 
-    return Promise.all(list.map(msgPreprocess))
+    return Promise.all(list.map((item) => msgPreprocess(item)))
 }
 
 function normalizeNewIncomingMessage(data: any): any[] {
@@ -2057,7 +2058,10 @@ function replaceMessageListInPlace(next: any[]) {
     chatStore.messageList.splice(0, chatStore.messageList.length, ...next)
 }
 
-export async function getMessageList(list: any[] | undefined) {
+export async function getMessageList(
+    list: any[] | undefined,
+    options?: { platform?: string; selfId?: string },
+) {
     if (!list) return undefined
 
     list = parseMsgList(
@@ -2077,8 +2081,8 @@ export async function getMessageList(list: any[] | undefined) {
         }
     })
     const authStore = useAuthStore()
-    const platform = String(authStore.loginInfo.platform ?? '')
-    const selfId = String(authStore.loginInfo.uin ?? '')
+    const platform = String(options?.platform || authStore.loginInfo.platform || '')
+    const selfId = String(options?.selfId || authStore.loginInfo.uin || '')
     list.forEach((item: any) => {
         const sender = item.sender
         const userId = String(sender?.user_id ?? item.user_id ?? item.sender_id ?? '')
@@ -2090,14 +2094,58 @@ export async function getMessageList(list: any[] | undefined) {
             requestUserAvatar(platform, selfId, userId, item)
         }
     })
-    return Promise.all(list.map(msgPreprocess))
+    return Promise.all(list.map((item) => msgPreprocess(item, options)))
+}
+
+/**
+ * 解析合并转发内容；实时消息和点击卡片都走这里，避免各自维护一套逻辑
+ */
+export async function resolveForwardMessageContent(
+    segment: { id?: unknown; content?: unknown },
+    options?: { platform?: string; selfId?: string },
+): Promise<unknown[] | undefined> {
+    const authStore = useAuthStore()
+    const platform = String(options?.platform || authStore.loginInfo.platform || '')
+    const selfId = String(options?.selfId || authStore.loginInfo.uin || '')
+    if (Array.isArray(segment.content) && segment.content.length > 0) {
+        return getMessageList(segment.content, options)
+    }
+    if (platform !== 'onebot' || !segment.id) return undefined
+    const originData = await fetchForwardMessage(platform, selfId, String(segment.id))
+    if (!Array.isArray(originData)) return undefined
+    const normalized = originData.map((raw) => {
+        const item = typeof raw === 'object' && raw !== null
+            ? raw as Record<string, unknown>
+            : {}
+        const rawSender = typeof item.sender === 'object' && item.sender !== null
+            ? item.sender as Record<string, unknown>
+            : {}
+        const userId = String(rawSender.user_id ?? item.user_id ?? '')
+        const nickname = String(rawSender.nickname ?? rawSender.name ?? item.nickname ?? '')
+        const content = item.content ?? item.message
+        const base = {
+            ...item,
+            user_id: userId,
+            nickname,
+            sender: { user_id: userId, nickname },
+        }
+        if (typeof content === 'string') {
+            const parsed = parseCQ({ message: content }) as { message?: unknown }
+            return { ...base, message: parsed.message ?? [] }
+        }
+        return base
+    })
+    return getMessageList(normalized, options)
 }
 
 /**
  * 消息预处理
  * @param msg 要处理的消息
  */
-export async function msgPreprocess(msg: any): Promise<any> {
+export async function msgPreprocess(
+    msg: any,
+    options?: { platform?: string; selfId?: string },
+): Promise<any> {
     if (!Array.isArray(msg.message)) return msg
     //#region == json 合并转发 ============================
     if (msg.message.at(0)?.type === 'json') {
@@ -2115,32 +2163,12 @@ export async function msgPreprocess(msg: any): Promise<any> {
 
     //#region == 合并转发解析 ==============================
     if (msg.message.at(0)?.type === 'forward') {
-        const forwardId = msg.message.at(0).id
-        if (forwardId) {
-            try {
-                if (msg.message.at(0).content && msg.message.at(0).content.length > 0) {
-                    // 如果 content 里已经有内容了就直接用 content 里的内容
-                    const data = await getMessageList(msg.message.at(0).content)
-                    if (data) msg.message.at(0).content = data
-                } else {
-                    // 否则调用接口获取
-                    const authStore = useAuthStore()
-                    const platform = String(authStore.loginInfo.platform ?? '')
-                    if (platform === 'onebot') {
-                        const originData = await fetchForwardMessage(
-                            platform,
-                            String(authStore.loginInfo.uin ?? ''),
-                            forwardId,
-                        )
-                        const data = await getMessageList(originData ?? undefined)
-                        if (data) msg.message.at(0).content = data
-                    }
-                }
-            } catch (e) {
-                logger.error(e as unknown as Error, '合并转发解析失败')
-            }
-        } else {
-            msg.message.at(0).content = []
+        try {
+            const data = await resolveForwardMessageContent(msg.message.at(0), options)
+            msg.message.at(0).content = data && data.length > 0 ? data : undefined
+        } catch (e) {
+            logger.error(e as unknown as Error, '合并转发解析失败')
+            msg.message.at(0).content = undefined
         }
     }
     //#endregion

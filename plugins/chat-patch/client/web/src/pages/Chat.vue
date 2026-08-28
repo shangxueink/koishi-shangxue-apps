@@ -447,16 +447,6 @@
                 <div v-show="tags.showMsgMenu" class="msg-menu-bg" @click="closeMsgMenu" />
                 <div id="msgMenu" :class="tags.showMsgMenu ?
                     'ss-card msg-menu-body show' : 'ss-card msg-menu-body'">
-                    <div v-if="chatStore.chatInfo.show.type == 'group'"
-                        v-show="tags.menuDisplay.showRespond"
-                        :class="'ss-card respond' + (tags.menuDisplay.respond ? ' open' : '')">
-                        <template v-for="(num, index) in Emoji.responseId" :key="'respond-' + num">
-                            <EmojiFace :emoji="Emoji.get(num)!"
-                                @click="sendRespond(num)" />
-                            <font-awesome-icon v-if="index == 4" :icon="['fas', 'angle-up']"
-                                @click="tags.menuDisplay.respond = true" />
-                        </template>
-                    </div>
                     <div v-show="tags.menuDisplay.add" @click="forwardSelf()">
                         <div><font-awesome-icon :icon="['fas', 'plus']" /></div>
                         <a>{{ $t('+ 1') }}</a>
@@ -623,7 +613,7 @@ import {
     getDifferencesWithRanges
 } from '@renderer/function/utils/msgUtil'
 import { Logger, LogType, PopInfo, PopType } from '@renderer/function/base'
-import { Connector, loadChatHistoryFromCache } from '@renderer/function/connect'
+import { Connector, loadChatHistoryFromCache, sendForwardMessage } from '@renderer/function/connect'
 import {
     BaseChatInfoElem,
     MsgItemElem,
@@ -1763,6 +1753,8 @@ function forwardMsg(data: UserFriendElem & UserGroupElem) {
     const id = data.group_id ? data.group_id : data.user_id
     const targetId = String(id)
     const targetType = data.group_id ? 'group' : 'user'
+    const targetChannelId = String(data.channel_id ?? data.channelId ?? '')
+    const targetGuildId = String(data.guild_id ?? data.guildId ?? '')
     const msgList = chatStore.messageList.filter((item) => {
         return multipleSelectList.value.includes(item.message_id)
     })
@@ -1797,6 +1789,9 @@ function forwardMsg(data: UserFriendElem & UserGroupElem) {
                                 targetType,
                                 cloneMessagePayload(item.message),
                                 shouldPreShow(),
+                                'sendMsgBack',
+                                targetChannelId || undefined,
+                                targetGuildId || undefined,
                             )
                         })
                         multipleSelectList.value = []
@@ -1854,7 +1849,7 @@ function forwardMsg(data: UserFriendElem & UserGroupElem) {
                 {
                     text: $t('确定'),
                     master: true,
-                    fun: () => {
+                    fun: async () => {
                         const msgBody = msgList.map((item) => {
                             return {
                                 type: 'node',
@@ -1864,12 +1859,16 @@ function forwardMsg(data: UserFriendElem & UserGroupElem) {
                                 content: cloneMessagePayload(item.message),
                             }
                         })
-                        sendMsgRaw(
+                        const ok = await sendForwardMessage(
+                            String(authStore.loginInfo.platform ?? ''),
+                            String(authStore.loginInfo.uin ?? ''),
+                            targetType as 'group' | 'user',
                             targetId,
-                            targetType,
                             msgBody,
-                            shouldPreShow(),
                         )
+                        if (!ok) {
+                            new PopInfo().add(PopType.ERR, $t('合并转发发送失败'))
+                        }
                         multipleSelectList.value = []
                         uiStore.popBoxList.shift()
                     },
@@ -1898,6 +1897,9 @@ function forwardMsg(data: UserFriendElem & UserGroupElem) {
                             targetType,
                             cloneMessagePayload(msgData.message),
                             shouldPreShow(),
+                            'sendMsgBack',
+                            targetChannelId || undefined,
+                            targetGuildId || undefined,
                         )
                         uiStore.popBoxList.shift()
                     },
@@ -2015,7 +2017,13 @@ async function revokeMsg() {
         return
     }
     const msgId = msgData.message_id
-    await Connector.callApi('delete_msg', { message_id: msgId })
+    const channelId = String(
+        msgData.channel_id
+        ?? msgData.channelId
+        ?? chatStore.chatInfo.show.channel_id
+        ?? chat.show.id,
+    )
+    await Connector.callApi('delete_msg', { channel_id: channelId, message_id: msgId })
 }
 
 async function reeditMsg() {
@@ -2026,7 +2034,13 @@ async function reeditMsg() {
         return
     }
     const msgId = msgData.message_id
-    await Connector.callApi('delete_msg', { message_id: msgId })
+    const channelId = String(
+        msgData.channel_id
+        ?? msgData.channelId
+        ?? chatStore.chatInfo.show.channel_id
+        ?? chat.show.id,
+    )
+    await Connector.callApi('delete_msg', { channel_id: channelId, message_id: msgId })
     reedit(msgData)
 }
 
@@ -2801,7 +2815,13 @@ async function recallMsgs() {
     const tasks: Promise<unknown>[] = []
     for (const msgItem of msgList) {
         const msgId = msgItem.message_id
-        tasks.push(Connector.callApi('delete_msg', { message_id: msgId }))
+        const channelId = String(
+            msgItem.channel_id
+            ?? msgItem.channelId
+            ?? chatStore.chatInfo.show.channel_id
+            ?? chat.show.id,
+        )
+        tasks.push(Connector.callApi('delete_msg', { channel_id: channelId, message_id: msgId }))
     }
     multipleSelectList.value = []
     await Promise.all(tasks)

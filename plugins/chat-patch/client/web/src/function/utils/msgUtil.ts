@@ -607,6 +607,8 @@ export async function sendMsgRaw(
     msg: string | any[] | undefined,
     preShow = false,
     echo = 'sendMsgBack',
+    targetChannelId?: string,
+    targetGuildId?: string,
 ) {
     const chatStore = useChatStore()
     const authStore = useAuthStore()
@@ -739,8 +741,8 @@ export async function sendMsgRaw(
                     'send_msg',
                     {
                         group_id: id,
-                        guild_id: String(chatStore.chatInfo.show.guild_id ?? id),
-                        channel_id: String(chatStore.chatInfo.show.channel_id ?? id),
+                        guild_id: String(targetGuildId ?? chatStore.chatInfo.show.guild_id ?? id),
+                        channel_id: String(targetChannelId ?? chatStore.chatInfo.show.channel_id ?? id),
                         message: msg,
                     },
                     echo + '_uuid_' + msgUUID,
@@ -754,7 +756,7 @@ export async function sendMsgRaw(
                         {
                             user_id: id.split('/')[0],
                             group_id: id.split('/')[1],
-                            channel_id: String(chatStore.chatInfo.show.channel_id ?? `private:${String(id).split('/')[0]}`),
+                            channel_id: String(targetChannelId ?? chatStore.chatInfo.show.channel_id ?? `private:${String(id).split('/')[0]}`),
                             message: msg,
                         },
                         echo + '_uuid_' + msgUUID,
@@ -765,7 +767,7 @@ export async function sendMsgRaw(
                         'send_msg',
                         {
                             user_id: id,
-                            channel_id: String(chatStore.chatInfo.show.channel_id ?? (/^(?:group|room|chat|channel|guild|private):/i.test(String(id)) ? String(id) : `private:${String(id)}`)),
+                            channel_id: String(targetChannelId ?? chatStore.chatInfo.show.channel_id ?? (/^(?:group|room|chat|channel|guild|private):/i.test(String(id)) ? String(id) : `private:${String(id)}`)),
                             message: msg,
                         },
                         echo + '_uuid_' + msgUUID,

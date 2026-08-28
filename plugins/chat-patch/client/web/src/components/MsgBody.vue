@@ -391,6 +391,7 @@ import markdownit from 'markdown-it'
 import { MsgBodyFuns as ViewFuns } from '@renderer/function/model/msg-body'
 import { watch, onMounted, nextTick, provide, inject, useTemplateRef, ref, toRaw } from 'vue'
 import { Connector } from '@renderer/function/connect'
+import { resolveForwardMessageContent } from '@renderer/function/msg'
 import { useSettingsStore } from '@renderer/state/settings'
 import { Logger, LogType, PopInfo, PopType } from '@renderer/function/base'
 import { StringifyOptions } from 'querystring'
@@ -1155,11 +1156,22 @@ function sendPlay(info: MusicInfo) {
     addMusic(info, 'current', true)
 }
 
-function openMerge(){
+async function openMerge() {
     const seg = data.message[0]
-    if (!seg.content) {
+    if (!seg?.id) {
         new PopInfo().add(PopType.ERR, $t('无法获取合并转发内容'))
         return
+    }
+    if (!Array.isArray(seg.content) || seg.content.length === 0) {
+        const resolved = await resolveForwardMessageContent(seg, {
+            platform: String(data.platform ?? ''),
+            selfId: String(data.self_id ?? ''),
+        }).catch(() => undefined)
+        if (!resolved || resolved.length === 0) {
+            new PopInfo().add(PopType.ERR, $t('无法获取合并转发内容'))
+            return
+        }
+        seg.content = resolved
     }
 
     const mergeData: MergeStackData = {

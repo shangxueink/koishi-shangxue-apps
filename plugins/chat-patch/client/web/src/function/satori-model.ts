@@ -180,7 +180,7 @@ function pushParsedTag(
       result.push({ type: 'reply', id: attrs.id || '' })
       break
     case 'message':
-      if (attrs.forward) {
+      if ('forward' in attrs || attrs.forward) {
         result.push({ type: 'forward', id: attrs.id || '', content: children })
       } else {
         result.push(...children)
@@ -370,7 +370,7 @@ function toSegments(elements: unknown): Array<Record<string, unknown>> {
       result.push({ type: 'markdown', content: getString(attrs.content) || childrenText(children) })
     } else if (type === 'keyboard') {
       // 按钮段不渲染
-    } else if (type === 'message' && attrs.forward) {
+    } else if (type === 'message' && ('forward' in attrs || attrs.forward)) {
       result.push({ type: 'forward', id: getString(attrs.id), content: children })
     } else if (type === 'p' || type === 'br') {
       result.push({ type: 'text', text: '\n' })

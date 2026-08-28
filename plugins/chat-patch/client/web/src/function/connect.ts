@@ -803,7 +803,10 @@ function onSatoriEvent(event: SatoriEvent) {
     pendingBotEvents.set(key, events)
   }
   if (oneBot.post_type === 'message' || oneBot.post_type === 'message_sent') {
-    void msgPreprocess(oneBot).then((processed) => {
+    void msgPreprocess(oneBot, {
+      platform: String(event.platform || oneBot.platform || ''),
+      selfId: String(event.selfId || oneBot.self_id || ''),
+    }).then((processed) => {
       if (!processed) return
       recordBotMessage(event.platform, event.selfId, processed)
       // 只有当前机器人写入全局 UI；其他机器人仍在上方实时记录。
@@ -829,7 +832,10 @@ export function flushPendingBotEvents(platform: string, selfId: string) {
   for (const event of events) {
     const oneBot = satoriEventToOneBot(event.body)
     if (oneBot) {
-      void msgPreprocess(oneBot).then((processed) => {
+      void msgPreprocess(oneBot, {
+        platform: String(event.platform || oneBot.platform || ''),
+        selfId: String(event.selfId || oneBot.self_id || ''),
+      }).then((processed) => {
         if (processed) dispatch(processed)
       }).catch(() => {
         dispatch(oneBot)
@@ -1022,10 +1028,38 @@ export async function fetchForwardMessage(
     if (!response.ok) return null
     const data = await response.json() as unknown
     if (Array.isArray(data)) return data as unknown[]
-    const obj = data as { messages?: unknown }
-    return Array.isArray(obj.messages) ? obj.messages as unknown[] : null
+    const obj = data as Record<string, unknown>
+    if (Array.isArray(obj.messages)) return obj.messages as unknown[]
+    const nested = obj.data
+    if (typeof nested === 'object' && nested !== null) {
+      const nestedObj = nested as Record<string, unknown>
+      if (Array.isArray(nestedObj.messages)) return nestedObj.messages as unknown[]
+    }
+    return null
   } catch {
     return null
+  }
+}
+
+export async function sendForwardMessage(
+  platform: string,
+  selfId: string,
+  type: 'group' | 'user',
+  id: string,
+  messages: unknown[],
+): Promise<boolean> {
+  if (!platform || !selfId || !id || messages.length === 0) return false
+  const info = await getBootstrap()
+  const basePath = info.basePath || '/chat-patch'
+  try {
+    const response = await fetch(`${location.origin}${basePath}/api/send-forward`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ platform, selfId, type, id, messages }),
+    })
+    return response.ok
+  } catch {
+    return false
   }
 }
 
