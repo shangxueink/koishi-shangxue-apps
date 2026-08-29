@@ -157,7 +157,6 @@ export class MediaManager {
         },
       })
       if (!response.ok) {
-        this.logger.warn('媒体下载失败:', url, response.status)
         return null
       }
       const buffer = Buffer.from(await response.arrayBuffer())
@@ -168,7 +167,6 @@ export class MediaManager {
       this.logger.logInfo('媒体已缓存:', filename, buffer.length)
       return filePath
     } catch (error) {
-      this.logger.warn('媒体缓存异常:', url, error)
       return null
     }
   }

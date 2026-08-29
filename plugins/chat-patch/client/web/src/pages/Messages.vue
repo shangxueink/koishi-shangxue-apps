@@ -181,12 +181,6 @@
                 <li id="read" icon="fa-solid fa-flag">
                     {{ $t('标记未读') }}
                 </li>
-                <li id="notice_open" icon="fa-solid fa-volume-high">
-                    {{ $t('开启通知') }}
-                </li>
-                <li id="notice_close" icon="fa-solid fa-volume-xmark">
-                    {{ $t('关闭通知') }}
-                </li>
                 <li id="clear_system_notice" icon="fa-solid fa-broom">
                     {{ $t('清空通知') }}
                 </li>
@@ -219,14 +213,13 @@
         UserFriendElem,
         UserGroupElem,
     } from '../function/elements/information'
-    import { changeGroupNotice } from '../function/utils/appUtil'
     import { PopInfo, PopType } from '../function/base'
     import { MenuStatue } from 'vue3-bcui/packages/dist/types'
     import { library } from '@fortawesome/fontawesome-svg-core'
     import { login as loginInfo } from '../function/connect'
     import { Connector, flushPendingBotEvents, loadContactsFromCache, restoreBotStateFromMessageCache } from '../function/connect'
     import { getActiveBot, getLogins, setActiveBot } from '../function/satori'
-    import { canGroupNotice, getShowName, updateBaseOnMsgList } from '../function/utils/msgUtil'
+    import { getShowName, updateBaseOnMsgList } from '../function/utils/msgUtil'
 
     import {
         faThumbTack,
@@ -571,14 +564,6 @@
                 case 'canceltop':
                     saveTop(item, false)
                     break
-                case 'notice_open': {
-                    changeGroupNotice(item.group_id, true)
-                    break
-                }
-                case 'notice_close': {
-                    changeGroupNotice(item.group_id, false)
-                    break
-                }
                 case 'clear_system_notice': {
                     clearSystemNotices()
                     break
@@ -657,14 +642,6 @@
             info.list.push('readed')
         } else {
             info.list.push('read')
-        }
-        // 是群的话显示通知设置
-        if (item.group_id) {
-            if (canGroupNotice(item.group_id)) {
-                info.list.push('notice_close')
-            } else {
-                info.list.push('notice_open')
-            }
         }
         listMenu.value = info
         menu.select = item
