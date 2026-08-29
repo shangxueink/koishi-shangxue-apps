@@ -19,24 +19,15 @@ function getString(value: unknown): string {
   return typeof value === 'string' ? value : ''
 }
 
-// 开发模式下直接加载独立的 web Vite 服务，才能触发 Friends.vue 等源码的 HMR
-function getDevUrl(): string | undefined {
-  const configuredDevUrl = import.meta.env.VITE_CHAT_PATCH_WEB_DEV as string | undefined
-  return import.meta.env.DEV
-    ? configuredDevUrl || 'http://localhost:5174/'
-    : undefined
-}
-
 function post(payload: Record<string, unknown>) {
   frameRef.value?.contentWindow?.postMessage(payload, '*')
 }
 
 function sendBootstrap() {
-  const devUrl = getDevUrl()
   void send('chat-patch/bootstrap').then((res) => {
     const data = getObject(res)
     const basePath = getString(data.basePath) || '/chat-patch'
-    frameSrc.value = devUrl || `${basePath}/web/`
+    frameSrc.value = `${basePath}/web/`
     post({
       source: 'chat-patch-bootstrap',
       payload: data,
@@ -66,7 +57,8 @@ async function handleMessage(event: MessageEvent) {
 
 onMounted(() => {
   window.addEventListener('message', handleMessage)
-  frameSrc.value = getDevUrl() || '/chat-patch/web/'
+  // 开发与生产都走 Koishi 服务端；开发时该路由由 Koishi 自己的 Vite 转换源码
+  frameSrc.value = '/chat-patch/web/'
 })
 
 onUnmounted(() => {

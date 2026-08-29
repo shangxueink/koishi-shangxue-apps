@@ -14,6 +14,19 @@ import { ChatDatabase } from './database'
 import { PluginLogger } from './logger'
 import { ContactCacheItem, SelfMessagePayload, SelfMessageRecord } from './types'
 
+interface ViteConsoleServer {
+  config?: {
+    server?: {
+      preTransformRequests?: boolean
+    }
+  }
+  transformIndexHtml(url: string, html: string, originalUrl?: string): Promise<string>
+}
+
+interface ViteConsoleLike {
+  vite?: ViteConsoleServer
+}
+
 export function registerWeb(
   ctx: Context,
   config: Config,
@@ -22,10 +35,62 @@ export function registerWeb(
   logger: PluginLogger,
 ) {
   const webRoot = path.resolve(__dirname, '..', 'client', 'web', 'dist')
+  const webSource = path.resolve(__dirname, '..', 'client', 'web', 'src')
+  const webPublic = path.resolve(__dirname, '..', 'client', 'web', 'public')
+  const webIndex = path.resolve(__dirname, '..', 'client', 'web', 'index.html')
   const uploadDir = path.resolve(ctx.baseDir, 'data', 'chat-patch', 'upload-media')
 
   type WebContext = ParameterizedContext<DefaultState, DefaultContext>
   const cacheType = (type: string) => type === 'user' ? 'friend' : type
+
+  const getVite = (): ViteConsoleServer | undefined => {
+    return (ctx.console as unknown as ViteConsoleLike).vite
+  }
+
+  const viteFsUrl = (target: string): string => {
+    return `/vite/@fs/${path.resolve(target).split(path.sep).join('/')}`
+  }
+
+  const transformWebIndex = async (vite: ViteConsoleServer, requestPath: string) => {
+    // 源码由 iframe 按需加载，避免 Koishi Vite 启动时提前转换整个 web 应用
+    if (vite.config?.server) vite.config.server.preTransformRequests = false
+    const mainFsUrl = `/@fs/${path.resolve(webSource, 'main.ts').split(path.sep).join('/')}`
+    const html = (await fs.readFile(webIndex, 'utf8')).replace(
+      'src="/src/main.ts"',
+      `src="${mainFsUrl}"`,
+    )
+    let transformed = await vite.transformIndexHtml('/chat-patch/web/index.html', html, requestPath)
+    transformed = transformed
+      .replace(/\/vite\/bcui/g, viteFsUrl(path.join(webPublic, 'bcui')))
+      .replace(/\/vite\/css/g, viteFsUrl(path.join(webPublic, 'css')))
+    return transformed
+  }
+
+  const servePublicFile = async (koa: WebContext, prefix: string) => {
+    const relative = (koa.params?.[0] ?? '').replace(/^\/+/, '')
+    const fullPath = path.resolve(webPublic, prefix, relative)
+    if (!fullPath.startsWith(webPublic + path.sep)) {
+      koa.status = 403
+      koa.body = ''
+      return
+    }
+    if (existsSync(fullPath) && statSync(fullPath).isFile()) {
+      await send(koa, path.relative(webPublic, fullPath), { root: webPublic })
+      return
+    }
+    koa.status = 404
+    koa.body = ''
+  }
+
+  // web 应用里仍有 /img 这类运行时绝对路径，开发模式直接由 Koishi 服务托管
+  const registerDevPublic = (pattern: string, prefix: string) => {
+    ctx.server.get(pattern, async (koa: WebContext, next: () => Promise<void>) => {
+      if (!getVite()) return next()
+      await servePublicFile(koa, prefix)
+    })
+  }
+
+  registerDevPublic('/img(.*)', 'img')
 
   const toExtension = (value: string): string => {
     const ext = value.startsWith('.') ? value : `.${value}`
@@ -610,11 +675,6 @@ export function registerWeb(
     }
   })
 
-  if (!existsSync(webRoot)) {
-    logger.warn('未找到 client/web/dist；开发模式请在 client/web 目录运行 npm run dev，发布前请执行 npm run build')
-    return
-  }
-
   const serveFile = async (koa: WebContext, fileName: string) => {
     const fullPath = path.join(webRoot, fileName)
     if (existsSync(fullPath) && statSync(fullPath).isFile()) {
@@ -626,8 +686,27 @@ export function registerWeb(
     await send(koa, 'index.html', { root: webRoot })
   }
 
+  const serveDevWeb = async (koa: WebContext): Promise<boolean> => {
+    const vite = getVite()
+    if (!vite) return false
+    koa.status = 200
+    koa.type = 'html'
+    koa.body = await transformWebIndex(vite, koa.path)
+    return true
+  }
+
   ctx.server.get(`${config.basePath}/web(/.*)?`, async (koa) => {
+    if (await serveDevWeb(koa)) return
+    if (!existsSync(webRoot)) {
+      koa.status = 404
+      koa.body = ''
+      return
+    }
     const fileName = koa.params?.[0]?.replace(/^\/+/, '') || 'index.html'
     await serveFile(koa, fileName)
   })
+
+  if (!existsSync(webRoot) && process.env.NODE_ENV !== 'development') {
+    logger.warn('未找到 client/web/dist，发布前请先执行 client/web 目录下的 npm run build')
+  }
 }

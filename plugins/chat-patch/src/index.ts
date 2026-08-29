@@ -10,6 +10,7 @@ import { Recorder } from './recorder'
 import { MediaManager } from './media'
 import { SelfMessageRecorder } from './self-message'
 import { registerBootstrap } from './bootstrap'
+import { patchKoishiVite } from './vite'
 import { registerWeb } from './web'
 
 export const name = 'chat-patch'
@@ -37,6 +38,7 @@ export const usage = `
 export { Config } from './config'
 
 export async function apply(ctx: Context, config: Config) {
+  const restoreVite = patchKoishiVite(ctx.baseDir)
   const pluginLogger = createPluginLogger(ctx.logger('chat-patch'), config)
 
   const database = new ChatDatabase(ctx, config, pluginLogger)
@@ -61,6 +63,7 @@ export async function apply(ctx: Context, config: Config) {
   })
 
   ctx.on('dispose', () => {
+    restoreVite()
     selfMessages.dispose()
     media.dispose()
     void database.dispose()
