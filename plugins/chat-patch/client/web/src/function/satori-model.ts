@@ -443,7 +443,7 @@ export function satoriEventToOneBot(
     const userId = getString(user.id)
       || (isGroup ? '' : getString(channel.id).replace(/^private:/, ''))
     const groupId = isGroup
-      ? getString(guild.id) || normalizeGroupId(getString(channel.id))
+      ? normalizeGroupId(getString(guild.id)) || normalizeGroupId(getString(channel.id))
       : ''
     const directChannelId = isGroup ? groupId : userId
     const nickname = getString(user.name) || getString(user.nick) || userId
@@ -685,7 +685,7 @@ function messageListFromResponse(data: unknown): unknown[] {
     const member = getObject(message.member)
     const isGroup = isGroupChannel(channel, guild)
     const groupId = isGroup
-      ? getString(guild.id) || normalizeGroupId(getString(channel.id))
+      ? normalizeGroupId(getString(guild.id)) || normalizeGroupId(getString(channel.id))
       : ''
     const userId = getString(user.id)
       || (isGroup ? '' : getString(channel.id).replace(/^private:/, ''))
@@ -740,7 +740,8 @@ export function satoriResponseToOneBot(
     const mapped = list.map((item) => {
       const value = getObject(item)
       const user = getObject(value.user)
-      const id = getString(value.id)
+      const rawId = getString(value.id)
+      const id = action === 'get_group_list' ? normalizeGroupId(rawId) : rawId
       const friendName = getString(user.name)
         || getString(user.nick)
         || getString(value.name)

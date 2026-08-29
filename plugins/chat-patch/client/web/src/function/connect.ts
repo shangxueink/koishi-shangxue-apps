@@ -25,7 +25,7 @@ import { useChatStore } from '../state/chat'
 import { useContactStore } from '../state/contact'
 import { useSettingsStore } from '../state/settings'
 import { getMsgRawTxt, hasAtMe, updateBaseOnMsgList } from './utils/msgUtil'
-import { normalizeSessionId } from './utils/sessionUtil'
+import { normalizeSessionId, setSessionContact } from './utils/sessionUtil'
 import { buildQqGroupAvatar } from './utils/avatarUtil'
 import type { ConnectionHistoryItem, LoginCacheElem } from './elements/system'
 import type { UserFriendElem, UserGroupElem } from './elements/information'
@@ -350,7 +350,7 @@ function updateBotStateGroup(
   const session = state?.onMsgList.find((item) => String(item.group_id) === sessionId)
   if (!state || !session) return
   apply(session as unknown as Record<string, unknown>)
-  const key = normalizeSessionId(String(sessionId))
+  const key = normalizeSessionId(String(session.channel_id ?? session.channelId ?? sessionId))
   const baseList = [...state.baseList]
   const baseIndex = baseList.findIndex(([baseKey]) => normalizeSessionId(String(baseKey)) === key)
   const typedSession = session as unknown as UserFriendElem & UserGroupElem
@@ -550,6 +550,7 @@ function recordBotMessage(platform: string, selfId: string, msg: Record<string, 
     identityDebug('recordBotMessage: skipped invalid session', { sessionId, msg })
     return
   }
+  const sessionKey = String(channelId || sessionId)
   identityDebug('recordBotMessage: session', { sessionId })
   const sender = getObject(msg.sender)
   const hasSenderAvatar = hasUsableAvatar(sender.avatar)
@@ -628,7 +629,7 @@ function recordBotMessage(platform: string, selfId: string, msg: Record<string, 
   } else {
     state.onMsgList.unshift(session)
   }
-  const baseKey = normalizeSessionId(String(sessionId))
+  const baseKey = normalizeSessionId(sessionKey)
   const baseList = [...state.baseList]
   const baseIndex = baseList.findIndex(([key]) => normalizeSessionId(String(key)) === baseKey)
   const typedSession = session as unknown as UserFriendElem & UserGroupElem
@@ -644,12 +645,9 @@ function recordBotMessage(platform: string, selfId: string, msg: Record<string, 
   })
   if (
     isActiveBot({ platform, selfId }) &&
-    !contactStore.baseOnMsgList.has(String(sessionId))
+    !contactStore.baseOnMsgList.has(normalizeSessionId(sessionKey))
   ) {
-    contactStore.baseOnMsgList.set(
-      String(sessionId),
-      session as unknown as UserFriendElem & UserGroupElem,
-    )
+    setSessionContact(contactStore.baseOnMsgList, session as unknown as UserFriendElem & UserGroupElem)
     updateBaseOnMsgList()
   }
 
@@ -678,7 +676,8 @@ function recordBotMessage(platform: string, selfId: string, msg: Record<string, 
     // 实时消息直接写入当前聊天窗口，避免依赖旧的消息解析链路
     chatStore.messageList.push(msg)
   }
-  const knownSessionAvatar = contactStore.baseOnMsgList.get(String(sessionId))
+  const knownSessionAvatar = contactStore.baseOnMsgList.get(normalizeSessionId(sessionKey))
+    ?? contactStore.baseOnMsgList.get(normalizeSessionId(sessionId))
   const knownWithAvatar = hasUsableAvatar(session.avatar)
     || Boolean(
       knownSessionAvatar &&
@@ -777,10 +776,10 @@ export function restoreBotStateFromMessageCache(platform: string, selfId: string
   const baseList = [...state.baseList]
   const baseKeys = new Set(baseList.map(([key]) => normalizeSessionId(key)))
   const existing = new Set(state.onMsgList.map((item) => {
-    return String(item.user_id ?? item.group_id ?? '')
+    return String(item.channel_id ?? item.channelId ?? item.user_id ?? item.group_id ?? '')
   }))
   for (const session of sessions) {
-    const id = String(session.user_id ?? session.group_id ?? '')
+    const id = String(session.channel_id ?? session.channelId ?? session.user_id ?? session.group_id ?? '')
     if (id && !existing.has(id)) {
       state.onMsgList.unshift(session)
       existing.add(id)
@@ -1360,6 +1359,7 @@ async function loadAllBotsCache() {
     for (const raw of groupRaws) {
       const id = normalizeGroupId(getString(raw.group_id) || getString(raw.id))
       if (!id) continue
+      raw.group_id = id
       const name = getString(raw.group_name) || getString(raw.name)
       const avatar = hasUsableAvatar(raw.avatar)
         ? getString(raw.avatar)
@@ -1492,6 +1492,7 @@ function buildGroupItem(
   const channel = getObject(root.channel)
   const item = { ...getObject(raw) }
   const id = normalizeGroupId(getString(item.group_id) || getString(item.id) || getString(item.guild_id) || '')
+  item.group_id = id
   const name = getString(guild.name)
     || getString(channel.name)
     || getString(item.group_name)

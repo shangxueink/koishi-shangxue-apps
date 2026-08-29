@@ -90,8 +90,10 @@ import {
     getSessionId,
     getMissingGroupPreviewSessions,
     mergeEarlySessionContacts,
+    normalizeGroupId,
     normalizeSessionId,
     resolveIncomingSession,
+    setSessionContact,
 } from './utils/sessionUtil'
 
 const popInfo = new PopInfo()
@@ -1604,7 +1606,12 @@ function saveUser(msg: { [key: string]: any }, type: string) {
                     list = list.filter((item, index, arr) => {
                         return (
                             arr.findIndex((item2) => {
-                                return item2.group_id == item.group_id
+                                const idA = String(item2.channel_id ?? item2.channelId ?? item2.group_id)
+                                const idB = String(item.channel_id ?? item.channelId ?? item.group_id)
+                                return idA === idB || (
+                                    !item2.channel_id && !item.channel_id &&
+                                    normalizeGroupId(idA) === normalizeGroupId(idB)
+                                )
                             }) == index
                         )
                     })
@@ -1676,11 +1683,11 @@ function saveUser(msg: { [key: string]: any }, type: string) {
         )
         const existingIds = new Set(
             contactStore.userList.map((item) => {
-                return String(item.user_id ?? item.group_id ?? '')
+                return normalizeSessionId(String(item.channel_id ?? item.channelId ?? item.user_id ?? item.group_id ?? ''))
             }),
         )
         const freshList = list.filter((item) => {
-            return !existingIds.has(String(item.user_id ?? item.group_id ?? ''))
+            return !existingIds.has(normalizeSessionId(String(item.channel_id ?? item.channelId ?? item.user_id ?? item.group_id ?? '')))
         })
         contactStore.userList = contactStore.userList.concat(freshList)
         if (
@@ -2474,8 +2481,10 @@ function newMsg(_: string, data: any) {
 
         // 会话状态更新 ============================================
         const sessionId = isTempGroupMessage ? sender : id
-        const normalizedSessionId = normalizeSessionId(sessionId)
+        const sessionKey = String(sessionChannelId || sessionId)
+        const normalizedSessionId = normalizeSessionId(sessionKey)
         let session = contactStore.baseOnMsgList.get(normalizedSessionId)
+            ?? contactStore.baseOnMsgList.get(normalizeSessionId(sessionId))
         if (!session) {
             if (isTempGroupMessage) {
                 session = {
@@ -2521,7 +2530,7 @@ function newMsg(_: string, data: any) {
                 if (data.atall) { session.highlight = $t('[@全体]') }
                 if (isImportant) { session.highlight = $t('[特別关心]') }
             }
-            contactStore.baseOnMsgList.set(normalizedSessionId, session)
+            setSessionContact(contactStore.baseOnMsgList, session)
             updateBaseOnMsgList()
         }
 

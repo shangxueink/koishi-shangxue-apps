@@ -1,11 +1,33 @@
 import type { Session } from '../elements/information'
 
+export function normalizeGroupId(value: string): string {
+  const raw = value.replace(/^(?:group|room|chat|channel|guild):/i, '').trim()
+  const wrapped = raw.match(/^\[_?([\s\S]+?)_?\]$/)
+  return wrapped ? wrapped[1] : raw || value
+}
+
 export function normalizeSessionId(value: number | string): string {
   return String(value)
 }
 
 export function getSessionId(item: Session): number | string {
+    const channelId = item.channel_id ?? item.channelId
+    if (channelId !== undefined && channelId !== null && String(channelId) !== '') {
+        return channelId
+    }
     return item.user_id ?? item.group_id ?? 0
+}
+
+export function setSessionContact(
+  map: Map<number | string, Session>,
+  item: Session,
+) {
+  const key = normalizeSessionId(getSessionId(item))
+  map.set(key, item)
+  const legacyId = item.user_id ?? item.group_id
+  if (legacyId !== undefined && legacyId !== null && String(legacyId) !== key) {
+    map.set(normalizeSessionId(String(legacyId)), item)
+  }
 }
 
 export function findSessionContact(

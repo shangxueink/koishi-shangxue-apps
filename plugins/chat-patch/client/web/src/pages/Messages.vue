@@ -401,14 +401,16 @@
                 }
             }
             // 清除新消息标记
-            const item = contactStore.baseOnMsgList.get(normalizeSessionId(id))
+            const sessionKey = data.channel_id ?? data.channelId ?? id
+            const item = contactStore.baseOnMsgList.get(normalizeSessionId(sessionKey))
+                ?? contactStore.baseOnMsgList.get(normalizeSessionId(id))
             if(item) {
                 if(item.new_msg) {
                     item.new_msg = false
                     contactStore.newMsgCount--
                 }
                 item.highlight = undefined
-                contactStore.baseOnMsgList.set(normalizeSessionId(id), item)
+                contactStore.baseOnMsgList.set(normalizeSessionId(sessionKey), item)
                 // 关闭所有通知
                 new Notify().closeAll((item.group_id ?? item.user_id).toString())
             }
@@ -472,14 +474,16 @@
      */
     function readMsg(data: UserFriendElem & UserGroupElem) {
         const id = data.group_id ? data.group_id : data.user_id
-        const item = contactStore.baseOnMsgList.get(normalizeSessionId(id))
+        const sessionKey = data.channel_id ?? data.channelId ?? id
+        const item = contactStore.baseOnMsgList.get(normalizeSessionId(sessionKey))
+            ?? contactStore.baseOnMsgList.get(normalizeSessionId(id))
         if(item) {
             if(item.new_msg) {
                 item.new_msg = false
                 contactStore.newMsgCount--
             }
             item.highlight = undefined
-            contactStore.baseOnMsgList.set(normalizeSessionId(id), item)
+            contactStore.baseOnMsgList.set(normalizeSessionId(sessionKey), item)
         }
         // pop
         new PopInfo().add(
