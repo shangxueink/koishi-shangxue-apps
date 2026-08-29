@@ -5,21 +5,16 @@ export type PinYinData = {
     short: string[]
 }
 
-/* eslint-disable no-console */
+type PinyinModule = typeof import('pinyin')
 
-const PINYIN_SCRIPT_SRC = 'https://lib.stapxs.cn/modules/pinyin.min.js'
-
+let pinyinModule: PinyinModule | null = null
 let pinyinLoadPromise: Promise<boolean> | null = null
 
 function createEmptyPinyinData(): PinYinData {
     return {
         main: [],
-        short: []
+        short: [],
     }
-}
-
-function hasPinyinLib() {
-    return typeof window !== 'undefined' && typeof window.pinyin !== 'undefined'
 }
 
 function scheduleIdleTask(task: () => void) {
@@ -28,7 +23,7 @@ function scheduleIdleTask(task: () => void) {
     const idleWindow = window as Window & {
         requestIdleCallback?: (
             callback: IdleRequestCallback,
-            options?: IdleRequestOptions
+            options?: IdleRequestOptions,
         ) => number
     }
 
@@ -41,57 +36,23 @@ function scheduleIdleTask(task: () => void) {
 }
 
 export function isPinyinReady() {
-    return hasPinyinLib()
+    return pinyinModule !== null
 }
 
 export function ensurePinyinLoaded(): Promise<boolean> {
-    if (hasPinyinLib()) return Promise.resolve(true)
-    if (typeof window === 'undefined' || typeof document === 'undefined') {
-        return Promise.resolve(false)
-    }
-    if (pinyinLoadPromise !== null) return pinyinLoadPromise
+    if (pinyinModule) return Promise.resolve(true)
+    if (pinyinLoadPromise) return pinyinLoadPromise
 
-    pinyinLoadPromise = new Promise((resolve) => {
-        let script = document.querySelector(
-            'script[data-ssqq-pinyin-lib="true"]',
-        ) as HTMLScriptElement | null
-
-        const finish = (success: boolean) => {
-            if (!success) {
-                pinyinLoadPromise = null
-            }
-            resolve(success)
-        }
-
-        const handleLoad = () => {
-            if (script) {
-                script.dataset.loaded = 'true'
-            }
-            finish(hasPinyinLib())
-        }
-
-        const handleError = () => {
-            if (isDebugMode()) console.warn('拼音库加载失败')
-            script?.remove()
-            finish(false)
-        }
-
-        if (script?.dataset.loaded === 'true') {
-            finish(hasPinyinLib())
-            return
-        }
-
-        if (!script) {
-            script = document.createElement('script')
-            script.src = PINYIN_SCRIPT_SRC
-            script.async = true
-            script.dataset.ssqqPinyinLib = 'true'
-            document.body.appendChild(script)
-        }
-
-        script.addEventListener('load', handleLoad, { once: true })
-        script.addEventListener('error', handleError, { once: true })
-    })
+    pinyinLoadPromise = import('pinyin')
+        .then((mod) => {
+            pinyinModule = mod
+            return true
+        })
+        .catch((error: unknown) => {
+            if (isDebugMode()) console.warn('本地拼音库加载失败:', error)
+            pinyinLoadPromise = null
+            return false
+        })
 
     return pinyinLoadPromise
 }
@@ -103,22 +64,21 @@ export function preloadPinyin() {
 }
 
 export function getPinyin(name: string): PinYinData {
-    if (!hasPinyinLib()) return createEmptyPinyinData()
+    if (!pinyinModule) return createEmptyPinyinData()
 
     try {
-        const pinyinLib = window.pinyin
-        if (!pinyinLib) return createEmptyPinyinData()
+        const pinyinLib = pinyinModule.pinyin
         return {
-            main: pinyinLib.pinyin(name, {
+            main: pinyinLib(name, {
                 heteronym: true,
                 compact: true,
                 style: 'normal',
-            }).map((item: string[]) => item.join('').toLowerCase()),
-            short: pinyinLib.pinyin(name, {
+            }).map((item) => item.join('').toLowerCase()),
+            short: pinyinLib(name, {
                 heteronym: true,
                 compact: true,
                 style: 'first_letter',
-            }).map((item: string[]) => item.join('').toLowerCase()),
+            }).map((item) => item.join('').toLowerCase()),
         }
     } catch (error) {
         if (isDebugMode()) console.warn('拼音转换失败:', error)
@@ -128,7 +88,7 @@ export function getPinyin(name: string): PinYinData {
 
 export function matchPinyin(
     pinyinData: PinYinData,
-    matchStr: string
+    matchStr: string,
 ): boolean {
     const str = matchStr.toLowerCase()
     for (const py of pinyinData.main) {

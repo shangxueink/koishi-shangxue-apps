@@ -1026,10 +1026,7 @@ export function checkOpenTimes() {
 */
 export function checkNotice() {
     const uiStore = useUIStore()
-    let url = 'https://lib.stapxs.cn/download/stapxs-qq-lite/notice-config.json'
-    if (import.meta.env.DEV) {
-        url = 'notice_local.json'
-    }
+    const url = 'notice_local.json'
     const version = 3
     const fetchData = {
         time: new Date().getTime().toString(),

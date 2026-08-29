@@ -10,12 +10,6 @@
         :icon="['fas', 'face-grin-wide']"
         :title="$t('表情')"
         class="emoji-face" />
-    <img v-else-if="emoji.type === 'apng'"
-        class="emoji-face"
-        loading="lazy"
-        :alt="emoji.description"
-        :title="emoji.description"
-        :src="emoji.value">
     <span v-else
         :title="emoji.description"
         class="emoji-face">

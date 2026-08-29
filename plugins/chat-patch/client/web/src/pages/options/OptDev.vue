@@ -315,20 +315,7 @@ import packageInfo from '../../../package.json'
         }
 
         info += 'Network Info:\n'
-        const testList = [
-            ['Github          ', 'https://api.github.com'],
-            ['SSQQ API        ', 'https://api.stapxs.cn'],
-        ]
-        for (const item of testList) {
-            const start = new Date().getTime()
-            try {
-                await fetch(item[1], { method: 'GET' })
-                const end = new Date().getTime()
-                info += `    ${item[0]}  -> ${end - start} ms\n`
-            } catch (e) {
-                info += `    ${item[0]}  -> failed\n`
-            }
-        }
+        info += '    local only\n'
         info += '```'
         // 构建 popBox 内容
         const popInfo = {

@@ -27,18 +27,6 @@
                         </div>
                     </template>
                     <div class="title">
-                        <span>{{ $t('小黄脸表情') }}</span>
-                    </div>
-                    <div class="face">
-                        <template v-for="num in Emoji.normalList" :key="num">
-                            <div>
-                                <EmojiFace
-                                    :emoji="Emoji.get(num)"
-                                    @click="addBaseFace(num)" />
-                            </div>
-                        </template>
-                    </div>
-                    <div class="title">
                         <span>{{ $t('emoji 表情') }}</span>
                     </div>
                     <div class="face">

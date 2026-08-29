@@ -33,6 +33,7 @@
     "jsonpath": "^1.1.1",
     "markdown-it": "^14.1.1",
     "pinia": "^3.0.3",
+    "pinyin": "^4.0.0",
     "pofile": "^1.1.4",
     "querystring": "^0.2.1",
     "spacingjs": "^1.0.8",

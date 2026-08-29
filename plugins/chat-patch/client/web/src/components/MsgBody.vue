@@ -81,9 +81,9 @@
                 <!-- 超级表情 -->
                 <template v-else-if="isSuperFaceMsg()">
                     <div class="msg-img face lottie-face alone">
-                        <LazyLottie
-                            :animation-link="Emoji.get(Number(data.message[0].id))!.superValue!"
-                            :title="Emoji.get(Number(data.message[0].id))!.description" />
+                        <EmojiFace
+                            :emoji="Emoji.get(Number(data.message[0].id))!"
+                            class="msg-face" />
                     </div>
                 </template>
                 <template v-else-if="!hasCard()">
@@ -436,7 +436,6 @@ const chatStore = useChatStore()
 const settingsStore = useSettingsStore()
 import Emoji from '../function/model/emoji'
 import EmojiFace from './EmojiFace.vue'
-import LazyLottie from './LazyLottie.vue'
 import { Img } from '../function/model/img'
 import { dbGetImage, hashUrl } from '../function/utils/localHistoryUtil'
 import JsonSegComp from './msg-component/JsonSegComp.vue'
