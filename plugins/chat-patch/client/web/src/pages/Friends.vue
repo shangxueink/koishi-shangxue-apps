@@ -50,7 +50,7 @@
                         {{ $t('空') }}
                     </div>
                     <FriendBody v-for="item in contactStore.showList"
-                        :key="'search-' + item.user_id + '-' + item.group_id"
+                        :key="'search-' + (item.channel_id ?? item.channelId ?? item.user_id ?? item.group_id)"
                         :data="item"
                         from="friend"
                         @click="userClick(item, $event)" />
@@ -100,7 +100,7 @@
                                                                     return ( get.class_id == info.class_id )
                                                                 },
                                                             )"
-                                                    :key=" 'fb-' + (item.user_id ? item.user_id : item.group_id) "
+                                                    :key=" 'fb-' + (item.channel_id ?? item.channelId ?? item.user_id ?? item.group_id) "
                                                     :data="item" from="friend"
                                                     @click="userClick(item, $event)" />
                                             </div>
@@ -125,7 +125,7 @@
                                                                 return get.class_id == undefined
                                                             },
                                                         )"
-                                                :key="'fb-' + (item.user_id ? item.user_id : item.group_id)"
+                                                :key="'fb-' + (item.channel_id ?? item.channelId ?? item.user_id ?? item.group_id)"
                                                 :data="item"
                                                 from="friend"
                                                 @click="userClick(item, $event)" />
@@ -134,7 +134,7 @@
                                 </template>
                                 <template v-else>
                                     <FriendBody v-for="item in contactStore.userList"
-                                        :key="'fb-' + (item.user_id ? item.user_id : item.group_id)"
+                                        :key="'fb-' + (item.channel_id ?? item.channelId ?? item.user_id ?? item.group_id)"
                                         :data="item"
                                         from="friend"
                                         @click="userClick(item, $event)" />
@@ -144,7 +144,7 @@
                             <div v-else class="list">
                                 <div>
                                     <FriendBody v-for="item in contactStore.showList"
-                                        :key="'fb-' + (item.user_id ? item.user_id : item.group_id)"
+                                        :key="'fb-' + (item.channel_id ?? item.channelId ?? item.user_id ?? item.group_id)"
                                         :data="item" from="friend"
                                         @click="userClick(item, $event)" />
                                 </div>
@@ -184,7 +184,7 @@
     import { reloadUsers } from '../function/utils/appUtil'
     import { Connector, flushPendingBotEvents, loadContactsFromCache, login as loginInfo } from '../function/connect'
     import { getActiveBot, getLogins, setActiveBot } from '../function/satori'
-    import { normalizeSessionId } from '../function/utils/sessionUtil'
+    import { normalizeGroupId, normalizeSessionId } from '../function/utils/sessionUtil'
     import { avatarError } from '../function/utils/avatarUtil'
     import { backend } from '../runtime/backend'
     import { matchPinyin } from '../function/utils/pinyin'
@@ -240,7 +240,17 @@
             bot?: ContactWithBot['_bot'],
         ) => {
             for (const item of items) {
-                const id = String(item.user_id ?? item.group_id ?? '')
+                const rawId = String(
+                    item.channel_id
+                    ?? item.channelId
+                    ?? item.user_id
+                    ?? item.group_id
+                    ?? '',
+                )
+                const groupId = String(item.group_id ?? '')
+                const id = groupId
+                    ? `group:${normalizeGroupId(rawId || groupId)}`
+                    : `user:${rawId.replace(/^(?:private|direct):/i, '')}`
                 const key = [bot?.platform ?? '', bot?.selfId ?? '', id]
                     .map((value) => encodeURIComponent(String(value)))
                     .join(':')
@@ -295,8 +305,25 @@
         if (saved) {
             contactStore.userList = saved.userList
             contactStore.baseOnMsgList.clear()
-            for (const [key, value] of saved.baseList) {
-                contactStore.baseOnMsgList.set(normalizeSessionId(key), value)
+            for (const [, value] of saved.baseList) {
+                const id = String(value.channel_id ?? value.channelId ?? value.user_id ?? value.group_id ?? '')
+                if (id && id !== '0') {
+                    contactStore.baseOnMsgList.set(normalizeSessionId(id), value)
+                    const legacyId = String(value.user_id ?? value.group_id ?? '')
+                    if (legacyId && legacyId !== id) {
+                        contactStore.baseOnMsgList.set(normalizeSessionId(legacyId), value)
+                    }
+                }
+            }
+            for (const item of saved.onMsgList) {
+                const id = String(item.channel_id ?? item.channelId ?? item.user_id ?? item.group_id ?? '')
+                if (id && id !== '0') {
+                    contactStore.baseOnMsgList.set(normalizeSessionId(id), item)
+                    const legacyId = String(item.user_id ?? item.group_id ?? '')
+                    if (legacyId && legacyId !== id) {
+                        contactStore.baseOnMsgList.set(normalizeSessionId(legacyId), item)
+                    }
+                }
             }
             contactStore.onMsgList = saved.onMsgList
             flushPendingBotEvents(bot.platform, bot.selfId)
@@ -385,13 +412,22 @@
             name: getShowName(data),
             avatar: data.avatar || '/img/icons/icon.svg',
             jump: sender.dataset.jump,
-            channel_id: data.channel_id,
+            channel_id: data.channel_id ?? data.channelId,
             guild_id: data.guild_id,
         } as BaseChatInfoElem
         if (back.id === undefined || back.id === null || String(back.id) === '' || String(back.id) === '0') return
         // 更新聊天框
         emit('userClick', back)
-        contactStore.baseOnMsgList.set(normalizeSessionId(back.id), data)
+        const sessionId = String(
+            data.channel_id
+            ?? data.channelId
+            ?? data.user_id
+            ?? data.group_id
+            ?? '',
+        )
+        if (sessionId && sessionId !== '0') {
+            contactStore.baseOnMsgList.set(normalizeSessionId(sessionId), data)
+        }
         // 获取历史消息
         if(!uiStore.nowGetHistory) {
             emit('loadHistory', back)

@@ -25,7 +25,11 @@ import { useChatStore } from '../state/chat'
 import { useContactStore } from '../state/contact'
 import { useSettingsStore } from '../state/settings'
 import { getMsgRawTxt, hasAtMe, updateBaseOnMsgList } from './utils/msgUtil'
-import { normalizeSessionId, setSessionContact } from './utils/sessionUtil'
+import {
+  getSessionDedupKey,
+  normalizeSessionId,
+  setSessionContact,
+} from './utils/sessionUtil'
 import { buildQqGroupAvatar } from './utils/avatarUtil'
 import type { ConnectionHistoryItem, LoginCacheElem } from './elements/system'
 import type { UserFriendElem, UserGroupElem } from './elements/information'
@@ -352,7 +356,7 @@ function updateBotStateGroup(
   apply(session as unknown as Record<string, unknown>)
   const key = normalizeSessionId(String(session.channel_id ?? session.channelId ?? sessionId))
   const baseList = [...state.baseList]
-  const baseIndex = baseList.findIndex(([baseKey]) => normalizeSessionId(String(baseKey)) === key)
+  const baseIndex = baseList.findIndex(([, value]) => value === session)
   const typedSession = session as unknown as UserFriendElem & UserGroupElem
   if (baseIndex >= 0) {
     baseList[baseIndex] = [key, typedSession]
@@ -598,6 +602,14 @@ function recordBotMessage(platform: string, selfId: string, msg: Record<string, 
     guild_id: typeof msg.guild_id === 'string' ? msg.guild_id : undefined,
   }
   const existing = state.onMsgList.find((item) => {
+    const itemChannelId = String(item.channel_id ?? item.channelId ?? '')
+    if (itemChannelId) {
+      if (isGroup) {
+        return normalizeGroupId(itemChannelId) === normalizeGroupId(channelId || sessionId)
+      }
+      return itemChannelId.replace(/^(?:private|direct):/i, '')
+        === String(sessionId).replace(/^(?:private|direct):/i, '')
+    }
     return isGroup
       ? String(item.group_id) === sessionId
       : String(item.user_id) === sessionId
@@ -631,7 +643,7 @@ function recordBotMessage(platform: string, selfId: string, msg: Record<string, 
   }
   const baseKey = normalizeSessionId(sessionKey)
   const baseList = [...state.baseList]
-  const baseIndex = baseList.findIndex(([key]) => normalizeSessionId(String(key)) === baseKey)
+  const baseIndex = baseList.findIndex(([, value]) => value === session)
   const typedSession = session as unknown as UserFriendElem & UserGroupElem
   if (baseIndex >= 0) {
     baseList[baseIndex] = [baseKey, typedSession]
@@ -773,20 +785,28 @@ export function restoreBotStateFromMessageCache(platform: string, selfId: string
     baseList: [],
     onMsgList: [],
   }
-  const baseList = [...state.baseList]
-  const baseKeys = new Set(baseList.map(([key]) => normalizeSessionId(key)))
-  const existing = new Set(state.onMsgList.map((item) => {
-    return String(item.channel_id ?? item.channelId ?? item.user_id ?? item.group_id ?? '')
-  }))
+  const baseMap = new Map<string, UserFriendElem & UserGroupElem>()
+  for (const [, value] of state.baseList) {
+    const id = getSessionDedupKey(value)
+    if (!id.endsWith(':0') && !id.endsWith(':')) baseMap.set(id, value)
+  }
+  const baseList = [...baseMap.entries()]
+  const baseKeys = new Set(baseList.map(([key]) => key))
+  const existing = new Set(
+    state.onMsgList.map((item) => {
+      const id = getSessionDedupKey(item)
+      return !id.endsWith(':0') && !id.endsWith(':') ? id : ''
+    }).filter(Boolean),
+  )
   for (const session of sessions) {
-    const id = String(session.channel_id ?? session.channelId ?? session.user_id ?? session.group_id ?? '')
-    if (id && !existing.has(id)) {
+    const id = getSessionDedupKey(session)
+    if (!id.endsWith(':0') && !id.endsWith(':') && !existing.has(id)) {
       state.onMsgList.unshift(session)
       existing.add(id)
     }
-    if (id && !baseKeys.has(normalizeSessionId(id))) {
-      baseList.push([normalizeSessionId(id), session])
-      baseKeys.add(normalizeSessionId(id))
+    if (!id.endsWith(':0') && !id.endsWith(':') && !baseKeys.has(id)) {
+      baseList.push([normalizeSessionId(String(session.channel_id ?? session.channelId ?? session.user_id ?? session.group_id ?? '')), session])
+      baseKeys.add(id)
     }
   }
   contactStore.botStates.set(selfId, {

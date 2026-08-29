@@ -98,7 +98,7 @@
                                 <!-- 其他消息 -->
                                 <FriendBody
                                     v-for="item in contactStore.onMsgList"
-                                    :key="'inMessage-' + (item.user_id ? item.user_id : item.group_id)"
+                                    :key="'inMessage-' + (item.channel_id ?? item.channelId ?? item.user_id ?? item.group_id)"
                                     :select="chat.show.id === item.user_id || (chat.show.id === item.group_id && chat.group_name != '')"
                                     :menu="menu.select && menu.select == item"
                                     :data="item"
@@ -150,7 +150,7 @@
                     <!-- 其他消息 -->
                     <FriendBody
                         v-for="item in contactStore.groupAssistList"
-                        :key="'inMessage-' + (item.user_id ? item.user_id : item.group_id)"
+                        :key="'inMessage-' + (item.channel_id ?? item.channelId ?? item.user_id ?? item.group_id)"
                         :select="chat.show.id === item.user_id || (chat.show.id === item.group_id && chat.group_name != '')"
                         :menu="menu.select && menu.select == item"
                         :data="item"
@@ -283,16 +283,27 @@
         const restored = contactStore.botStates.get(bot.selfId)
         if (!restored) return
         contactStore.baseOnMsgList.clear()
-        for (const [key, value] of restored.baseList) {
-            contactStore.baseOnMsgList.set(normalizeSessionId(key), value)
+        for (const [, value] of restored.baseList) {
+            const id = String(value.channel_id ?? value.channelId ?? value.user_id ?? value.group_id ?? '')
+            if (id && id !== '0') {
+                contactStore.baseOnMsgList.set(normalizeSessionId(id), value)
+                const legacyId = String(value.user_id ?? value.group_id ?? '')
+                if (legacyId && legacyId !== id) {
+                    contactStore.baseOnMsgList.set(normalizeSessionId(legacyId), value)
+                }
+            }
         }
         for (const item of restored.onMsgList) {
-            const id = String(item.user_id ?? item.group_id ?? '')
+            const id = String(item.channel_id ?? item.channelId ?? item.user_id ?? item.group_id ?? '')
             if (!id || id === '0') continue
             contactStore.baseOnMsgList.set(
                 normalizeSessionId(id),
                 item as UserFriendElem & UserGroupElem,
             )
+            const legacyId = String(item.user_id ?? item.group_id ?? '')
+            if (legacyId && legacyId !== id) {
+                contactStore.baseOnMsgList.set(normalizeSessionId(legacyId), item as UserFriendElem & UserGroupElem)
+            }
         }
         contactStore.onMsgList = restored.onMsgList
     }
@@ -518,7 +529,16 @@
                     )
                     if (topList.indexOf(id) >= 0) {
                         item.always_top = true
-                        contactStore.baseOnMsgList.set(normalizeSessionId(id), item)
+                        const sessionId = String(
+                            item.channel_id
+                            ?? item.channelId
+                            ?? item.user_id
+                            ?? item.group_id
+                            ?? '',
+                        )
+                        if (sessionId && sessionId !== '0') {
+                            contactStore.baseOnMsgList.set(normalizeSessionId(sessionId), item)
+                        }
                     }
                 })
             }
@@ -558,7 +578,10 @@
                     break
                 case 'remove': {
                     const id = item.user_id ? item.user_id : item.group_id
+                    const sessionId = String(item.channel_id ?? item.channelId ?? id ?? '')
                     contactStore.baseOnMsgList.delete(normalizeSessionId(id))
+                    contactStore.baseOnMsgList.delete(normalizeSessionId(sessionId))
+                    updateBaseOnMsgList()
                     refreshFavicon()
                     break
                 }

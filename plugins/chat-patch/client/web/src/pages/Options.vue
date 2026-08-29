@@ -11,7 +11,7 @@
         <!-- 保留占位元素，避免设置页右侧布局被原有左侧选择器样式影响 -->
         <div class="opt-side-placeholder" style="display: none" />
         <div>
-            <BcTab v-show="show" :title="$t('设置')" class="opt-tab">
+            <SettingsTab v-show="show" :title="$t('设置')" class="opt-tab">
                 <div :name="$t('账号')">
                     <OptAccount :config="config" />
                 </div>
@@ -27,18 +27,18 @@
                 <div v-if="showAbout" :name="$t('关于')">
                     <AboutPan class="opt-about" show-u-i />
                 </div>
-            </BcTab>
+            </SettingsTab>
         </div>
     </div>
 </template>
 
 <script setup lang="ts">
-    import { ref, watch, onMounted, nextTick } from 'vue'
+    import { ref, watch, onMounted } from 'vue'
 
     import { i18n } from '../main'
     import { useSettingsStore } from '../state/settings'
 
-    import BcTab from 'vue3-bcui/packages/bc-tab'
+    import SettingsTab from '../components/SettingsTab.vue'
     import OptAccount from './options/OptAccount.vue'
     import OptView from './options/OptView.vue'
     import OptDev from './options/OptDev.vue'

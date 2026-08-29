@@ -22,7 +22,10 @@ import { useAuthStore } from '../../state/auth'
 import { useChatStore } from '../../state/chat'
 import {
     findSessionContact,
+    getSessionAliases,
+    getSessionDedupKey,
     getSessionId,
+    mergeSessionState,
     normalizeSessionId,
 } from './sessionUtil'
 
@@ -788,6 +791,7 @@ export function updateLastestHistory(item: UserFriendElem & UserGroupElem) {
     // 发起获取历史消息请求
     const type = item.user_id ? 'user' : 'group'
     const id = item.user_id ? item.user_id : item.group_id
+    const sessionId = normalizeSessionId(getSessionId(item))
     let name
     if (authStore.jsonMap.message_list && type != 'group') {
         name = authStore.jsonMap.message_list.private_name
@@ -804,7 +808,7 @@ export function updateLastestHistory(item: UserFriendElem & UserGroupElem) {
             message_id: 0,
             count: 1,
         },
-        'getChatHistoryOnMsg_' + id,
+        'getChatHistoryOnMsg_' + sessionId,
     )
 }
 
@@ -819,22 +823,22 @@ function getSessionSortName(item: UserFriendElem & UserGroupElem) {
 
 function normalizeBaseSessionMap() {
     const contactStore = useContactStore()
-    let needNormalize = false
-    for (const id of contactStore.baseOnMsgList.keys()) {
-        if (typeof id !== 'string') {
-            needNormalize = true
-            break
+    const canonical = new Map<string, UserFriendElem & UserGroupElem>()
+    contactStore.baseOnMsgList.forEach((item) => {
+        const id = getSessionDedupKey(item)
+        if (id === 'group:0' || id === 'group:' || id === 'user:0' || id === 'user:') return
+        const existing = canonical.get(id)
+        if (existing && existing !== item) {
+            canonical.set(id, mergeSessionState(existing, item))
+        } else if (!existing) {
+            canonical.set(id, item)
         }
-    }
-    if (!needNormalize) return
-
-    const normalized = new Map<string, UserFriendElem & UserGroupElem>()
-    contactStore.baseOnMsgList.forEach((item, id) => {
-        normalized.set(normalizeSessionId(id), item)
     })
     contactStore.baseOnMsgList.clear()
-    for (const [id, item] of normalized) {
-        contactStore.baseOnMsgList.set(id, item)
+    for (const [id, item] of canonical) {
+        for (const alias of getSessionAliases(item)) {
+            contactStore.baseOnMsgList.set(alias, item)
+        }
     }
 }
 
@@ -843,17 +847,25 @@ function getSessionList() {
     const settingsStore = useSettingsStore()
     const sessionMap = new Map<string, UserFriendElem & UserGroupElem>()
 
+    const addSession = (item: UserFriendElem & UserGroupElem) => {
+        const id = getSessionDedupKey(item)
+        if (id === 'group:0' || id === 'group:' || id === 'user:0' || id === 'user:') return
+        const existing = sessionMap.get(id)
+        if (existing && existing !== item) {
+            sessionMap.set(id, mergeSessionState(existing, item))
+        } else if (!existing) {
+            sessionMap.set(id, item)
+        }
+    }
+
     if (settingsStore.sysConfig.session_display_mode === 'all') {
         contactStore.userList.forEach((item) => {
-            const id = normalizeSessionId(getSessionId(item))
-            if (id !== '0' && id !== '') {
-                sessionMap.set(id, item)
-            }
+            addSession(item)
         })
     }
 
-    contactStore.baseOnMsgList.forEach((item, id) => {
-        sessionMap.set(normalizeSessionId(id), item)
+    contactStore.baseOnMsgList.forEach((item) => {
+        addSession(item)
     })
 
     return [...sessionMap.values()]

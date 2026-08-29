@@ -18,15 +18,38 @@ export function getSessionId(item: Session): number | string {
     return item.user_id ?? item.group_id ?? 0
 }
 
+function getLegacySessionId(item: Session): number | string | undefined {
+    return item.user_id ?? item.group_id
+}
+
+export function getSessionAliases(item: Session): string[] {
+    const aliases = [
+        getSessionId(item),
+        getLegacySessionId(item),
+    ].filter((value): value is number | string => {
+        const text = String(value ?? '')
+        return text !== '' && text !== '0'
+    })
+    return [...new Set(aliases.map((value) => normalizeSessionId(value)))]
+}
+
+export function getSessionDedupKey(item: Session): string {
+    const channelId = String(item.channel_id ?? item.channelId ?? '')
+    const groupId = String(item.group_id ?? '')
+    const userId = String(item.user_id ?? '')
+    if (groupId) return `group:${normalizeGroupId(channelId || groupId)}`
+    if (userId) return `user:${userId.replace(/^(?:private|direct):/i, '')}`
+    return /^(?:private|direct):/i.test(channelId)
+        ? `user:${channelId.replace(/^(?:private|direct):/i, '')}`
+        : `group:${normalizeGroupId(channelId)}`
+}
+
 export function setSessionContact(
   map: Map<number | string, Session>,
   item: Session,
 ) {
-  const key = normalizeSessionId(getSessionId(item))
-  map.set(key, item)
-  const legacyId = item.user_id ?? item.group_id
-  if (legacyId !== undefined && legacyId !== null && String(legacyId) !== key) {
-    map.set(normalizeSessionId(String(legacyId)), item)
+  for (const alias of getSessionAliases(item)) {
+    map.set(alias, item)
   }
 }
 
@@ -34,8 +57,13 @@ export function findSessionContact(
     contacts: Session[],
     sessionId: number | string,
 ) {
+    const target = normalizeSessionId(sessionId)
     return contacts.find((item) => {
-        return normalizeSessionId(getSessionId(item)) === normalizeSessionId(sessionId)
+        return getSessionAliases(item).some((alias) => alias === target)
+            || (
+                Boolean(item.group_id) &&
+                normalizeGroupId(String(item.group_id)) === normalizeGroupId(target)
+            )
     })
 }
 
@@ -98,6 +126,28 @@ function copyDefinedSessionState<K extends SessionStateKey>(
 ) {
     const value = currentSession[key]
     if (value !== undefined) {
+        const current = contact[key]
+        if (
+            key === 'time' &&
+            typeof current === 'number' &&
+            typeof value === 'number' &&
+            current > value
+        ) {
+            return
+        }
+        contact[key] = value
+    }
+}
+
+function copyMissingIdentity<K extends keyof Session>(
+    contact: Session,
+    currentSession: Session,
+    key: K,
+) {
+    const value = currentSession[key]
+    if (value === undefined || value === null || String(value) === '') return
+    const current = contact[key]
+    if (current === undefined || current === null || String(current) === '') {
         contact[key] = value
     }
 }
@@ -106,6 +156,21 @@ export function mergeSessionState(
     contact: Session,
     currentSession: Session,
 ) {
+    const identityKeys = [
+        'channel_id',
+        'channelId',
+        'guild_id',
+        'guildId',
+        'group_id',
+        'user_id',
+        'group_name',
+        'nickname',
+        'remark',
+        'avatar',
+    ] as const
+    identityKeys.forEach((key) =>
+        copyMissingIdentity(contact, currentSession, key),
+    )
     SESSION_STATE_KEYS.forEach((key) =>
         copyDefinedSessionState(contact, currentSession, key),
     )
@@ -122,14 +187,18 @@ export function mergeEarlySessionContacts(
 ) {
     let didMerge = false
     contacts.forEach((contact) => {
-        const sessionId = normalizeSessionId(getSessionId(contact))
-        const currentSession = sessions.get(sessionId)
-        if (currentSession && currentSession !== contact) {
-            sessions.set(
-                sessionId,
-                mergeSessionState(contact, currentSession),
-            )
-            didMerge = true
+        for (const [key, currentSession] of sessions.entries()) {
+            if (currentSession === contact) continue
+            if (
+                findSessionContact([currentSession], getSessionId(contact))
+                || getSessionDedupKey(contact) === getSessionDedupKey(currentSession)
+            ) {
+                sessions.set(
+                    key,
+                    mergeSessionState(contact, currentSession),
+                )
+                didMerge = true
+            }
         }
     })
     return didMerge

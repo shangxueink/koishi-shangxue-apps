@@ -87,6 +87,7 @@ import { useUIStore } from '../state/ui'
 import { useSettingsStore } from '../state/settings'
 import { useQzoneStore } from '../state/qzone'
 import {
+    findSessionContact,
     getSessionId,
     getMissingGroupPreviewSessions,
     mergeEarlySessionContacts,
@@ -117,6 +118,11 @@ function getDataObject(value: unknown): Record<string, unknown> {
 function getString(value: unknown): string {
     if (value === null || value === undefined) return ''
     return typeof value === 'string' ? value : String(value)
+}
+
+function normalizeChannelForMatch(value: string): string {
+    if (/^(?:private|direct):/i.test(value)) return value.replace(/^(?:private|direct):/i, '')
+    return normalizeGroupId(value)
 }
 
 // 其他 tag
@@ -963,9 +969,11 @@ const msgFunctions = {
                     )
                     // 更新消息列表
                     const onmsg = contactStore.baseOnMsgList.get(normalizeSessionId(id))
+                        ?? findSessionContact(Array.from(contactStore.baseOnMsgList.values()), id)
                     if (onmsg && list[0]) {
+                        const canonicalId = normalizeSessionId(getSessionId(onmsg))
                         Object.assign(onmsg, formatMessageData(list[0], Boolean(onmsg.group_id)))
-                        contactStore.baseOnMsgList.set(normalizeSessionId(id), onmsg)
+                        contactStore.baseOnMsgList.set(canonicalId, onmsg)
                         updateBaseOnMsgList()
                     }
                 }
@@ -1606,12 +1614,18 @@ function saveUser(msg: { [key: string]: any }, type: string) {
                     list = list.filter((item, index, arr) => {
                         return (
                             arr.findIndex((item2) => {
-                                const idA = String(item2.channel_id ?? item2.channelId ?? item2.group_id)
-                                const idB = String(item.channel_id ?? item.channelId ?? item.group_id)
-                                return idA === idB || (
-                                    !item2.channel_id && !item.channel_id &&
-                                    normalizeGroupId(idA) === normalizeGroupId(idB)
-                                )
+                                const channelA = String(item2.channel_id ?? item2.channelId ?? '')
+                                const channelB = String(item.channel_id ?? item.channelId ?? '')
+                                const groupA = String(item2.group_id ?? item2.id ?? item2.guild_id ?? '')
+                                const groupB = String(item.group_id ?? item.id ?? item.guild_id ?? '')
+                                if (channelA && channelB) {
+                                    return normalizeGroupId(channelA) === normalizeGroupId(channelB)
+                                }
+                                if (channelA || channelB) {
+                                    return normalizeGroupId(channelA || channelB)
+                                        === normalizeGroupId(groupA || groupB)
+                                }
+                                return normalizeGroupId(groupA) === normalizeGroupId(groupB)
                             }) == index
                         )
                     })
@@ -1681,15 +1695,34 @@ function saveUser(msg: { [key: string]: any }, type: string) {
             list,
             contactStore.baseOnMsgList,
         )
-        const existingIds = new Set(
-            contactStore.userList.map((item) => {
-                return normalizeSessionId(String(item.channel_id ?? item.channelId ?? item.user_id ?? item.group_id ?? ''))
-            }),
-        )
+        const sessionDedupKey = (item: any): string => {
+            const channel = String(item.channel_id ?? item.channelId ?? '')
+            const group = String(item.group_id ?? '')
+            const user = String(item.user_id ?? '')
+            if (group) return `group:${normalizeGroupId(channel || group)}`
+            return `user:${String(user).replace(/^(?:private|direct):/i, '')}`
+        }
+        const existingIds = new Set(contactStore.userList.map(sessionDedupKey))
         const freshList = list.filter((item) => {
-            return !existingIds.has(normalizeSessionId(String(item.channel_id ?? item.channelId ?? item.user_id ?? item.group_id ?? '')))
+            return !existingIds.has(sessionDedupKey(item))
         })
-        contactStore.userList = contactStore.userList.concat(freshList)
+        const mergedContacts = [...contactStore.userList, ...freshList] as (UserFriendElem & UserGroupElem)[]
+        const userMap = new Map<string, UserFriendElem & UserGroupElem>()
+        for (const item of mergedContacts) {
+            const key = sessionDedupKey(item)
+            const existing = userMap.get(key)
+            if (existing) {
+                const pyName = existing.py_name
+                const pyStart = existing.py_start
+                Object.assign(existing, item)
+                if (pyName) existing.py_name = pyName
+                if (pyStart) existing.py_start = pyStart
+                userMap.set(key, existing)
+            } else {
+                userMap.set(key, item)
+            }
+        }
+        contactStore.userList = [...userMap.values()]
         if (
             settingsStore.sysConfig.session_display_mode === 'all' ||
             didMergeEarlySessions
@@ -1858,13 +1891,11 @@ async function saveMsg(msg: any, append = undefined as undefined | string) {
         const lastMsg =
             chatStore.messageList[chatStore.messageList.length - 1]
         if (lastMsg) {
-            const user = contactStore.userList.find((item) => {
-                return (
-                    item.group_id == chatStore.chatInfo.show.id ||
-                    item.user_id == chatStore.chatInfo.show.id
-                )
-            })
-            const sessionId = normalizeSessionId(chatStore.chatInfo.show.id)
+            const user = findSessionContact(contactStore.userList, chatStore.chatInfo.show.id)
+            const sessionId = normalizeSessionId(
+                chatStore.chatInfo.show.channel_id
+                ?? chatStore.chatInfo.show.id,
+            )
             const session = contactStore.baseOnMsgList.get(sessionId) ?? user
             if (session) {
                 const preview = formatMessageData(
@@ -2302,6 +2333,7 @@ function newMsg(_: string, data: any) {
         getString(getDataObject(data.channel).id)
     const loginId = String(authStore.loginInfo.uin ?? '')
     const showId = String(chatStore.chatInfo.show.id ?? '')
+    const showChannelId = getString(chatStore.chatInfo.show.channel_id)
     const sender = getString(rawInfo.sender) ||
         getString(getDataObject(data.sender).user_id) ||
         getString(data.user_id)
@@ -2323,6 +2355,16 @@ function newMsg(_: string, data: any) {
     const sessionChannelId = getString(rawInfo.channel_id) || getString(data.channel_id)
     const sessionGuildId = getString(rawInfo.guild_id) || getString(data.guild_id)
     if (!id || id === '0') return
+    const isCurrentSession = Boolean(
+        (
+            sessionChannelId &&
+            showChannelId &&
+            normalizeChannelForMatch(sessionChannelId) === normalizeChannelForMatch(showChannelId)
+        ) || (
+            (!sessionChannelId || !showChannelId) &&
+            (id === showId || targetId === showId || String(sessionChannelId || sessionGuildId || '') === showId)
+        ),
+    )
     // 在好友列表里找一下他
     const senderInfo = contactStore.userList.find((item) => {
         return String(item.user_id ?? '') === sender
@@ -2377,7 +2419,7 @@ function newMsg(_: string, data: any) {
         }
 
         // 显示消息 ============================================
-        if (id && (id === showId || targetId === showId)) {
+        if (id && isCurrentSession) {
             // 如果有正在输入的提示，清除它
             chatStore.chatInfo.show.appendInfo = undefined
             const cachedAvatar = getCachedUserAvatar(
@@ -2517,7 +2559,7 @@ function newMsg(_: string, data: any) {
                 sender != loginId &&
                 sender !== '' &&
                 sender !== '0' &&
-                sessionId !== showId &&
+                !isCurrentSession &&
                 allowGroupInnerNotice
             ) {
                 if (!session.new_msg) {
@@ -2525,7 +2567,7 @@ function newMsg(_: string, data: any) {
                     contactStore.newMsgCount++
                 }
             }
-            if (sessionId !== showId && allowGroupInnerNotice) {
+            if (!isCurrentSession && allowGroupInnerNotice) {
                 if (data.atme) { session.highlight = $t('[有人@你]') }
                 if (data.atall) { session.highlight = $t('[@全体]') }
                 if (isImportant) { session.highlight = $t('[特別关心]') }
@@ -2542,7 +2584,7 @@ function newMsg(_: string, data: any) {
             allowGroupSystemNotice
         ) {
             logger.add(LogType.DEBUG, '通知判定：', {
-                notShow: sessionId !== showId,
+                notShow: !isCurrentSession,
                 notFocus: !document.hasFocus(),
                 hidden: document.hidden,
                 isImportant: isImportant
@@ -2554,7 +2596,7 @@ function newMsg(_: string, data: any) {
             if (
                 forceGroupSystemNotice ||
                 forceImportantNotice ||
-                sessionId !== showId ||
+                !isCurrentSession ||
                 !document.hasFocus() ||
                 document.hidden
             ) {
