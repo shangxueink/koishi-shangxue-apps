@@ -16,10 +16,10 @@
 
 
 <script setup lang="ts">
-import { Session } from '@renderer/function/elements/information';
-import { useChatStore } from '@renderer/state/chat';
-import { useSessionHistoryStore } from '@renderer/state/sessionHistory';
-import { useContactStore } from '@renderer/state/contact';
+import { Session } from '../function/elements/information';
+import { useChatStore } from '../state/chat';
+import { useSessionHistoryStore } from '../state/sessionHistory';
+import { useContactStore } from '../state/contact';
 import { nextTick } from 'vue';
 import TinySessionBody from './TinySessionBody.vue';
 

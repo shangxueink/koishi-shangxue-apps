@@ -9,7 +9,7 @@
 <template>
     <div class="main">
         <div class="ss-card power-by">
-            <img src="@renderer/assets/img/Vue.png"
+            <img src="../assets/img/Vue.png"
                 alt="logo"
                 class="logo">
             <span style="color: var(--color-font-2); font-size: 0.8rem">{{ $t('驱动自') }}</span>
@@ -152,9 +152,9 @@
 </template>
 
 <script setup lang="ts">
-    import { i18n } from '@renderer/main'
-    import { openLink } from '@renderer/function/utils/appUtil'
-    import { backend } from '@renderer/runtime/backend'
+    import { i18n } from '../main'
+    import { openLink } from '../function/utils/appUtil'
+    import { backend } from '../runtime/backend'
     import BcTab from 'vue3-bcui/packages/bc-tab'
 
     defineOptions({ name: 'DepPan' })

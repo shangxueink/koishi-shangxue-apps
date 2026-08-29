@@ -49,20 +49,20 @@
 </template>
 
 <script setup lang="ts">
-    import { i18n } from '@renderer/main'
+    import { i18n } from '../main'
 
     import {
         getTrueLang,
         escape2Html,
         getSizeFromBytes,
-    } from '@renderer/function/utils/systemUtil'
+    } from '../function/utils/systemUtil'
     import {
         GroupFileElem,
         GroupFileFolderElem
-    } from '@renderer/function/elements/information'
-    import { Connector } from '@renderer/function/connect'
-    import { useAuthStore } from '@renderer/state/auth'
-    import { useChatStore } from '@renderer/state/chat'
+    } from '../function/elements/information'
+    import { Connector } from '../function/connect'
+    import { useAuthStore } from '../state/auth'
+    import { useChatStore } from '../state/chat'
 
     defineOptions({ name: 'FileBody' })
 

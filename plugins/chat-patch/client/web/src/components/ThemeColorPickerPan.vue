@@ -61,7 +61,7 @@
 
 <script setup lang="ts">
     import { computed, ref, watch } from 'vue'
-    import { i18n } from '@renderer/main'
+    import { i18n } from '../main'
 
     defineOptions({ name: 'ThemeColorPickerPan' })
 

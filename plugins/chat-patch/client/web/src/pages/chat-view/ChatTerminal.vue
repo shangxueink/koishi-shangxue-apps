@@ -160,32 +160,32 @@
 </template>
 
 <script lang="ts" setup>
-    import app, { i18n, uptime } from '@renderer/main'
-    import SendUtil from '@renderer/function/sender'
+    import app, { i18n, uptime } from '../../main'
+    import SendUtil from '../../function/sender'
 import packageInfo from '../../../package.json'
 
     import { computed, nextTick, ref, watch, onMounted, onUnmounted, markRaw } from 'vue'
-    import { Connector, login as loginInfo } from '@renderer/function/connect'
-    import { getTrueLang } from '@renderer/function/utils/systemUtil'
+    import { Connector, login as loginInfo } from '../../function/connect'
+    import { getTrueLang } from '../../function/utils/systemUtil'
     import {
         MsgItemElem,
         SQCodeElem,
         UserFriendElem,
         UserGroupElem,
-    } from '@renderer/function/elements/information'
+    } from '../../function/elements/information'
     import {
         Logger,
         LogType,
         PopInfo,
         popList,
         PopType,
-    } from '@renderer/function/base'
-    import { sendMsgRaw, getMsgRawTxt, getShowName } from '@renderer/function/utils/msgUtil'
-    import { backend } from '@renderer/runtime/backend'
-    import { useUIStore } from '@renderer/state/ui'
-    import { useAuthStore } from '@renderer/state/auth'
-    import { useContactStore } from '@renderer/state/contact'
-    import { useChatStore } from '@renderer/state/chat'
+    } from '../../function/base'
+    import { sendMsgRaw, getMsgRawTxt, getShowName } from '../../function/utils/msgUtil'
+    import { backend } from '../../runtime/backend'
+    import { useUIStore } from '../../state/ui'
+    import { useAuthStore } from '../../state/auth'
+    import { useContactStore } from '../../state/contact'
+    import { useChatStore } from '../../state/chat'
 
     defineOptions({ name: 'ChatShell' })
 

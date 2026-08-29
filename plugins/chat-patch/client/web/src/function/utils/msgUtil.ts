@@ -1,13 +1,13 @@
 import jp from 'jsonpath'
-import app from '@renderer/main'
+import app from '../../main'
 import anime from 'animejs'
-import option from '@renderer/function/option'
+import option from '../../function/option'
 
-import { Logger, PopInfo, PopType } from '@renderer/function/base'
-import { useSettingsStore } from '@renderer/state/settings'
+import { Logger, PopInfo, PopType } from '../../function/base'
+import { useSettingsStore } from '../../state/settings'
 import { v4 as uuid } from 'uuid'
-import { Connector } from '@renderer/function/connect'
-import { getBootstrap, getLogins } from '@renderer/function/satori'
+import { Connector } from '../../function/connect'
+import { getBootstrap, getLogins } from '../../function/satori'
 import {
     BotMsgType,
     MsgItemElem,
@@ -15,11 +15,11 @@ import {
     UserGroupElem,
 } from '../elements/information'
 import { sendStatEvent } from './appUtil'
-import { backend } from '@renderer/runtime/backend'
-import { useContactStore } from '@renderer/state/contact'
-import { useUIStore } from '@renderer/state/ui'
-import { useAuthStore } from '@renderer/state/auth'
-import { useChatStore } from '@renderer/state/chat'
+import { backend } from '../../runtime/backend'
+import { useContactStore } from '../../state/contact'
+import { useUIStore } from '../../state/ui'
+import { useAuthStore } from '../../state/auth'
+import { useChatStore } from '../../state/chat'
 import {
     findSessionContact,
     getSessionId,

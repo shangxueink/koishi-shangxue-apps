@@ -565,15 +565,15 @@
 </template>
 
 <script setup lang="ts">
-import app from '@renderer/main'
-import { i18n } from '@renderer/main'
-import SendUtil from '@renderer/function/sender'
-import Option, { get } from '@renderer/function/option'
-import Info from '@renderer/pages/Info.vue'
-import MsgBody from '@renderer/components/MsgBody.vue'
-import NoticeBody from '@renderer/components/NoticeBody.vue'
-import FacePan from '@renderer/components/FacePan.vue'
-import MergePan from '@renderer/components/MergePan.vue'
+import app from '../main'
+import { i18n } from '../main'
+import SendUtil from '../function/sender'
+import Option, { get } from '../function/option'
+import Info from '../pages/Info.vue'
+import MsgBody from '../components/MsgBody.vue'
+import NoticeBody from '../components/NoticeBody.vue'
+import FacePan from '../components/FacePan.vue'
+import MergePan from '../components/MergePan.vue'
 import imageCompression from 'browser-image-compression'
 
 import {
@@ -597,13 +597,13 @@ import {
 	vMenu,
 	vMove,
 	VMoveOptions,
-} from '@renderer/function/utils/appUtil'
+} from '../function/utils/appUtil'
 import {
     copyToClipboard,
     getTimeConfig,
     getTrueLang,
     getViewTime,
-} from '@renderer/function/utils/systemUtil'
+} from '../function/utils/systemUtil'
 import {
     getMsgRawTxt,
     sendMsgRaw,
@@ -612,9 +612,9 @@ import {
     getImageUrlData,
     getDifferencesWithRanges,
     updateBaseOnMsgList,
-} from '@renderer/function/utils/msgUtil'
-import { Logger, LogType, PopInfo, PopType } from '@renderer/function/base'
-import { Connector, loadChatHistoryFromCache, saveSentSelfMessage, sendForwardMessage } from '@renderer/function/connect'
+} from '../function/utils/msgUtil'
+import { Logger, LogType, PopInfo, PopType } from '../function/base'
+import { Connector, loadChatHistoryFromCache, saveSentSelfMessage, sendForwardMessage } from '../function/connect'
 import {
     BaseChatInfoElem,
     MsgItemElem,
@@ -623,23 +623,23 @@ import {
     UserFriendElem,
     UserGroupElem,
     MenuEventData,
-} from '@renderer/function/elements/information'
-import { backend } from '@renderer/runtime/backend'
-import { toBackgroundImageStyle } from '@renderer/function/utils/backgroundUtil'
-import { dbGetBefore, dbGetBeforeByTime, dbSearchMessages } from '@renderer/function/utils/localHistoryUtil'
-import { normalizeSessionId } from '@renderer/function/utils/sessionUtil'
-import Emoji from '@renderer/function/model/emoji'
-import EmojiFace from '@renderer/components/EmojiFace.vue'
-import { Img } from '@renderer/function/model/img'
-import { useSessionHistoryStore } from '@renderer/state/sessionHistory'
-import { useConnectionStore } from '@renderer/state/connection'
-import { useUIStore } from '@renderer/state/ui'
-import { useSettingsStore } from '@renderer/state/settings'
-import { useAuthStore } from '@renderer/state/auth'
-import { useChatStore } from '@renderer/state/chat'
-import { useContactStore } from '@renderer/state/contact'
-import { addUploadTask, failUploadTask } from '@renderer/components/FileManager.vue'
-import { avatarError } from '@renderer/function/utils/avatarUtil'
+} from '../function/elements/information'
+import { backend } from '../runtime/backend'
+import { toBackgroundImageStyle } from '../function/utils/backgroundUtil'
+import { dbGetBefore, dbGetBeforeByTime, dbSearchMessages } from '../function/utils/localHistoryUtil'
+import { normalizeSessionId } from '../function/utils/sessionUtil'
+import Emoji from '../function/model/emoji'
+import EmojiFace from '../components/EmojiFace.vue'
+import { Img } from '../function/model/img'
+import { useSessionHistoryStore } from '../state/sessionHistory'
+import { useConnectionStore } from '../state/connection'
+import { useUIStore } from '../state/ui'
+import { useSettingsStore } from '../state/settings'
+import { useAuthStore } from '../state/auth'
+import { useChatStore } from '../state/chat'
+import { useContactStore } from '../state/contact'
+import { addUploadTask, failUploadTask } from '../components/FileManager.vue'
+import { avatarError } from '../function/utils/avatarUtil'
 
 defineOptions({ name: 'ViewChat' })
 

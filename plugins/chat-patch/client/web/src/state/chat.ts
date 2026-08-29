@@ -1,4 +1,4 @@
-import { ChatInfoElem, MergeStackData } from '@renderer/function/elements/information'
+import { ChatInfoElem, MergeStackData } from '../function/elements/information'
 import { defineStore } from 'pinia'
 import { reactive, ref } from 'vue'
 

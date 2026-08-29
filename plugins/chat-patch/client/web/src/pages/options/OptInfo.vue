@@ -57,14 +57,14 @@
 </template>
 
 <script lang="ts" setup>
-    import { useUIStore } from '@renderer/state/ui'
-    import { useAuthStore } from '@renderer/state/auth'
-    import { useContactStore } from '@renderer/state/contact'
-    import { useChatStore } from '@renderer/state/chat'
-    import { Connector } from '@renderer/function/connect'
-    import { changeGroupNotice, reloadUsers } from '@renderer/function/utils/appUtil'
-    import { canGroupNotice } from '@renderer/function/utils/msgUtil'
-    import { i18n } from '@renderer/main'
+    import { useUIStore } from '../../state/ui'
+    import { useAuthStore } from '../../state/auth'
+    import { useContactStore } from '../../state/contact'
+    import { useChatStore } from '../../state/chat'
+    import { Connector } from '../../function/connect'
+    import { changeGroupNotice, reloadUsers } from '../../function/utils/appUtil'
+    import { canGroupNotice } from '../../function/utils/msgUtil'
+    import { i18n } from '../../main'
 
     defineOptions({ name: 'ViewOptInfo' })
 

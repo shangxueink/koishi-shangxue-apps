@@ -334,21 +334,21 @@
 <script lang="ts" setup>
     import vueDanmaku from 'vue3-danmaku'
 
-    import { Connector } from '@renderer/function/connect'
+    import { Connector } from '../../function/connect'
     import { ref, onMounted, watch, useTemplateRef, nextTick } from 'vue'
-    import { getMsgRawTxt, sendMsgRaw } from '@renderer/function/utils/msgUtil'
-    import { parseMsg } from '@renderer/function/sender'
+    import { getMsgRawTxt, sendMsgRaw } from '../../function/utils/msgUtil'
+    import { parseMsg } from '../../function/sender'
     import {
         MsgItemElem,
         SQCodeElem,
-    } from '@renderer/function/elements/information'
-    import { PopInfo, PopType } from '@renderer/function/base'
-    import { getTrueLang } from '@renderer/function/utils/systemUtil'
-    import { backend } from '@renderer/runtime/backend'
-    import { i18n } from '@renderer/main'
-    import { useUIStore } from '@renderer/state/ui'
-    import { useAuthStore } from '@renderer/state/auth'
-    import { useChatStore } from '@renderer/state/chat'
+    } from '../../function/elements/information'
+    import { PopInfo, PopType } from '../../function/base'
+    import { getTrueLang } from '../../function/utils/systemUtil'
+    import { backend } from '../../runtime/backend'
+    import { i18n } from '../../main'
+    import { useUIStore } from '../../state/ui'
+    import { useAuthStore } from '../../state/auth'
+    import { useChatStore } from '../../state/chat'
 
     defineOptions({ name: 'ChatDan' })
 

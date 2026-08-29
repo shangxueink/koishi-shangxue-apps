@@ -10,11 +10,6 @@ export default defineConfig({
   root: webRoot,
   base: './',
   plugins: [vue(), ViteYaml()],
-  resolve: {
-    alias: {
-      '@renderer': resolve(webRoot, 'src'),
-    },
-  },
   server: {
     port: 5174,
     strictPort: true,

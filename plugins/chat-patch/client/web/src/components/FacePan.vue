@@ -158,22 +158,22 @@
 import {
     MsgItemElem,
     SQCodeElem,
-} from '@renderer/function/elements/information'
+} from '../function/elements/information'
 import { computed, ComputedRef, Ref, ShallowRef, shallowRef } from 'vue'
-import { Connector } from '@renderer/function/connect'
-import { backend } from '@renderer/runtime/backend'
-import Option from '@renderer/function/option'
-import { PopInfo, PopType } from '@renderer/function/base'
+import { Connector } from '../function/connect'
+import { backend } from '../runtime/backend'
+import Option from '../function/option'
+import { PopInfo, PopType } from '../function/base'
 import BcTab from 'vue3-bcui/packages/bc-tab'
-import Emoji from '@renderer/function/model/emoji'
+import Emoji from '../function/model/emoji'
 import EmojiFace from './EmojiFace.vue'
-import { VueCompData } from '@renderer/function/elements/vueComp'
+import { VueCompData } from '../function/elements/vueComp'
 import CustomFaceTooltip from './tooltip/CustomFaceTooltip.vue'
-import { useLocalStorage, vTooltip } from '@renderer/function/utils/appUtil'
-import app from '@renderer/main'
-import { useStickerStore } from '@renderer/state/sticker'
-import { useSettingsStore } from '@renderer/state/settings'
-import { useAuthStore } from '@renderer/state/auth'
+import { useLocalStorage, vTooltip } from '../function/utils/appUtil'
+import app from '../main'
+import { useStickerStore } from '../state/sticker'
+import { useSettingsStore } from '../state/settings'
+import { useAuthStore } from '../state/auth'
 
 const { recordList: recentEmojisId, showList: recentEmojisList } =
     getRecentEmojiRecord<number>('recent-emojis-id')

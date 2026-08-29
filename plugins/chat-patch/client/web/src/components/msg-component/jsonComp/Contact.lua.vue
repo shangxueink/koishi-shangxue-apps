@@ -17,7 +17,7 @@
 </template>
 
 <script setup lang="ts">
-import { Logger } from '@renderer/function/base';
+import { Logger } from '../../../function/base';
 import * as z from 'zod'
 
 const { data: jsonData, id } = defineProps<{

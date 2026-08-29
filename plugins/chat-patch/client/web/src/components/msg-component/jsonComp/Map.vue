@@ -15,7 +15,7 @@
 </template>
 
 <script setup lang="ts">
-import { Logger } from '@renderer/function/base'
+import { Logger } from '../../../function/base'
 import { ElAmap, ElAmapMarker } from '@vuemap/vue-amap'
 import * as z from 'zod'
 

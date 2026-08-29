@@ -9,7 +9,7 @@
 </template>
 
 <script setup lang="ts" generic="T extends Component">
-import { TooltipInfo } from '@renderer/function/tooltip'
+import { TooltipInfo } from '../../function/tooltip'
 import { type Component, onMounted, shallowReactive, useTemplateRef } from 'vue'
 
 const { compData, pos } = defineProps<TooltipInfo<T>>()

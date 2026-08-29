@@ -37,7 +37,7 @@
 </template>
 
 <script setup lang="ts">
-import { i18n } from '@renderer/main'
+import { i18n } from '../../main'
 
 defineOptions({ name: 'MealHungryPan' })
 

@@ -66,8 +66,8 @@
 
 <script setup lang="ts">
 import { ref, computed, onBeforeUnmount, onMounted, watch } from 'vue'
-import { loadRecord, revokeRecord, type RecordMsgData } from '@renderer/function/utils/recordUtil'
-import { Logger } from '@renderer/function/base'
+import { loadRecord, revokeRecord, type RecordMsgData } from '../function/utils/recordUtil'
+import { Logger } from '../function/base'
 
 const logger = new Logger()
 

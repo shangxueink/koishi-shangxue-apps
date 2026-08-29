@@ -184,16 +184,16 @@
 
 <script setup lang="ts">
     import { computed, inject, markRaw, onMounted, reactive, ref } from 'vue'
-    import QzonePermissionPan from '@renderer/components/QzonePermissionPan.vue'
-    import { PopInfo, PopType } from '@renderer/function/base'
-    import { Connector } from '@renderer/function/connect'
-    import { Img } from '@renderer/function/model/img'
-    import { useAuthStore } from '@renderer/state/auth'
-    import { useContactStore } from '@renderer/state/contact'
-    import { useUIStore } from '@renderer/state/ui'
-    import { useQzoneStore } from '@renderer/state/qzone'
-    import { getTrueLang, getViewTime } from '@renderer/function/utils/systemUtil'
-    import { i18n } from '@renderer/main'
+    import QzonePermissionPan from '../components/QzonePermissionPan.vue'
+    import { PopInfo, PopType } from '../function/base'
+    import { Connector } from '../function/connect'
+    import { Img } from '../function/model/img'
+    import { useAuthStore } from '../state/auth'
+    import { useContactStore } from '../state/contact'
+    import { useUIStore } from '../state/ui'
+    import { useQzoneStore } from '../state/qzone'
+    import { getTrueLang, getViewTime } from '../function/utils/systemUtil'
+    import { i18n } from '../main'
 
     defineOptions({ name: 'ViewQzone' })
 

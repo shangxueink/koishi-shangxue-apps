@@ -212,15 +212,15 @@
 
 <script lang="ts" setup>
     import { ref, watch } from 'vue'
-    import { PopInfo, PopType } from '@renderer/function/base'
-    import { runASWEvent as save, checkDefault, runAS } from '@renderer/function/option'
-    import { i18n } from '@renderer/main'
+    import { PopInfo, PopType } from '../../function/base'
+    import { runASWEvent as save, checkDefault, runAS } from '../../function/option'
+    import { i18n } from '../../main'
 
-    import { backend } from '@renderer/runtime/backend'
-    import { dbClearImages, dbGetStats } from '@renderer/function/utils/localHistoryUtil'
-    import { useSettingsStore } from '@renderer/state/settings'
-    import { useAuthStore } from '@renderer/state/auth'
-    import { useUIStore } from '@renderer/state/ui'
+    import { backend } from '../../runtime/backend'
+    import { dbClearImages, dbGetStats } from '../../function/utils/localHistoryUtil'
+    import { useSettingsStore } from '../../state/settings'
+    import { useAuthStore } from '../../state/auth'
+    import { useUIStore } from '../../state/ui'
 
     const settingsStore = useSettingsStore()
     const authStore = useAuthStore()

@@ -13,8 +13,8 @@
 </template>
 
 <script setup lang="ts">
-import { Logger } from '@renderer/function/base'
-import { openLink } from '@renderer/function/utils/appUtil'
+import { Logger } from '../../../function/base'
+import { openLink } from '../../../function/utils/appUtil'
 import * as z from 'zod'
 
 const { data: jsonData, id } = defineProps<{

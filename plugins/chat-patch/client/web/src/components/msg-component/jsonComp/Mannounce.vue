@@ -14,9 +14,9 @@
 </template>
 
 <script setup lang="ts">
-import ViewerCom from '@renderer/components/ViewerCom.vue';
-import { Logger } from '@renderer/function/base'
-import { Img } from '@renderer/function/model/img'
+import ViewerCom from '../../../components/ViewerCom.vue';
+import { Logger } from '../../../function/base'
+import { Img } from '../../../function/model/img'
 import { inject, ShallowRef } from 'vue'
 import * as z from 'zod'
 

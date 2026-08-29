@@ -63,14 +63,14 @@ import {
     nextTick,
 } from 'vue'
 import TinySessionBody from './TinySessionBody.vue'
-import { vSearch, useEventListener } from '@renderer/function/utils/appUtil'
-import { UserFriendElem, UserGroupElem } from '@renderer/function/elements/information'
-import { login } from '@renderer/function/connect'
-import { backend } from '@renderer/runtime/backend'
-import { matchPinyin } from '@renderer/function/utils/pinyin'
-import { useUIStore } from '@renderer/state/ui'
-import { useContactStore } from '@renderer/state/contact'
-import { useChatStore } from '@renderer/state/chat'
+import { vSearch, useEventListener } from '../function/utils/appUtil'
+import { UserFriendElem, UserGroupElem } from '../function/elements/information'
+import { login } from '../function/connect'
+import { backend } from '../runtime/backend'
+import { matchPinyin } from '../function/utils/pinyin'
+import { useUIStore } from '../state/ui'
+import { useContactStore } from '../state/contact'
+import { useChatStore } from '../state/chat'
 
 //#region == 移植相关 ====================================================================
 /**

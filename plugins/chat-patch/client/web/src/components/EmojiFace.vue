@@ -24,7 +24,7 @@
 </template>
 
 <script setup lang="ts">
-import Emoji from '@renderer/function/model/emoji';
+import Emoji from '../function/model/emoji';
 
 const { emoji = undefined } = defineProps<{
     emoji?: Emoji

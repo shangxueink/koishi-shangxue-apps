@@ -1,4 +1,4 @@
-import { backend } from '@renderer/runtime/backend'
+import { backend } from '../../runtime/backend'
 import { ref } from 'vue'
 
 const objectUrls = new Map<string, string>()

@@ -72,12 +72,12 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { i18n } from '@renderer/main'
+import { i18n } from '../main'
 import {
     getTrueLang,
     gitmojiToEmoji,
-} from '@renderer/function/utils/systemUtil'
-import { openLink } from '@renderer/function/utils/appUtil'
+} from '../function/utils/systemUtil'
+import { openLink } from '../function/utils/appUtil'
 
 defineOptions({ name: 'UpdatePan' })
 

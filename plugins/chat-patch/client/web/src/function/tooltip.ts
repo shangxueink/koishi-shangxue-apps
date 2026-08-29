@@ -1,7 +1,7 @@
 import { Component, DirectiveBinding, markRaw, ObjectDirective, shallowReactive } from 'vue'
 import { VueCompData } from './elements/vueComp'
 import { v4 as uuid } from 'uuid'
-import UserInfoTooltip from '@renderer/components/tooltip/UserInfoTooltip.vue'
+import UserInfoTooltip from '../components/tooltip/UserInfoTooltip.vue'
 import { vTooltip } from './utils/appUtil'
 
 export const tooltipList: TooltipInfo<Component>[] = shallowReactive([])

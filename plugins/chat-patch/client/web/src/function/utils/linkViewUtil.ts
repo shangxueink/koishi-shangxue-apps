@@ -1,4 +1,4 @@
-import { backend } from '@renderer/runtime/backend'
+import { backend } from '../../runtime/backend'
 import { Logger } from '../base'
 import { getApi, getForegroundToneGridFromImageUrl } from './systemUtil'
 import jp from 'jsonpath'

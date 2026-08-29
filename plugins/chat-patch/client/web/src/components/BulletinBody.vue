@@ -55,11 +55,11 @@
 <script lang="ts" setup>
     import xss from 'xss'
     import { ref, onMounted, nextTick, inject } from 'vue'
-    import { openLink } from '@renderer/function/utils/appUtil'
-    import { getTrueLang } from '@renderer/function/utils/systemUtil'
-    import { i18n } from '@renderer/main'
-    import { Img } from '@renderer/function/model/img'
-    import { useChatStore } from '@renderer/state/chat'
+    import { openLink } from '../function/utils/appUtil'
+    import { getTrueLang } from '../function/utils/systemUtil'
+    import { i18n } from '../main'
+    import { Img } from '../function/model/img'
+    import { useChatStore } from '../state/chat'
 
     defineOptions({ name: 'BulletinBody' })
 

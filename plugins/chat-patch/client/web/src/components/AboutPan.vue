@@ -72,16 +72,16 @@
 import packageInfo from '../../package.json'
 
     import { markRaw, onMounted, ref } from 'vue'
-    import { openLink, sendStatEvent, showReleaseHistory } from '@renderer/function/utils/appUtil'
-    import { ContributorElem } from '@renderer/function/elements/system'
+    import { openLink, sendStatEvent, showReleaseHistory } from '../function/utils/appUtil'
+    import { ContributorElem } from '../function/elements/system'
 
-    import { getTrueLang, getViewTime } from '@renderer/function/utils/systemUtil'
+    import { getTrueLang, getViewTime } from '../function/utils/systemUtil'
 
-    import MealHungryPan from '@renderer/components/notice-component/MealHungryPan.vue'
+    import MealHungryPan from '../components/notice-component/MealHungryPan.vue'
     import { library } from '@fortawesome/fontawesome-svg-core'
     import { faClockRotateLeft } from '@fortawesome/free-solid-svg-icons'
-    import { i18n } from '@renderer/main'
-    import { useUIStore } from '@renderer/state/ui'
+    import { i18n } from '../main'
+    import { useUIStore } from '../state/ui'
 
     defineOptions({ name: 'AboutPan' })
 

@@ -337,11 +337,11 @@
 
 <script setup lang="ts">
     import { ref } from 'vue'
-    import { i18n } from '@renderer/main'
-    import { runAS, runASWEvent as save } from '@renderer/function/option'
-    import { openLink } from '@renderer/function/utils/appUtil'
-    import { useSettingsStore } from '@renderer/state/settings'
-    import { useUIStore } from '@renderer/state/ui'
+    import { i18n } from '../main'
+    import { runAS, runASWEvent as save } from '../function/option'
+    import { openLink } from '../function/utils/appUtil'
+    import { useSettingsStore } from '../state/settings'
+    import { useUIStore } from '../state/ui'
 
     const settingsStore = useSettingsStore()
     const uiStore = useUIStore()

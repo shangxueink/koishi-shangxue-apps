@@ -25,11 +25,11 @@
 import * as z from 'zod'
 
 import { ref } from 'vue'
-import { addMusic } from '@renderer/components/MusicPlayer.vue'
-import { Logger } from '@renderer/function/base'
-import { openLink } from '@renderer/function/utils/appUtil'
-import { getForegroundToneGridFromImageUrl } from '@renderer/function/utils/systemUtil'
-import { backend } from '@renderer/runtime/backend'
+import { addMusic } from '../../../components/MusicPlayer.vue'
+import { Logger } from '../../../function/base'
+import { openLink } from '../../../function/utils/appUtil'
+import { getForegroundToneGridFromImageUrl } from '../../../function/utils/systemUtil'
+import { backend } from '../../../runtime/backend'
 
 const { data: jsonData, id } = defineProps<{
     data: string,

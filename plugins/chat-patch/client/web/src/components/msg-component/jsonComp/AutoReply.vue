@@ -22,9 +22,9 @@
 
 <script setup lang="ts">
 import { FontAwesomeIcon } from '@fortawesome/vue-fontawesome'
-import { Logger } from '@renderer/function/base';
-import { sendMsgRaw } from '@renderer/function/utils/msgUtil'
-import { useChatStore } from '@renderer/state/chat'
+import { Logger } from '../../../function/base';
+import { sendMsgRaw } from '../../../function/utils/msgUtil'
+import { useChatStore } from '../../../state/chat'
 import * as z from 'zod'
 
 const { data: jsonData, id } = defineProps<{

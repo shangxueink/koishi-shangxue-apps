@@ -1,5 +1,5 @@
-import { BotMsgType } from '@renderer/function/elements/information'
-import { getInch } from '@renderer/function/utils/systemUtil'
+import { BotMsgType } from '../function/elements/information'
+import { getInch } from '../function/utils/systemUtil'
 import { defineStore } from 'pinia'
 import { ref, markRaw, defineAsyncComponent } from 'vue'
 
@@ -31,11 +31,11 @@ export const useUIStore = defineStore('ui', () => {
 
     const pageView = {
         chatView: markRaw(
-            defineAsyncComponent(() => import('@renderer/pages/Chat.vue')),
+            defineAsyncComponent(() => import('../pages/Chat.vue')),
         ),
         msgView: markRaw(
             defineAsyncComponent(
-                () => import('@renderer/components/MsgBody.vue'),
+                () => import('../components/MsgBody.vue'),
             ),
         ),
     }

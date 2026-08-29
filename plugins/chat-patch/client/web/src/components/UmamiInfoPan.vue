@@ -170,7 +170,7 @@
 
 <script lang="ts" setup>
     import { ref, shallowReactive, watch, onMounted } from 'vue'
-    import { i18n } from '@renderer/main'
+    import { i18n } from '../main'
 
     import { use } from 'echarts/core'
     import { PieChart, BarChart, SunburstChart } from 'echarts/charts'

@@ -95,13 +95,13 @@
 </template>
 
 <script setup lang="ts">
-    import { i18n } from '@renderer/main'
-    import { useSettingsStore } from '@renderer/state/settings'
+    import { i18n } from '../../main'
+    import { useSettingsStore } from '../../state/settings'
     import {
         extraOptionCards,
         runAS,
         type ExtraOptionItem,
-    } from '@renderer/function/option'
+    } from '../../function/option'
 
     defineOptions({ name: 'ViewOptAddon' })
 

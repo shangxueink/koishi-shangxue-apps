@@ -1,4 +1,4 @@
-import { Session } from '@renderer/function/elements/information'
+import { Session } from '../function/elements/information'
 import { defineStore } from 'pinia'
 import { shallowRef } from 'vue'
 

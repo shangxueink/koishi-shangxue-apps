@@ -5,7 +5,7 @@ import { IpcRenderer } from '@electron-toolkit/preload'
 import { InvokeArgs, InvokeOptions } from '@tauri-apps/api/core'
 import { CapacitorGlobal } from '@capacitor/core'
 import { Logger, LogType, PopInfo, PopType } from '../function/base'
-import { useSettingsStore } from '@renderer/state/settings'
+import { useSettingsStore } from '../state/settings'
 
 const logger = new Logger()
 const popInfo = new PopInfo()

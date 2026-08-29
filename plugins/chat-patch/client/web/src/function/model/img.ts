@@ -6,7 +6,7 @@
  * @Description: 图片节点，主用给图片预览器使用
  */
 
-import { backend } from '@renderer/runtime/backend'
+import { backend } from '../../runtime/backend'
 import { shallowRef } from 'vue'
 
 export class Img {

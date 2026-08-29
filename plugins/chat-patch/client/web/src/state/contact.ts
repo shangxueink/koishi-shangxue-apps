@@ -1,4 +1,4 @@
-import { UserFriendElem, UserGroupElem } from '@renderer/function/elements/information'
+import { UserFriendElem, UserGroupElem } from '../function/elements/information'
 import { defineStore } from 'pinia'
 import { shallowRef, reactive, ref } from 'vue'
 

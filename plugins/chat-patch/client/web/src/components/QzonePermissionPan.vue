@@ -40,10 +40,10 @@
 
 <script setup lang="ts">
     import { computed, reactive, ref } from 'vue'
-    import TinySessionBody from '@renderer/components/TinySessionBody.vue'
-    import { UserGroupElem } from '@renderer/function/elements/information'
-    import { matchPinyin } from '@renderer/function/utils/pinyin'
-    import { i18n } from '@renderer/main'
+    import TinySessionBody from '../components/TinySessionBody.vue'
+    import { UserGroupElem } from '../function/elements/information'
+    import { matchPinyin } from '../function/utils/pinyin'
+    import { i18n } from '../main'
 
     defineOptions({ name: 'QzonePermissionPan' })
 

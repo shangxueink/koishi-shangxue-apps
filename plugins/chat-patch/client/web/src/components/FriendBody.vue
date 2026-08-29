@@ -38,9 +38,9 @@
 </template>
 
 <script setup lang="ts">
-import { formatSessionTime } from '@renderer/function/utils/systemUtil'
-import { getShowName } from '@renderer/function/utils/msgUtil'
-import { avatarError } from '@renderer/function/utils/avatarUtil'
+import { formatSessionTime } from '../function/utils/systemUtil'
+import { getShowName } from '../function/utils/msgUtil'
+import { avatarError } from '../function/utils/avatarUtil'
 
 defineOptions({ name: 'FriendBody' })
 

@@ -9,6 +9,6 @@
 </template>
 
 <script setup lang="ts">
-import { tooltipList } from '@renderer/function/tooltip'
+import { tooltipList } from '../../function/tooltip'
 import Tooltip from './Tooltip.vue'
 </script>

@@ -46,17 +46,17 @@ import z from 'zod'
 import { v4 as uuid } from 'uuid'
 import { streamText, tool } from 'ai'
 import { ref, toRaw, watch, onMounted } from 'vue'
-import { get, optDefault } from '@renderer/function/option'
-import { Logger, LogType, PopInfo, PopType } from '@renderer/function/base'
-import { getViewTime } from '@renderer/function/utils/systemUtil'
-import { getMsgRawTxt } from '@renderer/function/utils/msgUtil'
+import { get, optDefault } from '../../function/option'
+import { Logger, LogType, PopInfo, PopType } from '../../function/base'
+import { getViewTime } from '../../function/utils/systemUtil'
+import { getMsgRawTxt } from '../../function/utils/msgUtil'
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible'
-import { useAuthStore } from '@renderer/state/auth'
-import { useChatStore } from '@renderer/state/chat'
+import { useAuthStore } from '../../state/auth'
+import { useChatStore } from '../../state/chat'
 import {
   registerExtraOptionCard,
   registerExtraOptionItem,
-} from '@renderer/function/option'
+} from '../../function/option'
 
 import Chat from '../Chat.vue'
 

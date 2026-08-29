@@ -37,10 +37,10 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import { login as loginInfo } from '@renderer/function/connect'
-import { getActiveBot } from '@renderer/function/satori'
-import { useAuthStore } from '@renderer/state/auth'
-import { i18n } from '@renderer/main'
+import { login as loginInfo } from '../../function/connect'
+import { getActiveBot } from '../../function/satori'
+import { useAuthStore } from '../../state/auth'
+import { i18n } from '../../main'
 
 defineOptions({ name: 'ViewOptAccount' })
 

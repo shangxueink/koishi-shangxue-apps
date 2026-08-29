@@ -171,28 +171,28 @@
 
 <script setup lang="ts">
     import { computed, ref, onMounted, watch } from 'vue'
-    import { vAutoFocus } from '@renderer/function/utils/appUtil'
+    import { vAutoFocus } from '../function/utils/appUtil'
 
-    import FriendBody from '@renderer/components/FriendBody.vue'
+    import FriendBody from '../components/FriendBody.vue'
 
     import {
         BaseChatInfoElem,
         UserFriendElem,
         UserGroupElem,
-    } from '@renderer/function/elements/information'
+    } from '../function/elements/information'
 
-    import { reloadUsers } from '@renderer/function/utils/appUtil'
-    import { Connector, flushPendingBotEvents, loadContactsFromCache, login as loginInfo } from '@renderer/function/connect'
-    import { getActiveBot, getLogins, setActiveBot } from '@renderer/function/satori'
-    import { normalizeSessionId } from '@renderer/function/utils/sessionUtil'
-    import { avatarError } from '@renderer/function/utils/avatarUtil'
-    import { backend } from '@renderer/runtime/backend'
-    import { matchPinyin } from '@renderer/function/utils/pinyin'
-    import { useUIStore } from '@renderer/state/ui'
-    import { useSettingsStore } from '@renderer/state/settings'
-    import { useContactStore } from '@renderer/state/contact'
-    import { useChatStore } from '@renderer/state/chat'
-    import { useAuthStore } from '@renderer/state/auth'
+    import { reloadUsers } from '../function/utils/appUtil'
+    import { Connector, flushPendingBotEvents, loadContactsFromCache, login as loginInfo } from '../function/connect'
+    import { getActiveBot, getLogins, setActiveBot } from '../function/satori'
+    import { normalizeSessionId } from '../function/utils/sessionUtil'
+    import { avatarError } from '../function/utils/avatarUtil'
+    import { backend } from '../runtime/backend'
+    import { matchPinyin } from '../function/utils/pinyin'
+    import { useUIStore } from '../state/ui'
+    import { useSettingsStore } from '../state/settings'
+    import { useContactStore } from '../state/contact'
+    import { useChatStore } from '../state/chat'
+    import { useAuthStore } from '../state/auth'
 
     defineOptions({ name: 'ViewFriends' })
 

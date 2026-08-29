@@ -59,7 +59,7 @@
 
 <script lang="ts">
     import { ref } from 'vue'
-    import { downloadFile } from '@renderer/function/utils/appUtil'
+    import { downloadFile } from '../function/utils/appUtil'
 
     export type TaskStatus = 'pending' | 'downloading' | 'uploading' | 'completed' | 'failed' | 'cancelled'
 

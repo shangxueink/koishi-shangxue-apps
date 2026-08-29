@@ -176,10 +176,10 @@
 </template>
 
 <script setup lang="ts">
-import { PopInfo, PopType } from '@renderer/function/base'
-import { mousemoveMask } from '@renderer/function/input'
-import { Img } from '@renderer/function/model/img'
-import { copyToClipboard } from '@renderer/function/utils/systemUtil'
+import { PopInfo, PopType } from '../function/base'
+import { mousemoveMask } from '../function/input'
+import { Img } from '../function/model/img'
+import { copyToClipboard } from '../function/utils/systemUtil'
 import {
 	downloadFile,
     vEsc,
@@ -188,8 +188,8 @@ import {
     VMoveOptions,
     useKeyboard,
     useViewportUnits
-} from '@renderer/function/utils/appUtil'
-import { i18n } from '@renderer/main'
+} from '../function/utils/appUtil'
+import { i18n } from '../main'
 import {
     computed,
     shallowReactive,
@@ -197,8 +197,8 @@ import {
     toRaw,
     useTemplateRef,
 } from 'vue'
-import { backend } from '@renderer/runtime/backend'
-import { useUIStore } from '@renderer/state/ui'
+import { backend } from '../runtime/backend'
+import { useUIStore } from '../state/ui'
 
 const uiStore = useUIStore()
 

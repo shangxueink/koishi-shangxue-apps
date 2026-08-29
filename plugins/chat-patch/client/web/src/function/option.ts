@@ -10,20 +10,20 @@
  * @Description: 设置功能相关模块
  */
 
-import app from '@renderer/main'
+import app from '../main'
 
 import { reactive } from 'vue'
 import { Logger, LogType, PopInfo, PopType } from './base'
-import { useSettingsStore } from '@renderer/state/settings'
-import { useUIStore } from '@renderer/state/ui'
-import { useChatStore } from '@renderer/state/chat'
+import { useSettingsStore } from '../state/settings'
+import { useUIStore } from '../state/ui'
+import { useChatStore } from '../state/chat'
 import {
     loadWinColor,
     sendStatEvent,
     updateWinColor,
-} from '@renderer/function/utils/appUtil'
+} from '../function/utils/appUtil'
 import { updateBaseOnMsgList } from './utils/msgUtil'
-import { backend } from '@renderer/runtime/backend'
+import { backend } from '../runtime/backend'
 import { refreshFavicon } from './favicon'
 
 let cacheConfigs: { [key: string]: any }

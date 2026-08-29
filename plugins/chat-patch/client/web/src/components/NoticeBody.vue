@@ -56,15 +56,15 @@
 
 <script setup lang="ts">
     import { ref, onMounted } from 'vue'
-    import { i18n } from '@renderer/main'
-    import { useAuthStore } from '@renderer/state/auth'
-    import { useChatStore } from '@renderer/state/chat'
+    import { i18n } from '../main'
+    import { useAuthStore } from '../state/auth'
+    import { useChatStore } from '../state/chat'
     import {
         getTimeConfig,
         getTrueLang,
-    } from '@renderer/function/utils/systemUtil'
-    import { pokeAnime } from '@renderer/function/utils/msgUtil'
-    import { backend } from '@renderer/runtime/backend'
+    } from '../function/utils/systemUtil'
+    import { pokeAnime } from '../function/utils/msgUtil'
+    import { backend } from '../runtime/backend'
 
     const $t = i18n.global.t
 

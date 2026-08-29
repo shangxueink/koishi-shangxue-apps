@@ -38,15 +38,15 @@
     import { v4 as uuid } from 'uuid'
     import { computed, ref, watch, onMounted } from 'vue'
 
-    import MsgBody from '@renderer/components/MsgBody.vue'
-    import NoticeBody from '@renderer/components/NoticeBody.vue'
+    import MsgBody from '../components/MsgBody.vue'
+    import NoticeBody from '../components/NoticeBody.vue'
 
-    import { Img } from '@renderer/function/model/img'
-    import { i18n } from '@renderer/main'
-    import { useSettingsStore } from '@renderer/state/settings'
-    import { type MergeStackData } from '@renderer/function/elements/information'
-    import { isDeleteMsg, isShowTime } from '@renderer/function/utils/msgUtil'
-    import { useChatStore } from '@renderer/state/chat'
+    import { Img } from '../function/model/img'
+    import { i18n } from '../main'
+    import { useSettingsStore } from '../state/settings'
+    import { type MergeStackData } from '../function/elements/information'
+    import { isDeleteMsg, isShowTime } from '../function/utils/msgUtil'
+    import { useChatStore } from '../state/chat'
 
     defineOptions({ name: 'MergePan' })
 

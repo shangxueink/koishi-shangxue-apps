@@ -63,8 +63,8 @@
 </template>
 
 <script setup lang="ts">
-    import app from '@renderer/main'
-    import { i18n } from '@renderer/main'
+    import app from '../../main'
+    import { i18n } from '../../main'
 import packageInfo from '../../../package.json'
 
     import { ref, onMounted, watch, useTemplateRef, markRaw } from 'vue'
@@ -76,20 +76,20 @@ import packageInfo from '../../../package.json'
         runAS,
         get,
         getRaw,
-    } from '@renderer/function/option'
-    import { Connector } from '@renderer/function/connect'
-    import { PopInfo, PopType } from '@renderer/function/base'
-    import { isDebugMode } from '@renderer/function/debug'
-    import { dispatch } from '@renderer/function/msg'
+    } from '../../function/option'
+    import { Connector } from '../../function/connect'
+    import { PopInfo, PopType } from '../../function/base'
+    import { isDebugMode } from '../../function/debug'
+    import { dispatch } from '../../function/msg'
     import { BrowserInfo, detect } from 'detect-browser'
-    import { BotMsgType } from '@renderer/function/elements/information'
-    import { uptime } from '@renderer/main'
-    import { loadJsonMap } from '@renderer/function/utils/appUtil'
-    import { backend } from '@renderer/runtime/backend'
-    import RawMsgRenderPreviewPan from '@renderer/components/RawMsgRenderPreviewPan.vue'
-    import { useSettingsStore } from '@renderer/state/settings'
-    import { useAuthStore } from '@renderer/state/auth'
-    import { useUIStore } from '@renderer/state/ui'
+    import { BotMsgType } from '../../function/elements/information'
+    import { uptime } from '../../main'
+    import { loadJsonMap } from '../../function/utils/appUtil'
+    import { backend } from '../../runtime/backend'
+    import RawMsgRenderPreviewPan from '../../components/RawMsgRenderPreviewPan.vue'
+    import { useSettingsStore } from '../../state/settings'
+    import { useAuthStore } from '../../state/auth'
+    import { useUIStore } from '../../state/ui'
 
     const settingsStore = useSettingsStore()
     const authStore = useAuthStore()
@@ -481,7 +481,7 @@ import packageInfo from '../../../package.json'
     }
 
     function getPathMapList() {
-        const pathMap = import.meta.glob('@renderer/assets/pathMap/*.yaml')
+        const pathMap = import.meta.glob('../../assets/pathMap/*.yaml')
         const pathMapList: string[] = []
         Object.keys(pathMap).forEach((key: string) => {
             const name = key.split('/').pop()?.replace('.yaml', '')

@@ -368,20 +368,20 @@
 import { markRaw, onMounted, ref, toRaw, useTemplateRef, watch } from 'vue'
 import Option, { run, runASWEvent as save, checkDefault, runAS } from '../../function/option'
 import { BrowserInfo, detect } from 'detect-browser'
-import { getDeviceType } from '@renderer/function/utils/systemUtil'
+import { getDeviceType } from '../../function/utils/systemUtil'
 
-import { sendIdentifyData } from '@renderer/function/utils/appUtil'
-import { backend } from '@renderer/runtime/backend'
+import { sendIdentifyData } from '../../function/utils/appUtil'
+import { backend } from '../../runtime/backend'
 import {
     rememberLocalImageUrl,
     resolveLocalImageUrl,
     saveBrowserBackgroundImage,
     type LocalImageInfo,
-} from '@renderer/function/utils/backgroundUtil'
-import { i18n } from '@renderer/main'
-import { useSettingsStore } from '@renderer/state/settings'
-import { useUIStore } from '@renderer/state/ui'
-import ThemeColorPickerPan from '@renderer/components/ThemeColorPickerPan.vue'
+} from '../../function/utils/backgroundUtil'
+import { i18n } from '../../main'
+import { useSettingsStore } from '../../state/settings'
+import { useUIStore } from '../../state/ui'
+import ThemeColorPickerPan from '../../components/ThemeColorPickerPan.vue'
 
 const settingsStore = useSettingsStore()
 const uiStore = useUIStore()
@@ -724,7 +724,7 @@ function isMobile() {
 }
 
 function getIconList() {
-    const iconList = import.meta.glob('@renderer/assets/img/icons/*.png', { eager: true })
+    const iconList = import.meta.glob('../../assets/img/icons/*.png', { eager: true })
     const iconListInfo = [] as { name: string, icon: any }[]
     Object.keys(iconList).forEach((key: string) => {
         const name = key.split('/').pop()?.split('.')[0]

@@ -1,9 +1,9 @@
-import { i18n } from '@renderer/main'
+import { i18n } from '../../main'
 
-import l10nConfig from '@renderer/assets/l10n/_l10nconfig.json'
+import l10nConfig from '../../assets/l10n/_l10nconfig.json'
 import PO from 'pofile'
 import { Logger, PopInfo, PopType } from '../base';
-import { backend } from '@renderer/runtime/backend';
+import { backend } from '../../runtime/backend';
 
 /**
  * 异步延迟
@@ -52,7 +52,7 @@ export function getTrueLang(): string {
  * @param name 文件名
  */
 export function getPortableFileLang(name: string) {
-    const files = import.meta.glob('@renderer/assets/l10n/*.po',
+    const files = import.meta.glob('../../assets/l10n/*.po',
         { eager: true, query: '?raw', import: 'default' })
     const filePath = Object.keys(files).find(
         (item) => item.includes(name))

@@ -5,11 +5,11 @@
  *   非 Tauri 平台调用时会静默 no-op / 返回空数组，不影响其他平台逻辑。
  */
 
-import { backend } from '@renderer/runtime/backend'
+import { backend } from '../../runtime/backend'
 import { getMsgRawTxt } from './msgUtil'
 import { Logger } from '../base'
-import { useSettingsStore } from '@renderer/state/settings'
-import { useAuthStore } from '@renderer/state/auth'
+import { useSettingsStore } from '../../state/settings'
+import { useAuthStore } from '../../state/auth'
 
 const logger = new Logger()
 

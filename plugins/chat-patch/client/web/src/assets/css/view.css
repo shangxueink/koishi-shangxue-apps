@@ -1731,7 +1731,7 @@ textarea:focus {
 }
 
 .cursor-exit {
-    cursor: url(@renderer/assets/img/icons/exit.png), auto;
+    cursor: url(../../assets/img/icons/exit.png), auto;
 }
 
 .cursor-not-allowed {
@@ -1739,7 +1739,7 @@ textarea:focus {
 }
 
 .cursor-pen {
-    cursor: url(@renderer/assets/img/icons/pen.png) 0 24, auto;
+    cursor: url(../../assets/img/icons/pen.png) 0 24, auto;
 }
 
 .cursor-crosshair {

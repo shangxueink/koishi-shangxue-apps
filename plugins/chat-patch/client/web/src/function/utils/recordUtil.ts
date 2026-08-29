@@ -7,9 +7,9 @@
  *   以 out_format=mp3 请求格式转换，响应 base64 数据直接用于播放。
  */
 
-import { Logger } from '@renderer/function/base'
-import { Connector } from '@renderer/function/connect'
-import { getBootstrap } from '@renderer/function/satori'
+import { Logger } from '../../function/base'
+import { Connector } from '../../function/connect'
+import { getBootstrap } from '../../function/satori'
 
 const logger = new Logger()
 

@@ -34,8 +34,8 @@
 </template>
 
 <script setup lang="ts">
-import { UserGroupElem, UserFriendElem } from '@renderer/function/elements/information'
-import { getShowName } from '@renderer/function/utils/msgUtil'
+import { UserGroupElem, UserFriendElem } from '../function/elements/information'
+import { getShowName } from '../function/utils/msgUtil'
 
 type Session = UserGroupElem & UserFriendElem
 

@@ -393,18 +393,18 @@
 </template>
 
 <script setup lang="ts">
-import Option from '@renderer/function/option'
+import Option from '../function/option'
 import markdownit from 'markdown-it'
 
-import { MsgBodyFuns as ViewFuns } from '@renderer/function/model/msg-body'
+import { MsgBodyFuns as ViewFuns } from '../function/model/msg-body'
 import { watch, onMounted, nextTick, provide, inject, useTemplateRef, ref, computed, toRaw } from 'vue'
-import { Connector } from '@renderer/function/connect'
-import { resolveForwardMessageContent } from '@renderer/function/msg'
-import { parseSatoriMarkup } from '@renderer/function/satori-model'
-import { useSettingsStore } from '@renderer/state/settings'
-import { Logger, LogType, PopInfo, PopType } from '@renderer/function/base'
+import { Connector } from '../function/connect'
+import { resolveForwardMessageContent } from '../function/msg'
+import { parseSatoriMarkup } from '../function/satori-model'
+import { useSettingsStore } from '../state/settings'
+import { Logger, LogType, PopInfo, PopType } from '../function/base'
 import { StringifyOptions } from 'querystring'
-import { getLocalMediaUrl, getMsgRawTxt, pokeAnime } from '@renderer/function/utils/msgUtil'
+import { getLocalMediaUrl, getMsgRawTxt, pokeAnime } from '../function/utils/msgUtil'
 import {
     isRobot,
     openLink,
@@ -412,33 +412,33 @@ import {
 	vMenu,
 	vMove,
 	VMoveOptions,
-} from '@renderer/function/utils/appUtil'
-import { vUserTooltip } from '@renderer/function/tooltip'
+} from '../function/utils/appUtil'
+import { vUserTooltip } from '../function/tooltip'
 import {
     getForegroundToneGridFromImageUrl,
     getSizeFromBytes,
     getTimeConfig,
     getTrueLang,
-    getViewTime } from '@renderer/function/utils/systemUtil'
-import { linkView } from '@renderer/function/utils/linkViewUtil'
-import { MenuEventData, MergeStackData } from '@renderer/function/elements/information'
-import { backend } from '@renderer/runtime/backend'
-import { i18n } from '@renderer/main'
-import { useUIStore } from '@renderer/state/ui'
-import { useAuthStore } from '@renderer/state/auth'
-import { useContactStore } from '@renderer/state/contact'
-import { useChatStore } from '@renderer/state/chat'
+    getViewTime } from '../function/utils/systemUtil'
+import { linkView } from '../function/utils/linkViewUtil'
+import { MenuEventData, MergeStackData } from '../function/elements/information'
+import { backend } from '../runtime/backend'
+import { i18n } from '../main'
+import { useUIStore } from '../state/ui'
+import { useAuthStore } from '../state/auth'
+import { useContactStore } from '../state/contact'
+import { useChatStore } from '../state/chat'
 
 const uiStore = useUIStore()
 const authStore = useAuthStore()
 const contactStore = useContactStore()
 const chatStore = useChatStore()
 const settingsStore = useSettingsStore()
-import Emoji from '@renderer/function/model/emoji'
+import Emoji from '../function/model/emoji'
 import EmojiFace from './EmojiFace.vue'
 import LazyLottie from './LazyLottie.vue'
-import { Img } from '@renderer/function/model/img'
-import { dbGetImage, hashUrl } from '@renderer/function/utils/localHistoryUtil'
+import { Img } from '../function/model/img'
+import { dbGetImage, hashUrl } from '../function/utils/localHistoryUtil'
 import JsonSegComp from './msg-component/JsonSegComp.vue'
 import XmlSegComp from './msg-component/XmlSegComp.vue'
 import VoiceMsg from './VoiceMsg.vue'

@@ -1,27 +1,27 @@
-import app from '@renderer/main'
+import app from '../../main'
 import FileDownloader from 'js-file-downloader'
-import option from '@renderer/function/option'
+import option from '../../function/option'
 import semver from 'semver'
 import appInfo from '../../../package.json'
 
-import AboutPan from '@renderer/components/AboutPan.vue'
-import UpdatePan from '@renderer/components/UpdatePan.vue'
-import WelPan from '@renderer/components/WelPan.vue'
-import MealHungryPan from '@renderer/components/notice-component/MealHungryPan.vue'
+import AboutPan from '../../components/AboutPan.vue'
+import UpdatePan from '../../components/UpdatePan.vue'
+import WelPan from '../../components/WelPan.vue'
+import MealHungryPan from '../../components/notice-component/MealHungryPan.vue'
 
 import { KeyboardInfo } from '@capacitor/keyboard'
-import { LogType, Logger, PopInfo, PopType } from '@renderer/function/base'
-import { Connector, loadChatHistoryFromCache, login, refreshAllBots } from '@renderer/function/connect'
-import { BaseChatInfoElem, MenuEventData } from '@renderer/function/elements/information'
-import { useAuthStore } from '@renderer/state/auth'
-import { useContactStore } from '@renderer/state/contact'
-import { useChatStore } from '@renderer/state/chat'
-import { useUIStore } from '@renderer/state/ui'
-import { useSettingsStore } from '@renderer/state/settings'
+import { LogType, Logger, PopInfo, PopType } from '../../function/base'
+import { Connector, loadChatHistoryFromCache, login, refreshAllBots } from '../../function/connect'
+import { BaseChatInfoElem, MenuEventData } from '../../function/elements/information'
+import { useAuthStore } from '../../state/auth'
+import { useContactStore } from '../../state/contact'
+import { useChatStore } from '../../state/chat'
+import { useUIStore } from '../../state/ui'
+import { useSettingsStore } from '../../state/settings'
 import {
     hslToRgb,
     rgbToHsl,
-} from '@renderer/function/utils/systemUtil'
+} from '../../function/utils/systemUtil'
 import {
     markRaw,
     defineAsyncComponent,
@@ -648,15 +648,15 @@ export async function loadMobile() {
     }
 }
 
-import horizontalCss from '@renderer/assets/css/append/mobile/append_mobile_horizontal.css?raw'
-import verticalCss from '@renderer/assets/css/append/mobile/append_mobile_vertical.css?raw'
+import horizontalCss from '../../assets/css/append/mobile/append_mobile_horizontal.css?raw'
+import verticalCss from '../../assets/css/append/mobile/append_mobile_vertical.css?raw'
 import { ActionType, LocalNotificationSchema } from '@capacitor/local-notifications'
-import { backend } from '@renderer/runtime/backend'
+import { backend } from '../../runtime/backend'
 import { NoticeBodyV3 } from '../elements/system'
 import { wheelMask } from '../input'
 import { addTooltip, TooltipController } from '../tooltip'
 import { VueCompData } from '../elements/vueComp'
-// import windowsCss from '@renderer/assets/css/append/mobile/append_windows.css?raw'
+// import windowsCss from '../../assets/css/append/mobile/append_windows.css?raw'
 /**
 * 装载补充样式
 */
@@ -664,7 +664,7 @@ export async function loadAppendStyle() {
     const platform = backend.platform
     logger.info('正在装载补充样式……')
     if (platform != undefined) {
-        import(`@renderer/assets/css/append/append_${platform}.css`)
+        import(`../../assets/css/append/append_${platform}.css`)
             .then(() => {
                 logger.info(`${platform} 平台附加样式加载完成`)
             })
@@ -708,23 +708,23 @@ export async function loadAppendStyle() {
 
     // UI 2.0 附加样式
     if (backend.isDesktop()) {
-        import('@renderer/assets/css/append/append_new.css').then(() => {
+        import('../../assets/css/append/append_new.css').then(() => {
             logger.info('UI 2.0 附加样式加载完成')
         })
     }
 
     if (option.get('chat_more_blur')) {
-        import('@renderer/assets/css/append/append_full_vibrancy.css').then(() => {
+        import('../../assets/css/append/append_full_vibrancy.css').then(() => {
             logger.info('完全透明 UI 附加样式加载完成')
         })
     }
 
     // napcat 插件模式附加样式
     if (import.meta.env.VITE_NAPCAT) {
-        import('@renderer/assets/css/append/append_full_vibrancy.css').then(() => {
+        import('../../assets/css/append/append_full_vibrancy.css').then(() => {
             logger.info('完全透明 UI 附加样式加载完成')
         })
-        import('@renderer/assets/css/append/append_napcat.css').then(() => {
+        import('../../assets/css/append/append_napcat.css').then(() => {
             logger.info('napcat 插件模式附加样式加载完成')
         })
     }
@@ -734,7 +734,7 @@ export async function loadAppendStyle() {
     subVersion = subVersion ? Number(subVersion[2]) : 0
     if (backend.isDesktop() &&
         (platform == 'darwin' || (platform == 'win32' && subVersion > 22621))) {
-        import('@renderer/assets/css/append/append_vibrancy.css').then(() => {
+        import('../../assets/css/append/append_vibrancy.css').then(() => {
             logger.info('透明 UI 附加样式加载完成')
         })
     }
@@ -748,12 +748,12 @@ export async function loadAppendStyle() {
                         info['whitelist'].indexOf('stapxs-qq-lite')) > 0
                 ) {
                     import(
-                        '@renderer/assets/css/append/append_vibrancy.css'
+                        '../../assets/css/append/append_vibrancy.css'
                     ).then(() => {
                         logger.info('透明 UI 附加样式加载完成')
                     })
                     import(
-                        '@renderer/assets/css/append/append_linux_vibrancy.css'
+                        '../../assets/css/append/append_linux_vibrancy.css'
                     ).then(() => {
                         logger.info('Linux 透明 UI 附加样式加载完成')
                     })
@@ -1138,7 +1138,7 @@ export function checkNotice() {
                                 popInfo = {
                                     title: info.title,
                                     template: markRaw(defineAsyncComponent(
-                                        () => import(`@renderer/components/notice-component/${info.template}.vue`),
+                                        () => import(`../../components/notice-component/${info.template}.vue`),
                                     )),
                                     templateValue: markRaw(info.template_data ? info.template_data : {}),
                                     button: button
@@ -1186,7 +1186,7 @@ export function loadJsonMap(name: string) {
     if (name !== undefined) {
         try {
             const msgPathList = import.meta.glob(
-                '@renderer/assets/pathMap/*.yaml', { eager: true })
+                '../../assets/pathMap/*.yaml', { eager: true })
             const msgPathKey = Object.keys(msgPathList).find((key) => {
                 return key.includes(name)
             })

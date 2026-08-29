@@ -1,11 +1,11 @@
-import app from '@renderer/main'
+import app from '../main'
 import { NotifyInfo, NotificationElem } from './elements/system'
 import { jumpToChat } from './utils/appUtil'
 import {
     LocalNotificationSchema,
     DeliveredNotifications
 } from '@capacitor/local-notifications'
-import { backend } from '@renderer/runtime/backend'
+import { backend } from '../runtime/backend'
 
 export class Notify {
     // 针对 MSG 类型的通知，记录用户的通知数量

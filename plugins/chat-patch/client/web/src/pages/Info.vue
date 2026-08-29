@@ -198,24 +198,24 @@
 </template>
 
 <script setup lang="ts">
-import app, { i18n } from '@renderer/main'
-import { avatarError } from '@renderer/function/utils/avatarUtil'
+import app, { i18n } from '../main'
+import { avatarError } from '../function/utils/avatarUtil'
 import BcTab from 'vue3-bcui/packages/bc-tab'
 import { RecycleScroller } from 'vue-virtual-scroller'
 import 'vue-virtual-scroller/dist/vue-virtual-scroller.css'
 
-import { Connector, loadGroupMembersFromCache } from '@renderer/function/connect'
-import { PopInfo, PopType } from '@renderer/function/base'
+import { Connector, loadGroupMembersFromCache } from '../function/connect'
+import { PopInfo, PopType } from '../function/base'
 import { toRaw, ref, nextTick, watch } from 'vue'
-import { delay } from '@renderer/function/utils/systemUtil'
-import { useAuthStore } from '@renderer/state/auth'
-import { useContactStore } from '@renderer/state/contact'
-import { useChatStore } from '@renderer/state/chat'
-import { useUIStore } from '@renderer/state/ui'
+import { delay } from '../function/utils/systemUtil'
+import { useAuthStore } from '../state/auth'
+import { useContactStore } from '../state/contact'
+import { useChatStore } from '../state/chat'
+import { useUIStore } from '../state/ui'
 import {
     UserFriendElem,
     UserGroupElem,
-} from '@renderer/function/elements/information'
+} from '../function/elements/information'
 
 defineOptions({ name: 'ViewInfo' })
 

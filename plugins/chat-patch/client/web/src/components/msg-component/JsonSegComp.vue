@@ -26,7 +26,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import { openLink } from '@renderer/function/utils/appUtil'
+import { openLink } from '../../function/utils/appUtil'
 
 const comps = import.meta.glob('./jsonComp/*.vue', {
     eager: true,

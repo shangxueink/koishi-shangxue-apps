@@ -58,7 +58,7 @@
 </template>
 
 <script lang="ts">
-    import { PopInfo, PopType } from '@renderer/function/base'
+    import { PopInfo, PopType } from '../function/base'
 
     type LyricLine = { [key: number]: string }
 
@@ -186,9 +186,9 @@
 
 <script setup lang="ts">
     import { computed, ref } from 'vue'
-    import { i18n } from '@renderer/main'
-    import { backend } from '@renderer/runtime/backend'
-    import { useSettingsStore } from '@renderer/state/settings'
+    import { i18n } from '../main'
+    import { backend } from '../runtime/backend'
+    import { useSettingsStore } from '../state/settings'
 
     const settingsStore = useSettingsStore()
     const $t = i18n.global.t

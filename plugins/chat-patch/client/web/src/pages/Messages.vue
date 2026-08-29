@@ -208,25 +208,25 @@
 
 <script setup lang="ts">
     import { computed, ref, onMounted, markRaw, watch, nextTick } from 'vue'
-    import { i18n } from '@renderer/main'
-    import FriendBody from '@renderer/components/FriendBody.vue'
+    import { i18n } from '../main'
+    import FriendBody from '../components/FriendBody.vue'
     import BcMenu from 'vue3-bcui/packages/bc-menu'
     import Menu from 'vue3-bcui/packages/bc-menu/index'
-    import Option from '@renderer/function/option'
+    import Option from '../function/option'
 
-    import { useSettingsStore } from '@renderer/state/settings'
+    import { useSettingsStore } from '../state/settings'
     import {
         UserFriendElem,
         UserGroupElem,
-    } from '@renderer/function/elements/information'
-    import { changeGroupNotice } from '@renderer/function/utils/appUtil'
-    import { PopInfo, PopType } from '@renderer/function/base'
+    } from '../function/elements/information'
+    import { changeGroupNotice } from '../function/utils/appUtil'
+    import { PopInfo, PopType } from '../function/base'
     import { MenuStatue } from 'vue3-bcui/packages/dist/types'
     import { library } from '@fortawesome/fontawesome-svg-core'
-    import { login as loginInfo } from '@renderer/function/connect'
-    import { Connector, flushPendingBotEvents, loadContactsFromCache, restoreBotStateFromMessageCache } from '@renderer/function/connect'
-    import { getActiveBot, getLogins, setActiveBot } from '@renderer/function/satori'
-    import { canGroupNotice, getShowName, updateBaseOnMsgList } from '@renderer/function/utils/msgUtil'
+    import { login as loginInfo } from '../function/connect'
+    import { Connector, flushPendingBotEvents, loadContactsFromCache, restoreBotStateFromMessageCache } from '../function/connect'
+    import { getActiveBot, getLogins, setActiveBot } from '../function/satori'
+    import { canGroupNotice, getShowName, updateBaseOnMsgList } from '../function/utils/msgUtil'
 
     import {
         faThumbTack,
@@ -235,16 +235,16 @@
         faGripLines,
         faBroom,
     } from '@fortawesome/free-solid-svg-icons'
-    import { Notify } from '@renderer/function/notify'
-    import { refreshFavicon } from '@renderer/function/favicon'
-    import { backend } from '@renderer/runtime/backend'
-    import History from '@renderer/components/History.vue'
-    import { normalizeSessionId } from '@renderer/function/utils/sessionUtil'
-    import { avatarError } from '@renderer/function/utils/avatarUtil'
-    import { useUIStore } from '@renderer/state/ui'
-    import { useAuthStore } from '@renderer/state/auth'
-    import { useContactStore } from '@renderer/state/contact'
-    import { useChatStore } from '@renderer/state/chat'
+    import { Notify } from '../function/notify'
+    import { refreshFavicon } from '../function/favicon'
+    import { backend } from '../runtime/backend'
+    import History from '../components/History.vue'
+    import { normalizeSessionId } from '../function/utils/sessionUtil'
+    import { avatarError } from '../function/utils/avatarUtil'
+    import { useUIStore } from '../state/ui'
+    import { useAuthStore } from '../state/auth'
+    import { useContactStore } from '../state/contact'
+    import { useChatStore } from '../state/chat'
 
     const $t = i18n.global.t
 

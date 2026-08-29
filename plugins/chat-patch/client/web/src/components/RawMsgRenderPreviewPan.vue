@@ -32,11 +32,11 @@
 <script setup lang="ts">
     import { ref } from 'vue'
 
-    import MsgBody from '@renderer/components/MsgBody.vue'
-    import { normalizeMessagesForPreview } from '@renderer/function/msg'
-    import { getMsgRawTxt } from '@renderer/function/utils/msgUtil'
-    import { useAuthStore } from '@renderer/state/auth'
-    import { i18n } from '@renderer/main'
+    import MsgBody from '../components/MsgBody.vue'
+    import { normalizeMessagesForPreview } from '../function/msg'
+    import { getMsgRawTxt } from '../function/utils/msgUtil'
+    import { useAuthStore } from '../state/auth'
+    import { i18n } from '../main'
 
     defineOptions({ name: 'RawMsgRenderPreviewPan' })
 

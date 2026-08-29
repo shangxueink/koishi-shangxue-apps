@@ -15,11 +15,6 @@
     "allowSyntheticDefaultImports": true,
     "resolveJsonModule": true,
     "baseUrl": ".",
-    "paths": {
-      "@renderer/*": [
-        "src/*"
-      ]
-    },
     "types": [
       "vite/client"
     ]

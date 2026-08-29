@@ -35,8 +35,8 @@
 <script setup lang="ts">
     import { ref, watch, onMounted, nextTick } from 'vue'
 
-    import { i18n } from '@renderer/main'
-    import { useSettingsStore } from '@renderer/state/settings'
+    import { i18n } from '../main'
+    import { useSettingsStore } from '../state/settings'
 
     import BcTab from 'vue3-bcui/packages/bc-tab'
     import OptAccount from './options/OptAccount.vue'
@@ -44,7 +44,7 @@
     import OptDev from './options/OptDev.vue'
     import OptFunction from './options/OptFunction.vue'
 
-    import AboutPan from '@renderer/components/AboutPan.vue'
+    import AboutPan from '../components/AboutPan.vue'
 
     defineOptions({ name: 'ViewOption' })
 

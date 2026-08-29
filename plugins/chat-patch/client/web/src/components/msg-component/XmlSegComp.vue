@@ -13,9 +13,9 @@
 </template>
 
 <script setup lang="ts">
-import { Logger } from '@renderer/function/base';
-import { openLink } from '@renderer/function/utils/appUtil'
-import app from '@renderer/main'
+import { Logger } from '../../function/base';
+import { openLink } from '../../function/utils/appUtil'
+import app from '../../main'
 import { useTemplateRef } from 'vue'
 
 const { item, id } = defineProps<{

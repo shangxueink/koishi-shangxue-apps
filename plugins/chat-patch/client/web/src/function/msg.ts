@@ -11,9 +11,9 @@
  *      3.0 - 优化更优雅的代码结构
  * @Description: 此模块用于拆分和保存/处理 bot 返回的各类信息，整个运行时数据也保存在这儿。
  */
-import qed from '@renderer/assets/qed.txt?raw'
+import qed from '../assets/qed.txt?raw'
 
-import app from '@renderer/main'
+import app from '../main'
 import Option from './option'
 
 
@@ -27,13 +27,13 @@ import {
     updateBaseOnMsgList,
     updateLastestHistory,
     sendMsgAppendInfo,
-} from '@renderer/function/utils/msgUtil'
-import { parseSatoriMarkup } from '@renderer/function/satori-model'
+} from '../function/utils/msgUtil'
+import { parseSatoriMarkup } from '../function/satori-model'
 import {
     delay,
     getViewTime,
     randomNum,
-} from '@renderer/function/utils/systemUtil'
+} from '../function/utils/systemUtil'
 import {
     reloadUsers,
     reloadCookies,
@@ -41,7 +41,7 @@ import {
     loadJsonMap,
     sendIdentifyData,
     sendStatEvent,
-} from '@renderer/function/utils/appUtil'
+} from '../function/utils/appUtil'
 
 const SATORI_MARKUP_PATTERN = /<(?:img|image|audio|video|file|mface|face|quote|at|forward|json|xml|markdown|keyboard|p|br|i18n|a|text|sharp)(?:\s|\/|>)/i
 
@@ -72,20 +72,20 @@ import {
 } from './elements/information'
 import { NotifyInfo } from './elements/system'
 import { Notify } from './notify'
-import { backend } from '@renderer/runtime/backend'
+import { backend } from '../runtime/backend'
 import { dbRevokeMessage, saveMessagesWithSideEffects } from './utils/localHistoryUtil'
-import { addDownloadTask, completeUploadTask } from '@renderer/components/FileManager.vue'
+import { addDownloadTask, completeUploadTask } from '../components/FileManager.vue'
 import { refreshFavicon } from './favicon'
 import { Img } from './model/img'
 import { ensurePinyinLoaded, getPinyin, isPinyinReady } from './utils/pinyin'
-import { useAuthStore } from '@renderer/state/auth'
-import { useContactStore } from '@renderer/state/contact'
-import { useChatStore } from '@renderer/state/chat'
-import { useConnectionStore } from '@renderer/state/connection'
-import { useStickerStore } from '@renderer/state/sticker'
-import { useUIStore } from '@renderer/state/ui'
-import { useSettingsStore } from '@renderer/state/settings'
-import { useQzoneStore } from '@renderer/state/qzone'
+import { useAuthStore } from '../state/auth'
+import { useContactStore } from '../state/contact'
+import { useChatStore } from '../state/chat'
+import { useConnectionStore } from '../state/connection'
+import { useStickerStore } from '../state/sticker'
+import { useUIStore } from '../state/ui'
+import { useSettingsStore } from '../state/settings'
+import { useQzoneStore } from '../state/qzone'
 import {
     getSessionId,
     getMissingGroupPreviewSessions,
@@ -96,7 +96,7 @@ import {
 
 const popInfo = new PopInfo()
 // eslint-disable-next-line
-const msgPaths = import.meta.glob("@renderer/assets/pathMap/*.yaml", { eager: true })
+const msgPaths = import.meta.glob("../assets/pathMap/*.yaml", { eager: true })
 // 取出包含 Lagrange.OneBot.yaml 的那条
 const msgPathAt = Object.keys(msgPaths).find((item) => {
     return item.indexOf('Lagrange.OneBot.yaml') > 0

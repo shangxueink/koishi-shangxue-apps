@@ -1,5 +1,5 @@
-import { useContactStore } from '@renderer/state/contact'
-import { useSettingsStore } from '@renderer/state/settings'
+import { useContactStore } from '../state/contact'
+import { useSettingsStore } from '../state/settings'
 
 let needRefreshFavicon = false
 

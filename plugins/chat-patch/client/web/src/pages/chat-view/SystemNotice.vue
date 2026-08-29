@@ -111,12 +111,12 @@
 </template>
 
 <script lang="ts" setup>
-    import { Connector } from '@renderer/function/connect'
-    import { getTrueLang } from '@renderer/function/utils/systemUtil'
-    import { backend } from '@renderer/runtime/backend'
-    import { i18n } from '@renderer/main'
-    import { useUIStore } from '@renderer/state/ui'
-    import { useContactStore } from '@renderer/state/contact'
+    import { Connector } from '../../function/connect'
+    import { getTrueLang } from '../../function/utils/systemUtil'
+    import { backend } from '../../runtime/backend'
+    import { i18n } from '../../main'
+    import { useUIStore } from '../../state/ui'
+    import { useContactStore } from '../../state/contact'
 
     defineOptions({ name: 'ChatSystemNotice' })
 
