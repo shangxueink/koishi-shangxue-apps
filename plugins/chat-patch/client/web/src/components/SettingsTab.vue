@@ -93,7 +93,8 @@ watch(tabs, () => {
 }
 .tab-bar > span {
     font-weight: bold;
-    flex: 1;
+    flex: 0 0 auto;
+    margin-right: 20px;
 }
 .tab-bar > li {
     margin: 0 var(--bc-tab-margin);

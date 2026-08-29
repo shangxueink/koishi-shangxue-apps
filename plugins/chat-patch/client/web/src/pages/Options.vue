@@ -11,7 +11,7 @@
         <!-- 保留占位元素，避免设置页右侧布局被原有左侧选择器样式影响 -->
         <div class="opt-side-placeholder" style="display: none" />
         <div>
-            <SettingsTab v-show="show" :title="$t('设置')" class="opt-tab">
+            <SettingsTab v-show="show" class="opt-tab">
                 <div :name="$t('账号')">
                     <OptAccount :config="config" />
                 </div>
