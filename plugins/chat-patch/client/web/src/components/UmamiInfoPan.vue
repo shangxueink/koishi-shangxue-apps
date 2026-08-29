@@ -240,7 +240,6 @@
 
     const buttonTypes: Record<string, string> = {
         'touch_randomly': '彩蛋按钮',
-        'visit_fish': '赞助按钮',
         'visit_github': 'GitHub 按钮',
         'visit_blog': '博客按钮',
     }

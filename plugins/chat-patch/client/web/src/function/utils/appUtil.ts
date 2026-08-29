@@ -7,7 +7,6 @@ import appInfo from '../../../package.json'
 import AboutPan from '../../components/AboutPan.vue'
 import UpdatePan from '../../components/UpdatePan.vue'
 import WelPan from '../../components/WelPan.vue'
-import MealHungryPan from '../../components/notice-component/MealHungryPan.vue'
 
 import { KeyboardInfo } from '@capacitor/keyboard'
 import { LogType, Logger, PopInfo, PopType } from '../../function/base'
@@ -997,30 +996,6 @@ export function checkOpenTimes() {
                             openLink(
                                 `https://github.com/${repoName}`,
                             )
-                            uiStore.popBoxList.shift()
-                        },
-                    },
-                ],
-            }
-            uiStore.popBoxList.push(popInfo)
-        }
-        if (getTimes % 50 == 0 && import.meta.env.VITE_APP_SPONSORS_URL) {
-            const popInfo = {
-                title: '',
-                template: markRaw(MealHungryPan),
-                templateValue: { times: getTimes },
-                button: [
-                    {
-                        text: $t('打开…'),
-                        fun: () => {
-                            openLink(import.meta.env.VITE_APP_SPONSORS_URL)
-                            uiStore.popBoxList.shift()
-                        },
-                    },
-                    {
-                        text: $t('好耶'),
-                        master: true,
-                        fun: () => {
                             uiStore.popBoxList.shift()
                         },
                     },

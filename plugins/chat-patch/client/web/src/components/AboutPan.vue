@@ -77,7 +77,6 @@ import packageInfo from '../../package.json'
 
     import { getTrueLang, getViewTime } from '../function/utils/systemUtil'
 
-    import MealHungryPan from '../components/notice-component/MealHungryPan.vue'
     import { library } from '@fortawesome/fontawesome-svg-core'
     import { faClockRotateLeft } from '@fortawesome/free-solid-svg-icons'
     import { i18n } from '../main'
@@ -116,34 +115,6 @@ import packageInfo from '../../package.json'
         const repoName = import.meta.env.VITE_APP_REPO_NAME
         openLink(`https://github.com/${repoName}`)
         sendStatEvent('click_statistics', { name: 'visit_github' })
-    }
-
-    function goFish() {
-        sendStatEvent('click_statistics', { name: 'visit_fish' })
-        if(!import.meta.env.VITE_APP_SPONSORS_URL) {
-            // eslint-disable-next-line no-console
-            console.error('是谁没有设置赞助链接？')
-            sendStatEvent('error_statistics', {
-                type: 'sponsor_link_missing'
-            })
-            return
-        }
-        const popInfo = {
-            title: '',
-            template: markRaw(MealHungryPan),
-            allowQuickClose: false,
-            button: [
-                {
-                    text: $t('打开…'),
-                    master: true,
-                    fun: () => {
-                        openLink(import.meta.env.VITE_APP_SPONSORS_URL)
-                        uiStore.popBoxList.shift()
-                    },
-                }
-            ],
-        }
-        uiStore.popBoxList.push(popInfo)
     }
 
     onMounted(() => {
