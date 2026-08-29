@@ -98,7 +98,7 @@
                                 <!-- 其他消息 -->
                                 <FriendBody
                                     v-for="item in contactStore.onMsgList"
-                                    :key="'inMessage-' + (item.channel_id ?? item.channelId ?? item.user_id ?? item.group_id)"
+                                    :key="'inMessage-' + (item.channel_id || item.channelId || item.user_id || item.group_id)"
                                     :select="chat.show.id === item.user_id || (chat.show.id === item.group_id && chat.group_name != '')"
                                     :menu="menu.select && menu.select == item"
                                     :data="item"
@@ -150,7 +150,7 @@
                     <!-- 其他消息 -->
                     <FriendBody
                         v-for="item in contactStore.groupAssistList"
-                        :key="'inMessage-' + (item.channel_id ?? item.channelId ?? item.user_id ?? item.group_id)"
+                        :key="'inMessage-' + (item.channel_id || item.channelId || item.user_id || item.group_id)"
                         :select="chat.show.id === item.user_id || (chat.show.id === item.group_id && chat.group_name != '')"
                         :menu="menu.select && menu.select == item"
                         :data="item"
@@ -232,7 +232,7 @@
     import { refreshFavicon } from '../function/favicon'
     import { backend } from '../runtime/backend'
     import History from '../components/History.vue'
-    import { normalizeSessionId } from '../function/utils/sessionUtil'
+    import { findSessionContact, normalizeSessionId } from '../function/utils/sessionUtil'
     import { avatarError } from '../function/utils/avatarUtil'
     import { useUIStore } from '../state/ui'
     import { useAuthStore } from '../state/auth'
@@ -284,23 +284,23 @@
         if (!restored) return
         contactStore.baseOnMsgList.clear()
         for (const [, value] of restored.baseList) {
-            const id = String(value.channel_id ?? value.channelId ?? value.user_id ?? value.group_id ?? '')
+            const id = String(value.channel_id || value.channelId || value.user_id || value.group_id || '')
             if (id && id !== '0') {
                 contactStore.baseOnMsgList.set(normalizeSessionId(id), value)
-                const legacyId = String(value.user_id ?? value.group_id ?? '')
+                const legacyId = String(value.user_id || value.group_id || '')
                 if (legacyId && legacyId !== id) {
                     contactStore.baseOnMsgList.set(normalizeSessionId(legacyId), value)
                 }
             }
         }
         for (const item of restored.onMsgList) {
-            const id = String(item.channel_id ?? item.channelId ?? item.user_id ?? item.group_id ?? '')
+            const id = String(item.channel_id || item.channelId || item.user_id || item.group_id || '')
             if (!id || id === '0') continue
             contactStore.baseOnMsgList.set(
                 normalizeSessionId(id),
                 item as UserFriendElem & UserGroupElem,
             )
-            const legacyId = String(item.user_id ?? item.group_id ?? '')
+            const legacyId = String(item.user_id || item.group_id || '')
             if (legacyId && legacyId !== id) {
                 contactStore.baseOnMsgList.set(normalizeSessionId(legacyId), item as UserFriendElem & UserGroupElem)
             }
@@ -387,7 +387,7 @@
      * @param data 联系人对象
      */
     function userClick(data: UserFriendElem & UserGroupElem) {
-        const id = data.user_id ? data.user_id : data.group_id
+        const id = data.group_id || data.user_id
         if (id === undefined || id === null || String(id) === '' || String(id) === '0') return
         if (!trRead.value && id != props.chat.show.id) {
             if (uiStore.openSideBar) {
@@ -396,11 +396,11 @@
             const back = {
                 // 临时会话标志
                 temp: data.group_name == '' ? data.group_id : undefined,
-                type: data.user_id ? 'user' : 'group',
+                type: data.group_id ? 'group' : 'user',
                 id: id,
                 name: getShowName(data.group_name || data.nickname, data.remark),
                 avatar: data.avatar || '/img/icons/icon.svg',
-                channel_id: data.channel_id ?? data.channelId,
+                channel_id: data.channel_id || data.channelId,
                 guild_id: data.guild_id ?? data.guildId,
             }
             if (props.chat.id != back.id) {
@@ -412,9 +412,10 @@
                 }
             }
             // 清除新消息标记
-            const sessionKey = data.channel_id ?? data.channelId ?? id
+            const sessionKey = data.channel_id || data.channelId || id
             const item = contactStore.baseOnMsgList.get(normalizeSessionId(sessionKey))
                 ?? contactStore.baseOnMsgList.get(normalizeSessionId(id))
+                ?? findSessionContact(Array.from(contactStore.baseOnMsgList.values()), id)
             if(item) {
                 if(item.new_msg) {
                     item.new_msg = false
@@ -422,6 +423,7 @@
                 }
                 item.highlight = undefined
                 contactStore.baseOnMsgList.set(normalizeSessionId(sessionKey), item)
+                updateBaseOnMsgList()
                 // 关闭所有通知
                 new Notify().closeAll((item.group_id ?? item.user_id).toString())
             }
@@ -485,9 +487,10 @@
      */
     function readMsg(data: UserFriendElem & UserGroupElem) {
         const id = data.group_id ? data.group_id : data.user_id
-        const sessionKey = data.channel_id ?? data.channelId ?? id
+        const sessionKey = data.channel_id || data.channelId || id
         const item = contactStore.baseOnMsgList.get(normalizeSessionId(sessionKey))
             ?? contactStore.baseOnMsgList.get(normalizeSessionId(id))
+            ?? findSessionContact(Array.from(contactStore.baseOnMsgList.values()), id)
         if(item) {
             if(item.new_msg) {
                 item.new_msg = false
@@ -495,6 +498,7 @@
             }
             item.highlight = undefined
             contactStore.baseOnMsgList.set(normalizeSessionId(sessionKey), item)
+            updateBaseOnMsgList()
         }
         // pop
         new PopInfo().add(
@@ -578,7 +582,7 @@
                     break
                 case 'remove': {
                     const id = item.user_id ? item.user_id : item.group_id
-                    const sessionId = String(item.channel_id ?? item.channelId ?? id ?? '')
+                    const sessionId = String(item.channel_id || item.channelId || id || '')
                     contactStore.baseOnMsgList.delete(normalizeSessionId(id))
                     contactStore.baseOnMsgList.delete(normalizeSessionId(sessionId))
                     updateBaseOnMsgList()

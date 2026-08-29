@@ -77,3 +77,56 @@ watch(tabs, () => {
     nextTick(() => selectTab(activeIndex.value))
 })
 </script>
+
+<style scoped>
+.tab-main > div:first-child {
+    margin-bottom: 10px;
+}
+.tab-bar {
+    --bc-tab-margin: 20px;
+
+    margin: -17px -20px -17px -40px;
+    justify-content: center;
+    align-items: center;
+    position: relative;
+    display: flex;
+}
+.tab-bar > span {
+    font-weight: bold;
+    flex: 1;
+}
+.tab-bar > li {
+    margin: 0 var(--bc-tab-margin);
+    justify-content: center;
+    flex-direction: column;
+    list-style-type: none;
+    align-items: center;
+    border-radius: 3px;
+    min-width: 30px;
+    cursor: pointer;
+    padding: 10px;
+    display: flex;
+}
+.tab-bar > li span,
+.tab-bar > li svg {
+    color: var(--color-font);
+    transition: color 0.3s;
+    font-size: 0.9rem;
+}
+
+.tab-bar > li > div {
+    width: calc(100% + 10px);
+    margin-bottom: -10px;
+    transition: all .35s;
+    border-radius: 7px;
+    margin-top: 6px;
+    height: 3px;
+}
+.tab-bar > li:last-child > div {
+    background: var(--color-main);
+}
+.tab-bar > li.select span,
+.tab-bar > li.select svg {
+    color: var(--color-main);
+}
+</style>

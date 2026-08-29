@@ -354,7 +354,7 @@ function updateBotStateGroup(
   const session = state?.onMsgList.find((item) => String(item.group_id) === sessionId)
   if (!state || !session) return
   apply(session as unknown as Record<string, unknown>)
-  const key = normalizeSessionId(String(session.channel_id ?? session.channelId ?? sessionId))
+  const key = normalizeSessionId(String(session.channel_id || session.channelId || sessionId))
   const baseList = [...state.baseList]
   const baseIndex = baseList.findIndex(([, value]) => value === session)
   const typedSession = session as unknown as UserFriendElem & UserGroupElem
@@ -602,7 +602,7 @@ function recordBotMessage(platform: string, selfId: string, msg: Record<string, 
     guild_id: typeof msg.guild_id === 'string' ? msg.guild_id : undefined,
   }
   const existing = state.onMsgList.find((item) => {
-    const itemChannelId = String(item.channel_id ?? item.channelId ?? '')
+    const itemChannelId = String(item.channel_id || item.channelId || '')
     if (itemChannelId) {
       if (isGroup) {
         return normalizeGroupId(itemChannelId) === normalizeGroupId(channelId || sessionId)
@@ -805,7 +805,7 @@ export function restoreBotStateFromMessageCache(platform: string, selfId: string
       existing.add(id)
     }
     if (!id.endsWith(':0') && !id.endsWith(':') && !baseKeys.has(id)) {
-      baseList.push([normalizeSessionId(String(session.channel_id ?? session.channelId ?? session.user_id ?? session.group_id ?? '')), session])
+      baseList.push([normalizeSessionId(String(session.channel_id || session.channelId || session.user_id || session.group_id || '')), session])
       baseKeys.add(id)
     }
   }

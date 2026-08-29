@@ -823,6 +823,26 @@ function getSessionSortName(item: UserFriendElem & UserGroupElem) {
 
 function normalizeBaseSessionMap() {
     const contactStore = useContactStore()
+    let needNormalize = false
+    const seen = new Map<string, UserFriendElem & UserGroupElem>()
+    for (const [rawKey, item] of contactStore.baseOnMsgList) {
+        const id = getSessionDedupKey(item)
+        if (id.endsWith(':0') || id.endsWith(':')) continue
+        const existing = seen.get(id)
+        if (existing && existing !== item) {
+            needNormalize = true
+            continue
+        }
+        seen.set(id, item)
+        if (
+            typeof rawKey !== 'string' ||
+            !getSessionAliases(item).includes(normalizeSessionId(rawKey))
+        ) {
+            needNormalize = true
+        }
+    }
+    if (!needNormalize) return
+
     const canonical = new Map<string, UserFriendElem & UserGroupElem>()
     contactStore.baseOnMsgList.forEach((item) => {
         const id = getSessionDedupKey(item)
@@ -903,7 +923,9 @@ export function updateBaseOnMsgList() {
     if (settingsStore.sysConfig.bubble_sort_user) {
         // 将 normalList 进行拆分
         const shouldShowInMainList = (item: UserFriendElem & UserGroupElem) => {
-            return item.user_id || item.always_top
+            return item.group_id
+                ? item.always_top
+                : Boolean(item.user_id) || item.always_top
         }
         onMsgList = topList.concat(normalList.filter((item) => {
             return shouldShowInMainList(item)

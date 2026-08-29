@@ -50,7 +50,7 @@
                         {{ $t('空') }}
                     </div>
                     <FriendBody v-for="item in contactStore.showList"
-                        :key="'search-' + (item.channel_id ?? item.channelId ?? item.user_id ?? item.group_id)"
+                        :key="'search-' + (item.channel_id || item.channelId || item.user_id || item.group_id)"
                         :data="item"
                         from="friend"
                         @click="userClick(item, $event)" />
@@ -100,7 +100,7 @@
                                                                     return ( get.class_id == info.class_id )
                                                                 },
                                                             )"
-                                                    :key=" 'fb-' + (item.channel_id ?? item.channelId ?? item.user_id ?? item.group_id) "
+                                                    :key=" 'fb-' + (item.channel_id || item.channelId || item.user_id || item.group_id) "
                                                     :data="item" from="friend"
                                                     @click="userClick(item, $event)" />
                                             </div>
@@ -125,7 +125,7 @@
                                                                 return get.class_id == undefined
                                                             },
                                                         )"
-                                                :key="'fb-' + (item.channel_id ?? item.channelId ?? item.user_id ?? item.group_id)"
+                                                :key="'fb-' + (item.channel_id || item.channelId || item.user_id || item.group_id)"
                                                 :data="item"
                                                 from="friend"
                                                 @click="userClick(item, $event)" />
@@ -134,7 +134,7 @@
                                 </template>
                                 <template v-else>
                                     <FriendBody v-for="item in contactStore.userList"
-                                        :key="'fb-' + (item.channel_id ?? item.channelId ?? item.user_id ?? item.group_id)"
+                                        :key="'fb-' + (item.channel_id || item.channelId || item.user_id || item.group_id)"
                                         :data="item"
                                         from="friend"
                                         @click="userClick(item, $event)" />
@@ -144,7 +144,7 @@
                             <div v-else class="list">
                                 <div>
                                     <FriendBody v-for="item in contactStore.showList"
-                                        :key="'fb-' + (item.channel_id ?? item.channelId ?? item.user_id ?? item.group_id)"
+                                        :key="'fb-' + (item.channel_id || item.channelId || item.user_id || item.group_id)"
                                         :data="item" from="friend"
                                         @click="userClick(item, $event)" />
                                 </div>
@@ -242,12 +242,12 @@
             for (const item of items) {
                 const rawId = String(
                     item.channel_id
-                    ?? item.channelId
-                    ?? item.user_id
-                    ?? item.group_id
-                    ?? '',
+                    || item.channelId
+                    || item.user_id
+                    || item.group_id
+                    || '',
                 )
-                const groupId = String(item.group_id ?? '')
+                const groupId = String(item.group_id || '')
                 const id = groupId
                     ? `group:${normalizeGroupId(rawId || groupId)}`
                     : `user:${rawId.replace(/^(?:private|direct):/i, '')}`
@@ -306,20 +306,20 @@
             contactStore.userList = saved.userList
             contactStore.baseOnMsgList.clear()
             for (const [, value] of saved.baseList) {
-                const id = String(value.channel_id ?? value.channelId ?? value.user_id ?? value.group_id ?? '')
+                const id = String(value.channel_id || value.channelId || value.user_id || value.group_id || '')
                 if (id && id !== '0') {
                     contactStore.baseOnMsgList.set(normalizeSessionId(id), value)
-                    const legacyId = String(value.user_id ?? value.group_id ?? '')
+                    const legacyId = String(value.user_id || value.group_id || '')
                     if (legacyId && legacyId !== id) {
                         contactStore.baseOnMsgList.set(normalizeSessionId(legacyId), value)
                     }
                 }
             }
             for (const item of saved.onMsgList) {
-                const id = String(item.channel_id ?? item.channelId ?? item.user_id ?? item.group_id ?? '')
+                const id = String(item.channel_id || item.channelId || item.user_id || item.group_id || '')
                 if (id && id !== '0') {
                     contactStore.baseOnMsgList.set(normalizeSessionId(id), item)
-                    const legacyId = String(item.user_id ?? item.group_id ?? '')
+                    const legacyId = String(item.user_id || item.group_id || '')
                     if (legacyId && legacyId !== id) {
                         contactStore.baseOnMsgList.set(normalizeSessionId(legacyId), item)
                     }
@@ -407,12 +407,12 @@
         contactStore.showList = [] as any[]
 
         const back = {
-            type: data.user_id ? 'user' : 'group',
-            id: data.user_id ? data.user_id : data.group_id,
+            type: data.group_id ? 'group' : 'user',
+            id: data.group_id || data.user_id,
             name: getShowName(data),
             avatar: data.avatar || '/img/icons/icon.svg',
             jump: sender.dataset.jump,
-            channel_id: data.channel_id ?? data.channelId,
+            channel_id: data.channel_id || data.channelId,
             guild_id: data.guild_id,
         } as BaseChatInfoElem
         if (back.id === undefined || back.id === null || String(back.id) === '' || String(back.id) === '0') return
@@ -420,10 +420,10 @@
         emit('userClick', back)
         const sessionId = String(
             data.channel_id
-            ?? data.channelId
-            ?? data.user_id
-            ?? data.group_id
-            ?? '',
+            || data.channelId
+            || data.user_id
+            || data.group_id
+            || '',
         )
         if (sessionId && sessionId !== '0') {
             contactStore.baseOnMsgList.set(normalizeSessionId(sessionId), data)

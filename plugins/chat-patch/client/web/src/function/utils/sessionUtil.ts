@@ -23,10 +23,17 @@ function getLegacySessionId(item: Session): number | string | undefined {
 }
 
 export function getSessionAliases(item: Session): string[] {
-    const aliases = [
+    const rawAliases: Array<number | string | undefined> = [
         getSessionId(item),
         getLegacySessionId(item),
-    ].filter((value): value is number | string => {
+    ]
+    if (item.group_id !== undefined && item.group_id !== null) {
+        rawAliases.push(normalizeGroupId(String(item.group_id)))
+    }
+    if (item.user_id !== undefined && item.user_id !== null) {
+        rawAliases.push(String(item.user_id).replace(/^(?:private|direct):/i, ''))
+    }
+    const aliases = rawAliases.filter((value): value is number | string => {
         const text = String(value ?? '')
         return text !== '' && text !== '0'
     })
