@@ -1,2 +1,3 @@
 node_modules
 web-vite.*.log
+client/web/dist
