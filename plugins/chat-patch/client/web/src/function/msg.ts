@@ -121,7 +121,8 @@ function getString(value: unknown): string {
 }
 
 function normalizeChannelForMatch(value: string): string {
-    return normalizeGroupId(value)
+    const stripped = String(value).replace(/^(?:private|direct|group|room|chat|channel|guild):/i, '')
+    return stripped || String(value)
 }
 
 // 其他 tag
@@ -2592,17 +2593,8 @@ function newMsg(_: string, data: any) {
                 hidden: document.hidden,
                 isImportant: isImportant
             })
-            // (发送者没有被打开 || 窗口没有焦点 || 窗口被最小化 || 在特别关心列表里) 这些情况需要进行消息通知
-            const forceGroupSystemNotice = isGroupMessage && groupNoticeType === 'all'
-            const forceImportantNotice = isImportant ||
-                (isGroupMessage && (data.atme || data.atall || isGroupNotice))
-            if (
-                forceGroupSystemNotice ||
-                forceImportantNotice ||
-                !isCurrentSession ||
-                !document.hasFocus() ||
-                document.hidden
-            ) {
+            // 当前会话已打开时不弹系统通知，新消息交给右下角置底箭头提示
+            if (!isCurrentSession) {
                 // 准备消息内容
                 let raw = getMsgRawTxt(data)
                 raw = raw === '' ? data.raw_message : raw
