@@ -738,7 +738,6 @@ const searchRequestId = ref(0)
 const forwardList = ref(contactStore.userList)
 const chatImg = ref<any>(undefined)
 const trueLang = getTrueLang()
-let selfRefreshTimer: number | null = null
 
 function messageLocalTimeMs(item: any): number {
     const local = Number(item?.local_time ?? item?.timestamp_ms ?? item?.time_ms ?? 0)
@@ -793,22 +792,8 @@ async function refreshSelfHistory() {
 }
 
 function startSelfRefresh() {
-    if (selfRefreshTimer !== null) {
-        window.clearInterval(selfRefreshTimer)
-        selfRefreshTimer = null
-    }
     if (!chat.show.id) return
     void refreshSelfHistory()
-    selfRefreshTimer = window.setInterval(() => {
-        void refreshSelfHistory()
-    }, 2500)
-}
-
-function stopSelfRefresh() {
-    if (selfRefreshTimer !== null) {
-        window.clearInterval(selfRefreshTimer)
-        selfRefreshTimer = null
-    }
 }
 
 //#region == 窗口移动相关 ==================================================
@@ -968,7 +953,6 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
-    stopSelfRefresh()
     if (resizeMainInputFrame !== null) {
         cancelAnimationFrame(resizeMainInputFrame)
         resizeMainInputFrame = null
