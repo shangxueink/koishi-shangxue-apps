@@ -1137,6 +1137,44 @@ function extractFirstMessageId(data: unknown): string | undefined {
   return getString(first.id) || getString(first.message_id) || undefined
 }
 
+function extractDirectChannelId(data: unknown): string {
+  const root = getObject(data)
+  const nested = getObject(root.data)
+  const channel = getObject(root.channel)
+  const id = getString(channel.id)
+    || getString(nested.id)
+    || getString(root.id)
+  if (!id) throw new Error('user.channel.create 未返回频道 ID')
+  return id
+}
+
+function getPrivateSendUserId(action: string, params: Record<string, unknown>): string {
+  const normalized = action.replace(/^_/, '')
+  const userId = params.user_id == null ? '' : String(params.user_id)
+  const groupId = params.group_id == null ? '' : String(params.group_id)
+  const guildId = params.guild_id == null ? '' : String(params.guild_id)
+  if (normalized === 'send_private_msg') return userId
+  if (normalized === 'send_msg'
+    && userId
+    && !groupId
+    && !guildId) {
+    return userId
+  }
+  return ''
+}
+
+async function sendPrivateSatoriMessage(
+  userId: string,
+  content: string,
+  guildId: string | undefined,
+  active: ReturnType<typeof getActiveBot>,
+) {
+  // Satori 私聊流程：先由平台创建/返回私聊频道，再使用该频道 ID 发送
+  const direct = await request('user.channel.create', { user_id: userId, guild_id: guildId }, active)
+  const channelId = extractDirectChannelId(direct)
+  return request('message.create', { channel_id: channelId, content }, active)
+}
+
 export async function sendForwardMessage(
   platform: string,
   selfId: string,
@@ -1154,7 +1192,12 @@ export async function sendForwardMessage(
     const content = buildForwardMessage(messages)
     if (content) {
       try {
-        const data = await request('message.create', { channel_id: channelId, content }, { platform, selfId })
+        let finalChannelId = channelId
+        if (type === 'user') {
+          const direct = await request('user.channel.create', { user_id: id }, { platform, selfId })
+          finalChannelId = extractDirectChannelId(direct)
+        }
+        const data = await request('message.create', { channel_id: finalChannelId, content }, { platform, selfId })
         return {
           ok: true,
           native: true,
@@ -2015,7 +2058,15 @@ export class Connector {
     const mapped = mapAction(api, args)
     if (!mapped) return undefined
     const active = getActiveBot()
-    const data = await request(mapped.method, mapped.params, active)
+    const privateUserId = getPrivateSendUserId(api, args)
+    const data = privateUserId
+      ? await sendPrivateSatoriMessage(
+        privateUserId,
+        getString(mapped.params.content),
+        getString(args.group_id) || getString(args.guild_id) || undefined,
+        active,
+      )
+      : await request(mapped.method, mapped.params, active)
     return satoriResponseToOneBot(api, data, active.platform).data
   }
 
@@ -2026,6 +2077,23 @@ export class Connector {
       return
     }
     const active = getActiveBot()
+    const privateUserId = getPrivateSendUserId(action, value)
+    if (privateUserId) {
+      void sendPrivateSatoriMessage(
+        privateUserId,
+        getString(mapped.params.content),
+        getString(value.group_id) || getString(value.guild_id) || undefined,
+        active,
+      )
+        .then((data) => {
+          const response = satoriResponseToOneBot(action, data, active.platform)
+          dispatch(response, echo)
+        })
+        .catch((error: unknown) => {
+          dispatch({ retcode: -1, data: null, error: String(error) }, echo)
+        })
+      return
+    }
     if (active && (action === 'get_friend_list' || action === 'get_group_list')) {
       const type = action === 'get_friend_list' ? 'friend' : 'group'
       void loadContactType(active, { type, action, echo })
