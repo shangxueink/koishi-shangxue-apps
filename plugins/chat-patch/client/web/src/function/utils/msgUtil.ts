@@ -896,7 +896,7 @@ function getSessionList() {
     }
 
     contactStore.baseOnMsgList.forEach((item) => {
-        if (!item._groupMember) addSession(item)
+        addSession(item)
     })
 
     return [...sessionMap.values()]
