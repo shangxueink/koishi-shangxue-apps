@@ -2614,13 +2614,31 @@ function sendVideo(file: File, fileName: string | null) {
     sendMedia(file, fileName, 'video')
 }
 
+async function isGifImage(file: File): Promise<boolean> {
+    if (file.type === 'image/gif' || /\.gif$/i.test(file.name || '')) return true
+    try {
+        const buffer = await file.slice(0, 6).arrayBuffer()
+        const bytes = new Uint8Array(buffer)
+        return bytes.length >= 6
+            && bytes[0] === 0x47
+            && bytes[1] === 0x49
+            && bytes[2] === 0x46
+            && bytes[3] === 0x38
+            && (bytes[4] === 0x37 || bytes[4] === 0x39)
+            && bytes[5] === 0x61
+    } catch {
+        return false
+    }
+}
+
 async function setImg(file: File | null) {
     const popInfo = new PopInfo()
     if (!file) return
     if (!file.type.includes('image/')) return
     if (file.size === 0) return
+    const isGif = await isGifImage(file)
 
-    if (file.size > 3145728) {
+    if (file.size > 3145728 && !isGif) {
         const options = { maxSizeMB: 3, useWebWorker: true }
         try {
             popInfo.add(PopType.INFO, $t('正在压缩图片 ……'))
