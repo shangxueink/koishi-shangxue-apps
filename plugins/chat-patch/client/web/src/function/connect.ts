@@ -1178,6 +1178,8 @@ async function sendPrivateSatoriMessage(
     const direct = await request('user.channel.create', { user_id: userId, guild_id: guildId }, active)
     channelId = extractDirectChannelId(direct)
   } catch {
+    // 兼容未实现 createDirectChannel 的适配器，无完整频道 ID 时退回 private: 前缀私聊
+    channelId = channelIdHint || (/^(?:private|direct):/i.test(userId) ? userId : `private:${userId}`)
   }
   return {
     data: await request('message.create', { channel_id: channelId, content }, active),
@@ -1209,6 +1211,7 @@ export async function sendForwardMessage(
             const direct = await request('user.channel.create', { user_id: id }, { platform, selfId })
             finalChannelId = extractDirectChannelId(direct)
           } catch {
+            finalChannelId = channelIdHint || (/^(?:private|direct):/i.test(id) ? id : `private:${id}`)
           }
         }
         const data = await request('message.create', { channel_id: finalChannelId, content }, { platform, selfId })
