@@ -10,7 +10,7 @@
 -->
 
 <template>
-    <div class="friend-view">
+    <div class="friend-view" :class="{ 'empty-list': messageListEmpty }">
         <div class="friend-list-container">
             <div id="message-list"
                 :class="'friend-list' +
@@ -50,7 +50,7 @@
                         </div>
                         <div v-if="botKey(bot.platform, bot.selfId) === activeBotId" class="robot-accordion-content">
                             <div v-if="!showGroupAssist &&
-                                !contactStore.systemNoticesList &&
+                                !hasSystemNotices &&
                                 (!contactStore.groupAssistList || contactStore.groupAssistList.length === 0) &&
                                 contactStore.onMsgList.length === 0"
                                 class="empty-state">
@@ -63,8 +63,7 @@
                                 style="overflow-x: hidden">
                                 <!-- 系统信息 -->
                                 <FriendBody v-if="!showGroupAssist &&
-                                                contactStore.systemNoticesList &&
-                                                Object.keys(contactStore.systemNoticesList).length > 0"
+                                                hasSystemNotices"
                                     key="inMessage--10000"
                                     :select="chat.show.id === -10000"
                                     :menu="menu.select && menu.select.user_id === -10000"
@@ -380,6 +379,17 @@
     const menu = Menu.append
     const showMenu = ref(false)
     const showGroupAssist = ref(false)
+    const hasSystemNotices = computed(() => {
+        const value = contactStore.systemNoticesList
+        if (Array.isArray(value)) return value.length > 0
+        return Boolean(value && Object.keys(value).length > 0)
+    })
+    const messageListEmpty = computed(() => {
+        return !showGroupAssist.value &&
+            !hasSystemNotices.value &&
+            (!contactStore.groupAssistList || contactStore.groupAssistList.length === 0) &&
+            contactStore.onMsgList.length === 0
+    })
 
     onMounted(() => {
         library.add(faCheckToSlot, faThumbTack, faTrashCan, faGripLines, faBroom)
@@ -898,6 +908,18 @@
     @media (max-width: 700px) {
         .friend-list-container {
             overflow: unset;
+        }
+        .friend-view.empty-list .friend-list-container {
+            flex: 1;
+            min-width: 100%;
+            width: 100%;
+        }
+        .friend-view.empty-list #message-list {
+            flex: 1;
+            width: 100% !important;
+        }
+        .friend-view.empty-list .friend-list-space {
+            display: none !important;
         }
         .menu {
             width: 140px !important;

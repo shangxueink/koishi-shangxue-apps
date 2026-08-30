@@ -13,9 +13,11 @@
                 <span>{{ $t('Koishi Satori 聊天室') }}</span>
             </div>
             <div class="about-source">
-                {{ $t('本页面魔改自') }}
-                <a @click="openLink('https://github.com/Stapxs/Stapxs-QQ-Lite-2.0')">Stapxs QQ Lite 2.0</a>
-                {{ $t('，感谢原项目的 UI 设计。') }}
+              {{ $t('本页面魔改自') }}
+              <a @click="openLink('https://github.com/Stapxs/Stapxs-QQ-Lite-2.0')">Stapxs QQ Lite 2.0</a>
+            </div>
+            <div class="about-source">
+              {{ $t('感谢原项目的 UI 设计。') }}
             </div>
             <div v-if="sponsorList.length > 0 && showUI" class="contributors-card">
                 <div />
