@@ -2,6 +2,7 @@ import { Context } from "koishi"
 import type { AppLogger } from "./logger"
 import type { ResolvedApiMode } from "./mode"
 import { downloadFileWithTimeout, fetchWithTimeout } from "./http"
+import { evaluateJsValue, isJsValue } from "./js-value"
 
 export const API_URL_HTML_ERROR = "api_url_html_error"
 
@@ -40,13 +41,11 @@ interface ApiErrorResponse {
   }
 }
 
-// 按配置选择 edits(multipart) / generations(JSON) 协议
+// 文生图和图生图统一使用 JSON 协议
 export async function callImageApi(ctx: Context, files: ImageFile[], prompt: string, options: ImageApiOptions): Promise<string[] | string | null> {
   const mode = options.apiMode
   const resolvedUrl = resolveApiUrl(options.apiUrl, mode)
-  const body = mode === "generations"
-    ? JSON.stringify(buildJsonBody(files, prompt, options.apiParams, options.agnesMode))
-    : buildFormBody(files, prompt, options.apiParams)
+  const body = JSON.stringify(buildJsonBody(files, prompt, options.apiParams, options.agnesMode))
 
   logRequest(options, mode, files, prompt, resolvedUrl)
 
@@ -54,7 +53,7 @@ export async function callImageApi(ctx: Context, files: ImageFile[], prompt: str
     const headers: Record<string, string> = {
       Authorization: `Bearer ${options.apiKey}`,
     }
-    if (mode === "generations") headers["Content-Type"] = "application/json"
+    headers["Content-Type"] = "application/json"
 
     const response = await fetchWithTimeout(ctx, resolvedUrl, {
       method: "POST",
@@ -113,15 +112,20 @@ function resolveApiUrl(apiUrl: string, mode: "edits" | "generations"): string {
   }
 }
 
-// generations 接口要求 JSON body；agnesMode 下按 agnes 文档把 image/response_format 放入 extra_body
+// 文生图和图生图都要求 JSON body；agnesMode 下按 agnes 文档把 image/response_format 放入 extra_body
 function buildJsonBody(files: ImageFile[], prompt: string, apiParams: Record<string, string>, agnesMode: boolean): Record<string, unknown> {
   const body: Record<string, unknown> = {}
   const extraBody: Record<string, unknown> = {}
+  const jsValues: Array<{ key: string; value: string }> = []
 
   for (const key in apiParams) {
     const value = apiParams[key]
     // type 是旧配置遗留参数，generations 协议不需要
     if (key === "type") continue
+    if (isJsValue(value)) {
+      jsValues.push({ key, value })
+      continue
+    }
     if (value === "{{inputimage}}") {
       if (files.length > 0) {
         if (agnesMode) {
@@ -147,6 +151,10 @@ function buildJsonBody(files: ImageFile[], prompt: string, apiParams: Record<str
     body[key] = normalizeJsonValue(value)
   }
 
+  for (const { key, value } of jsValues) {
+    body[key] = evaluateJsValue(value, body, files, prompt)
+  }
+
   if (agnesMode) {
     if (files.length > 0 && !extraBody.image) {
       extraBody.image = files.map(file => toDataUri(file))
@@ -156,27 +164,6 @@ function buildJsonBody(files: ImageFile[], prompt: string, apiParams: Record<str
   }
 
   return body
-}
-
-// 兼容旧的 edits multipart 写法
-function buildFormBody(files: ImageFile[], prompt: string, apiParams: Record<string, string>): FormData {
-  const formData = new FormData()
-  const imageKey = Object.keys(apiParams).find(key => apiParams[key] === "{{inputimage}}")
-
-  if (imageKey) {
-    for (const file of files) {
-      const blob = new Blob([file.data], { type: file.mime })
-      formData.append(imageKey, blob, file.filename || "image.png")
-    }
-  }
-
-  for (const key in apiParams) {
-    const value = apiParams[key]
-    if (value === "{{inputimage}}") continue
-    formData.append(key, value === "{{prompt}}" ? prompt : value)
-  }
-
-  return formData
 }
 
 // JSON 数字/布尔参数尽量转成对应类型，避免字符串被部分服务端拒绝
@@ -200,17 +187,15 @@ function logRequest(options: ImageApiOptions, mode: string, files: ImageFile[], 
   if (params.prompt === "{{prompt}}") {
     params.prompt = prompt.substring(0, 100) + (prompt.length > 100 ? "..." : "")
   }
-  if (mode === "generations") {
-    delete params.type
-    if (options.agnesMode) {
-      const imageValue = imageKey ? params[imageKey] : `[${files.length}张base64]`
-      params.extra_body = {
-        ...(files.length > 0 ? { image: imageValue } : {}),
-        response_format: params.response_format || "b64_json",
-      }
-      if (imageKey) delete params[imageKey]
-      delete params.response_format
+  delete params.type
+  if (options.agnesMode) {
+    const imageValue = imageKey ? params[imageKey] : `[${files.length}张base64]`
+    params.extra_body = {
+      ...(files.length > 0 ? { image: imageValue } : {}),
+      response_format: params.response_format || "b64_json",
     }
+    if (imageKey) delete params[imageKey]
+    delete params.response_format
   }
 
   options.log.info("API请求参数:", {

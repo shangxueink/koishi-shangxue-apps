@@ -1,6 +1,7 @@
 import { Schema } from "koishi"
 import { readFileSync } from "node:fs"
 import { resolve } from "node:path"
+import { DEFAULT_EDITS_PARAMS, DEFAULT_GENERATIONS_PARAMS } from "./params"
 
 export interface Command {
   name: string
@@ -15,7 +16,8 @@ export interface Config {
   apiKey: string
   waitTimeout: number
   apiTimeout: number
-  apiParams: Record<string, string>
+  apiParams_generations: Record<string, string>
+  apiParams_edits: Record<string, string>
   customCommands: Command[]
   loggerinfo: boolean
   monetaryCommands: boolean
@@ -43,15 +45,8 @@ export const Config: Schema<Config> = Schema.intersect([
     apiUrl: Schema.string().default("https://moyuu.cc/v1").role("link").description("API 服务器地址<br>填入地址：`https://域名/v1`，需要兼容openai协议。"),
     apiKey: Schema.string().role("secret").default(null).description("API 密钥"),
     apiTimeout: Schema.number().default(180).max(600).min(10).step(1).description("API 请求超时时间（秒）"),
-    apiParams: Schema.dict(String).role('table').description("API请求参数<br>POST请求的参数<br>size 支持 `{{dynamic_size}}`，会按输入图片比例自动调整，也可以填入`auto`").default({
-      "model": "gpt-image-2",
-      "image": "{{inputimage}}",
-      "prompt": "{{prompt}}",
-      "size": "{{dynamic_size}}",
-      "n": "1",
-      "type": "normal",
-      "response_format": "b64_json"
-    }),
+    apiParams_generations: Schema.dict(String).role('table').description("文生图接口请求参数<br>POST请求的参数<br>size 支持 `{{dynamic_size}}`，会按输入图片比例自动调整，也可以填入`auto`；字段值以 `js:` 开头或写箭头函数时会被执行").default(DEFAULT_GENERATIONS_PARAMS),
+    apiParams_edits: Schema.dict(String).role('table').description("图生图接口请求参数<br>POST请求的参数<br>OpenAI 默认使用 `image: {{inputimage}}`；字段值以 `js:` 开头或写箭头函数时会被执行").default(DEFAULT_EDITS_PARAMS),
   }).description("API配置"),
 
   Schema.object({
@@ -81,13 +76,13 @@ export const Config: Schema<Config> = Schema.intersect([
 
   Schema.object({
     agnesMode: Schema.boolean().default(false).description("是否一键开启 agnes 站点模式<br>开启后忽略上方 API 地址和 Key，固定使用 agnes 接口"),
+    agnesAPIkey: Schema.string().role("secret").default(null).description("API Key（留空使用所选地区的内置 Key）"),
     agnesRegion: Schema.union([
       Schema.const('cn').description('api.agnes-ai.cn（国内站）'),
       Schema.const('intl').description('apihub.agnes-ai.com（国外站）'),
     ]).default("intl").role("radio").description("agnes 站点地区"),
     agnesModel: Schema.union(["agnes-image-2.0-flash", "agnes-image-2.1-flash"] as const).default("agnes-image-2.1-flash").role("radio").description("agnes 模型版本"),
-    agnesAPIkey: Schema.string().role("secret").default(null).description("API Key（留空使用所选地区的内置 Key）"),
-  }).description("特殊站点设置"),
+  }).description("Agnes站点设置"),
 
   Schema.object({
     gifUpscaleEnabled: Schema.boolean().default(true).description("GIF 首帧分辨率不足时，使用 puppeteer 放大后再上传"),

@@ -5,6 +5,7 @@ import { API_URL_HTML_ERROR, callImageApi } from "./api"
 import { getUserCurrency, updateUserCurrency } from "./currency"
 import { getAgnesConfig } from "./agnes"
 import { resolveApiModeForInput } from "./mode"
+import { resolveApiParamsForMode } from "./params"
 import { getImageSize, resolveDynamicImageParams, resolveFallbackSize } from "./image-size"
 import { downloadFileWithTimeout } from "./http"
 import { prepareImageForApi } from "./media"
@@ -58,11 +59,11 @@ export async function generateImage(
   try {
     const mode = resolveApiModeForInput(config, images.length > 0)
     const agnes = config.agnesMode
-      ? getAgnesConfig(config.agnesAPIkey, config.apiParams, config.agnesRegion, config.agnesModel)
+      ? getAgnesConfig(config.agnesAPIkey, config.apiParams_generations, config.agnesRegion, config.agnesModel)
       : undefined
     const apiUrl = agnes?.apiUrl ?? config.apiUrl
     const apiKey = agnes?.apiKey ?? config.apiKey
-    let apiParams = agnes?.apiParams ?? config.apiParams
+    let apiParams = agnes?.apiParams ?? resolveApiParamsForMode(config, mode)
 
     let processingMessageId: string | undefined
     if (!config.disableWaitingTips) {
