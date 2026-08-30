@@ -1078,7 +1078,7 @@ onUnmounted(() => {
     }
 }
 
-@media (max-width: 500px) {
+@media (max-width: 700px) {
     .global-music-player {
         left: 20px !important;
         bottom: 60px;

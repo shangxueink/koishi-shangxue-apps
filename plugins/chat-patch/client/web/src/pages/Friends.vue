@@ -668,7 +668,7 @@
             display: none;
         }
     }
-    @media (max-width: 500px) {
+    @media (max-width: 700px) {
         .exp-header > span {
             display: block !important;
         }

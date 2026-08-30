@@ -803,7 +803,7 @@
     }
 }
 
-@media (max-width: 500px) {
+@media (max-width: 700px) {
     .account-not-login {
         margin: 0 auto;
         width: calc(100% - 40px);

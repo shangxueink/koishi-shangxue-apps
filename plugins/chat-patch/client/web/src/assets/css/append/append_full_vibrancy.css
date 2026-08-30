@@ -283,7 +283,7 @@
     }
 }
 
-@media (max-width: 500px) {
+@media (max-width: 700px) {
     .chat-pan {
         backdrop-filter: blur(10px);
     }

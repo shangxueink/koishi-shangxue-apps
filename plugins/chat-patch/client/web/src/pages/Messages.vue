@@ -126,15 +126,15 @@
                         <a v-if="contactStore.newMsgCount > 0">{{ contactStore.newMsgCount }}</a>
                     </div>
                     <div class="small">
-                        <span style="cursor: pointer;">
-                            {{ $t('群收纳盒') }}
-                            <a v-if="contactStore.newMsgCount > 0">{{ contactStore.newMsgCount }}</a>
-                        </span>
                         <div v-if="showGroupAssist"
                             style="margin-right: -5px;margin-left: 5px;"
                             @click="showGroupAssist = !showGroupAssist">
                             <font-awesome-icon :icon="['fas', 'angle-left']" />
                         </div>
+                        <span style="cursor: pointer;">
+                            {{ $t('群收纳盒') }}
+                            <a v-if="contactStore.newMsgCount > 0">{{ contactStore.newMsgCount }}</a>
+                        </span>
                         <div @click="openLeftBar">
                             <font-awesome-icon :icon="['fas', 'bars-staggered']" />
                         </div>
@@ -926,7 +926,7 @@
         }
     }
 
-    @media (max-width: 500px) {
+    @media (max-width: 700px) {
         .friend-list-container {
             overflow: hidden;
         }

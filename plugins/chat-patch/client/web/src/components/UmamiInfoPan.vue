@@ -1474,7 +1474,7 @@
     color: var(--color-font-2);
 }
 
-@media (max-width: 500px) {
+@media (max-width: 700px) {
     .umami-info-pan {
         flex-direction: column-reverse !important;
         margin: -46px -20px -20px -20px !important;

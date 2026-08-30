@@ -824,7 +824,7 @@ body {
         height: 44px;
     }
 }
-@media (max-width: 500px) {
+@media (max-width: 700px) {
     .pop-box-body {
         width: fit-content !important;
     }
