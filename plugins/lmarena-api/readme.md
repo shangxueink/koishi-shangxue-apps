@@ -10,34 +10,50 @@
 - <https://platform.agnes-ai.com/settings/apiKeys>
 - <https://docs-model.skyengine.com.cn/api-reference/examples/images/openai-image>
 
-## SenseNova 配置
+## 特殊请求体配置示例
 
-以 `https://token.sensenova.cn/v1` 为例：
+（非openai标准协议）
+
+以 `https://platform.sensenova.cn/docs` 为例：
 
 ```yaml
 apiUrl: https://token.sensenova.cn/v1
 apiKey: 你的APIKey
+```
+
 apiParams_generations:
-  model: sensenova-u1.5-lite
-  prompt: "{{prompt}}"
-  size: "2048x2048"
-  n: "1"
-  output_format: "png"
-  response_format: "b64_json"
-  watermark: "false"
-  prompt_extend: "true"
+（点击右侧的`编辑JSON` 然后粘贴进去即可）
+
+```json
+{
+  "model": "sensenova-u1.5-lite",
+  "prompt": "{{prompt}}",
+  "size": "auto",
+  "n": "1",
+  "output_format": "png",
+  "response_format": "b64_json",
+  "watermark": "false",
+  "prompt_extend": "false"
+}
+```
+
 apiParams_edits:
-  model: sensenova-u1.5-lite
-  images: "js: (files) => files.map((file) => ({ image_url: `data:${file.mime};base64,${file.data}` }))"
-  prompt: "{{prompt}}"
-  size: "auto"
-  response_format: "b64_json"
-  watermark: "false"
-  prompt_extend: "true"
+（点击右侧的`编辑JSON` 然后粘贴进去即可）
+
+```json
+{
+  "model": "sensenova-u1.5-lite",
+  "images": "js: ({ files }) => files.map((file) => ({ image_url: `data:${file.mime};base64,${file.data}` }))",
+  "prompt": "{{prompt}}",
+  "size": "auto",
+  "response_format": "b64_json",
+  "watermark": "false",
+  "prompt_extend": "false"
+}
 ```
 
 SenseNova 图生图直接在 `apiParams_edits.images` 字段值里写 JS 代码。配置值以 `js:` 开头或直接写成箭头函数/函数表达式时会被后端执行；
 
-函数会以 `(files, body, prompt)` 调用，`files` 里每个元素的 `data` 是 Base64 字符串。
+函数只会收到一个上下文对象 `{ body, files, prompt }`，推荐用解构 `({ files }) => ...` 取值，不依赖参数顺序。`files` 里每个元素的 `data` 是 Base64 字符串。
 
 注意 `size` 的宽高需要是 32 的倍数，`n` 仅支持 1。

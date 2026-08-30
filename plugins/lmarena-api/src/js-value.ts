@@ -29,7 +29,7 @@ export function evaluateJsValue(value: string, body: Record<string, unknown>, fi
     Buffer,
   }
   const expression = isFunctionExpression(code)
-    ? `const files = ${filesJson}; (${code})(files, body, prompt)`
+    ? `const files = ${filesJson}; const context = { body, files, prompt }; (${code})(context)`
     : `const files = ${filesJson}; (${code})`
   const valueResult = vm.runInNewContext(expression, sandbox, { timeout: 1000 })
 
