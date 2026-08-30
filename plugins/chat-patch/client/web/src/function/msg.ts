@@ -95,6 +95,7 @@ import {
     normalizeSessionId,
     resolveIncomingSession,
     setSessionContact,
+    upsertSessionContact,
 } from './utils/sessionUtil'
 
 const popInfo = new PopInfo()
@@ -1890,19 +1891,28 @@ async function saveMsg(msg: any, append = undefined as undefined | string) {
         const lastMsg =
             chatStore.messageList[chatStore.messageList.length - 1]
         if (lastMsg) {
+            const isGroup = chatStore.chatInfo.show.type === 'group'
             const user = findSessionContact(contactStore.userList, chatStore.chatInfo.show.id)
             const sessionId = normalizeSessionId(
                 chatStore.chatInfo.show.channel_id
                 ?? chatStore.chatInfo.show.id,
             )
-            const session = contactStore.baseOnMsgList.get(sessionId) ?? user
+            const session = isGroup
+                ? user
+                : contactStore.baseOnMsgList.get(sessionId) ?? user
             if (session) {
                 const preview = formatMessageData(
                     lastMsg,
-                    chatStore.chatInfo.show.type == 'group',
+                    isGroup,
                 )
                 if (user) Object.assign(user, preview)
                 Object.assign(session, preview)
+                if (isGroup) {
+                    // 群历史同步到联系人列表，同时进入群会话列表
+                    contactStore.userList = upsertSessionContact(contactStore.userList, session)
+                } else if (session._groupMember) {
+                    session._groupMember = false
+                }
                 contactStore.baseOnMsgList.set(sessionId, session)
                 updateBaseOnMsgList()
             }
@@ -2325,7 +2335,7 @@ function newMsg(_: string, data: any) {
     }
     // 消息基础信息：优先使用 Satori 转换层生成的 infoList，避免 OneBot pathMap 误解析。
     const rawInfo = getDataObject(data.infoList ?? data)
-    const id = getString(rawInfo.group_id) ||
+    const rawId = getString(rawInfo.group_id) ||
         getString(rawInfo.private_id) ||
         getString(data.group_id) ||
         getString(data.user_id) ||
@@ -2353,6 +2363,10 @@ function newMsg(_: string, data: any) {
         : data.message_type === 'group' || Boolean(data.group_id) || Boolean(rawInfo.group_id)
     const sessionChannelId = getString(rawInfo.channel_id) || getString(data.channel_id)
     const sessionGuildId = getString(rawInfo.guild_id) || getString(data.guild_id)
+    // 群消息必须用群/频道 ID 作为会话，不能退化成发送者用户 ID
+    const id = isGroupMessage
+        ? getString(rawInfo.group_id) || getString(data.group_id) || sessionChannelId || sessionGuildId || ''
+        : rawId
     if (!id || id === '0') return
     const isCurrentSession = Boolean(
         (
@@ -2570,6 +2584,13 @@ function newMsg(_: string, data: any) {
                 if (data.atme) { session.highlight = $t('[有人@你]') }
                 if (data.atall) { session.highlight = $t('[@全体]') }
                 if (isImportant) { session.highlight = $t('[特別关心]') }
+            }
+            if (!isGroupMessage && session._groupMember) {
+                session._groupMember = false
+            }
+            if (isGroupMessage) {
+                // 群消息同步到联系人列表，同时进入群会话列表
+                contactStore.userList = upsertSessionContact(contactStore.userList, session)
             }
             setSessionContact(contactStore.baseOnMsgList, session)
             updateBaseOnMsgList()

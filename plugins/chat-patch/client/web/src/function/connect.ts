@@ -31,6 +31,7 @@ import {
   getSessionDedupKey,
   normalizeSessionId,
   setSessionContact,
+  upsertSessionContact,
 } from './utils/sessionUtil'
 import { buildQqGroupAvatar } from './utils/avatarUtil'
 import type { ConnectionHistoryItem, LoginCacheElem } from './elements/system'
@@ -555,11 +556,11 @@ function recordBotMessage(platform: string, selfId: string, msg: Record<string, 
   })
   const isGroup = isGroupMessage(msg)
   const channelId = typeof msg.channel_id === 'string' ? msg.channel_id : ''
+  const guildId = typeof msg.guild_id === 'string' ? msg.guild_id : ''
   const sessionId = String(
-    msg.group_id
-      || msg.user_id
-      || channelId
-      || '',
+    isGroup
+      ? (msg.group_id || channelId || guildId || '')
+      : (msg.user_id || channelId || ''),
   )
   if (!sessionId || sessionId === '0') {
     identityDebug('recordBotMessage: skipped invalid session', { sessionId, msg })
@@ -613,59 +614,108 @@ function recordBotMessage(platform: string, selfId: string, msg: Record<string, 
     channel_id: typeof msg.channel_id === 'string' ? msg.channel_id : undefined,
     guild_id: typeof msg.guild_id === 'string' ? msg.guild_id : undefined,
   }
-  const existing = state.onMsgList.find((item) => {
-    const itemChannelId = String(item.channel_id || item.channelId || '')
-    if (itemChannelId) {
-      if (isGroup) {
+  const typedSession = session as unknown as UserFriendElem & UserGroupElem
+  const memberContact = isGroup && senderId && senderId !== '0'
+    ? {
+        user_id: senderId,
+        nickname: String(sender.nickname || sender.card || senderName || senderId),
+        remark: String(sender.nickname || sender.card || senderName || senderId),
+        avatar: hasUsableAvatar(sender.avatar) ? getString(sender.avatar) : undefined,
+        class_id: 0,
+        class_name: '我的好友',
+        _groupMember: true,
+        raw_msg: senderName ? `${senderName}: ${raw}` : raw,
+        raw_msg_base: raw,
+        time: sessionTime,
+        message_id: String(msg.message_id ?? ''),
+        guild_id: typeof msg.guild_id === 'string' ? msg.guild_id : undefined,
+      } as UserFriendElem & UserGroupElem
+    : undefined
+  let baseList = [...state.baseList]
+  if (isGroup) {
+    // 群消息进入群会话列表，群成员只进联系人列表
+    state.userList = upsertSessionContact(state.userList, typedSession)
+    if (memberContact) {
+      state.userList = upsertSessionContact(state.userList, memberContact)
+    }
+    const existing = state.onMsgList.find((item) => {
+      const itemChannelId = String(item.channel_id || item.channelId || '')
+      if (itemChannelId) {
         return normalizeGroupId(itemChannelId) === normalizeGroupId(channelId || sessionId)
       }
-      return itemChannelId === String(sessionId)
+      return String(item.group_id) === sessionId
+    })
+    if (existing) {
+      const previousAvatar = existing.avatar
+      const previousGroupName = existing.group_name
+      Object.assign(existing, session)
+      if (!hasUsableAvatar(session.avatar) && hasUsableAvatar(previousAvatar)) {
+        existing.avatar = previousAvatar
+      }
+      if (
+        !msg.group_name &&
+        previousGroupName &&
+        String(previousGroupName) !== String(sessionId)
+      ) {
+        existing.group_name = previousGroupName
+      }
+      session = existing
+    } else {
+      state.onMsgList.unshift(session)
     }
-    return isGroup
-      ? String(item.group_id) === sessionId
-      : String(item.user_id) === sessionId
-  })
-  if (existing) {
-    const previousAvatar = existing.avatar
-    const previousGroupName = existing.group_name
-    const previousNickname = existing.nickname
-    const previousRemark = existing.remark
-    Object.assign(existing, session)
-    if (!hasUsableAvatar(session.avatar) && hasUsableAvatar(previousAvatar)) {
-      existing.avatar = previousAvatar
+    const baseKey = normalizeSessionId(sessionKey)
+    const baseIndex = baseList.findIndex(([, value]) => value === session)
+    if (baseIndex >= 0) {
+      baseList[baseIndex] = [baseKey, typedSession]
+    } else {
+      baseList.push([baseKey, typedSession])
     }
-    if (
-      isGroup &&
-      !msg.group_name &&
-      previousGroupName &&
-      String(previousGroupName) !== String(sessionId)
-    ) {
-      existing.group_name = previousGroupName
-    }
-    if (!isGroup && !sender.nickname && previousNickname) {
-      existing.nickname = previousNickname
-    }
-    if (!isGroup && !existing.remark && previousRemark) {
-      existing.remark = previousRemark
-    }
-    session = existing
   } else {
-    state.onMsgList.unshift(session)
-  }
-  const baseKey = normalizeSessionId(sessionKey)
-  const baseList = [...state.baseList]
-  const baseIndex = baseList.findIndex(([, value]) => value === session)
-  const typedSession = session as unknown as UserFriendElem & UserGroupElem
-  if (baseIndex >= 0) {
-    baseList[baseIndex] = [baseKey, typedSession]
-  } else {
-    baseList.push([baseKey, typedSession])
+    const existing = state.onMsgList.find((item) => {
+      const itemChannelId = String(item.channel_id || item.channelId || '')
+      if (itemChannelId) {
+        return itemChannelId === String(sessionId)
+      }
+      return String(item.user_id) === sessionId
+    })
+    if (existing) {
+      const previousAvatar = existing.avatar
+      const previousNickname = existing.nickname
+      const previousRemark = existing.remark
+      Object.assign(existing, session)
+      if (existing._groupMember) existing._groupMember = false
+      if (!hasUsableAvatar(session.avatar) && hasUsableAvatar(previousAvatar)) {
+        existing.avatar = previousAvatar
+      }
+      if (!isGroup && !sender.nickname && previousNickname) {
+        existing.nickname = previousNickname
+      }
+      if (!isGroup && !existing.remark && previousRemark) {
+        existing.remark = previousRemark
+      }
+      session = existing
+    } else {
+      state.onMsgList.unshift(session)
+    }
+    const baseKey = normalizeSessionId(sessionKey)
+    const baseIndex = baseList.findIndex(([, value]) => value === session)
+    if (baseIndex >= 0) {
+      baseList[baseIndex] = [baseKey, typedSession]
+    } else {
+      baseList.push([baseKey, typedSession])
+    }
   }
   contactStore.botStates.set(botKey(platform, selfId), {
     userList: [...state.userList],
     baseList,
     onMsgList: [...state.onMsgList],
   })
+  if (isGroup && isActiveBot({ platform, selfId })) {
+    contactStore.userList = upsertSessionContact(contactStore.userList, typedSession)
+    if (memberContact) {
+      contactStore.userList = upsertSessionContact(contactStore.userList, memberContact)
+    }
+  }
   if (
     isActiveBot({ platform, selfId }) &&
     !contactStore.baseOnMsgList.has(normalizeSessionId(sessionKey))
@@ -779,7 +829,9 @@ export function restoreBotStateFromMessageCache(platform: string, selfId: string
     const msg = messages[messages.length - 1]
     if (!msg) continue
     const isGroup = isGroupMessage(msg)
-    const id = String(isGroup ? msg.group_id : msg.user_id)
+    const id = String(isGroup
+      ? (msg.group_id || msg.channel_id || msg.guild_id)
+      : (msg.user_id || msg.channel_id))
     if (!id || id === '0') continue
     const sender = getObject(msg.sender)
     const senderId = getString(sender.user_id) || getString(msg.user_id) || ''
@@ -1575,6 +1627,7 @@ function buildFriendItem(raw: unknown, data: unknown): Record<string, unknown> {
   const item: Record<string, unknown> = { ...getObject(raw) }
   if (!item.channel_id && item.channelId) item.channel_id = item.channelId
   if (!item.guild_id && item.guildId) item.guild_id = item.guildId
+  if (getString(item.guild_id) || getString(item.guildId)) item._groupMember = true
   if (name) {
     item.nickname = name
     item.remark = name

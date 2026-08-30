@@ -27,6 +27,7 @@ import {
     getSessionId,
     mergeSessionState,
     normalizeSessionId,
+    upsertSessionContact,
 } from './sessionUtil'
 
 const logger = new Logger()
@@ -697,6 +698,12 @@ export async function sendMsgRaw(
                 raw_msg_base: raw,
                 time: showMsg.time * 1000,
             })
+            if (type === 'group') {
+                // 群发送预览同步到联系人列表，同时进入群会话列表
+                contactStore.userList = upsertSessionContact(contactStore.userList, session)
+            } else if (session._groupMember) {
+                session._groupMember = false
+            }
             contactStore.baseOnMsgList.set(normalizeSessionId(sessionId), session)
             updateBaseOnMsgList()
         }
@@ -884,12 +891,12 @@ function getSessionList() {
 
     if (settingsStore.sysConfig.session_display_mode === 'all') {
         contactStore.userList.forEach((item) => {
-            addSession(item)
+            if (!item._groupMember) addSession(item)
         })
     }
 
     contactStore.baseOnMsgList.forEach((item) => {
-        addSession(item)
+        if (!item._groupMember) addSession(item)
     })
 
     return [...sessionMap.values()]

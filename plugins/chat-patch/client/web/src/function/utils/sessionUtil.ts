@@ -51,6 +51,21 @@ export function setSessionContact(
   }
 }
 
+export function upsertSessionContact(
+  contacts: Session[],
+  item: Session,
+): Session[] {
+  const key = getSessionDedupKey(item)
+  if (!key) return contacts
+  const index = contacts.findIndex((current) => getSessionDedupKey(current) === key)
+  if (index >= 0) {
+    const next = [...contacts]
+    Object.assign(next[index], item)
+    return next
+  }
+  return [...contacts, item]
+}
+
 export function findSessionContact(
     contacts: Session[],
     sessionId: number | string,

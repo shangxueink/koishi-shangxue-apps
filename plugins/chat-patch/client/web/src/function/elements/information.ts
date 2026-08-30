@@ -43,6 +43,7 @@ export interface UserElem {
     always_top?: boolean
     message_id?: string
     highlight?: string
+    _groupMember?: boolean
 }
 
 export interface UserFriendElem extends UserElem {
