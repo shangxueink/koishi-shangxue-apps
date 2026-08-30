@@ -398,7 +398,7 @@
         width: 100%;
     }
 
-    @media (max-width: 700px) {
+    @media (max-width: 800px) {
         .theme-color-picker-pan {
             width: calc(100% - 20px);
             padding: 10px !important;

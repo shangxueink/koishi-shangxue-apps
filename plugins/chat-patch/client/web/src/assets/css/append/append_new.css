@@ -783,7 +783,7 @@ body {
     font-size: 0.8rem;
 }
 
-@media (max-width: 700px) {
+@media (max-width: 800px) {
     .main-body > ul {
         background: var(--color-card-2) !important;
         height: 60px !important;
@@ -824,7 +824,7 @@ body {
         height: 44px;
     }
 }
-@media (max-width: 700px) {
+@media (max-width: 800px) {
     .pop-box-body {
         width: fit-content !important;
     }

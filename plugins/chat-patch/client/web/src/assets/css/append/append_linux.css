@@ -87,7 +87,7 @@
     margin-top: 20px;
 }
 
-@media (max-width: 700px) {
+@media (max-width: 800px) {
     .chat-pan.withBar {
         height: calc(100% - 105px) !important;
         left: 70px !important;
@@ -118,7 +118,7 @@
     }
 }
 
-@media (max-width: 700px) {
+@media (max-width: 800px) {
     .friend-list > div:first-child {
         margin: 15px 15px 0 0 !important;
     }

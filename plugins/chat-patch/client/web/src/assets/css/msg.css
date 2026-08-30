@@ -932,7 +932,7 @@ span.user-title.robot {
     }
 }
 
-@media (max-width: 700px) {
+@media (max-width: 800px) {
     .msg-img.face.lottie-face {
         max-width: 40vw;
     }

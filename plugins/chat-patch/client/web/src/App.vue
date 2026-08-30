@@ -1069,7 +1069,7 @@ onUnmounted(() => {
     transform: translateY(12px);
 }
 
-@media (max-width: 700px) {
+@media (max-width: 800px) {
     .global-music-player {
         left: 100px;
         bottom: 60px;
@@ -1078,7 +1078,7 @@ onUnmounted(() => {
     }
 }
 
-@media (max-width: 700px) {
+@media (max-width: 800px) {
     .global-music-player {
         left: 20px !important;
         bottom: 60px;

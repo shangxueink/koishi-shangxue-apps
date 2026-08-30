@@ -277,13 +277,13 @@
     backdrop-filter: blur(10px);
 }
 
-@media (max-width: 700px) {
+@media (max-width: 800px) {
     .friend-list {
         background: transparent !important;
     }
 }
 
-@media (max-width: 700px) {
+@media (max-width: 800px) {
     .chat-pan {
         backdrop-filter: blur(10px);
     }

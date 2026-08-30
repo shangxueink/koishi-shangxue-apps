@@ -18,7 +18,7 @@ body {
     padding-top: 20px;
 }
 
-@media (max-width: 700px) {
+@media (max-width: 800px) {
     /* macOS 下忽略 500 档位，因为需要避开红绿灯按钮 */
     .pop-box-body {
         width: fit-content !important;
@@ -56,7 +56,7 @@ body {
         margin-left: 12px;
     }
 }
-@media (max-width: 700px) {
+@media (max-width: 800px) {
     .chat-pan.open {
         transform: translateX(100%) !important;
     }

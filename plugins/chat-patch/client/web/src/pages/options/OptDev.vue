@@ -68,7 +68,7 @@
                     style="width: 100px; font-size: 0.8rem; background: var(--color-red); border-color: var(--color-red); color: #fff"
                     class="ss-button"
                     @click="deleteAllCache">
-                    {{ $t('全部删除') }}
+                    {{ $t('删除') }}
                 </button>
             </div>
         </div>

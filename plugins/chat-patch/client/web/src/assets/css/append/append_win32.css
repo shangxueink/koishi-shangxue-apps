@@ -48,7 +48,7 @@ input {
     height: calc(100% - 17px) !important;
 }
 
-@media (max-width: 700px) {
+@media (max-width: 800px) {
     .friend-list {
         width: 60px !important;
     }
@@ -92,7 +92,7 @@ input {
     }
 }
 
-@media (max-width: 700px) {
+@media (max-width: 800px) {
     .chat-pan.withBar {
         padding-top: 0;
         left: 0 !important;

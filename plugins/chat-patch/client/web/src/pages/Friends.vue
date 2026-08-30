@@ -14,7 +14,7 @@
         <div id="friend-list" :class="'friend-list' + (uiStore.openSideBar ? ' open' : '')">
             <div>
                 <div class="base">
-                    <span>{{ $t('列表') }}</span>
+                    <span>{{ $t('联系人列表') }}</span>
                     <div style="flex: 1" />
                     <font-awesome-icon :icon="['fas', 'rotate-right']" @click="reloadUser" />
                 </div>
@@ -663,12 +663,12 @@
         font-size: 0.9rem;
     }
 
-    @media (max-width: 700px) {
+    @media (max-width: 800px) {
         .exp-header:not(.open) {
             display: none;
         }
     }
-    @media (max-width: 700px) {
+    @media (max-width: 800px) {
         .exp-header > span {
             display: block !important;
         }

@@ -763,10 +763,13 @@ textarea:focus {
     opacity: 0;
 }
 .group-assist-message-list {
-    transition: margin 0.3s, opacity 0.4s;
+    transition: opacity 0.15s;
     margin-right: -300px;
     opacity: 0;
     z-index: 1;
+}
+.group-assist-message-list:not(.show) > div:first-child {
+    visibility: hidden;
 }
 .group-assist-message-list.show {
     margin-left: -300px;
@@ -1747,7 +1750,7 @@ textarea:focus {
 }
 
 
-@media (max-width: 700px) {
+@media (max-width: 800px) {
     /* 侧栏及主布局自适应 */
     .main-body {
         flex-direction: column-reverse;
@@ -1923,7 +1926,7 @@ textarea:focus {
     }
 }
 
-@media (max-width: 700px) {
+@media (max-width: 800px) {
     /* 全局通用弹窗 */
     .pop-box-body {
         max-height: calc(100vh - 80px);

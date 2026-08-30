@@ -625,7 +625,8 @@ input {
     transform: translate(-50%, -50%);
     flex-direction: column;
     position: absolute;
-    min-width: 400px;
+    min-width: min(400px, calc(100% - 40px));
+    max-width: calc(100% - 40px);
     max-height: 80%;
     display: flex;
     width: 50%;
@@ -1973,7 +1974,7 @@ div.tiny-session-body > div:nth-child(3) > div > svg {
     display: none;
 }
 
-@media (max-width: 700px) {
+@media (max-width: 800px) {
     /* 多选操作在窄屏下可横向滚动，避免操作项被裁切 */
     .select-tag.show {
         justify-content: flex-start;
@@ -2036,7 +2037,7 @@ div.tiny-session-body > div:nth-child(3) > div > svg {
     }
 }
 
-@media (max-width: 700px) {
+@media (max-width: 800px) {
     /* 群信息面板 */
     .chat-info {
         height: calc(100% - 115px);

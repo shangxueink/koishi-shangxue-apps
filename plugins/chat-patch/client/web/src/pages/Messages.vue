@@ -18,23 +18,12 @@
                     (showGroupAssist ? ' show' : '')">
                 <div>
                     <div class="base only">
-                        <span>{{ $t('消息') }}</span>
+                        <span>{{ $t('消息列表') }}</span>
                         <div style="flex: 1" />
                         <font-awesome-icon
                             :icon="['fas', 'clock-rotate-left']"
                             @click="openHistory" />
                         <font-awesome-icon :icon="['fas', 'trash-can']" @click="cleanList" />
-                    </div>
-                    <div class="small">
-                        <span>{{ $t('消息') }}</span>
-                        <div v-if="showGroupAssist"
-                            style="margin-right: -5px;margin-left: 5px;"
-                            @click="showGroupAssist = !showGroupAssist">
-                            <font-awesome-icon :icon="['fas', 'angle-left']" />
-                        </div>
-                        <div @click="openLeftBar">
-                            <font-awesome-icon :icon="['fas', 'bars-staggered']" />
-                        </div>
                     </div>
                 </div>
                 <div id="message-list-body" class="robot-accordion-list">
@@ -405,6 +394,10 @@
     function userClick(data: UserFriendElem & UserGroupElem) {
         const id = data.group_id || data.user_id
         if (id === undefined || id === null || String(id) === '' || String(id) === '0') return
+        // 从群收纳盒进入群时先收起收纳盒，避免头部切换导致返回标记闪烁
+        if (showGroupAssist.value) {
+            showGroupAssist.value = false
+        }
         if (!trRead.value && id != props.chat.show.id) {
             if (uiStore.openSideBar) {
                 openLeftBar()
@@ -905,7 +898,7 @@
         background: transparent !important;
     }
 
-    @media (max-width: 700px) {
+    @media (max-width: 800px) {
         .friend-list-container {
             overflow: unset;
         }
@@ -926,7 +919,7 @@
         }
     }
 
-    @media (max-width: 700px) {
+    @media (max-width: 800px) {
         .friend-list-container {
             overflow: hidden;
         }

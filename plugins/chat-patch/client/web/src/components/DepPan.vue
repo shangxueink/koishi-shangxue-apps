@@ -274,7 +274,7 @@
         margin-top: 10px;
     }
 
-    @media (max-width: 700px) {
+    @media (max-width: 800px) {
         .main {
             flex-wrap: wrap;
         }
