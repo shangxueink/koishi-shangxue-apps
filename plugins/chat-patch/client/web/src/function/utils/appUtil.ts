@@ -116,7 +116,8 @@ export async function loadHistory(info: BaseChatInfoElem) {
     uiStore.nowGetHistory = false
     uiStore.historyBeforeTime = undefined
     chatStore.messageList = []
-    const cacheKey = [authStore.loginInfo.platform, authStore.loginInfo.uin, info.id].map(encodeKeyPart).join(':')
+    const channelId = String(info.channel_id ?? info.id ?? '')
+    const cacheKey = [authStore.loginInfo.platform, authStore.loginInfo.uin, channelId].map(encodeKeyPart).join(':')
     const cachedMessages = chatStore.sessionMessageCache.get(cacheKey)
     if (cachedMessages?.length) {
         chatStore.messageList = [...cachedMessages]
@@ -128,15 +129,13 @@ export async function loadHistory(info: BaseChatInfoElem) {
     ) {
         const localMsgs = await dbGetLatest(
             authStore.loginInfo.uin,
-            info.id,
+            channelId,
             20,
         )
         if (localMsgs.length > 0) {
             chatStore.messageList = localMsgs
         }
     }
-    const rawChannelId = String(info.channel_id ?? '')
-    const channelId = String(rawChannelId || info.id)
     try {
         const cachedMessages = await loadChatHistoryFromCache({
             platform: String(authStore.loginInfo.platform ?? ''),

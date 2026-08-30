@@ -451,7 +451,7 @@ export function satoriEventToOneBot(
     const groupId = isGroup
       ? normalizeGroupId(getString(guild.id)) || normalizeGroupId(getString(channel.id))
       : ''
-    const directChannelId = isGroup ? groupId : userId
+    const directChannelId = isGroup ? groupId : getString(channel.id) || userId
     const nickname = getString(user.name) || getString(user.nick) || userId
     const card = getString(member.nick) || getString(member.name) || ''
     return {
@@ -711,7 +711,7 @@ function messageListFromResponse(data: unknown): unknown[] {
       : ''
     const userId = getString(user.id)
       || (isGroup ? '' : getString(channel.id))
-    const directChannelId = isGroup ? groupId : userId
+    const directChannelId = isGroup ? groupId : getString(channel.id) || userId
     return {
       message_id: getString(message.id),
       sn: getNumber(message.sn),

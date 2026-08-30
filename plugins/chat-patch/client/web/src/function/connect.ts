@@ -675,7 +675,7 @@ function recordBotMessage(platform: string, selfId: string, msg: Record<string, 
   }
 
   const chatStore = useChatStore()
-  const cacheKey = [platform, selfId, sessionId].map(encodeKeyPart).join(':')
+  const cacheKey = [platform, selfId, sessionKey].map(encodeKeyPart).join(':')
   const messages = chatStore.sessionMessageCache.get(cacheKey) ?? []
   const messageId = String(msg.message_id ?? '')
   if (messageId && !messages.some((item) => String(item.message_id) === messageId)) {
@@ -1170,15 +1170,14 @@ async function sendPrivateSatoriMessage(
   content: string,
   guildId: string | undefined,
   active: ReturnType<typeof getActiveBot>,
+  channelIdHint?: string,
 ): Promise<{ data: unknown; channelId: string }> {
-  // Satori 私聊流程：先由平台创建/返回私聊频道，再使用该频道 ID 发送
-  let channelId: string
+  // 不构造前缀，优先透传前端已有的完整频道 ID
+  let channelId = channelIdHint || userId
   try {
     const direct = await request('user.channel.create', { user_id: userId, guild_id: guildId }, active)
     channelId = extractDirectChannelId(direct)
   } catch {
-    // 兼容未实现 createDirectChannel 的适配器，退回 private: 前缀私聊
-    channelId = /^(?:private|direct):/i.test(userId) ? userId : `private:${userId}`
   }
   return {
     data: await request('message.create', { channel_id: channelId, content }, active),
@@ -1192,6 +1191,7 @@ export async function sendForwardMessage(
   type: 'group' | 'user',
   id: string,
   messages: unknown[],
+  channelIdHint?: string,
 ): Promise<SendForwardResult> {
   if (!platform || !selfId || !id || messages.length === 0) {
     return { ok: false, native: false }
@@ -1199,7 +1199,7 @@ export async function sendForwardMessage(
   // 优先走 Satori 原生合并转发，避免依赖 onebot 专属的 send-forward API
   if (platform) {
     // Satori 的 ID 是完整 string，调用方传什么就原样发什么
-    const channelId = id
+    const channelId = channelIdHint || id
     const content = buildForwardMessage(messages)
     if (content) {
       try {
@@ -1209,7 +1209,6 @@ export async function sendForwardMessage(
             const direct = await request('user.channel.create', { user_id: id }, { platform, selfId })
             finalChannelId = extractDirectChannelId(direct)
           } catch {
-            finalChannelId = /^(?:private|direct):/i.test(id) ? id : `private:${id}`
           }
         }
         const data = await request('message.create', { channel_id: finalChannelId, content }, { platform, selfId })
@@ -1281,10 +1280,8 @@ function selfMessageToOneBot(record: unknown): Record<string, unknown> | null {
   const sentAt = Number(obj.sentAt ?? Date.now())
   const messageId = getString(obj.messageId)
   const localId = getString(obj.id) || `self-${sentAt}`
-  const channelType = getString(obj.channelType) === 'user'
-    || /^(?:private|direct):/i.test(channelId)
-    ? 'user'
-    : 'group'
+  // 只按记录里的显式 channelType 判断，不根据频道 ID 前缀推断
+  const channelType = getString(obj.channelType) === 'user' ? 'user' : 'group'
   if (!platform || !selfId || !channelId) return null
 
   const login = getLogins().find((item) => {
@@ -2091,6 +2088,7 @@ export class Connector {
         getString(mapped.params.content),
         getString(args.group_id) || getString(args.guild_id) || undefined,
         active,
+        getString(mapped.params.channel_id) || getString(args.channel_id),
       )
       const response = satoriResponseToOneBot(api, result.data, active.platform)
       response.channel_id = result.channelId
@@ -2115,6 +2113,7 @@ export class Connector {
         getString(mapped.params.content),
         getString(value.group_id) || getString(value.guild_id) || undefined,
         active,
+        getString(mapped.params.channel_id) || getString(value.channel_id),
       )
         .then((result) => {
           const response = satoriResponseToOneBot(action, result.data, active.platform)

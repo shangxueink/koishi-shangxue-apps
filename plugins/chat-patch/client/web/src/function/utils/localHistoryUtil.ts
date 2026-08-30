@@ -18,7 +18,7 @@ const logger = new Logger()
 export interface LocalMsgRecord {
     /** Bot 侧的消息 ID */
     message_id: string
-    /** 会话 ID（group_id 或 user_id） */
+    /** 会话 ID：保存完整 channel_id，不剥离前缀 */
     chat_id: number | string
     /** 会话类型："group" | "private" */
     chat_type: string
@@ -115,18 +115,28 @@ function computeRawMessage(msg: any): string | null {
     }
 }
 
+function firstDefinedId(value: any, keys: string[]): number | string | undefined {
+    for (const key of keys) {
+        const current = value?.[key]
+        if (current != null && String(current) !== '') return current
+    }
+    return undefined
+}
+
 function deriveChatId(selfId: string | number, msgs: any[]): number | string | undefined {
     const firstMsg = msgs[0]
-    let chatId: number | string | undefined = firstMsg?.infoList?.group_id ?? firstMsg?.infoList?.target_id
+    const firstInfo = firstMsg?.infoList ?? firstMsg
+    const chatId = firstDefinedId(firstInfo, ['channel_id', 'channelId', 'private_id', 'group_id', 'user_id'])
+        ?? firstDefinedId(firstMsg, ['channel_id', 'channelId', 'private_id', 'group_id', 'user_id'])
     if (chatId != null) return chatId
 
     for (const item of msgs) {
-        if (item?.infoList?.sender != null && String(item.infoList.sender) !== String(selfId)) {
-            chatId = item.infoList.sender
-            break
+        const info = item?.infoList ?? item
+        if (info?.sender != null && String(info.sender) !== String(selfId)) {
+            return info.sender
         }
     }
-    return chatId
+    return undefined
 }
 
 export function ensureChatIdOnMsgs(selfId: string | number, msgs: any[]): any[] {
@@ -135,14 +145,21 @@ export function ensureChatIdOnMsgs(selfId: string | number, msgs: any[]): any[] 
 
     return msgs.map((item: any) => {
         if (!item?.infoList) return item
-        if (item.infoList.group_id != null || item.infoList.target_id != null) {
+        if (
+            item.infoList.channel_id != null
+            || item.infoList.channelId != null
+            || item.infoList.private_id != null
+            || item.infoList.group_id != null
+            || item.infoList.user_id != null
+        ) {
             return item
         }
         return {
             ...item,
             infoList: {
                 ...item.infoList,
-                target_id: chatId,
+                channel_id: chatId,
+                channelId: chatId,
             },
         }
     })
@@ -158,12 +175,14 @@ export function msgToRecord(msg: any): LocalMsgRecord | null {
     const messageId = msg.message_id
     if (!messageId) return null
 
-    const chatId: number | string = msg.infoList.group_id ?? msg.infoList.target_id
+    const info = msg.infoList ?? msg
+    const chatId = firstDefinedId(info, ['channel_id', 'channelId', 'private_id', 'group_id', 'user_id'])
+        ?? firstDefinedId(msg, ['channel_id', 'channelId', 'private_id', 'group_id', 'user_id'])
     if (chatId == null) return null
 
     const chatType: string =
         msg.message_type ?? (msg.group_id != null ? 'group' : 'private')
-    const senderId: number | string = msg.infoList.sender
+    const senderId: number | string = info.sender ?? msg.sender?.user_id
     if (senderId == null) return null
 
     const senderName: string | null =
@@ -490,7 +509,8 @@ function deserializeRecord(record: LocalMsgRecord): any {
         message_id: record.message_id,
         private_id: isGroup ? undefined : record.chat_id,
         group_id: isGroup ? record.chat_id : undefined,
-        target_id: isGroup ? undefined : record.chat_id,
+        channel_id: record.chat_id,
+        channelId: record.chat_id,
         sender: record.sender_id,
     }
 
@@ -499,7 +519,9 @@ function deserializeRecord(record: LocalMsgRecord): any {
         message_id: record.message_id,
         message_type: record.chat_type,
         // 根据 chat_type 恢复对应的 id 字段
-        ...(isGroup ? { group_id: record.chat_id } : { user_id: record.chat_id }),
+        ...(isGroup ? { group_id: record.chat_id } : { user_id: record.sender_id }),
+        channel_id: record.chat_id,
+        channelId: record.chat_id,
         sender,
         time: record.time,
         timestamp_ms: timeMs || undefined,

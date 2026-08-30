@@ -120,11 +120,6 @@ function getString(value: unknown): string {
     return typeof value === 'string' ? value : String(value)
 }
 
-function normalizeChannelForMatch(value: string): string {
-    const stripped = String(value).replace(/^(?:private|direct|group|room|chat|channel|guild):/i, '')
-    return stripped || String(value)
-}
-
 // 其他 tag
 let listLoadTimes = 0
 const logger = new Logger()
@@ -2363,7 +2358,7 @@ function newMsg(_: string, data: any) {
         (
             sessionChannelId &&
             showChannelId &&
-            normalizeChannelForMatch(sessionChannelId) === normalizeChannelForMatch(showChannelId)
+            sessionChannelId === showChannelId
         ) || (
             (!sessionChannelId || !showChannelId) &&
             (id === showId || targetId === showId || String(sessionChannelId || sessionGuildId || '') === showId)

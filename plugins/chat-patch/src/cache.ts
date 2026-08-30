@@ -144,8 +144,6 @@ export class ContactCacheService {
     const guild = guildId && guildId !== '0' ? guildId : undefined
     const channel = channelId && channelId !== '0' ? channelId : undefined
     if (isPrivateChannelType(channelType)) return null
-    if (channelType === undefined
-      && (/^(?:private|direct):/i.test(id) || /^(?:private|direct):/i.test(channel || ''))) return null
     const rawId = id && id !== '0' ? normalizeGroupId(id) : ''
     const cacheId = rawId || guild || normalizeGroupId(channel || '') || ''
     if (!cacheId) return null

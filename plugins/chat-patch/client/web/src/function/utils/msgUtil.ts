@@ -681,7 +681,11 @@ export async function sendMsgRaw(
         chatStore.messageList = chatStore.messageList.concat([showMsg])
 
         // 发送方不一定会上报自身消息事件，先用预发送消息同步会话预览。
-        const sessionId = normalizeSessionId(String(id).split('/')[0])
+        const sessionId = normalizeSessionId(
+            targetChannelId
+            || chatStore.chatInfo.show.channel_id
+            || String(id).split('/')[0],
+        )
         const session = contactStore.baseOnMsgList.get(sessionId) ??
             findSessionContact(contactStore.userList, sessionId)
         if (session) {

@@ -1196,19 +1196,24 @@ async function loadMoreHistory() {
         }
         uiStore.loadHistoryFail = false
 
+        const channelId = String(
+            chatStore.chatInfo.show.channel_id
+            ?? chatStore.chatInfo.show.id
+            ?? '',
+        )
         if (useMixedHistory) {
             let localMsgs = [] as any[]
             if (Number.isFinite(firstMsgTime)) {
                 localMsgs = await dbGetBeforeByTime(
                     authStore.loginInfo.uin,
-                    chatStore.chatInfo.show.id,
+                    channelId,
                     firstMsgTime,
                     20,
                 )
             } else {
                 localMsgs = await dbGetBefore(
                     authStore.loginInfo.uin,
-                    chatStore.chatInfo.show.id,
+                    channelId,
                     firstMsgId,
                     20,
                 )
@@ -1230,12 +1235,6 @@ async function loadMoreHistory() {
             }
         }
 
-        const type = chatStore.chatInfo.show.type
-        const id = chatStore.chatInfo.show.id
-        const rawChannelId = String(chatStore.chatInfo.show.channel_id ?? '')
-        const channelId = type === 'group'
-            ? String(rawChannelId || id)
-            : String(rawChannelId || id)
         const cached = await loadChatHistoryFromCache({
             platform: String(authStore.loginInfo.platform ?? ''),
             selfId: String(authStore.loginInfo.uin ?? ''),
@@ -2009,6 +2008,7 @@ function forwardMsg(data: UserFriendElem & UserGroupElem) {
                             targetType as 'group' | 'user',
                             targetId,
                             msgBody,
+                            targetChannelId || undefined,
                         )
                         if (!result.ok) {
                             new PopInfo().add(PopType.ERR, $t('合并转发发送失败'))
@@ -2071,7 +2071,8 @@ function forwardMsg(data: UserFriendElem & UserGroupElem) {
                                     kind: 'forward',
                                 })
                             }
-                            const targetSession = contactStore.baseOnMsgList.get(normalizeSessionId(targetId))
+                            const targetSessionKey = targetChannelId || targetId
+                            const targetSession = contactStore.baseOnMsgList.get(normalizeSessionId(targetSessionKey))
                             if (targetSession) {
                                 const preview = `[${$t('聊天记录')}]`
                                 targetSession.raw_msg_base = preview
@@ -2079,7 +2080,7 @@ function forwardMsg(data: UserFriendElem & UserGroupElem) {
                                     ? `${String(authStore.loginInfo.nickname ?? '')}: ${preview}`
                                     : preview
                                 targetSession.time = Math.floor(sentTime / 1000)
-                                contactStore.baseOnMsgList.set(normalizeSessionId(targetId), targetSession)
+                                contactStore.baseOnMsgList.set(normalizeSessionId(targetSessionKey), targetSession)
                                 updateBaseOnMsgList()
                             }
                         }
@@ -2128,8 +2129,9 @@ function forwardMsg(data: UserFriendElem & UserGroupElem) {
 
 function finishForward(data: UserFriendElem & UserGroupElem, id: string | number) {
     cancelForward()
-    if(contactStore.baseOnMsgList.get(normalizeSessionId(id)) == undefined) {
-        contactStore.baseOnMsgList.set(normalizeSessionId(id), data)
+    const sessionKey = String(data.channel_id ?? data.channelId ?? id ?? '')
+    if(contactStore.baseOnMsgList.get(normalizeSessionId(sessionKey)) == undefined) {
+        contactStore.baseOnMsgList.set(normalizeSessionId(sessionKey), data)
     }
     nextTick(() => {
         const user = document.getElementById('user-' + id)
@@ -3153,7 +3155,8 @@ async function handleInput(event: Event) {
             searchDebounceTimer.value = setTimeout(async () => {
                 const results = await dbSearchMessages(
                     authStore.loginInfo.uin,
-                    chatStore.chatInfo.show.id,
+                    chatStore.chatInfo.show.channel_id
+                    ?? chatStore.chatInfo.show.id,
                     value,
                 )
                 if (requestId !== searchRequestId.value || !details.value[3].open) return

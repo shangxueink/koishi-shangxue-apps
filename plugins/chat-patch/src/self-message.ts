@@ -79,10 +79,6 @@ function isForwardContainer(element: SatoriElement): boolean {
       && ('forward' in (element.attrs ?? {}) || element.attrs?.forward === true))
 }
 
-function isPrivateChannel(value: string): boolean {
-  return /^(?:private|direct):/i.test(value)
-}
-
 function toSegments(
   elements: unknown[],
   resolveI18n?: (attrs: Record<string, unknown>) => string,
@@ -447,7 +443,8 @@ export class SelfMessageRecorder {
     localId: string,
   ): SelfMessageRecord {
     const normalizedChannelId = channelId
-    const channelType: SelfMessageChannelType = mode === 'private' || isPrivateChannel(normalizedChannelId)
+    // 只按调用入口判断私聊，不根据频道 ID 前缀推断
+    const channelType: SelfMessageChannelType = mode === 'private'
       ? 'user'
       : 'group'
     const elements = this.normalizeElements(content)
