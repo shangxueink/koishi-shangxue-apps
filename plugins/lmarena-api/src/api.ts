@@ -24,13 +24,14 @@ export interface ImageApiOptions {
 
 interface ApiImageItem {
   b64_json?: string
+  image?: string
   url?: string
   content_type?: string
   mime_type?: string
 }
 
 interface ApiSuccessResponse {
-  data?: ApiImageItem[]
+  data?: (ApiImageItem | string)[]
 }
 
 interface ApiErrorResponse {
@@ -207,6 +208,10 @@ function abbreviateDataUri(value: string): string {
 
 // 日志脱敏：响应里的 base64 内容只保留占位符，避免刷屏
 function sanitizeApiResponse(value: unknown): unknown {
+  if (typeof value === "string") {
+    if (value.startsWith("data:")) return abbreviateDataUri(value)
+    return value.length > 200 ? `[string ${value.length} chars]` : value
+  }
   if (Array.isArray(value)) {
     return value.map(item => sanitizeApiResponse(item))
   }
@@ -243,11 +248,25 @@ async function parseImageResponse(ctx: Context, response: Response, log: AppLogg
     const result = await response.json() as ApiSuccessResponse
     if (Array.isArray(result.data)) {
       const images: string[] = []
-      for (const item of result.data) {
-        if (!item) continue
+      for (const rawItem of result.data) {
+        if (!rawItem) continue
+        if (typeof rawItem === "string") {
+          if (/^https?:\/\//i.test(rawItem) || rawItem.startsWith("data:")) {
+            images.push(await toUrlDataUrl(ctx, rawItem, log, timeoutMs))
+          } else {
+            images.push(toDataUrl(rawItem, "image/png"))
+          }
+          continue
+        }
+        const item = rawItem
         if (item.b64_json) {
           const mime = item.content_type || item.mime_type || "image/png"
           images.push(toDataUrl(item.b64_json, mime))
+          continue
+        }
+        if (item.image) {
+          const mime = item.content_type || item.mime_type || "image/png"
+          images.push(toDataUrl(item.image, mime))
           continue
         }
         if (item.url) images.push(await toUrlDataUrl(ctx, item.url, log, timeoutMs))
