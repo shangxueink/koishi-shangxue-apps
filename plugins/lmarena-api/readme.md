@@ -22,3 +22,44 @@ imagen 把下面图片里的文字删掉 [图片]
 // 返回多张
 imagen -n 2 把下面图片里的文字删掉 [图片] [图片]
 ```
+
+## SenseNova 配置示例
+
+以 `https://token.sensenova.cn/v1` 为例：
+
+```yaml
+apiUrl: https://token.sensenova.cn/v1
+apiKey: 你的APIKey
+```
+
+`apiParams_generations` 点击右侧的“编辑JSON”，粘贴：
+
+```json
+{
+  "model": "sensenova-u1.5-lite",
+  "prompt": "{{prompt}}",
+  "size": "auto",
+  "n": "1",
+  "output_format": "png",
+  "response_format": "b64_json",
+  "watermark": "false",
+  "prompt_extend": "false"
+}
+```
+
+`apiParams_edits` 点击右侧的“编辑JSON”，粘贴：
+
+```json
+{
+  "model": "sensenova-u1.5-lite",
+  "images": "{{inputimage}}",
+  "prompt": "{{prompt}}",
+  "size": "auto",
+  "n": "1",
+  "response_format": "b64_json",
+  "watermark": "false",
+  "prompt_extend": "false"
+}
+```
+
+注意 SenseNova 的 `n` 仅支持 1，`size` 自定义宽高需要是 32 的倍数。
