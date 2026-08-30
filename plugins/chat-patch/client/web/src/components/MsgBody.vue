@@ -1318,9 +1318,6 @@ onMounted(() => {
         border-radius: 7px;
         background: rgba(255, 80, 80, 0.08);
     }
-    .message.revoke .message-body > div {
-        background: transparent;
-    }
     .revoked-tag {
         color: var(--color-red);
         font-size: 0.75rem;

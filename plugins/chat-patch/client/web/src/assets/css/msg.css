@@ -123,11 +123,15 @@
     max-width: calc(100% - 50px);
 }
 .message.revoke {
-    display: none;
+    display: flex;
+    opacity: 1;
+    border: 2px solid var(--color-red);
+    border-radius: 7px;
+    background: rgba(255, 80, 80, 0.08);
 }
 .message.revoke.me {
     display: flex;
-    opacity: 0.4;
+    opacity: 1;
 }
 .message.body-only > div.message-body {
     max-width: 100%;

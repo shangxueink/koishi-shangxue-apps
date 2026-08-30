@@ -1437,6 +1437,11 @@ export async function loadChatHistoryFromCache(params: {
       target_id: getString(msg.target_id),
       sender: userId,
     }
+    if (recordObj.revoked === true) {
+      msg.revoke = true
+      msg.revoked = true
+      msg.revokeTime = Number(recordObj.revokedAt) || Date.now() / 1000
+    }
     messages.push(msg)
   }
   const existingIds = new Set(messages.map((item) => getString(item.message_id)))

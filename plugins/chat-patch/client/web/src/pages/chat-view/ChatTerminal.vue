@@ -966,7 +966,10 @@ import packageInfo from '../../../package.json'
         border-radius: 7px;
     }
     .shell-msg.revoke {
-        display: none;
+        display: flex;
+        opacity: 1;
+        border: 2px solid var(--color-red);
+        background: rgba(255, 80, 80, 0.08);
     }
     .shell-msg.reply {
         background: var(--color-card-1);

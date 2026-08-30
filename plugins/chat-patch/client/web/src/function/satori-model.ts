@@ -531,6 +531,24 @@ export function satoriEventToOneBot(
     }
   }
 
+  if (type === 'message-deleted') {
+    const isGroup = isGroupChannel(channel, guild)
+    const userId = getString(user.id) || (isGroup ? '' : getString(channel.id))
+    const groupId = isGroup
+      ? normalizeGroupId(getString(guild.id)) || normalizeGroupId(getString(channel.id))
+      : ''
+    return {
+      ...base,
+      post_type: 'notice',
+      notice_type: isGroup ? 'group_recall' : 'friend_recall',
+      group_id: groupId,
+      user_id: userId,
+      message_id: getString(message.id),
+      channel_id: getString(channel.id) || (isGroup ? groupId : userId),
+      guild_id: getString(guild.id),
+    }
+  }
+
   return null
 }
 

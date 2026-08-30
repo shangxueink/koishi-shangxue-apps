@@ -205,6 +205,45 @@ export class ChatDatabase {
     return false
   }
 
+  async updateMessageRevoked(
+    platform: string,
+    selfId: string,
+    channelId: string,
+    messageId: string,
+    patch: { revoked: boolean; revokedAt: number },
+  ): Promise<boolean> {
+    const operations: Array<{ type: 'put'; key: string; value: string }> = []
+    for (const prefix of [messagePrefix(platform, selfId, channelId), legacyMessagePrefix(platform, selfId, channelId)]) {
+      for await (const [key, value] of this.db.iterator<string, string>({
+        gte: prefix,
+        lte: `${prefix}\uffff`,
+      })) {
+        try {
+          const parsed = JSON.parse(value) as unknown
+          if (typeof parsed !== 'object' || parsed === null) continue
+          const record = parsed as Partial<MessageRecord>
+          const raw = typeof record.raw === 'object' && record.raw !== null
+            ? record.raw as Record<string, unknown>
+            : {}
+          const rawMessage = typeof raw.message === 'object' && raw.message !== null
+            ? raw.message as Record<string, unknown>
+            : {}
+          const id = String(record.id ?? rawMessage.id ?? '')
+          if (!id || id !== messageId) continue
+          operations.push({
+            type: 'put',
+            key,
+            value: JSON.stringify({ ...parsed, ...patch }),
+          })
+        } catch {
+          // 单条解析失败不影响其他消息
+        }
+      }
+    }
+    if (operations.length) await this.db.batch(operations)
+    return operations.length > 0
+  }
+
   async findSelfForwardContent(
     platform: string,
     selfId: string,

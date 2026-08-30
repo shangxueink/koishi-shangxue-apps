@@ -26,6 +26,8 @@ export interface MessageRecord {
   content?: string
   elements?: unknown[]
   raw?: unknown
+  revoked?: boolean
+  revokedAt?: number
 }
 
 export type SelfMessageChannelType = 'group' | 'user'

@@ -25,6 +25,12 @@ export class Recorder {
 
   start() {
     this.ctx.on('internal/session', (session: Session) => {
+      if (session.type === 'message-deleted') {
+        void this.handleMessageDeleted(session).catch((error) => {
+          this.logger.warn('处理消息撤回失败:', error)
+        })
+        return
+      }
       void this.handleSession(session)
     })
   }
@@ -72,6 +78,26 @@ export class Recorder {
     void this.cacheMessageMedia(event).catch((error) => {
       this.logger.warn('异步缓存消息媒体失败:', error)
     })
+  }
+
+  private async handleMessageDeleted(session: Session) {
+    const platform = session.platform || 'unknown'
+    if (this.isBlocked(platform)) return
+    const event = session.toJSON()
+    const rawMessage = typeof event.message === 'object' && event.message !== null
+      ? event.message as Record<string, unknown>
+      : {}
+    const messageId = session.messageId || String(rawMessage.id ?? '')
+    const channelId = String(
+      event.channel?.id
+      || event.guild?.id
+      || session.channelId
+      || '',
+    )
+    if (!messageId || !channelId) return
+    const patch = { revoked: true, revokedAt: Date.now() }
+    await this.database.updateMessageRevoked(platform, session.selfId, channelId, messageId, patch)
+    await this.database.updateSelfMessageByMessageId(platform, session.selfId, channelId, messageId, patch)
   }
 
   private async cacheMessageContacts(event: ReturnType<Session['toJSON']>) {

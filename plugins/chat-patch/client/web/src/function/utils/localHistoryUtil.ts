@@ -509,6 +509,8 @@ function deserializeRecord(record: LocalMsgRecord): any {
         infoList,
         raw_message: record.raw_message ?? '',
         revoked: record.revoked,
+        revoke: record.revoked,
+        revokeTime: record.revoked ? Date.now() / 1000 : undefined,
         // 消息序列号（并非所有 Bot 都提供，可为 null）
         ...(record.seq != null ? { message_seq: record.seq, seq_id: record.seq } : {}),
         // 标记来源为本地缓存，业务层可按需用此字段区分
