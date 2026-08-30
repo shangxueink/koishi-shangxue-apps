@@ -75,7 +75,8 @@ async function parseJsonResponse(response: Response): Promise<unknown> {
   try {
     return JSON.parse(text) as unknown
   } catch {
-    throw new Error(`Satori API 返回了非 JSON 内容: ${text.slice(0, 120)}`)
+    // 部分平台对 delete 等操作只回显纯文本（例如 OK），HTTP 200 即视为成功
+    return text
   }
 }
 

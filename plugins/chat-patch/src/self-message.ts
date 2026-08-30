@@ -15,11 +15,13 @@ type SendOptionsWithMeta = SendOptions & {
 type BotSendMethod = Bot['sendMessage']
 type BotCreateMethod = Bot['createMessage']
 type BotPrivateMethod = Bot['sendPrivateMessage']
+type BotDeleteMethod = Bot['deleteMessage']
 
 interface BotMethods {
   createMessage: BotCreateMethod
   sendMessage: BotSendMethod
   sendPrivateMessage: BotPrivateMethod
+  deleteMessage: BotDeleteMethod
 }
 
 interface SatoriElement {
@@ -37,6 +39,11 @@ const KOISHI_STATUS_I18N_FALLBACK: Record<string, string> = {
 
 function getString(value: unknown): string {
   return typeof value === 'string' ? value : ''
+}
+
+function getMessageId(value: unknown): string {
+  const raw = getObject(value).id ?? getObject(value).message_id
+  return raw == null ? '' : String(raw)
 }
 
 function getNumber(value: unknown): number {
@@ -247,6 +254,7 @@ export class SelfMessageRecorder {
       createMessage: bot.createMessage,
       sendMessage: bot.sendMessage,
       sendPrivateMessage: bot.sendPrivateMessage,
+      deleteMessage: bot.deleteMessage,
     }
     this.wrapped.set(bot, methods)
 
@@ -260,13 +268,18 @@ export class SelfMessageRecorder {
       try {
         const messages = await methods.createMessage.call(bot, channelId, content, referrer, sendOptions)
         const ids = Array.isArray(messages)
-          ? messages.map((item) => getString(getObject(item).id)).filter(Boolean)
+          ? messages.map((item) => getMessageId(item)).filter((id) => id !== '')
           : []
         await this.recordFromWrapper(bot, channelId, content, ids, options, 'create', localId)
         return messages
       } finally {
         delete sendOptions.chatPatchId
       }
+    }
+
+    bot.deleteMessage = async (channelId, messageId) => {
+      await methods.deleteMessage.call(bot, channelId, messageId)
+      await this.markSelfMessageRevoked(bot, channelId, messageId)
     }
 
     bot.sendMessage = async (channelId, content, referrer, options) => {
@@ -277,7 +290,8 @@ export class SelfMessageRecorder {
       const localId = randomUUID()
       sendOptions.chatPatchId = localId
       try {
-        const ids = await methods.sendMessage.call(bot, channelId, content, referrer, sendOptions)
+        const ids = (await methods.sendMessage.call(bot, channelId, content, referrer, sendOptions))
+          .filter((id) => id !== '')
         await this.recordFromWrapper(bot, channelId, content, ids, options, 'send', localId)
         return ids
       } finally {
@@ -293,7 +307,8 @@ export class SelfMessageRecorder {
       const localId = randomUUID()
       sendOptions.chatPatchId = localId
       try {
-        const ids = await methods.sendPrivateMessage.call(bot, userId, content, guildId, sendOptions)
+        const ids = (await methods.sendPrivateMessage.call(bot, userId, content, guildId, sendOptions))
+          .filter((id) => id !== '')
         await this.recordFromWrapper(bot, userId, content, ids, options, 'private', localId)
         return ids
       } finally {
@@ -308,6 +323,7 @@ export class SelfMessageRecorder {
     bot.createMessage = methods.createMessage
     bot.sendMessage = methods.sendMessage
     bot.sendPrivateMessage = methods.sendPrivateMessage
+    bot.deleteMessage = methods.deleteMessage
     this.wrapped.delete(bot)
   }
 
@@ -325,6 +341,10 @@ export class SelfMessageRecorder {
     localId: string,
   ) {
     if (!channelId || this.isBlocked(bot.platform ?? '')) return
+    if (!ids.length) {
+      this.logger.warn('发送未返回消息 ID，判定为发送失败:', bot.platform, channelId)
+      return
+    }
     const source: SelfMessageSource = options?.session ? 'plugin' : 'bot'
     const record = this.buildRecord(
       bot.platform ?? '',
@@ -344,6 +364,20 @@ export class SelfMessageRecorder {
     this.logger.logInfo('机器人消息已记录:', record.kind, record.channelId, record.messageId || record.id)
   }
 
+  private async markSelfMessageRevoked(bot: Bot, channelId: string, messageId: string) {
+    if (!messageId || !channelId || this.isBlocked(bot.platform ?? '')) return
+    const updated = await this.database.updateSelfMessageByMessageId(
+      bot.platform ?? '',
+      bot.selfId,
+      channelId,
+      messageId,
+      { revoked: true, revokedAt: Date.now() },
+    )
+    if (!updated) {
+      this.logger.warn('撤回消息未找到本地自消息记录:', bot.platform, channelId, messageId)
+    }
+  }
+
   // 收到 send 事件时只补消息 id，避免重复记录
   private async recordSendEvent(session: Session) {
     if (session.type !== 'send') return
@@ -355,7 +389,7 @@ export class SelfMessageRecorder {
     const channelId = session.channelId || getString(eventChannel.id)
     if (this.isBlocked(platform) || !platform || !selfId || !channelId) return
 
-    const messageId = session.messageId || getString(eventMessage.id)
+    const messageId = session.messageId || getMessageId(eventMessage)
     if (messageId) {
       const updated = await this.database.updateSelfMessageByMessageId(
         platform,

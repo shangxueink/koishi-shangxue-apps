@@ -2067,7 +2067,7 @@ function forwardMsg(data: UserFriendElem & UserGroupElem) {
                                     scrollToMsg('chat-' + sentMsg.message_id, true)
                                 })
                             }
-                            const sentChannelId = targetChannelId || targetId
+                            const sentChannelId = result.channelId || targetChannelId || targetId
                             if (result.native && !result.messageId) {
                                 // 原生路径已经由后端 before-send/发送拦截写入，缺少消息 id 时不再重复写入
                             } else {
@@ -2258,7 +2258,15 @@ async function revokeMsg() {
         ?? chatStore.chatInfo.show.channel_id
         ?? chat.show.id,
     )
-    await Connector.callApi('delete_msg', { channel_id: channelId, message_id: msgId })
+    try {
+        await Connector.callApi('delete_msg', { channel_id: channelId, message_id: msgId })
+    } catch {
+        new PopInfo().add(PopType.ERR, $t('撤回失败'))
+        return
+    }
+    msgData.revoke = true
+    msgData.revoked = true
+    msgData.revokeTime = Date.now() / 1000
 }
 
 async function reeditMsg() {

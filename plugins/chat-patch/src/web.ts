@@ -369,7 +369,9 @@ export function registerWeb(
       channelId: String(body.channelId ?? ''),
       guildId: typeof body.guildId === 'string' ? body.guildId : undefined,
       channelType: body.channelType === 'user' ? 'user' : 'group',
-      messageId: typeof body.messageId === 'string' ? body.messageId : undefined,
+      messageId: typeof body.messageId === 'string' || typeof body.messageId === 'number'
+        ? String(body.messageId)
+        : undefined,
       content: typeof body.content === 'string' ? body.content : undefined,
       elements: Array.isArray(body.elements) ? body.elements as unknown[] : undefined,
       message: Array.isArray(body.message) ? body.message as unknown[] : undefined,
@@ -383,6 +385,10 @@ export function registerWeb(
         : 0,
       source: body.source === 'plugin' ? 'plugin' : 'webui',
       kind: typeof body.kind === 'string' ? body.kind : 'text',
+      revoked: body.revoked === true,
+      revokedAt: typeof body.revokedAt === 'number' && Number.isFinite(body.revokedAt)
+        ? body.revokedAt
+        : undefined,
     }
     if (!payload.platform || !payload.selfId || !payload.channelId) {
       koa.status = 400
@@ -406,6 +412,8 @@ export function registerWeb(
       sequence: payload.sequence ?? 0,
       source: payload.source ?? 'webui',
       kind: payload.kind ?? 'text',
+      revoked: payload.revoked,
+      revokedAt: payload.revokedAt,
     }
     await database.upsertSelfMessage(record)
     koa.body = { ok: true, message: record }

@@ -49,6 +49,8 @@ export interface SelfMessageRecord {
   source: SelfMessageSource
   kind: string
   fingerprint?: string
+  revoked?: boolean
+  revokedAt?: number
 }
 
 export interface SelfMessagePayload {
@@ -68,6 +70,8 @@ export interface SelfMessagePayload {
   sequence?: number
   source?: SelfMessageSource
   kind?: string
+  revoked?: boolean
+  revokedAt?: number
 }
 
 export interface HistoryQuery {

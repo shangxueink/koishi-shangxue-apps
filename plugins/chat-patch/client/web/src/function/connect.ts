@@ -1124,6 +1124,7 @@ export interface SendForwardResult {
   ok: boolean
   native: boolean
   messageId?: string
+  channelId?: string
 }
 
 function extractFirstMessageId(data: unknown): string | undefined {
@@ -1134,7 +1135,8 @@ function extractFirstMessageId(data: unknown): string | undefined {
       ? root.data as unknown[]
       : []
   const first = list.length > 0 ? getObject(list[0]) : root
-  return getString(first.id) || getString(first.message_id) || undefined
+  const id = first.id ?? first.message_id
+  return id == null ? undefined : String(id)
 }
 
 function extractDirectChannelId(data: unknown): string {
@@ -1168,7 +1170,7 @@ async function sendPrivateSatoriMessage(
   content: string,
   guildId: string | undefined,
   active: ReturnType<typeof getActiveBot>,
-) {
+): Promise<{ data: unknown; channelId: string }> {
   // Satori 私聊流程：先由平台创建/返回私聊频道，再使用该频道 ID 发送
   let channelId: string
   try {
@@ -1178,7 +1180,10 @@ async function sendPrivateSatoriMessage(
     // 兼容未实现 createDirectChannel 的适配器，退回 private: 前缀私聊
     channelId = /^(?:private|direct):/i.test(userId) ? userId : `private:${userId}`
   }
-  return request('message.create', { channel_id: channelId, content }, active)
+  return {
+    data: await request('message.create', { channel_id: channelId, content }, active),
+    channelId,
+  }
 }
 
 export async function sendForwardMessage(
@@ -1212,6 +1217,7 @@ export async function sendForwardMessage(
           ok: true,
           native: true,
           messageId: extractFirstMessageId(data),
+          channelId: finalChannelId,
         }
       } catch {
         // 原生路径失败时回退到旧 API，方便兼容尚未热重载的 Koishi 后端
@@ -1365,6 +1371,11 @@ function selfMessageToOneBot(record: unknown): Record<string, unknown> | null {
       sender: selfId,
     },
     _from_self_cache: true,
+  }
+  if (obj.revoked === true) {
+    msg.revoke = true
+    msg.revoked = true
+    msg.revokeTime = Number(obj.revokedAt) || Date.now() / 1000
   }
   return msg
 }
@@ -2069,14 +2080,19 @@ export class Connector {
     if (!mapped) return undefined
     const active = getActiveBot()
     const privateUserId = getPrivateSendUserId(api, args)
-    const data = privateUserId
-      ? await sendPrivateSatoriMessage(
+    if (privateUserId) {
+      const result = await sendPrivateSatoriMessage(
         privateUserId,
         getString(mapped.params.content),
         getString(args.group_id) || getString(args.guild_id) || undefined,
         active,
       )
-      : await request(mapped.method, mapped.params, active)
+      const response = satoriResponseToOneBot(api, result.data, active.platform)
+      response.channel_id = result.channelId
+      response.channelId = result.channelId
+      return response.data
+    }
+    const data = await request(mapped.method, mapped.params, active)
     return satoriResponseToOneBot(api, data, active.platform).data
   }
 
@@ -2095,8 +2111,10 @@ export class Connector {
         getString(value.group_id) || getString(value.guild_id) || undefined,
         active,
       )
-        .then((data) => {
-          const response = satoriResponseToOneBot(action, data, active.platform)
+        .then((result) => {
+          const response = satoriResponseToOneBot(action, result.data, active.platform)
+          response.channel_id = result.channelId
+          response.channelId = result.channelId
           dispatch(response, echo)
         })
         .catch((error: unknown) => {

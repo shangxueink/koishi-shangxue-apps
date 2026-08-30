@@ -1957,3 +1957,6 @@ msgstr "缓存已全部删除"
 
 msgid "删除缓存失败"
 msgstr "删除缓存失败"
+
+msgid "撤回失败"
+msgstr "撤回失败"

@@ -994,10 +994,13 @@ const msgFunctions = {
         const chatStore = useChatStore()
         const rawData = msg.data
         const firstData = Array.isArray(rawData) ? rawData[0] : rawData
+        const firstRawId = getDataObject(firstData).id
+            ?? getDataObject(rawData).id
         const realMessageId = getString(msg.message_id)
             || getString(getDataObject(rawData).message_id)
             || getString(getDataObject(firstData).id)
             || getString(getDataObject(firstData).message_id)
+            || (firstRawId == null ? '' : String(firstRawId))
         if (realMessageId) msg.message_id = realMessageId
         if (echoList[1] == 'forward') {
             // PS：这儿写是写了转发成功，事实上不确定消息有没有真的发送出去（x
