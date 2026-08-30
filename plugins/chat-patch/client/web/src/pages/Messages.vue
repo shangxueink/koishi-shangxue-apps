@@ -394,12 +394,11 @@
     function userClick(data: UserFriendElem & UserGroupElem) {
         const id = data.group_id || data.user_id
         if (id === undefined || id === null || String(id) === '' || String(id) === '0') return
-        // 从群收纳盒进入群时先收起收纳盒，避免头部切换导致返回标记闪烁
-        if (showGroupAssist.value) {
-            showGroupAssist.value = false
-        }
+        const fromGroupAssist = showGroupAssist.value
         if (!trRead.value && id != props.chat.show.id) {
-            if (uiStore.openSideBar) {
+            if (fromGroupAssist) {
+                uiStore.openSideBar = false
+            } else if (uiStore.openSideBar) {
                 openLeftBar()
             }
             const back = {

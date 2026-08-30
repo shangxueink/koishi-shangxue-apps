@@ -229,15 +229,22 @@ function normalizeAtText(name: string, id: string): string {
 }
 
 function containsElementMarkup(source: string): boolean {
-  return /<(img|image|audio|video|file|mface|face|quote|at|forward|json|xml|markdown|keyboard|p|br|i18n|a|text|sharp)(?:\s|\/|>)/i.test(source)
+  return /(?:<|&(?:amp;)?lt;)(?:img|image|audio|video|file|mface|face|faceType|quote|at|forward|json|xml|markdown|keyboard|p|br|i18n|a|text|sharp)(?:\s|\/|>|&(?:amp;)?gt;)/i.test(source)
 }
 
 // QQ 官方机器人会把部分大表情/图片消息的私有标记塞进 content，渲染前需要去掉
 function cleanQqFaceMarkup(source: string): string {
   return source
     .replace(/<faceType\b[^>]*>/gi, '')
-    .replace(/&lt;faceType\b[^>]*&gt;/gi, '')
+    .replace(/&(?:amp;)?lt;faceType\b[^>]*&(?:amp;)?gt;/gi, '')
 }
+
+const QQ_EXPRESSION_PLACEHOLDER = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(
+  '<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120" viewBox="0 0 120 120">'
+  + '<rect width="120" height="120" rx="12" fill="#f3f4f6"/>'
+  + '<text x="60" y="62" text-anchor="middle" dominant-baseline="middle" font-size="18" fill="#333">表情消息</text>'
+  + '</svg>',
+)
 
 function splitMarkupTextSegments(
   segments: Array<Record<string, unknown>>,
@@ -255,7 +262,18 @@ function splitMarkupTextSegments(
 }
 
 export function parseSatoriMarkup(source: string): Array<Record<string, unknown>> {
+  const hadQqFaceMarkup = /(?:&(?:amp;)?lt;|<)faceType\b/i.test(source)
   source = cleanQqFaceMarkup(source)
+  if (hadQqFaceMarkup && !source.trim()) {
+    return [{
+      type: 'image',
+      file: QQ_EXPRESSION_PLACEHOLDER,
+      url: QQ_EXPRESSION_PLACEHOLDER,
+      summary: '表情消息',
+      width: 120,
+      height: 120,
+    }]
+  }
   const result: Array<Record<string, unknown>> = []
   let index = 0
   while (index < source.length) {

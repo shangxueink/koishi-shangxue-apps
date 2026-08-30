@@ -43,7 +43,7 @@ import {
     sendStatEvent,
 } from '../function/utils/appUtil'
 
-const SATORI_MARKUP_PATTERN = /<(?:img|image|audio|video|file|mface|face|quote|at|forward|json|xml|markdown|keyboard|p|br|i18n|a|text|sharp)(?:\s|\/|>)/i
+const SATORI_MARKUP_PATTERN = /(?:<|&(?:amp;)?lt;)(?:img|image|audio|video|file|mface|face|faceType|quote|at|forward|json|xml|markdown|keyboard|p|br|i18n|a|text|sharp)(?:\s|\/|>|&(?:amp;)?gt;)/i
 
 function splitSatoriMarkupText(message: any[]): any[] {
     return message.flatMap((segment) => {
