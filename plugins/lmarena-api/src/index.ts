@@ -6,7 +6,8 @@ import { createAppLogger } from "./logger"
 import { registerCommands } from "./commands"
 
 export const name = "lmarena-api"
-
+export const reusable = true
+export const filter = true
 export const inject = {
   required: ["http", "logger", "i18n"],
   optional: ["database", "monetary", "puppeteer", "ffmpeg"],
@@ -15,7 +16,7 @@ export const inject = {
 export const usage = `
 ---
 
-通过配置API，调用 {{URL}}/v1/images/edits 接口实现文生图、图生图的功能。
+通过调用API实现文生图、图生图的功能。
 
 推荐模型：\`gpt-image-2\`
 
