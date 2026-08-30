@@ -59,8 +59,9 @@ function getObject(value: unknown): Record<string, unknown> {
 
 function toSatoriElement(value: unknown): SatoriElement {
   const raw = getObject(value)
-  const attrs = typeof raw.attrs === 'object' && raw.attrs !== null
-    ? raw.attrs as Record<string, unknown>
+  const rawAttrs = raw.attrs ?? raw.data
+  const attrs = typeof rawAttrs === 'object' && rawAttrs !== null
+    ? rawAttrs as Record<string, unknown>
     : {}
   const children = Array.isArray(raw.children)
     ? raw.children.map(toSatoriElement)
@@ -89,9 +90,9 @@ function toSegments(
     const attrs = element.attrs ?? {}
     const type = getString(element.type)
     if (type === 'text') {
-      result.push({ type: 'text', text: getString(attrs.content) })
+      result.push({ type: 'text', text: getString(attrs.content) || getString(attrs.text) })
     } else if (type === 'at') {
-      const id = getString(attrs.id)
+      const id = getString(attrs.id) || getString(attrs.qq)
       const name = getString(attrs.name) || (attrs.type === 'all' ? '所有人' : id)
       result.push({ type: 'at', qq: id, text: name.startsWith('@') ? name : `@${name}` })
     } else if (type === 'img' || type === 'image') {
@@ -482,9 +483,20 @@ export class SelfMessageRecorder {
 
   private normalizeElements(content: MessageContent): unknown[] {
     try {
-      const elements = typeof content === 'string'
-        ? h.parse(content)
-        : h.toElementArray(content)
+      const normalized = typeof content === 'string'
+        ? content
+        : Array.isArray(content)
+          ? content.map((raw) => {
+            const item = getObject(raw)
+            if (typeof item.data === 'object' && item.data !== null && item.attrs === undefined) {
+              return h(getString(item.type), item.data as Record<string, unknown>)
+            }
+            return raw
+          })
+          : content
+      const elements = typeof normalized === 'string'
+        ? h.parse(normalized)
+        : h.toElementArray(normalized)
       return JSON.parse(JSON.stringify(elements)) as unknown[]
     } catch {
       return []
