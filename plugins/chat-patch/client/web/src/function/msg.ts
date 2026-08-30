@@ -1340,8 +1340,16 @@ const msgFunctions = {
                     )
                     getMessageList(trueMsg).then((trueMsg) => {
                         if (trueMsg?.length == 1) {
+                            const nextMessage = Array.isArray(trueMsg[0].message)
+                                && trueMsg[0].message.some((item: any) => {
+                                    if (item?.type !== 'text') return true
+                                    const text = String(item?.text ?? item?.content ?? '')
+                                    return text.trim() !== ''
+                                })
+                                ? trueMsg[0].message
+                                : fakeMsg.message
                             // 使用消息对象引用直接更新，避免索引问题
-                            fakeMsg.message = trueMsg[0].message
+                            if (Array.isArray(nextMessage)) fakeMsg.message = nextMessage
                             fakeMsg.raw_message = trueMsg[0].raw_message
                             fakeMsg.time = trueMsg[0].time
                             fakeMsg.fake_msg = undefined
