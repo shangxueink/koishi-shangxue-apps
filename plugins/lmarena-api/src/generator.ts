@@ -53,10 +53,12 @@ export async function generateImage(
   prompt: string,
   config: Config,
   log: AppLogger,
+  imagesNumber?: number,
 ): Promise<boolean> {
   const quote = h.quote(session.messageId)
 
   try {
+    const effectiveImagesNumber = imagesNumber ?? 1
     const mode = resolveApiModeForInput(config, images.length > 0)
     const agnes = config.agnesMode
       ? getAgnesConfig(config.agnesAPIkey, config.apiParams_generations, config.agnesRegion, config.agnesModel)
@@ -64,6 +66,12 @@ export async function generateImage(
     const apiUrl = agnes?.apiUrl ?? config.apiUrl
     const apiKey = agnes?.apiKey ?? config.apiKey
     let apiParams = agnes?.apiParams ?? resolveApiParamsForMode(config, mode)
+    if (imagesNumber !== undefined) {
+      apiParams = {
+        ...apiParams,
+        n: String(imagesNumber),
+      }
+    }
 
     let processingMessageId: string | undefined
     if (!config.disableWaitingTips) {
@@ -137,6 +145,7 @@ export async function generateImage(
       apiKey,
       apiMode: mode,
       apiParams,
+      imagesNumber: effectiveImagesNumber,
       agnesMode: config.agnesMode,
       timeoutMs: config.apiTimeout * 1000,
       log,

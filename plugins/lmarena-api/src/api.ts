@@ -17,6 +17,7 @@ export interface ImageApiOptions {
   apiKey: string
   apiMode: ResolvedApiMode
   apiParams: Record<string, string>
+  imagesNumber: number
   agnesMode: boolean
   timeoutMs: number
   log: AppLogger
@@ -45,7 +46,7 @@ interface ApiErrorResponse {
 export async function callImageApi(ctx: Context, files: ImageFile[], prompt: string, options: ImageApiOptions): Promise<string[] | string | null> {
   const mode = options.apiMode
   const resolvedUrl = resolveApiUrl(options.apiUrl, mode)
-  const body = JSON.stringify(buildJsonBody(files, prompt, options.apiParams, options.agnesMode))
+  const body = JSON.stringify(buildJsonBody(files, prompt, options.apiParams, options.agnesMode, options.imagesNumber))
 
   logRequest(options, mode, files, prompt, resolvedUrl)
 
@@ -113,7 +114,7 @@ function resolveApiUrl(apiUrl: string, mode: "edits" | "generations"): string {
 }
 
 // 文生图和图生图都要求 JSON body；agnesMode 下按 agnes 文档把 image/response_format 放入 extra_body
-function buildJsonBody(files: ImageFile[], prompt: string, apiParams: Record<string, string>, agnesMode: boolean): Record<string, unknown> {
+function buildJsonBody(files: ImageFile[], prompt: string, apiParams: Record<string, string>, agnesMode: boolean, imagesNumber: number): Record<string, unknown> {
   const body: Record<string, unknown> = {}
   const extraBody: Record<string, unknown> = {}
   const jsValues: Array<{ key: string; value: string }> = []
@@ -134,6 +135,11 @@ function buildJsonBody(files: ImageFile[], prompt: string, apiParams: Record<str
           body[key] = files.map(file => Buffer.from(file.data).toString("base64"))
         }
       }
+      continue
+    }
+    if (value === "{{images_number}}") {
+      // 图片数量占位符：由 -n 选项指定，默认 1
+      body[key] = imagesNumber
       continue
     }
     if (key === "response_format") {
@@ -186,6 +192,9 @@ function logRequest(options: ImageApiOptions, mode: string, files: ImageFile[], 
   }
   if (params.prompt === "{{prompt}}") {
     params.prompt = prompt.substring(0, 100) + (prompt.length > 100 ? "..." : "")
+  }
+  if (params.n === "{{images_number}}") {
+    params.n = options.imagesNumber
   }
   delete params.type
   if (options.agnesMode) {

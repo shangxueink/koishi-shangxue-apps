@@ -10,6 +10,19 @@
 - <https://platform.agnes-ai.com/settings/apiKeys>
 - <https://docs-model.skyengine.com.cn/api-reference/examples/images/openai-image>
 
+## 使用示例
+
+```text
+// 直接文生图
+imagen -d 生成一个哆啦A梦
+
+// 图生图
+imagen 把下面图片里的文字删掉 [图片]
+
+// 返回多张
+imagen -n 2 把下面图片里的文字删掉 [图片] [图片]
+```
+
 ## 特殊请求体配置示例
 
 （非openai标准协议）

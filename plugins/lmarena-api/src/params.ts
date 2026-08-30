@@ -6,7 +6,7 @@ export const DEFAULT_GENERATIONS_PARAMS: Record<string, string> = {
   model: "gpt-image-2",
   prompt: "{{prompt}}",
   size: "{{dynamic_size}}",
-  n: "1",
+  n: "{{images_number}}",
   response_format: "b64_json",
 }
 
@@ -16,7 +16,7 @@ export const DEFAULT_EDITS_PARAMS: Record<string, string> = {
   image: "{{inputimage}}",
   prompt: "{{prompt}}",
   size: "{{dynamic_size}}",
-  n: "1",
+  n: "{{images_number}}",
   response_format: "b64_json",
 }
 

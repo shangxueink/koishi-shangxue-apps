@@ -9,7 +9,7 @@ import { resolveApiModeForInput } from "./mode"
 async function runCustomDrawing(
   ctx: Context,
   session: Session,
-  options: { d?: boolean },
+  options: { d?: boolean; n?: string | number },
   promptArgs: string[],
   config: Config,
   log: AppLogger,
@@ -17,6 +17,7 @@ async function runCustomDrawing(
   if (!(await checkCurrency(ctx, session, config, log))) return
 
   const extraContent = promptArgs.join(" ")
+  const imagesNumber = resolveImagesNumber(options.n)
 
   // -d 模式：跳过图片输入，直接进行纯文本文生图
   if (options.d) {
@@ -26,14 +27,21 @@ async function runCustomDrawing(
     }
     const prompt = await collectDirectPrompt(session, extraContent, config, log)
     if (!prompt) return
-    await generateImage(ctx, session, [], prompt, config, log)
+    await generateImage(ctx, session, [], prompt, config, log, imagesNumber)
     return
   }
 
   const input = await collectParentInput(session, extraContent, config, log)
   if (!input) return
 
-  await generateImage(ctx, session, input.images, input.prompt, config, log)
+  await generateImage(ctx, session, input.images, input.prompt, config, log, imagesNumber)
+}
+
+function resolveImagesNumber(value: string | number | undefined): number | undefined {
+  if (value === undefined) return undefined
+  const parsed = typeof value === "number" ? value : Number(value)
+  if (!Number.isFinite(parsed) || parsed < 1) return 1
+  return Math.floor(parsed)
 }
 
 // 注册父级交互绘图、预设子命令与 i18n
@@ -76,6 +84,7 @@ export function registerCommands(ctx: Context, config: Config, log: AppLogger): 
     if (config.parentCommandEnabled) {
       parent
         .option("d", "-d 直接按文字提示词生成，跳过图片输入（仅文生图模式）")
+        .option("n", "-n <count> 指定返回图片数量，默认 1")
         .userFields(["id"])
         .action(async ({ session, options }, ...promptArgs: string[]) => {
           if (!session) return
@@ -88,6 +97,7 @@ export function registerCommands(ctx: Context, config: Config, log: AppLogger): 
       })
         .usage("自定义提示词绘画")
         .option("d", "-d 直接按文字提示词生成，跳过图片输入（仅文生图模式）")
+        .option("n", "-n <count> 指定返回图片数量，默认 1")
         .userFields(["id"])
         .action(async ({ session, options }, ...args: string[]) => {
           if (!session) return
@@ -102,17 +112,19 @@ export function registerCommands(ctx: Context, config: Config, log: AppLogger): 
         authority: config.commandAuthority,
       })
         .usage(`${cmdConfig.name} 处理图片`)
+        .option("n", "-n <count> 指定返回图片数量，默认 1")
         .userFields(["id"])
-        .action(async ({ session }, ...args: string[]) => {
+        .action(async ({ session, options }, ...args: string[]) => {
           if (!session) return
           if (!(await checkCurrency(ctx, session, config, log))) return
 
           const extraContent = args.join(" ")
+          const imagesNumber = resolveImagesNumber(options.n)
           const images = await collectImages(session, extraContent, config, log)
           if (!images) return
 
           // 子命令固定使用配置里的预设提示词
-          await generateImage(ctx, session, images.images, cmdConfig.prompt, config, log)
+          await generateImage(ctx, session, images.images, cmdConfig.prompt, config, log, imagesNumber)
         })
     }
   })
