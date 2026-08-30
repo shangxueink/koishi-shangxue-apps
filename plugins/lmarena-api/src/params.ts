@@ -13,7 +13,7 @@ export const DEFAULT_GENERATIONS_PARAMS: Record<string, string> = {
 // OpenAI 兼容协议的默认图生图参数
 export const DEFAULT_EDITS_PARAMS: Record<string, string> = {
   model: "gpt-image-2",
-  image: "{{inputimage}}",
+  images: "{{inputimage}}",
   prompt: "{{prompt}}",
   size: "{{dynamic_size}}",
   n: "{{images_number}}",

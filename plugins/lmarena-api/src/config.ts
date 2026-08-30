@@ -45,8 +45,8 @@ export const Config: Schema<Config> = Schema.intersect([
     apiUrl: Schema.string().default("https://moyuu.cc/v1").role("link").description("API 服务器地址<br>填入地址：`https://域名/v1`，需要兼容openai协议。"),
     apiKey: Schema.string().role("secret").default(null).description("API 密钥"),
     apiTimeout: Schema.number().default(180).max(600).min(10).step(1).description("API 请求超时时间（秒）"),
-    apiParams_generations: Schema.dict(String).role('table').description("文生图接口请求参数<br>POST请求的参数<br>size 支持 `{{dynamic_size}}`，会按输入图片比例自动调整，也可以填入`auto`；字段值以 `js:` 开头或写箭头函数时会被执行，函数收到 `{ body, files, prompt }`").default(DEFAULT_GENERATIONS_PARAMS),
-    apiParams_edits: Schema.dict(String).role('table').description("图生图接口请求参数<br>POST请求的参数<br>OpenAI 默认使用 `image: {{inputimage}}`；字段值以 `js:` 开头或写箭头函数时会被执行，函数收到 `{ body, files, prompt }`").default(DEFAULT_EDITS_PARAMS),
+    apiParams_generations: Schema.dict(String).role('table').description("文生图接口请求参数<br>POST请求的参数<br>size 支持 `{{dynamic_size}}`，会按输入图片比例自动调整，也可以填入`auto`").default(DEFAULT_GENERATIONS_PARAMS),
+    apiParams_edits: Schema.dict(String).role('table').description("图生图接口请求参数<br>POST请求的参数<br>OpenAI 兼容图生图默认使用 `images: {{inputimage}}`").default(DEFAULT_EDITS_PARAMS),
   }).description("API配置"),
 
   Schema.object({

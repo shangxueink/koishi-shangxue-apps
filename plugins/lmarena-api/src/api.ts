@@ -2,7 +2,6 @@ import { Context } from "koishi"
 import type { AppLogger } from "./logger"
 import type { ResolvedApiMode } from "./mode"
 import { downloadFileWithTimeout, fetchWithTimeout } from "./http"
-import { evaluateJsValue, isJsValue } from "./js-value"
 
 export const API_URL_HTML_ERROR = "api_url_html_error"
 
@@ -46,9 +45,10 @@ interface ApiErrorResponse {
 export async function callImageApi(ctx: Context, files: ImageFile[], prompt: string, options: ImageApiOptions): Promise<string[] | string | null> {
   const mode = options.apiMode
   const resolvedUrl = resolveApiUrl(options.apiUrl, mode)
-  const body = JSON.stringify(buildJsonBody(files, prompt, options.apiParams, options.agnesMode, options.imagesNumber))
+  const requestBody = buildJsonBody(files, prompt, options.apiParams, options.agnesMode, options.imagesNumber)
 
-  logRequest(options, mode, files, prompt, resolvedUrl)
+  logRequest(options, mode, resolvedUrl, requestBody)
+  const body = JSON.stringify(requestBody)
 
   try {
     const headers: Record<string, string> = {
@@ -117,22 +117,18 @@ function resolveApiUrl(apiUrl: string, mode: "edits" | "generations"): string {
 function buildJsonBody(files: ImageFile[], prompt: string, apiParams: Record<string, string>, agnesMode: boolean, imagesNumber: number): Record<string, unknown> {
   const body: Record<string, unknown> = {}
   const extraBody: Record<string, unknown> = {}
-  const jsValues: Array<{ key: string; value: string }> = []
 
   for (const key in apiParams) {
     const value = apiParams[key]
     // type 是旧配置遗留参数，generations 协议不需要
     if (key === "type") continue
-    if (isJsValue(value)) {
-      jsValues.push({ key, value })
-      continue
-    }
     if (value === "{{inputimage}}") {
       if (files.length > 0) {
         if (agnesMode) {
           extraBody.image = files.map(file => toDataUri(file))
         } else {
-          body[key] = files.map(file => Buffer.from(file.data).toString("base64"))
+          // OpenAI 兼容图生图统一使用 images[{ image_url }]
+          body.images = files.map(file => ({ image_url: toDataUri(file) }))
         }
       }
       continue
@@ -157,10 +153,6 @@ function buildJsonBody(files: ImageFile[], prompt: string, apiParams: Record<str
     body[key] = normalizeJsonValue(value)
   }
 
-  for (const { key, value } of jsValues) {
-    body[key] = evaluateJsValue(value, body, files, prompt)
-  }
-
   if (agnesMode) {
     if (files.length > 0 && !extraBody.image) {
       extraBody.image = files.map(file => toDataUri(file))
@@ -180,38 +172,37 @@ function normalizeJsonValue(value: string): string | number | boolean {
   return value
 }
 
-function logRequest(options: ImageApiOptions, mode: string, files: ImageFile[], prompt: string, url: string) {
+function logRequest(options: ImageApiOptions, mode: string, url: string, body: Record<string, unknown>) {
   if (!options.log.enabled) return
-
-  const params: Record<string, unknown> = { ...options.apiParams }
-  const imageKey = Object.keys(params).find(key => params[key] === "{{inputimage}}")
-  if (imageKey) {
-    params[imageKey] = files.length > 0
-      ? files.map(file => `${file.mime}:${file.data.byteLength}B`).join(",")
-      : "无图片"
-  }
-  if (params.prompt === "{{prompt}}") {
-    params.prompt = prompt.substring(0, 100) + (prompt.length > 100 ? "..." : "")
-  }
-  if (params.n === "{{images_number}}") {
-    params.n = options.imagesNumber
-  }
-  delete params.type
-  if (options.agnesMode) {
-    const imageValue = imageKey ? params[imageKey] : `[${files.length}张base64]`
-    params.extra_body = {
-      ...(files.length > 0 ? { image: imageValue } : {}),
-      response_format: params.response_format || "b64_json",
-    }
-    if (imageKey) delete params[imageKey]
-    delete params.response_format
-  }
 
   options.log.info("API请求参数:", {
     url,
     mode,
-    ...params,
+    ...sanitizeRequestBody(body),
   })
+}
+
+// 日志脱敏：请求体里的 data URL 只保留 mime 和字节数
+function sanitizeRequestBody(value: Record<string, unknown>): Record<string, unknown> {
+  const result: Record<string, unknown> = {}
+  for (const [key, item] of Object.entries(value)) {
+    result[key] = sanitizeRequestBodyValue(item)
+  }
+  return result
+}
+
+function sanitizeRequestBodyValue(value: unknown): unknown {
+  if (typeof value === "string") return abbreviateDataUri(value)
+  if (Array.isArray(value)) return value.map(item => sanitizeRequestBodyValue(item))
+  if (value && typeof value === "object") return sanitizeRequestBody(value as Record<string, unknown>)
+  return value
+}
+
+function abbreviateDataUri(value: string): string {
+  const match = /^data:([^;]+);base64,(.*)$/s.exec(value)
+  if (!match) return value
+  const size = Buffer.from(match[2], "base64").byteLength
+  return `${match[1]}:${size}B`
 }
 
 // 日志脱敏：响应里的 base64 内容只保留占位符，避免刷屏
@@ -224,7 +215,11 @@ function sanitizeApiResponse(value: unknown): unknown {
   const result: Record<string, unknown> = {}
   for (const [key, item] of Object.entries(value)) {
     if ((key === "b64_json" || key === "image") && typeof item === "string") {
-      result[key] = item ? "[1张base64]" : item
+      result[key] = item ? `[base64 ${item.length} chars]` : item
+      continue
+    }
+    if (key === "url" && typeof item === "string") {
+      result[key] = abbreviateDataUri(item)
       continue
     }
     result[key] = sanitizeApiResponse(item)
