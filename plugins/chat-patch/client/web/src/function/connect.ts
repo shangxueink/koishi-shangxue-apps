@@ -1170,8 +1170,14 @@ async function sendPrivateSatoriMessage(
   active: ReturnType<typeof getActiveBot>,
 ) {
   // Satori 私聊流程：先由平台创建/返回私聊频道，再使用该频道 ID 发送
-  const direct = await request('user.channel.create', { user_id: userId, guild_id: guildId }, active)
-  const channelId = extractDirectChannelId(direct)
+  let channelId: string
+  try {
+    const direct = await request('user.channel.create', { user_id: userId, guild_id: guildId }, active)
+    channelId = extractDirectChannelId(direct)
+  } catch {
+    // 兼容未实现 createDirectChannel 的适配器，退回 private: 前缀私聊
+    channelId = /^(?:private|direct):/i.test(userId) ? userId : `private:${userId}`
+  }
   return request('message.create', { channel_id: channelId, content }, active)
 }
 
@@ -1194,8 +1200,12 @@ export async function sendForwardMessage(
       try {
         let finalChannelId = channelId
         if (type === 'user') {
-          const direct = await request('user.channel.create', { user_id: id }, { platform, selfId })
-          finalChannelId = extractDirectChannelId(direct)
+          try {
+            const direct = await request('user.channel.create', { user_id: id }, { platform, selfId })
+            finalChannelId = extractDirectChannelId(direct)
+          } catch {
+            finalChannelId = /^(?:private|direct):/i.test(id) ? id : `private:${id}`
+          }
         }
         const data = await request('message.create', { channel_id: finalChannelId, content }, { platform, selfId })
         return {
