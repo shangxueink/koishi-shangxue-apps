@@ -3,6 +3,7 @@ import { createHash, randomUUID } from 'node:crypto'
 
 import { Config } from './config'
 import { ChatDatabase } from './database'
+import { MediaManager } from './media'
 import { PluginLogger } from './logger'
 import { SelfMessageChannelType, SelfMessageRecord, SelfMessageSource } from './types'
 
@@ -210,6 +211,7 @@ export class SelfMessageRecorder {
     private ctx: Context,
     private config: Config,
     private database: ChatDatabase,
+    private media: MediaManager,
     private logger: PluginLogger,
   ) {}
 
@@ -336,6 +338,9 @@ export class SelfMessageRecorder {
       localId,
     )
     await this.database.upsertSelfMessage(record)
+    void this.media.cacheMessageMedia(content, channelId).catch((error) => {
+      this.logger.warn('缓存机器人消息媒体失败:', error)
+    })
     this.logger.logInfo('机器人消息已记录:', record.kind, record.channelId, record.messageId || record.id)
   }
 
@@ -376,6 +381,9 @@ export class SelfMessageRecorder {
       randomUUID(),
     )
     await this.database.upsertSelfMessage(record)
+    void this.media.cacheMessageMedia(session.content ?? '', channelId).catch((error) => {
+      this.logger.warn('缓存 send 事件媒体失败:', error)
+    })
   }
 
   private resolveI18nElement(attrs: Record<string, unknown>): string {
@@ -404,9 +412,7 @@ export class SelfMessageRecorder {
     mode: 'create' | 'send' | 'private',
     localId: string,
   ): SelfMessageRecord {
-    const normalizedChannelId = mode === 'private' && !isPrivateChannel(channelId)
-      ? `private:${channelId}`
-      : channelId
+    const normalizedChannelId = channelId
     const channelType: SelfMessageChannelType = mode === 'private' || isPrivateChannel(normalizedChannelId)
       ? 'user'
       : 'group'

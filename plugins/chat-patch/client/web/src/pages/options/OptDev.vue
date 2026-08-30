@@ -52,10 +52,23 @@
                     <span>{{ $t('将所有 WebUI 配置恢复为默认值') }}</span>
                 </div>
                 <button
-                    style="width: 100px; font-size: 0.8rem"
                     class="ss-button"
+                    style="width: 100px; font-size: 0.8rem; background: var(--color-red); border-color: var(--color-red); color: #fff"
                     @click="resetDefaults">
                     {{ $t('恢复') }}
+                </button>
+            </div>
+            <div class="opt-item">
+                <font-awesome-icon :icon="['fas', 'trash-can']" />
+                <div>
+                    <span>{{ $t('删除数据库全部缓存') }}</span>
+                    <span>{{ $t('清空媒体缓存、内容缓存和数据库历史记录') }}</span>
+                </div>
+                <button
+                    style="width: 100px; font-size: 0.8rem; background: var(--color-red); border-color: var(--color-red); color: #fff"
+                    class="ss-button"
+                    @click="deleteAllCache">
+                    {{ $t('全部删除') }}
                 </button>
             </div>
         </div>
@@ -77,7 +90,7 @@ import packageInfo from '../../../package.json'
         get,
         getRaw,
     } from '../../function/option'
-    import { Connector } from '../../function/connect'
+    import { clearAllCache, Connector } from '../../function/connect'
     import { PopInfo, PopType } from '../../function/base'
     import { isDebugMode } from '../../function/debug'
     import { dispatch } from '../../function/msg'
@@ -136,6 +149,36 @@ import packageInfo from '../../../package.json'
                             backend.call(undefined, 'win:relaunch', false)
                         } else {
                             location.reload()
+                        }
+                    },
+                },
+                {
+                    text: $t('取消'),
+                    master: true,
+                    fun: () => {
+                        uiStore.popBoxList.shift()
+                    },
+                },
+            ],
+        }
+        uiStore.popBoxList.push(popInfo)
+    }
+
+    function deleteAllCache() {
+        const popInfo = {
+            title: $t('删除数据库全部缓存'),
+            html: `<span>${$t('确认要删除全部缓存吗？删除后媒体图片、消息内容和数据库历史记录都会被清空。')}</span>`,
+            button: [
+                {
+                    text: $t('确认'),
+                    fun: async () => {
+                        uiStore.popBoxList.shift()
+                        const ok = await clearAllCache()
+                        if (ok) {
+                            new PopInfo().add(PopType.INFO, $t('缓存已全部删除'))
+                            location.reload()
+                        } else {
+                            new PopInfo().add(PopType.ERR, $t('删除缓存失败'))
                         }
                     },
                 },

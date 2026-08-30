@@ -762,7 +762,7 @@ export async function sendMsgRaw(
                         {
                             user_id: id.split('/')[0],
                             group_id: id.split('/')[1],
-                            channel_id: String(targetChannelId ?? chatStore.chatInfo.show.channel_id ?? `private:${String(id).split('/')[0]}`),
+                            channel_id: String(targetChannelId ?? chatStore.chatInfo.show.channel_id ?? String(id).split('/')[0]),
                             message: msg,
                         },
                         echo + '_uuid_' + msgUUID,
@@ -773,7 +773,7 @@ export async function sendMsgRaw(
                         'send_msg',
                         {
                             user_id: id,
-                            channel_id: String(targetChannelId ?? chatStore.chatInfo.show.channel_id ?? (/^(?:group|room|chat|channel|guild|private):/i.test(String(id)) ? String(id) : `private:${String(id)}`)),
+                            channel_id: String(targetChannelId ?? chatStore.chatInfo.show.channel_id ?? String(id)),
                             message: msg,
                         },
                         echo + '_uuid_' + msgUUID,
@@ -827,7 +827,7 @@ function normalizeBaseSessionMap() {
     const seen = new Map<string, UserFriendElem & UserGroupElem>()
     for (const [rawKey, item] of contactStore.baseOnMsgList) {
         const id = getSessionDedupKey(item)
-        if (id.endsWith(':0') || id.endsWith(':')) continue
+        if (id === '0' || id === '') continue
         const existing = seen.get(id)
         if (existing && existing !== item) {
             needNormalize = true
@@ -846,7 +846,7 @@ function normalizeBaseSessionMap() {
     const canonical = new Map<string, UserFriendElem & UserGroupElem>()
     contactStore.baseOnMsgList.forEach((item) => {
         const id = getSessionDedupKey(item)
-        if (id === 'group:0' || id === 'group:' || id === 'user:0' || id === 'user:') return
+        if (id === '0' || id === '') return
         const existing = canonical.get(id)
         if (existing && existing !== item) {
             canonical.set(id, mergeSessionState(existing, item))
@@ -869,7 +869,7 @@ function getSessionList() {
 
     const addSession = (item: UserFriendElem & UserGroupElem) => {
         const id = getSessionDedupKey(item)
-        if (id === 'group:0' || id === 'group:' || id === 'user:0' || id === 'user:') return
+        if (id === '0' || id === '') return
         const existing = sessionMap.get(id)
         if (existing && existing !== item) {
             sessionMap.set(id, mergeSessionState(existing, item))

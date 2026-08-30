@@ -53,11 +53,6 @@ function encodeKeyPart(value: unknown): string {
     return encodeURIComponent(String(value ?? ''))
 }
 
-function ensureChannelPrefix(channelId: string, prefix: string): string {
-    if (/^(?:group|room|chat|channel|guild|private):/i.test(channelId)) return channelId
-    return `${prefix}:${channelId}`
-}
-
 /**
  * 滚动到目标消息（不自动加载）
  * @param seqName DOM 名（chat-xx）
@@ -141,9 +136,7 @@ export async function loadHistory(info: BaseChatInfoElem) {
         }
     }
     const rawChannelId = String(info.channel_id ?? '')
-    const channelId = info.type === 'group'
-        ? ensureChannelPrefix(rawChannelId || String(info.id), 'group')
-        : ensureChannelPrefix(rawChannelId || String(info.id), 'private')
+    const channelId = String(rawChannelId || info.id)
     try {
         const cachedMessages = await loadChatHistoryFromCache({
             platform: String(authStore.loginInfo.platform ?? ''),

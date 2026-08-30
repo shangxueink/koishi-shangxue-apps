@@ -21,9 +21,7 @@ function getString(value: unknown): string {
 }
 
 function normalizeGroupId(value: string): string {
-  const raw = value.replace(/^(?:group|room|chat|channel|guild):/i, '').trim()
-  const wrapped = raw.match(/^\[_?([\s\S]+?)_?\]$/)
-  return wrapped ? wrapped[1] : raw || value
+  return String(value)
 }
 
 function isDirectChannelType(channel: SatoriObject): boolean {
@@ -449,7 +447,7 @@ export function satoriEventToOneBot(
   if (type === 'message' || type === 'message-created' || type === 'send') {
     const isGroup = isGroupChannel(channel, guild)
     const userId = getString(user.id)
-      || (isGroup ? '' : getString(channel.id).replace(/^private:/, ''))
+      || (isGroup ? '' : getString(channel.id))
     const groupId = isGroup
       ? normalizeGroupId(getString(guild.id)) || normalizeGroupId(getString(channel.id))
       : ''
@@ -470,7 +468,7 @@ export function satoriEventToOneBot(
       group_avatar: isGroup
         ? (usableAvatar(guild.avatar) || usableAvatar(channel.avatar) || buildQqGroupAvatar(platform, groupId) || undefined)
         : undefined,
-      channel_id: getString(channel.id) || (isGroup ? groupId : `private:${userId}`),
+      channel_id: getString(channel.id) || (isGroup ? groupId : userId),
       guild_id: getString(guild.id),
       target_id: selfId,
       message: messageSegments(message),
@@ -486,7 +484,7 @@ export function satoriEventToOneBot(
         message_id: getString(message.id),
         private_id: isGroup ? '' : directChannelId,
         group_id: groupId,
-        channel_id: getString(channel.id) || (isGroup ? groupId : `private:${userId}`),
+        channel_id: getString(channel.id) || (isGroup ? groupId : userId),
         guild_id: getString(guild.id),
         target_id: selfId,
         sender: userId,
@@ -637,9 +635,7 @@ export function mapAction(action: string, params: Record<string, unknown>): {
   const guildId = getString(params.group_id) || getString(params.guild_id)
   const userId = getString(params.user_id)
   const messageId = getString(params.message_id)
-  const directChannel = userId && !/^(?:group|room|chat|channel|guild|private):/i.test(userId)
-    ? `private:${userId}`
-    : userId
+  const directChannel = userId
   const channelId = getString(params.channel_id) || guildId || directChannel || userId
   const content = Array.isArray(params.message)
     ? serializeSatoriContent(params.message)
@@ -696,7 +692,7 @@ function messageListFromResponse(data: unknown): unknown[] {
       ? normalizeGroupId(getString(guild.id)) || normalizeGroupId(getString(channel.id))
       : ''
     const userId = getString(user.id)
-      || (isGroup ? '' : getString(channel.id).replace(/^private:/, ''))
+      || (isGroup ? '' : getString(channel.id))
     const directChannelId = isGroup ? groupId : userId
     return {
       message_id: getString(message.id),
@@ -709,7 +705,7 @@ function messageListFromResponse(data: unknown): unknown[] {
       channel_type: channel.type,
       group_id: groupId,
       user_id: groupId ? userId : directChannelId,
-      channel_id: getString(channel.id) || (isGroup ? groupId : `private:${userId}`),
+      channel_id: getString(channel.id) || (isGroup ? groupId : userId),
       guild_id: getString(guild.id),
       sender: {
         user_id: userId,

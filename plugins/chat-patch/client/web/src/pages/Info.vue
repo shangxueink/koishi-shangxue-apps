@@ -246,7 +246,7 @@ function userChannelId(): string {
         || props.chat.show.channelId
         || props.chat.info.user_info.channel_id
         || props.chat.info.user_info.channelId
-        || `private:${props.chat.show.id}`,
+        || String(props.chat.show.id),
     )
 }
 
@@ -256,7 +256,7 @@ function groupChannelId(): string {
         || props.chat.show.channelId
         || props.chat.info.group_info.channel_id
         || props.chat.info.group_info.channelId
-        || `group:${props.chat.show.id}`,
+        || String(props.chat.show.id),
     )
 }
 

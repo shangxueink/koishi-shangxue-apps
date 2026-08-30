@@ -27,6 +27,82 @@ function toLocalFilePath(value: string): string | null {
   return null
 }
 
+const MEDIA_TYPES = new Set([
+  'img',
+  'image',
+  'face',
+  'mface',
+  'audio',
+  'record',
+  'video',
+  'file',
+])
+
+function isCacheableMediaUrl(value: unknown): string {
+  const url = String(value ?? '').trim()
+  if (!url
+    || url.startsWith('data:')
+    || url.startsWith('blob:')
+    || url.startsWith('base64://')) return ''
+  return url
+}
+
+function isUrlLike(value: string): boolean {
+  return /^(?:https?:\/\/|file:\/\/|[a-z]:[\\/]|\\\\)/i.test(value)
+}
+
+function decodeMarkupValue(value: string): string {
+  return value
+    .replace(/&amp;/g, '&')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+}
+
+function collectMarkupMediaUrls(markup: string, result: Set<string>) {
+  const pattern = /<(?:img|image|face|mface|audio|record|video|file)\b[^>]*?\b(?:src|url|file|href)\s*=\s*(["'])([\s\S]*?)\1/gi
+  let match: RegExpExecArray | null
+  while ((match = pattern.exec(markup)) !== null) {
+    const url = isCacheableMediaUrl(decodeMarkupValue(match[2]))
+    if (url) result.add(url)
+  }
+}
+
+function collectMediaUrls(source: unknown, result: Set<string>) {
+  if (typeof source === 'string') {
+    const direct = isCacheableMediaUrl(source)
+    if (direct && isUrlLike(direct)) result.add(direct)
+    collectMarkupMediaUrls(source, result)
+    try {
+      collectMediaUrls(JSON.parse(source) as unknown, result)
+    } catch {
+      // 普通文本或非 JSON markup 不需要二次解析
+    }
+    return
+  }
+  if (Array.isArray(source)) {
+    for (const item of source) collectMediaUrls(item, result)
+    return
+  }
+  if (typeof source !== 'object' || source === null) return
+
+  const record = source as Record<string, unknown>
+  const attrs = typeof record.attrs === 'object' && record.attrs !== null
+    ? record.attrs as Record<string, unknown>
+    : {}
+  if (MEDIA_TYPES.has(String(record.type ?? ''))) {
+    for (const key of ['src', 'url', 'file', 'href', 'path']) {
+      const url = isCacheableMediaUrl(attrs[key])
+      if (url) result.add(url)
+    }
+  }
+
+  for (const key of ['elements', 'children', 'content', 'data', 'html', 'message'] as const) {
+    collectMediaUrls(attrs[key] ?? record[key], result)
+  }
+}
+
 export class MediaManager {
   private mediaDir: string
   private uploadDir: string
@@ -109,6 +185,16 @@ export class MediaManager {
     this.cleanupTimer?.()
   }
 
+  async clearAll() {
+    const root = path.resolve(this.ctx.baseDir, 'data', 'chat-patch')
+    for (const dir of [this.mediaDir, this.uploadDir]) {
+      const resolved = path.resolve(dir)
+      if (resolved !== root && !resolved.startsWith(`${root}${path.sep}`)) continue
+      await fs.rm(resolved, { recursive: true, force: true })
+    }
+    this.logger.logInfo('媒体缓存目录已全部清空')
+  }
+
   async cacheUrl(url: string, channelId = ''): Promise<string | null> {
     try {
       const filePath = await this.resolveAndDownload(url, channelId)
@@ -120,6 +206,17 @@ export class MediaManager {
       this.logger.warn('媒体缓存失败:', url, error)
       return null
     }
+  }
+
+  // 收到或发送消息时立即预缓存富媒体，避免等前端渲染时原 URL 已过期
+  async cacheMessageMedia(source: unknown, channelId = ''): Promise<string[]> {
+    const urls = new Set<string>()
+    collectMediaUrls(source, urls)
+    await Promise.allSettled([...urls].map((url) => this.cacheUrl(url, channelId)))
+    if (urls.size) {
+      this.logger.logInfo('消息媒体已预缓存:', urls.size, '个 URL')
+    }
+    return [...urls]
   }
 
   private async resolveAndDownload(url: string, channelId: string): Promise<string | null> {

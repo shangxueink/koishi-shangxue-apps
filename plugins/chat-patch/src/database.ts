@@ -80,6 +80,10 @@ function isUsableGroupContact(item: ContactCacheItem): boolean {
   return true
 }
 
+type CompactableLevel = Level<string, string> & {
+  compactRange(start: string, end: string): Promise<void>
+}
+
 export class ChatDatabase {
   private db: Level<string, string>
   private opened = false
@@ -104,6 +108,14 @@ export class ChatDatabase {
     await this.db.close()
     this.opened = false
     this.logger.logInfo('LevelDB closed')
+  }
+
+  async clearAll() {
+    // 先清空记录，再强制压缩，让旧 .ldb 文件也能被回收
+    await this.db.clear()
+    const db = this.db as unknown as CompactableLevel
+    await db.compactRange('', '\uffff')
+    this.logger.logInfo('数据库缓存已全部清空并完成压缩')
   }
 
   async appendMessage(record: MessageRecord) {

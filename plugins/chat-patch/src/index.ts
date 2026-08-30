@@ -49,21 +49,21 @@ export async function apply(ctx: Context, config: Config) {
   const recorder = new Recorder(ctx, config, database, media, contactCache, pluginLogger)
   recorder.start()
 
-  const selfMessages = new SelfMessageRecorder(ctx, config, database, pluginLogger)
+  const selfMessages = new SelfMessageRecorder(ctx, config, database, media, pluginLogger)
   selfMessages.start()
 
   registerBootstrap(ctx, config, database, pluginLogger)
-  registerWeb(ctx, config, database, contactCache, pluginLogger)
+  registerWeb(ctx, config, database, contactCache, media, pluginLogger)
 
   ctx.console.addEntry({
     dev: path.resolve(__dirname, '../client/index.ts'),
     prod: path.resolve(__dirname, '../dist'),
   })
 
-  ctx.on('dispose', () => {
+  ctx.on('dispose', async () => {
     selfMessages.dispose()
     media.dispose()
-    void database.dispose()
+    await database.dispose()
     pluginLogger.logInfo('chat-patch 已卸载')
   })
 }

@@ -13,9 +13,7 @@ function isUsableName(value: string, id: string): boolean {
 }
 
 function normalizeGroupId(value: string): string {
-  const raw = value.replace(/^(?:group|room|chat|channel|guild):/i, '').trim()
-  const wrapped = raw.match(/^\[_?([\s\S]+?)_?\]$/)
-  return wrapped ? wrapped[1] : raw || value
+  return String(value)
 }
 
 function isPrivateChannelType(value: unknown): boolean {

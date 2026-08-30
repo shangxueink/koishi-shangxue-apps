@@ -121,7 +121,6 @@ function getString(value: unknown): string {
 }
 
 function normalizeChannelForMatch(value: string): string {
-    if (/^(?:private|direct):/i.test(value)) return value.replace(/^(?:private|direct):/i, '')
     return normalizeGroupId(value)
 }
 
@@ -1699,8 +1698,9 @@ function saveUser(msg: { [key: string]: any }, type: string) {
             const channel = String(item.channel_id ?? item.channelId ?? '')
             const group = String(item.group_id ?? '')
             const user = String(item.user_id ?? '')
-            if (group) return `group:${normalizeGroupId(channel || group)}`
-            return `user:${String(user).replace(/^(?:private|direct):/i, '')}`
+            if (channel) return normalizeSessionId(channel)
+            if (group) return normalizeSessionId(group)
+            return normalizeSessionId(user)
         }
         const existingIds = new Set(contactStore.userList.map(sessionDedupKey))
         const freshList = list.filter((item) => {

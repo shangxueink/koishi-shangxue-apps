@@ -504,7 +504,7 @@ async function fetchUserIdentity(
     const guildId = getString(msg.guild_id) || getString(msg.group_id)
     const isPrivate = isPrivateMessage(msg)
     const channelId = isPrivate
-      ? (getString(msg.channel_id) || `private:${userId}`)
+      ? (getString(msg.channel_id) || userId)
       : ''
     const sender = getObject(msg.sender)
     const senderName = getString(sender.nickname) || getString(sender.card) || getString(sender.name)
@@ -558,7 +558,8 @@ function recordBotMessage(platform: string, selfId: string, msg: Record<string, 
   const sessionId = String(
     msg.group_id
       || msg.user_id
-      || (isGroup ? '' : channelId.replace(/^private:/, '')),
+      || channelId
+      || '',
   )
   if (!sessionId || sessionId === '0') {
     identityDebug('recordBotMessage: skipped invalid session', { sessionId, msg })
@@ -571,7 +572,8 @@ function recordBotMessage(platform: string, selfId: string, msg: Record<string, 
   const senderId = String(
     sender.user_id
       || msg.user_id
-      || (isGroup ? '' : channelId.replace(/^private:/, '')),
+      || channelId
+      || '',
   )
   const raw = getMsgRawTxt(msg) || (typeof msg.raw_message === 'string' ? msg.raw_message : '')
   const senderName = String(sender.card || sender.nickname || (isGroup ? senderId : ''))
@@ -617,8 +619,7 @@ function recordBotMessage(platform: string, selfId: string, msg: Record<string, 
       if (isGroup) {
         return normalizeGroupId(itemChannelId) === normalizeGroupId(channelId || sessionId)
       }
-      return itemChannelId.replace(/^(?:private|direct):/i, '')
-        === String(sessionId).replace(/^(?:private|direct):/i, '')
+      return itemChannelId === String(sessionId)
     }
     return isGroup
       ? String(item.group_id) === sessionId
@@ -818,23 +819,23 @@ export function restoreBotStateFromMessageCache(platform: string, selfId: string
   const baseMap = new Map<string, UserFriendElem & UserGroupElem>()
   for (const [, value] of state.baseList) {
     const id = getSessionDedupKey(value)
-    if (!id.endsWith(':0') && !id.endsWith(':')) baseMap.set(id, value)
+    if (id !== '0' && id !== '') baseMap.set(id, value)
   }
   const baseList = [...baseMap.entries()]
   const baseKeys = new Set(baseList.map(([key]) => key))
   const existing = new Set(
     state.onMsgList.map((item) => {
       const id = getSessionDedupKey(item)
-      return !id.endsWith(':0') && !id.endsWith(':') ? id : ''
+      return id !== '0' && id !== '' ? id : ''
     }).filter(Boolean),
   )
   for (const session of sessions) {
     const id = getSessionDedupKey(session)
-    if (!id.endsWith(':0') && !id.endsWith(':') && !existing.has(id)) {
+    if (id !== '0' && id !== '' && !existing.has(id)) {
       state.onMsgList.unshift(session)
       existing.add(id)
     }
-    if (!id.endsWith(':0') && !id.endsWith(':') && !baseKeys.has(id)) {
+    if (id !== '0' && id !== '' && !baseKeys.has(id)) {
       baseList.push([normalizeSessionId(String(session.channel_id || session.channelId || session.user_id || session.group_id || '')), session])
       baseKeys.add(id)
     }
@@ -977,9 +978,7 @@ function contactId(item: unknown): string {
 }
 
 function normalizeGroupId(value: string): string {
-  const raw = value.replace(/^(?:group|room|chat|channel|guild):/i, '').trim()
-  const wrapped = raw.match(/^\[_?([\s\S]+?)_?\]$/)
-  return wrapped ? wrapped[1] : raw || value
+  return String(value)
 }
 
 function contactName(item: unknown): string {
@@ -1150,15 +1149,8 @@ export async function sendForwardMessage(
   }
   // 优先走 Satori 原生合并转发，避免依赖 onebot 专属的 send-forward API
   if (platform) {
-    const channelId = type === 'group'
-      ? /^(?:group|room|chat|channel|guild):/i.test(id)
-        ? id
-        : platform === 'yunhu'
-          ? `group:${id}`
-          : id
-      : /^(?:private|direct):/i.test(id)
-        ? id
-        : `private:${id}`
+    // Satori 的 ID 是完整 string，调用方传什么就原样发什么
+    const channelId = id
     const content = buildForwardMessage(messages)
     if (content) {
       try {
@@ -1284,7 +1276,7 @@ function selfMessageToOneBot(record: unknown): Record<string, unknown> | null {
   if (message.length === 0) return null
 
   const groupId = channelType === 'group' ? normalizeGroupId(channelId) : ''
-  const userId = channelType === 'user' ? channelId.replace(/^(?:private|direct):/i, '') : ''
+  const userId = channelType === 'user' ? channelId : ''
   const guildId = getString(obj.guildId)
   const fallbackId = messageId || `self-${localId}`
   const rawMessage = getString(obj.content) || getMsgRawTxt({ message })
@@ -1322,6 +1314,18 @@ function selfMessageToOneBot(record: unknown): Record<string, unknown> | null {
     _from_self_cache: true,
   }
   return msg
+}
+
+export async function clearAllCache(): Promise<boolean> {
+  try {
+    const info = await getBootstrap()
+    const response = await fetch(`${location.origin}${info.basePath}/api/clear-all`, {
+      method: 'POST',
+    })
+    return response.ok
+  } catch {
+    return false
+  }
 }
 
 export async function loadChatHistoryFromCache(params: {

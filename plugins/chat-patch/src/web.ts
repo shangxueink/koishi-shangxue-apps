@@ -11,6 +11,7 @@ import FileType from 'file-type'
 import { Config } from './config'
 import { ContactCacheService } from './cache'
 import { ChatDatabase } from './database'
+import { MediaManager } from './media'
 import { PluginLogger } from './logger'
 import { ContactCacheItem, SelfMessagePayload, SelfMessageRecord } from './types'
 
@@ -32,6 +33,7 @@ export function registerWeb(
   config: Config,
   database: ChatDatabase,
   contactCache: ContactCacheService,
+  media: MediaManager,
   logger: PluginLogger,
 ) {
   const webRoot = path.resolve(__dirname, '..', 'client', 'web', 'dist')
@@ -97,23 +99,11 @@ export function registerWeb(
   }
 
   const normalizeGroupId = (value: string): string => {
-    const raw = value.replace(/^(?:group|room|chat|channel|guild):/i, '').trim()
-    const wrapped = raw.match(/^\[_?([\s\S]+?)_?\]$/)
-    return wrapped ? wrapped[1] : raw || value
+    return String(value)
   }
 
   const historyChannelCandidates = (channelId: string): string[] => {
-    const raw = normalizeGroupId(channelId)
-    const candidates = [channelId]
-    if (raw && raw !== channelId) candidates.push(raw)
-    const id = raw || channelId
-    if (!/^(?:group|room|chat|channel|guild|private):/i.test(channelId)) {
-      candidates.push(`group:${id}`, `private:${id}`)
-    }
-    if (id) {
-      candidates.push(` [_${id}_] `, `_${id}_`, `[${id}]`, `group:${id}`)
-    }
-    return [...new Set(candidates)]
+    return channelId ? [channelId] : []
   }
 
   const mimeToExt: Record<string, string> = {
@@ -671,6 +661,18 @@ export function registerWeb(
     }
     koa.body = {
       contacts: await database.getContacts(platform, selfId, normalizedType),
+    }
+  })
+
+  ctx.server.post(`${config.basePath}/api/clear-all`, async (koa) => {
+    try {
+      await database.clearAll()
+      await media.clearAll()
+      koa.body = { ok: true }
+    } catch (error) {
+      logger.warn('清空全部缓存失败:', error)
+      koa.status = 500
+      koa.body = { ok: false, error: String(error) }
     }
   })
 

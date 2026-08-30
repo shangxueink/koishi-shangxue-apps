@@ -184,7 +184,7 @@
     import { reloadUsers } from '../function/utils/appUtil'
     import { Connector, flushPendingBotEvents, loadContactsFromCache, login as loginInfo } from '../function/connect'
     import { botKey, getActiveBot, getLogins, setActiveBot } from '../function/satori'
-    import { normalizeGroupId, normalizeSessionId } from '../function/utils/sessionUtil'
+    import { normalizeSessionId } from '../function/utils/sessionUtil'
     import { avatarError } from '../function/utils/avatarUtil'
     import { backend } from '../runtime/backend'
     import { matchPinyin } from '../function/utils/pinyin'
@@ -253,9 +253,7 @@
                     || '',
                 )
                 const groupId = String(item.group_id || '')
-                const id = groupId
-                    ? `group:${normalizeGroupId(rawId || groupId)}`
-                    : `user:${rawId.replace(/^(?:private|direct):/i, '')}`
+                const id = `${groupId ? 'group' : 'user'}|${String(rawId || groupId || item.user_id || '')}`
                 const key = [bot?.platform ?? '', bot?.selfId ?? '', id]
                     .map((value) => encodeURIComponent(String(value)))
                     .join(':')

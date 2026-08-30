@@ -1,9 +1,7 @@
 import type { Session } from '../elements/information'
 
 export function normalizeGroupId(value: string): string {
-  const raw = value.replace(/^(?:group|room|chat|channel|guild):/i, '').trim()
-  const wrapped = raw.match(/^\[_?([\s\S]+?)_?\]$/)
-  return wrapped ? wrapped[1] : raw || value
+  return String(value)
 }
 
 export function normalizeSessionId(value: number | string): string {
@@ -27,12 +25,6 @@ export function getSessionAliases(item: Session): string[] {
         getSessionId(item),
         getLegacySessionId(item),
     ]
-    if (item.group_id !== undefined && item.group_id !== null) {
-        rawAliases.push(normalizeGroupId(String(item.group_id)))
-    }
-    if (item.user_id !== undefined && item.user_id !== null) {
-        rawAliases.push(String(item.user_id).replace(/^(?:private|direct):/i, ''))
-    }
     const aliases = rawAliases.filter((value): value is number | string => {
         const text = String(value ?? '')
         return text !== '' && text !== '0'
@@ -44,11 +36,10 @@ export function getSessionDedupKey(item: Session): string {
     const channelId = String(item.channel_id ?? item.channelId ?? '')
     const groupId = String(item.group_id ?? '')
     const userId = String(item.user_id ?? '')
-    if (groupId) return `group:${normalizeGroupId(channelId || groupId)}`
-    if (userId) return `user:${userId.replace(/^(?:private|direct):/i, '')}`
-    return /^(?:private|direct):/i.test(channelId)
-        ? `user:${channelId.replace(/^(?:private|direct):/i, '')}`
-        : `group:${normalizeGroupId(channelId)}`
+    if (channelId) return normalizeSessionId(channelId)
+    if (groupId) return normalizeSessionId(groupId)
+    if (userId) return normalizeSessionId(userId)
+    return ''
 }
 
 export function setSessionContact(
@@ -67,10 +58,6 @@ export function findSessionContact(
     const target = normalizeSessionId(sessionId)
     return contacts.find((item) => {
         return getSessionAliases(item).some((alias) => alias === target)
-            || (
-                Boolean(item.group_id) &&
-                normalizeGroupId(String(item.group_id)) === normalizeGroupId(target)
-            )
     })
 }
 

@@ -10,9 +10,7 @@ import { PluginLogger } from './logger'
 const MESSAGE_TYPES = new Set(['message', 'message-created'])
 
 function normalizeGroupId(value: string): string {
-  const raw = value.replace(/^(?:group|room|chat|channel|guild):/i, '').trim()
-  const wrapped = raw.match(/^\[_?([\s\S]+?)_?\]$/)
-  return wrapped ? wrapped[1] : raw || value
+  return String(value)
 }
 
 export class Recorder {
@@ -151,25 +149,11 @@ export class Recorder {
   }
 
   private async cacheMessageMedia(event: ReturnType<Session['toJSON']>) {
-    const elements = Array.isArray(event.message?.elements) ? event.message.elements : []
     const channelId = String(
       event.channel?.id
       || event.guild?.id
       || '',
     )
-    const urls: string[] = []
-    const collect = (list: unknown[]) => {
-      for (const raw of list) {
-        const element = typeof raw === 'object' && raw !== null ? raw as Record<string, unknown> : {}
-        const attrs = typeof element.attrs === 'object' && element.attrs !== null ? element.attrs as Record<string, unknown> : {}
-        if (['img', 'image', 'mface', 'audio', 'video', 'file'].includes(String(element.type))) {
-          const url = String(attrs.src ?? attrs.url ?? attrs.file ?? '')
-          if (url) urls.push(url)
-        }
-        if (Array.isArray(element.children)) collect(element.children)
-      }
-    }
-    collect(elements)
-    await Promise.allSettled(urls.map((url) => this.media.cacheUrl(url, channelId)))
+    await this.media.cacheMessageMedia(event.message, channelId)
   }
 }

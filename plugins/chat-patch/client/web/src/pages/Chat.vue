@@ -740,11 +740,6 @@ const chatImg = ref<any>(undefined)
 const trueLang = getTrueLang()
 let selfRefreshTimer: number | null = null
 
-function ensureChannelPrefix(channelId: string, prefix: string): string {
-    if (/^(?:group|room|chat|channel|guild|private):/i.test(channelId)) return channelId
-    return `${prefix}:${channelId}`
-}
-
 function messageLocalTimeMs(item: any): number {
     const local = Number(item?.local_time ?? item?.timestamp_ms ?? item?.time_ms ?? 0)
     if (local) return local
@@ -756,8 +751,8 @@ async function refreshSelfHistory() {
     const id = chat.show.id
     if (!id || id === 0 || details.value[3].open || tags.value.showForwardPan) return
     const channelId = chat.show.type === 'group'
-        ? ensureChannelPrefix(String(chat.show.channel_id ?? id), 'group')
-        : ensureChannelPrefix(String(chat.show.channel_id ?? id), 'private')
+        ? String(chat.show.channel_id ?? id)
+        : String(chat.show.channel_id ?? id)
     let cached: Record<string, unknown>[] = []
     try {
         cached = await loadChatHistoryFromCache({
@@ -1255,8 +1250,8 @@ async function loadMoreHistory() {
         const id = chatStore.chatInfo.show.id
         const rawChannelId = String(chatStore.chatInfo.show.channel_id ?? '')
         const channelId = type === 'group'
-            ? ensureChannelPrefix(rawChannelId || String(id), 'group')
-            : ensureChannelPrefix(rawChannelId || String(id), 'private')
+            ? String(rawChannelId || id)
+            : String(rawChannelId || id)
         const cached = await loadChatHistoryFromCache({
             platform: String(authStore.loginInfo.platform ?? ''),
             selfId: String(authStore.loginInfo.uin ?? ''),
@@ -2072,11 +2067,7 @@ function forwardMsg(data: UserFriendElem & UserGroupElem) {
                                     scrollToMsg('chat-' + sentMsg.message_id, true)
                                 })
                             }
-                            const sentChannelId = targetType === 'group'
-                                ? (targetChannelId || targetId)
-                                : /^(?:private|direct):/i.test(targetChannelId || '')
-                                  ? targetChannelId
-                                  : `private:${targetId}`
+                            const sentChannelId = targetChannelId || targetId
                             if (result.native && !result.messageId) {
                                 // 原生路径已经由后端 before-send/发送拦截写入，缺少消息 id 时不再重复写入
                             } else {
