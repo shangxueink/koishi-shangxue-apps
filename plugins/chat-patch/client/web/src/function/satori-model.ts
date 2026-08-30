@@ -234,6 +234,13 @@ function containsElementMarkup(source: string): boolean {
   return /<(img|image|audio|video|file|mface|face|quote|at|forward|json|xml|markdown|keyboard|p|br|i18n|a|text|sharp)(?:\s|\/|>)/i.test(source)
 }
 
+// QQ 官方机器人会把部分大表情/图片消息的私有标记塞进 content，渲染前需要去掉
+function cleanQqFaceMarkup(source: string): string {
+  return source
+    .replace(/<faceType\b[^>]*>/gi, '')
+    .replace(/&lt;faceType\b[^>]*&gt;/gi, '')
+}
+
 function splitMarkupTextSegments(
   segments: Array<Record<string, unknown>>,
 ): Array<Record<string, unknown>> {
@@ -250,6 +257,7 @@ function splitMarkupTextSegments(
 }
 
 export function parseSatoriMarkup(source: string): Array<Record<string, unknown>> {
+  source = cleanQqFaceMarkup(source)
   const result: Array<Record<string, unknown>> = []
   let index = 0
   while (index < source.length) {

@@ -56,17 +56,17 @@
                         @click="userClick(item, $event)" />
                 </div>
                 <template v-else>
-                    <div v-for="bot in satoriLogins" :key="'bot-' + bot.selfId"
-                        :class="['robot-accordion', { expanded: bot.selfId === activeBotId }]">
+                    <div v-for="bot in satoriLogins" :key="'bot-' + botKey(bot.platform, bot.selfId)"
+                        :class="['robot-accordion', { expanded: botKey(bot.platform, bot.selfId) === activeBotId }]">
                         <div class="robot-accordion-header" @click="toggleRobot(bot)">
-                            <img :src="bot.avatar || '/img/icons/icon.svg'" :alt="bot.name" @error="avatarError">
+                            <img data-avatar :src="bot.avatar || '/img/icons/icon.svg'" :alt="bot.name" @error="avatarError">
                             <div>
                                 <span :title="bot.name">{{ bot.name }}</span>
                                 <small>{{ bot.platform }}</small>
                             </div>
-                            <font-awesome-icon :icon="['fas', bot.selfId === activeBotId ? 'angle-up' : 'angle-down']" />
+                            <font-awesome-icon :icon="['fas', botKey(bot.platform, bot.selfId) === activeBotId ? 'angle-up' : 'angle-down']" />
                         </div>
-                        <div v-if="bot.selfId === activeBotId" class="robot-accordion-content">
+                        <div v-if="botKey(bot.platform, bot.selfId) === activeBotId" class="robot-accordion-content">
                             <div v-if="!contactStore.friendLoading && contactStore.userList.length === 0"
                                 class="empty-state">
                                 {{ $t('空') }}
@@ -183,7 +183,7 @@
 
     import { reloadUsers } from '../function/utils/appUtil'
     import { Connector, flushPendingBotEvents, loadContactsFromCache, login as loginInfo } from '../function/connect'
-    import { getActiveBot, getLogins, setActiveBot } from '../function/satori'
+    import { botKey, getActiveBot, getLogins, setActiveBot } from '../function/satori'
     import { normalizeGroupId, normalizeSessionId } from '../function/utils/sessionUtil'
     import { avatarError } from '../function/utils/avatarUtil'
     import { backend } from '../runtime/backend'
@@ -220,7 +220,12 @@
     const searchInfo = ref('')
     const classStatus = ref<{ [key: string]: boolean }>({})
     const satoriLogins = ref<Array<{ platform: string; selfId: string; name: string; avatar?: string; status?: number; features?: string[] }>>(getLogins())
-    const activeBotId = ref(getActiveBot()?.selfId ?? loginInfo.selectedSatoriBot ?? '')
+    const active = getActiveBot()
+    const activeBotId = ref(
+        active?.platform && active.selfId
+            ? botKey(active.platform, active.selfId)
+            : loginInfo.selectedSatoriBot ?? '',
+    )
 
     watch(() => loginInfo.satoriLogins, (list) => {
         satoriLogins.value = list ?? []
@@ -230,7 +235,7 @@
     }, { immediate: true })
 
     const currentBotName = computed(() => {
-        return satoriLogins.value.find((item) => item.selfId === activeBotId.value)?.name ?? ''
+        return satoriLogins.value.find((item) => botKey(item.platform, item.selfId) === activeBotId.value)?.name ?? ''
     })
 
     const allContacts = computed<ContactWithBot[]>(() => {
@@ -257,10 +262,10 @@
                 map.set(key, { ...item, _bot: bot })
             }
         }
-        const currentBot = satoriLogins.value.find((item) => item.selfId === activeBotId.value)
+        const currentBot = satoriLogins.value.find((item) => botKey(item.platform, item.selfId) === activeBotId.value)
         addContacts(contactStore.userList, currentBot)
-        for (const [selfId, state] of contactStore.botStates) {
-            const bot = satoriLogins.value.find((item) => item.selfId === selfId)
+        for (const [stateKey, state] of contactStore.botStates) {
+            const bot = satoriLogins.value.find((item) => botKey(item.platform, item.selfId) === stateKey)
             addContacts(state.userList, bot)
         }
         return [...map.values()]
@@ -284,9 +289,10 @@
     }
 
     function selectRobot(bot: { platform: string; selfId: string; name: string; avatar?: string; features?: string[] }) {
-        if (bot.selfId === activeBotId.value) return
+        const key = botKey(bot.platform, bot.selfId)
+        if (key === activeBotId.value) return
         snapshotCurrentBot()
-        activeBotId.value = bot.selfId
+        activeBotId.value = key
         setActiveBot(bot.platform, bot.selfId)
         loginInfo.uin = bot.selfId
         loginInfo.nickname = bot.name
@@ -299,9 +305,9 @@
             platform: bot.platform,
             avatar: bot.avatar,
             satoriLogins: satoriLogins.value,
-            selectedSatoriBot: bot.selfId,
+            selectedSatoriBot: key,
         }
-        const saved = contactStore.botStates.get(bot.selfId)
+        const saved = contactStore.botStates.get(key)
         if (saved) {
             contactStore.userList = saved.userList
             contactStore.baseOnMsgList.clear()
@@ -339,7 +345,7 @@
     }
 
     function toggleRobot(bot: { platform: string; selfId: string; name: string; avatar?: string; features?: string[] }) {
-        if (activeBotId.value === bot.selfId) {
+        if (activeBotId.value === botKey(bot.platform, bot.selfId)) {
             backToRobots()
         } else {
             selectRobot(bot)
@@ -395,7 +401,7 @@
     }
 
     function userClick(data: ContactWithBot, event: Event) {
-        if (data._bot && data._bot.selfId !== activeBotId.value) {
+        if (data._bot && botKey(data._bot.platform, data._bot.selfId) !== activeBotId.value) {
             selectRobot(data._bot)
         }
         const sender = event.currentTarget as HTMLDivElement

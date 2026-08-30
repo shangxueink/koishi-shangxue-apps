@@ -4,7 +4,7 @@
             <span>{{ updated ? $t('更新记录') : $t('新版本') }}</span>
             <a>{{ version }}</a>
             <div class="title">
-                <img :src="user?.avatar || ''">
+                <img data-avatar :src="user?.avatar || ''">
                 <a :href="user?.url || ''">{{ user?.name || '' }}</a>
                 <span>
                     {{
@@ -37,7 +37,7 @@
                 <div class="release-header">
                     <a class="release-version">{{ release.version }} - {{ release.info.title.replace('Release', '') }}</a>
                     <div class="release-meta">
-                        <img :src="release.user.avatar">
+                        <img data-avatar :src="release.user.avatar">
                         <a :href="release.user.url" target="_blank">{{ release.user.name }}</a>
                         <span>
                             {{

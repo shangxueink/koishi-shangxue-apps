@@ -5,6 +5,10 @@ export interface SatoriBootstrap {
   endpoint: string
   token: string
   basePath: string
+  blockedPlatforms: Array<{
+    platformName: string
+    exactMatch: boolean
+  }>
 }
 
 export interface MessageRecord {

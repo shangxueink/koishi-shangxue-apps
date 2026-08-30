@@ -22,7 +22,7 @@
                 <span> {{ $t('赞助者') }} </span>
                 <div class="contributors">
                     <div v-for="info in sponsorList.slice(0, 3)" :key="info.user.name">
-                        <img lazy :src="info.user.avatar">
+                        <img lazy data-avatar :src="info.user.avatar">
                         <div>
                             <span>{{ info.user.name }}</span>
                             <span>{{ Intl.DateTimeFormat(trueLang, {
@@ -37,6 +37,7 @@
                     <img v-for="info in sponsorList.slice(3)"
                         :key="info.user.name"
                         lazy
+                        data-avatar
                         :src="info.user.avatar">
                 </div>
             </div>

@@ -31,6 +31,7 @@
         <template v-if="type != 'body'">
             <img v-menu.prevent="event => $emit('showMenu', event, data)"
                 v-user-tooltip="() => getUserById(data.sender.user_id)"
+                data-avatar
                 name="avatar"
                 :src="data.sender.avatar || '/img/icons/icon.svg'"
                 :alt="data.sender.card ? data.sender.card : data.sender.nickname"

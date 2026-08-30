@@ -38,17 +38,17 @@
                     </div>
                 </div>
                 <div id="message-list-body" class="robot-accordion-list">
-                    <div v-for="bot in satoriLogins" :key="'bot-' + bot.selfId"
-                        :class="['robot-accordion', { expanded: bot.selfId === activeBotId }]">
+                    <div v-for="bot in satoriLogins" :key="'bot-' + botKey(bot.platform, bot.selfId)"
+                        :class="['robot-accordion', { expanded: botKey(bot.platform, bot.selfId) === activeBotId }]">
                         <div class="robot-accordion-header" @click="toggleRobot(bot)">
-                            <img :src="bot.avatar || '/img/icons/icon.svg'" :alt="bot.name" @error="avatarError">
+                            <img data-avatar :src="bot.avatar || '/img/icons/icon.svg'" :alt="bot.name" @error="avatarError">
                             <div>
                                 <span :title="bot.name">{{ bot.name }}</span>
                                 <small>{{ bot.platform }}</small>
                             </div>
-                            <font-awesome-icon :icon="['fas', bot.selfId === activeBotId ? 'angle-up' : 'angle-down']" />
+                            <font-awesome-icon :icon="['fas', botKey(bot.platform, bot.selfId) === activeBotId ? 'angle-up' : 'angle-down']" />
                         </div>
-                        <div v-if="bot.selfId === activeBotId" class="robot-accordion-content">
+                        <div v-if="botKey(bot.platform, bot.selfId) === activeBotId" class="robot-accordion-content">
                             <div v-if="!showGroupAssist &&
                                 !contactStore.systemNoticesList &&
                                 (!contactStore.groupAssistList || contactStore.groupAssistList.length === 0) &&
@@ -218,7 +218,7 @@
     import { library } from '@fortawesome/fontawesome-svg-core'
     import { login as loginInfo } from '../function/connect'
     import { Connector, flushPendingBotEvents, loadContactsFromCache, restoreBotStateFromMessageCache } from '../function/connect'
-    import { getActiveBot, getLogins, setActiveBot } from '../function/satori'
+    import { botKey, getActiveBot, getLogins, setActiveBot } from '../function/satori'
     import { getShowName, updateBaseOnMsgList } from '../function/utils/msgUtil'
 
     import {
@@ -249,7 +249,12 @@
     const chatStore = useChatStore()
     const settingsStore = useSettingsStore()
     const satoriLogins = ref<Array<{ platform: string; selfId: string; name: string; avatar?: string; status?: number; features?: string[] }>>(getLogins())
-    const activeBotId = ref(getActiveBot()?.selfId ?? loginInfo.selectedSatoriBot ?? '')
+    const active = getActiveBot()
+    const activeBotId = ref(
+        active?.platform && active.selfId
+            ? botKey(active.platform, active.selfId)
+            : loginInfo.selectedSatoriBot ?? '',
+    )
 
     watch(() => loginInfo.satoriLogins, (list) => {
         satoriLogins.value = list ?? []
@@ -259,7 +264,7 @@
     }, { immediate: true })
 
     const currentBotName = computed(() => {
-        return satoriLogins.value.find((item) => item.selfId === activeBotId.value)?.name ?? ''
+        return satoriLogins.value.find((item) => botKey(item.platform, item.selfId) === activeBotId.value)?.name ?? ''
     })
 
     function backToRobots() {
@@ -280,7 +285,7 @@
     }
 
     function restoreBotStateUi(bot: { platform: string; selfId: string }) {
-        const restored = contactStore.botStates.get(bot.selfId)
+        const restored = contactStore.botStates.get(botKey(bot.platform, bot.selfId))
         if (!restored) return
         contactStore.baseOnMsgList.clear()
         for (const [, value] of restored.baseList) {
@@ -309,9 +314,10 @@
     }
 
     function selectRobot(bot: { platform: string; selfId: string; name: string; avatar?: string; features?: string[] }) {
-        if (bot.selfId === activeBotId.value) return
+        const key = botKey(bot.platform, bot.selfId)
+        if (key === activeBotId.value) return
         snapshotCurrentBot()
-        activeBotId.value = bot.selfId
+        activeBotId.value = key
         setActiveBot(bot.platform, bot.selfId)
         loginInfo.uin = bot.selfId
         loginInfo.nickname = bot.name
@@ -324,9 +330,9 @@
             platform: bot.platform,
             avatar: bot.avatar,
             satoriLogins: satoriLogins.value,
-            selectedSatoriBot: bot.selfId,
+            selectedSatoriBot: key,
         }
-        const saved = contactStore.botStates.get(bot.selfId)
+        const saved = contactStore.botStates.get(key)
         if (saved) {
             contactStore.userList = saved.userList
             contactStore.baseOnMsgList.clear()
@@ -354,7 +360,7 @@
     }
 
     function toggleRobot(bot: { platform: string; selfId: string; name: string; avatar?: string; features?: string[] }) {
-        if (activeBotId.value === bot.selfId) {
+        if (activeBotId.value === botKey(bot.platform, bot.selfId)) {
             backToRobots()
         } else {
             selectRobot(bot)

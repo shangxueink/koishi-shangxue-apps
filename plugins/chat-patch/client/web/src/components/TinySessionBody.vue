@@ -17,6 +17,7 @@
         <div />
         <img loading="lazy"
             :title="getShowName(session.group_name || session.nickname, session.remark)"
+            data-avatar
             :src="session.avatar || '/img/icons/icon.svg'">
         <div>
             <p>

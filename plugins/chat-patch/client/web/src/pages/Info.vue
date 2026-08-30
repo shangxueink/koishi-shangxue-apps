@@ -16,7 +16,7 @@
             </header>
             <div class="chat-info-base user">
                 <div>
-                    <img :src="chat.show.avatar || '/img/icons/icon.svg'" @error="avatarError">
+                    <img data-avatar :src="chat.show.avatar || '/img/icons/icon.svg'" @error="avatarError">
                     <div>
                         <a>{{ chat.show.name }}</a>
                         <span>{{ chat.show.id }}</span>
@@ -109,7 +109,7 @@
                         :item-size="60"
                         key-field="user_id">
                         <div class="member-item edit">
-                            <img alt="nk" loading="lazy"
+                            <img alt="nk" loading="lazy" data-avatar
                                 :src="memberAvatar(item) || '/img/icons/icon.svg'">
                             <div>
                                 <a @click="startChat(item)">{{
@@ -128,7 +128,7 @@
             </BcTab>
             <div :class="'ss-card user-config' + (Object.keys(showUserConfig).length > 0 ? ' show' : '')">
                 <div>
-                    <img alt="nk" :src="showUserConfig.avatar || '/img/icons/icon.svg'">
+                    <img alt="nk" data-avatar :src="showUserConfig.avatar || '/img/icons/icon.svg'">
                     <div>
                         <a>{{ showUserConfig.card != '' ? showUserConfig.card : showUserConfig.nickname }}</a>
                         <span>{{ showUserConfig.user_id }}</span>

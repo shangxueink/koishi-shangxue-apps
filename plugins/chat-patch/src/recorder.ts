@@ -41,8 +41,8 @@ export class Recorder {
 
   private async handleSession(session: Session) {
     const platform = session.platform || 'unknown'
-    if (this.isBlocked(platform)) return
     if (!MESSAGE_TYPES.has(session.type)) return
+    if (this.isBlocked(platform)) return
 
     const event = session.toJSON()
     const message = event.message
@@ -65,15 +65,15 @@ export class Recorder {
 
     try {
       await this.database.appendMessage(record)
-      void this.cacheMessageContacts(event).catch((error) => {
-        this.logger.warn('缓存消息联系人失败:', error)
-      })
-      void this.cacheMessageMedia(event).catch((error) => {
-        this.logger.warn('异步缓存消息媒体失败:', error)
-      })
     } catch (error) {
       this.logger.warn('写入历史消息失败:', error)
     }
+    void this.cacheMessageContacts(event).catch((error) => {
+      this.logger.warn('缓存消息联系人失败:', error)
+    })
+    void this.cacheMessageMedia(event).catch((error) => {
+      this.logger.warn('异步缓存消息媒体失败:', error)
+    })
   }
 
   private async cacheMessageContacts(event: ReturnType<Session['toJSON']>) {

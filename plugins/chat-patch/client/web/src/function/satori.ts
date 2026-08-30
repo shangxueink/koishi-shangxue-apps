@@ -4,6 +4,10 @@ export interface SatoriBootstrap {
   endpoint: string
   token: string
   basePath: string
+  blockedPlatforms: Array<{
+    platformName: string
+    exactMatch: boolean
+  }>
 }
 
 export interface SatoriLogin {
@@ -22,6 +26,11 @@ export interface SatoriEvent {
   timestamp: number
   sn: number
   body: Record<string, unknown>
+}
+
+// 同一机器人 ID 可能同时存在于不同平台（例如 qq / qqguild），用平台 + ID 做唯一键
+export function botKey(platform: string, selfId: string): string {
+  return [platform, selfId].map((value) => encodeURIComponent(value)).join(':')
 }
 
 interface PendingConsoleRequest {
@@ -45,6 +54,17 @@ function getString(value: unknown): string {
 
 function getObject(value: unknown): Record<string, unknown> {
   return typeof value === 'object' && value !== null ? value as Record<string, unknown> : {}
+}
+
+function isBlockedPlatform(
+  platform: string,
+  blockedPlatforms: SatoriBootstrap['blockedPlatforms'],
+): boolean {
+  return (blockedPlatforms ?? []).some((item) => {
+    return item.exactMatch
+      ? platform === item.platformName
+      : platform.includes(item.platformName)
+  })
 }
 
 async function parseJsonResponse(response: Response): Promise<unknown> {
@@ -94,6 +114,9 @@ function receiveBootstrap(data: Record<string, unknown>) {
     endpoint: getString(payload.endpoint) || '/satori',
     token: getString(payload.token),
     basePath: getString(payload.basePath) || '/chat-patch',
+    blockedPlatforms: Array.isArray(payload.blockedPlatforms)
+      ? payload.blockedPlatforms as SatoriBootstrap['blockedPlatforms']
+      : [],
   }
   window.clearTimeout(bootstrapTimeout)
   resolveBootstrapCallback?.(bootstrap)
@@ -116,6 +139,10 @@ function wsUrl(): string {
 
 export function getBootstrap(): Promise<SatoriBootstrap> {
   return resolveBootstrap()
+}
+
+export function getBlockedPlatforms(): SatoriBootstrap['blockedPlatforms'] {
+  return bootstrap?.blockedPlatforms ?? []
 }
 
 export function getLogins(): SatoriLogin[] {
@@ -219,6 +246,9 @@ export function connect(
         endpoint: getString(payload.endpoint) || '/satori',
         token: getString(payload.token),
         basePath: getString(payload.basePath) || '/chat-patch',
+        blockedPlatforms: Array.isArray(payload.blockedPlatforms)
+          ? payload.blockedPlatforms as SatoriBootstrap['blockedPlatforms']
+          : [],
       }
     }
   }
@@ -258,7 +288,7 @@ export function connect(
               const platform = getString(login.platform) || getString(user.platform)
               const selfId = getString(user.id) || getString(login.selfId)
               const key = [platform, selfId].map((value) => encodeURIComponent(value)).join(':')
-              if (!platform || !selfId || seen.has(key)) continue
+              if (!platform || !selfId || seen.has(key) || isBlockedPlatform(platform, bootstrap?.blockedPlatforms ?? [])) continue
               seen.add(key)
               nextLogins.push({
                 platform: getString(login.platform) || getString(user.platform),

@@ -13,7 +13,7 @@
             <div v-for="account in accounts"
                 :key="account.platform + ':' + account.selfId"
                 :class="['ss-card', 'account-info', { active: isActive(account) }]">
-                <img :src="account.avatar || '/img/icons/icon.svg'">
+                <img data-avatar :src="account.avatar || '/img/icons/icon.svg'">
                 <div>
                     <div>
                         <span>{{ account.name || account.selfId }}</span>
@@ -38,7 +38,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { login as loginInfo } from '../../function/connect'
-import { getActiveBot } from '../../function/satori'
+import { botKey, getActiveBot, getLogins } from '../../function/satori'
 import { useAuthStore } from '../../state/auth'
 import { i18n } from '../../main'
 
@@ -63,9 +63,11 @@ const accounts = computed<SatoriAccount[]>(() => {
 const activeBot = computed(() => {
     const current = getActiveBot()
     if (current?.platform && current.selfId) return current
+    const selectedKey = String(authStore.loginInfo.selectedSatoriBot ?? '')
+    const selected = getLogins().find((item) => botKey(item.platform, item.selfId) === selectedKey)
     return {
-        platform: String(authStore.loginInfo.platform ?? ''),
-        selfId: String(authStore.loginInfo.uin ?? authStore.loginInfo.selectedSatoriBot ?? ''),
+        platform: String(selected?.platform ?? authStore.loginInfo.platform ?? ''),
+        selfId: String(selected?.selfId ?? authStore.loginInfo.uin ?? ''),
     }
 })
 

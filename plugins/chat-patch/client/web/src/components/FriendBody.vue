@@ -15,6 +15,7 @@
         <font-awesome-icon v-if="data.user_id == -10000" :icon="['fas', 'bell']" />
         <font-awesome-icon v-else-if="data.user_id == -10001" :icon="['fas', 'user-group']" />
         <img v-else loading="lazy" :title="getShowName(data.group_name || data.nickname, data.remark)"
+            data-avatar
             :src="data.avatar || '/img/icons/icon.svg'" @error="avatarError">
         <div>
             <div>

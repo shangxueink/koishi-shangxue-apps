@@ -82,15 +82,14 @@ export function registerWeb(
     koa.body = ''
   }
 
-  // web 应用里仍有 /img 这类运行时绝对路径，开发模式直接由 Koishi 服务托管
-  const registerDevPublic = (pattern: string, prefix: string) => {
-    ctx.server.get(pattern, async (koa: WebContext, next: () => Promise<void>) => {
-      if (!getVite()) return next()
+  // web 应用里仍有 /img 这类运行时绝对路径，生产/开发模式都要由 Koishi 服务托管
+  const registerPublic = (pattern: string, prefix: string) => {
+    ctx.server.get(pattern, async (koa: WebContext) => {
       await servePublicFile(koa, prefix)
     })
   }
 
-  registerDevPublic('/img(.*)', 'img')
+  registerPublic('/img(.*)', 'img')
 
   const toExtension = (value: string): string => {
     const ext = value.startsWith('.') ? value : `.${value}`

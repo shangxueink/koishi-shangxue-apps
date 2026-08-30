@@ -21,10 +21,15 @@ import './assets/css/sys_notice.css'
 
 import { getPortableFileLang } from './function/utils/systemUtil'
 import { preloadPinyin } from './function/utils/pinyin'
+import { avatarError, isAvatarImage } from './function/utils/avatarUtil'
 
 // 媒体资源由 <img>/<audio> 等元素加载时，失败事件只在前端控制台输出
 window.addEventListener('error', (event) => {
   const target = event.target
+  if (target instanceof HTMLImageElement && isAvatarImage(target)) {
+    avatarError(event)
+    return
+  }
   if (!(target instanceof HTMLImageElement) && !(target instanceof HTMLMediaElement)) return
   const source = target.currentSrc || target.src
   if (source.includes('/chat-patch/web/media') || source.includes('/chat-patch/api/media')) {

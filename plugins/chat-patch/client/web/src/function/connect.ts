@@ -3,8 +3,10 @@
 import { reactive } from 'vue'
 import { dispatch, msgPreprocess } from './msg'
 import {
+  botKey,
   connect as connectSatori,
   getActiveBot,
+  getBlockedPlatforms,
   getBootstrap,
   getLogins,
   request,
@@ -40,6 +42,14 @@ const unsupportedMethods = new Set<string>()
 
 function encodeKeyPart(value: string): string {
   return encodeURIComponent(value)
+}
+
+function isBlockedPlatform(platform: string): boolean {
+  return getBlockedPlatforms().some((item) => {
+    return item.exactMatch
+      ? platform === item.platformName
+      : platform.includes(item.platformName)
+  })
 }
 
 function getChannelKind(value: unknown): 'group' | 'direct' | 'unknown' {
@@ -350,7 +360,7 @@ function updateBotStateGroup(
   apply: (target: Record<string, unknown>) => void,
 ) {
   const contactStore = useContactStore()
-  const state = contactStore.botStates.get(selfId)
+  const state = contactStore.botStates.get(botKey(platform, selfId))
   const session = state?.onMsgList.find((item) => String(item.group_id) === sessionId)
   if (!state || !session) return
   apply(session as unknown as Record<string, unknown>)
@@ -363,7 +373,7 @@ function updateBotStateGroup(
   } else {
     baseList.push([key, typedSession])
   }
-  contactStore.botStates.set(selfId, {
+  contactStore.botStates.set(botKey(platform, selfId), {
     userList: [...state.userList],
     baseList,
     onMsgList: [...state.onMsgList],
@@ -578,7 +588,7 @@ function recordBotMessage(platform: string, selfId: string, msg: Record<string, 
     ? (eventGroupAvatar || cachedGroupInfo?.avatar || buildQqGroupAvatar(platform, sessionId) || undefined)
     : undefined
   const contactStore = useContactStore()
-  const state = contactStore.botStates.get(selfId) ?? {
+  const state = contactStore.botStates.get(botKey(platform, selfId)) ?? {
     userList: [],
     baseList: [],
     onMsgList: [],
@@ -650,7 +660,7 @@ function recordBotMessage(platform: string, selfId: string, msg: Record<string, 
   } else {
     baseList.push([baseKey, typedSession])
   }
-  contactStore.botStates.set(selfId, {
+  contactStore.botStates.set(botKey(platform, selfId), {
     userList: [...state.userList],
     baseList,
     onMsgList: [...state.onMsgList],
@@ -726,6 +736,26 @@ function recordBotMessage(platform: string, selfId: string, msg: Record<string, 
     )
     if (senderId && senderId !== '0') {
       void fetchUserIdentity(platform, selfId, senderId, null, msg)
+      if (isCurrentChat) {
+        const members = chatStore.chatInfo.info.group_members
+        const member = {
+          user_id: senderId,
+          nickname: String(sender.nickname || sender.card || senderName || senderId),
+          card: String(sender.card || ''),
+          role: String(sender.role || ''),
+          avatar: hasUsableAvatar(sender.avatar) ? getString(sender.avatar) : undefined,
+          title: '',
+          join_time: 0,
+          last_sent_time: Math.floor(sessionTime),
+          level: 0,
+          rank: '',
+          sex: '',
+          shutup_time: 0,
+        }
+        const index = members.findIndex((item) => String(item.user_id) === senderId)
+        if (index >= 0) Object.assign(members[index], member)
+        else members.push(member)
+      }
     }
   } else if (senderId && senderId !== '0') {
     identityDebug('recordBotMessage: private identity branch', {
@@ -780,7 +810,7 @@ export function restoreBotStateFromMessageCache(platform: string, selfId: string
   }
   if (!sessions.length) return
 
-  const state = contactStore.botStates.get(selfId) ?? {
+  const state = contactStore.botStates.get(botKey(platform, selfId)) ?? {
     userList: [],
     baseList: [],
     onMsgList: [],
@@ -809,7 +839,7 @@ export function restoreBotStateFromMessageCache(platform: string, selfId: string
       baseKeys.add(id)
     }
   }
-  contactStore.botStates.set(selfId, {
+  contactStore.botStates.set(botKey(platform, selfId), {
     userList: [...state.userList],
     baseList,
     onMsgList: [...state.onMsgList],
@@ -817,6 +847,7 @@ export function restoreBotStateFromMessageCache(platform: string, selfId: string
 }
 
 function onSatoriEvent(event: SatoriEvent) {
+  if (isBlockedPlatform(event.platform)) return
   const oneBot = satoriEventToOneBot(event.body, String(event.platform || ''))
   if (oneBot) {
     oneBot._rawSatori = {
@@ -865,6 +896,7 @@ export function flushPendingBotEvents(platform: string, selfId: string) {
   if (!events?.length) return
   pendingBotEvents.delete(key)
   for (const event of events) {
+    if (isBlockedPlatform(event.platform)) continue
     const oneBot = satoriEventToOneBot(event.body, String(event.platform || ''))
     if (oneBot) {
       oneBot._rawSatori = {
@@ -893,7 +925,8 @@ function onSatoriReady(logins: Array<{ platform: string; selfId: string; name: s
   login.creating = false
   login.status = true
   const authStore = useAuthStore()
-  for (const item of logins) {
+  const visibleLogins = logins.filter((item) => !isBlockedPlatform(item.platform))
+  for (const item of visibleLogins) {
     if (!item.platform || !item.selfId) continue
     identityInfoCache.set(identityCacheKey('user', item.platform, item.selfId, item.selfId), {
       name: item.name || item.selfId,
@@ -907,7 +940,7 @@ function onSatoriReady(logins: Array<{ platform: string; selfId: string; name: s
       },
     })
   }
-  const first = logins[0]
+  const first = visibleLogins[0]
   if (!first) return
 
   setActiveBot(first.platform, first.selfId)
@@ -915,16 +948,16 @@ function onSatoriReady(logins: Array<{ platform: string; selfId: string; name: s
   login.uin = first.selfId
   login.nickname = first.name
   login.platform = first.platform
-  login.satoriLogins = logins
-  login.selectedSatoriBot = first.selfId
+  login.satoriLogins = visibleLogins
+  login.selectedSatoriBot = botKey(first.platform, first.selfId)
   authStore.loginInfo = {
     uin: first.selfId,
     user_id: first.selfId,
     nickname: first.name,
     platform: first.platform,
     avatar: first.avatar,
-    satoriLogins: logins,
-    selectedSatoriBot: first.selfId,
+    satoriLogins: visibleLogins,
+    selectedSatoriBot: botKey(first.platform, first.selfId),
   }
   authStore.botInfo = {
     app_name: 'Satori',
@@ -1406,9 +1439,9 @@ async function loadAllBotsCache() {
     }
     const userList = [...groupRaws, ...friendRaws] as unknown as (UserFriendElem & UserGroupElem)[]
 
-    const state = contactStore.botStates.get(selfId)
+    const state = contactStore.botStates.get(botKey(platform, selfId))
     if (!state || state.userList.length === 0) {
-      contactStore.botStates.set(selfId, {
+      contactStore.botStates.set(botKey(platform, selfId), {
         userList,
         baseList: state?.baseList ?? [],
         onMsgList: state?.onMsgList ?? [],

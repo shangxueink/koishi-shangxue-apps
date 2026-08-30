@@ -25,7 +25,7 @@
         <!-- 聊天基本信息 -->
         <div class="info">
             <font-awesome-icon class="back" :icon="['fas', 'angle-left']" @click="exitWin" />
-            <img :src="chat.show.avatar || '/img/icons/icon.svg'" @error="avatarError">
+            <img data-avatar :src="chat.show.avatar || '/img/icons/icon.svg'" @error="avatarError">
             <div class="info">
                 <p>
                     {{ chat.show.name }}
@@ -181,7 +181,7 @@
                                 <div v-for="(item, index) in chat.info.jin_info.list"
                                     :key="'jin-' + index">
                                     <div>
-                                        <img :src="item.sender_avatar || '/img/icons/icon.svg'">
+                                        <img data-avatar :src="item.sender_avatar || '/img/icons/icon.svg'">
                                         <div>
                                             <a>{{ item.sender_nick }}</a>
                                             <span>{{ item.sender_time ? Intl.DateTimeFormat(
@@ -517,7 +517,7 @@
                         <div><font-awesome-icon :icon="['fas', 'arrow-up-right-from-square']" /></div>
                         <a>{{ $t('跳转到消息') }}</a>
                     </div>
-                    <div v-show="isDev" @click="consoleLogMsg">
+                    <div @click="consoleLogMsg">
                         <div><font-awesome-icon :icon="['fas', 'screwdriver-wrench']" /></div>
                         <a>{{ $t('调试信息') }}</a>
                     </div>
@@ -738,7 +738,6 @@ const searchRequestId = ref(0)
 const forwardList = ref(contactStore.userList)
 const chatImg = ref<any>(undefined)
 const trueLang = getTrueLang()
-const isDev = import.meta.env.DEV
 let selfRefreshTimer: number | null = null
 
 function ensureChannelPrefix(channelId: string, prefix: string): string {

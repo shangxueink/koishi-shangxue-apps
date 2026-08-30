@@ -26,7 +26,7 @@
         <!-- 群成员 -->
         <template v-else>
             <div>
-                <img :src="userInfo.avatar || '/img/icons/icon.svg'">
+                <img data-avatar :src="userInfo.avatar || '/img/icons/icon.svg'">
                 <div>
                     <span name="id">{{ userInfo.user_id }}</span>
                     <div>

@@ -35,7 +35,7 @@
         </div>
         <span v-show="needShow && !showAll">{{ $t('点击展开') }}</span>
         <div class="info">
-            <img :src="data.avatar || '/img/icons/icon.svg'">
+            <img data-avatar :src="data.avatar || '/img/icons/icon.svg'">
             <a>{{
                 chatStore.chatInfo.info.group_members.filter((item) => {
                     return Number(item.user_id) === Number(data.sender)

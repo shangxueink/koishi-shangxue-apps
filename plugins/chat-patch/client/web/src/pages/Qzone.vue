@@ -65,7 +65,7 @@
                 class="qzone-feed-card ss-card">
                 <article>
                     <header class="qzone-feed-card-header">
-                        <img :src="item.avatar" :alt="item.nickname">
+                        <img data-avatar :src="item.avatar" :alt="item.nickname">
                         <div class="qzone-feed-meta">
                             <a>{{ item.nickname }}</a>
                             <span>{{ item.timeText }}</span>
@@ -149,7 +149,7 @@
                     </template>
                 </div>
                 <div class="qzone-feed-reply">
-                    <img :src="authStore.loginInfo.avatar || '/img/icons/icon.svg'">
+                    <img data-avatar :src="authStore.loginInfo.avatar || '/img/icons/icon.svg'">
                     <label :for="`qzone-reply-input-${item.id}`" class="sr-only">{{ $t('评论输入框') }}</label>
                     <input :id="`qzone-reply-input-${item.id}`"
                         v-model="getReplyDraft(item.id).content"

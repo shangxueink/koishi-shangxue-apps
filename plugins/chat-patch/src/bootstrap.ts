@@ -31,6 +31,7 @@ export function registerBootstrap(
       endpoint: resolveEndpoint(ctx, config),
       token: ctx.satori?.server?.config?.token ?? '',
       basePath: config.basePath,
+      blockedPlatforms: config.blockedPlatforms ?? [],
     }
   }, { authority: 4 })
 
