@@ -995,30 +995,34 @@ function onSatoriReady(logins: Array<{ platform: string; selfId: string; name: s
   }
   const first = visibleLogins[0]
   if (!first) return
+  const current = getActiveBot()
+  const selected = (current && visibleLogins.find((item) => {
+    return item.platform === current.platform && item.selfId === current.selfId
+  })) ?? first
 
-  setActiveBot(first.platform, first.selfId)
+  setActiveBot(selected.platform, selected.selfId)
   setJsonMap()
-  login.uin = first.selfId
-  login.nickname = first.name
-  login.platform = first.platform
+  login.uin = selected.selfId
+  login.nickname = selected.name
+  login.platform = selected.platform
   login.satoriLogins = visibleLogins
-  login.selectedSatoriBot = botKey(first.platform, first.selfId)
+  login.selectedSatoriBot = botKey(selected.platform, selected.selfId)
   authStore.loginInfo = {
-    uin: first.selfId,
-    user_id: first.selfId,
-    nickname: first.name,
-    platform: first.platform,
-    avatar: first.avatar,
+    uin: selected.selfId,
+    user_id: selected.selfId,
+    nickname: selected.name,
+    platform: selected.platform,
+    avatar: selected.avatar,
     satoriLogins: visibleLogins,
-    selectedSatoriBot: botKey(first.platform, first.selfId),
+    selectedSatoriBot: botKey(selected.platform, selected.selfId),
   }
   authStore.botInfo = {
     app_name: 'Satori',
     app_version: '1.0',
-    platform: first.platform,
+    platform: selected.platform,
   }
-  saveConnectionToHistory(login.address, login.token, first.selfId, first.name)
-  flushPendingBotEvents(first.platform, first.selfId)
+  saveConnectionToHistory(login.address, login.token, selected.selfId, selected.name)
+  flushPendingBotEvents(selected.platform, selected.selfId)
   void loadContactsFromCache()
 }
 

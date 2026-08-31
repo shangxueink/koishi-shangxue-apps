@@ -177,6 +177,30 @@ export class SatoriGateway {
       })
     }
 
+    const type = getString(body.type)
+    if (type === 'login-added' || type === 'login-updated') {
+      const next = this.normalizeLogins([body.login])
+      if (next.length) {
+        this.logins = this.logins.filter((item) => {
+          return !(item.platform === next[0].platform && item.selfId === next[0].selfId)
+        })
+        this.logins.push(next[0])
+        this.onPayload({ kind: 'ready', logins: this.getLogins() })
+      }
+      return
+    }
+    if (type === 'login-removed') {
+      const login = getObject(body.login)
+      const loginUser = getObject(login.user)
+      const platform = getString(body.platform) || getString(login.platform)
+      const selfId = getString(body.self_id) || getString(body.selfId) || getString(loginUser.id)
+      this.logins = this.logins.filter((item) => {
+        return !(item.platform === platform && item.selfId === selfId)
+      })
+      this.onPayload({ kind: 'ready', logins: this.getLogins() })
+      return
+    }
+
     const login = getObject(body.login)
     const loginUser = getObject(login.user)
     const platform = getString(body.platform) || getString(login.platform)
