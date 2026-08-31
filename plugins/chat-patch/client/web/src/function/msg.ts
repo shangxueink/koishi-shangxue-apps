@@ -2535,12 +2535,14 @@ function newMsg(_: string, data: any) {
 
         const isTempGroupMessage = data.sub_type === 'group'
         const groupNoticeType = settingsStore.sysConfig.group_notice_type
+        const privateNoticeType = settingsStore.sysConfig.private_notice_type ?? 'none'
         const hasForcedGroupInnerNotice = data.atme || data.atall || isImportant || isGroupNotice
-        const allowGroupInnerNotice = !isGroupMessage ||
-            groupNoticeType !== 'none' ||
-            hasForcedGroupInnerNotice
-        const allowGroupSystemNotice = !isGroupMessage ||
-            groupNoticeType === 'all'
+        const allowGroupInnerNotice = isGroupMessage
+            ? groupNoticeType !== 'none' || hasForcedGroupInnerNotice
+            : privateNoticeType !== 'none'
+        const allowGroupSystemNotice = isGroupMessage
+            ? groupNoticeType === 'all'
+            : privateNoticeType === 'all'
 
         // 会话状态更新 ============================================
         const sessionId = isTempGroupMessage ? sender : id

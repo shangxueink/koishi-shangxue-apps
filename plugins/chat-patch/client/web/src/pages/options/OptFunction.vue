@@ -66,6 +66,29 @@
                     </select>
                 </div>
             </div>
+            <div class="opt-item">
+                <div :class="checkDefault('private_notice_type')" />
+                <font-awesome-icon :icon="['fas', 'envelope']" />
+                <div>
+                    <label for="opt-function-private-notice-type">{{ $t('私信消息通知方式') }}</label>
+                    <span>{{ $t('默认不发起系统通知') }}</span>
+                </div>
+                <div class="select-wrapper">
+                    <select id="opt-function-private-notice-type"
+                        v-model="settingsStore.sysConfig.private_notice_type"
+                        name="private_notice_type" title="private_notice_type" @change="save">
+                        <option value="none">
+                            {{ $t('不通知（默认）') }}
+                        </option>
+                        <option value="inner">
+                            {{ $t('仅应用内通知') }}
+                        </option>
+                        <option value="all">
+                            {{ $t('应用内通知和系统通知') }}
+                        </option>
+                    </select>
+                </div>
+            </div>
         </div>
         <div class="ss-card">
             <header>{{ $t('聊天选项') }}</header>

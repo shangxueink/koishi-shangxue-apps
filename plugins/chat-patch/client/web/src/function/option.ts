@@ -100,6 +100,7 @@ export const optDefault: { [key: string]: any } = {
     msg_taill: '',
     quick_send: 'default',
     group_notice_type: 'none',
+    private_notice_type: 'none',
     send_face: false,
     send_key: 'none',
     close_ga: false,
