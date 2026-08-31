@@ -55,7 +55,7 @@
                     class="ss-button"
                     style="width: 100px; font-size: 0.8rem; background: var(--color-red); border-color: var(--color-red); color: #fff"
                     @click="resetDefaults">
-                    {{ $t('恢复') }}
+                    {{ $t('重置') }}
                 </button>
             </div>
             <div class="opt-item">
