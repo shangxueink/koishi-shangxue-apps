@@ -2251,6 +2251,11 @@ function startSatori() {
   })
 }
 
+// Satori 部分操作只返回纯文本成功标识（例如 OK），不需要进入 OneBot 风格事件分发
+function isPlainSuccessText(data: unknown): boolean {
+  return typeof data === 'string' && !data.trim().startsWith('{') && !data.trim().startsWith('[')
+}
+
 export class Connector {
   static create(address: string, token: string, _wss?: boolean) {
     login.address = address || 'Satori'
@@ -2327,6 +2332,7 @@ export class Connector {
         getString(mapped.params.channel_id) || getString(value.channel_id),
       )
         .then((result) => {
+          if (isPlainSuccessText(result.data)) return
           const response = satoriResponseToOneBot(action, result.data, active.platform)
           response.channel_id = result.channelId
           response.channelId = result.channelId
@@ -2344,6 +2350,7 @@ export class Connector {
     }
     void request(mapped.method, mapped.params, active)
       .then((data) => {
+        if (isPlainSuccessText(data)) return
         const response = satoriResponseToOneBot(action, data, active.platform)
         dispatch(response, echo)
       })
