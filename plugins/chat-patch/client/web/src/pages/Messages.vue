@@ -258,8 +258,6 @@
     function backToRobots() {
         snapshotCurrentBot()
         activeBotId.value = ''
-        chatStore.messageList = []
-        chatStore.chatInfo.show.id = 0
     }
 
     function snapshotCurrentBot() {

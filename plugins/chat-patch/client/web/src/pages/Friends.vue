@@ -282,8 +282,6 @@
     function backToRobots() {
         snapshotCurrentBot()
         activeBotId.value = ''
-        chatStore.messageList = []
-        chatStore.chatInfo.show.id = 0
     }
 
     function selectRobot(bot: { platform: string; selfId: string; name: string; avatar?: string; features?: string[] }) {

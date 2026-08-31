@@ -107,12 +107,14 @@
                             :src="item.url"
                             :alt="item.summary"
                             @load="imageLoaded"
+                            @click="preImgClick(item.url || item.file)"
                             @error="imgLoadFail">
                         <img v-else-if="item.type == 'mface'"
                             :class=" imgStyle(data.message.length, Number(index), true) + ' msg-mface'"
                             :src="item.url"
                             :alt="item.summary"
                             @load="imageLoaded"
+                            @click="preImgClick(item.url || item.file)"
                             @error="imgLoadFail">
                         <template v-else-if="item.type == 'image'">
                             <div v-show="shouldShowImagePlaceholder(item, Number(index))"
@@ -134,7 +136,7 @@
                                 data-type="image"
                                 @load="imageLoaded"
                                 @error="imgLoadFail"
-                                @click="imgClick(item.url, $event)">
+                                @click="imgClick(item.url || item.file, $event)">
                         </template>
                         <template v-else-if="item.type == 'face'">
                             <EmojiFace :emoji="Emoji.get(Number(item.id))" class="msg-face" />
@@ -518,7 +520,16 @@ const View = ViewFuns
 const md = markdownit({ breaks: true })
 const isMe = computed(() => {
     if (globalMe) return globalMe === 'Y'
-    return String(authStore.loginInfo.uin) === String(data?.sender?.user_id ?? '')
+    const senderId = String(data?.sender?.user_id ?? '')
+    const selfId = String(
+        data?.target_id
+        ?? data?.self_id
+        ?? data?.selfId
+        ?? data?.infoList?.target_id
+        ?? '',
+    )
+    return String(authStore.loginInfo.uin) === senderId
+        || (Boolean(selfId) && selfId === senderId)
 })
 const isDev = import.meta.env.DEV
 const msgBodyClass = ref('message-body')
@@ -690,6 +701,7 @@ function fileActionClick(event: MouseEvent, fileData: any, messageId: string) {
 }
 
 function imgClick(url: string, _event?: MouseEvent) {
+    if (!url) return
     if (props.selecting) return
     if (!viewerRef?.value) return
     let header = imageListHeader
@@ -736,8 +748,8 @@ async function loadImage(item: { url: string }, index: number, _event?: MouseEve
     }
 }
 
-function preImgClick(img: string) {
-    if (viewerRef?.value) {
+function preImgClick(img?: string) {
+    if (img && viewerRef?.value) {
         viewerRef.value.open(new Img(img))
     }
 }

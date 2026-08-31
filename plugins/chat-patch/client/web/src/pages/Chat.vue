@@ -498,10 +498,6 @@
                         <div><font-awesome-icon :icon="['fas', 'at']" /></div>
                         <a>{{ $t('提及') }}</a>
                     </div>
-                    <div v-show="tags.menuDisplay.poke" @click="sendPoke(selectedMsg ? selectedMsg.sender.user_id : undefined)">
-                        <div><font-awesome-icon :icon="['fas', 'fa-hand-point-up']" /></div>
-                        <a>{{ $t('戳一戳') }}</a>
-                    </div>
                     <div v-show="tags.menuDisplay.remove" @click="removeUser">
                         <div><font-awesome-icon :icon="['fas', 'trash-can']" /></div>
                         <a>{{ $t('移出群聊') }}</a>
