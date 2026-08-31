@@ -1,7 +1,6 @@
 import { Context } from 'koishi'
 import { Opcode } from '@satorijs/protocol'
 import {} from '@koishijs/plugin-http'
-import type { WebSocket } from '@koishijs/plugin-http'
 import {} from '@koishijs/plugin-server'
 import {} from '@satorijs/plugin-server'
 
