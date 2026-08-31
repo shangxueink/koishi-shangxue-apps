@@ -4,7 +4,7 @@ import { reactive } from 'vue'
 import { dispatch, msgPreprocess } from './msg'
 import {
   botKey,
-  connect as connectSatori,
+  connectBackend,
   getActiveBot,
   getBlockedPlatforms,
   getBootstrap,
@@ -2090,7 +2090,7 @@ export async function loadContactsFromCache() {
 function startSatori() {
   disposeConnection?.()
   login.creating = true
-  disposeConnection = connectSatori(onSatoriEvent, onSatoriReady, (online) => {
+  disposeConnection = connectBackend(onSatoriEvent, onSatoriReady, (online) => {
     login.status = online
     login.creating = !online
   })

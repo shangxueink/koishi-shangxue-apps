@@ -6,10 +6,12 @@
 
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref } from 'vue'
-import { send } from '@koishijs/client'
+import { send, useContext } from '@koishijs/client'
 
 const frameRef = ref<HTMLIFrameElement | null>(null)
 const frameSrc = ref('')
+const ctx = useContext()
+let disposeBackendEvent: (() => void) | undefined
 
 function getObject(value: unknown): Record<string, unknown> {
   return typeof value === 'object' && value !== null ? value as Record<string, unknown> : {}
@@ -57,11 +59,16 @@ async function handleMessage(event: MessageEvent) {
 
 onMounted(() => {
   window.addEventListener('message', handleMessage)
+  disposeBackendEvent = ctx.on('chat-patch/event', (payload) => {
+    post({ source: 'chat-patch-event', payload: getObject(payload) })
+  })
   // 开发与生产都走 Koishi 服务端；开发时该路由由 Koishi 自己的 Vite 转换源码
   frameSrc.value = '/chat-patch/web/'
 })
 
 onUnmounted(() => {
+  disposeBackendEvent?.()
+  disposeBackendEvent = undefined
   window.removeEventListener('message', handleMessage)
 })
 </script>

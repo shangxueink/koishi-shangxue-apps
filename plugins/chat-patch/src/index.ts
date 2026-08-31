@@ -7,6 +7,7 @@ import { createPluginLogger } from './logger'
 import { ContactCacheService } from './cache'
 import { ChatDatabase } from './database'
 import { Recorder } from './recorder'
+import { SatoriGateway } from './gateway'
 import { MediaManager } from './media'
 import { SelfMessageRecorder } from './self-message'
 import { registerBootstrap } from './bootstrap'
@@ -16,7 +17,7 @@ export const name = 'chat-patch'
 export const reusable = false
 export const filter = false
 export const inject = {
-  required: ['console', 'server', 'satori.server'],
+  required: ['console', 'server', 'http', 'satori.server'],
 }
 
 declare module 'koishi' {
@@ -46,13 +47,21 @@ export async function apply(ctx: Context, config: Config) {
   const media = new MediaManager(ctx, config, database, pluginLogger)
   media.start()
 
-  const recorder = new Recorder(ctx, config, database, media, contactCache, pluginLogger)
-  recorder.start()
+  const recorder = new Recorder(config, database, media, contactCache, pluginLogger)
+  const gateway = new SatoriGateway(ctx, config, database, recorder, pluginLogger, (payload) => {
+    void ctx.console.broadcast('chat-patch/event', payload).catch((error) => {
+      pluginLogger.warn('推送前端事件失败:', error)
+    })
+  })
 
   const selfMessages = new SelfMessageRecorder(ctx, config, database, media, pluginLogger)
   selfMessages.start()
 
-  registerBootstrap(ctx, config, database, pluginLogger)
+  void gateway.start().catch((error) => {
+    pluginLogger.warn('Satori 网关启动失败:', error)
+  })
+
+  registerBootstrap(ctx, config, database, pluginLogger, () => gateway.getLogins())
   registerWeb(ctx, config, database, contactCache, media, pluginLogger)
 
   ctx.console.addEntry({
@@ -61,6 +70,7 @@ export async function apply(ctx: Context, config: Config) {
   })
 
   ctx.on('dispose', async () => {
+    gateway.dispose()
     selfMessages.dispose()
     media.dispose()
     await database.dispose()

@@ -77,30 +77,113 @@ type CompactableLevel = Level<string, string> & {
   compactRange(start: string, end: string): Promise<void>
 }
 
+interface SharedDatabase {
+  dir: string
+  db: Level<string, string>
+  refs: number
+  opened: boolean
+  opening?: Promise<void>
+  closing?: Promise<void>
+}
+
+const sharedDatabases = new Map<string, SharedDatabase>()
+
+// 同目录复用同一个 LevelDB 实例，避免 HMR 卸载/重载期间新旧插件抢占 LOCK
+async function acquireSharedDatabase(dir: string): Promise<SharedDatabase> {
+  let shared = sharedDatabases.get(dir)
+  if (shared?.closing) {
+    await shared.closing.catch(() => undefined)
+    shared = sharedDatabases.get(dir)
+  }
+  if (!shared) {
+    shared = {
+      dir,
+      db: new Level<string, string>(dir, { keyEncoding: 'utf8', valueEncoding: 'utf8' }),
+      refs: 0,
+      opened: false,
+    }
+    sharedDatabases.set(dir, shared)
+  }
+  shared.refs += 1
+  return shared
+}
+
+async function releaseSharedDatabase(shared: SharedDatabase): Promise<boolean> {
+  shared.refs -= 1
+  if (shared.refs > 0) return false
+  if (shared.closing) {
+    await shared.closing
+    return true
+  }
+  if (!shared.opened) {
+    if (sharedDatabases.get(shared.dir) === shared) sharedDatabases.delete(shared.dir)
+    return true
+  }
+  const closing = shared.db.close().catch(() => undefined).finally(() => {
+    shared.opened = false
+    if (sharedDatabases.get(shared.dir) === shared) sharedDatabases.delete(shared.dir)
+  })
+  shared.closing = closing
+  await closing
+  return true
+}
+
 export class ChatDatabase {
-  private db: Level<string, string>
-  private opened = false
+  private readonly dir: string
+  private shared?: SharedDatabase
 
   constructor(
     private ctx: Context,
     private config: Config,
     private logger: PluginLogger,
   ) {
-    const dir = path.resolve(ctx.baseDir, 'data', 'chat-patch', 'db')
-    this.db = new Level<string, string>(dir, { keyEncoding: 'utf8', valueEncoding: 'utf8' })
+    this.dir = path.resolve(ctx.baseDir, 'data', 'chat-patch', 'db')
+  }
+
+  private get db(): Level<string, string> {
+    if (!this.shared) throw new Error('LevelDB is not initialized')
+    return this.shared.db
   }
 
   async initialize() {
-    await this.db.open()
-    this.opened = true
-    this.logger.logInfo('LevelDB 已打开:', this.db.location)
+    this.shared = await acquireSharedDatabase(this.dir)
+    try {
+      await this.ensureOpen()
+      this.logger.logInfo('LevelDB 已打开:', this.shared.db.location)
+    } catch (error) {
+      await this.releaseShared()
+      throw error
+    }
   }
 
   async dispose() {
-    if (!this.opened) return
-    await this.db.close()
-    this.opened = false
-    this.logger.logInfo('LevelDB closed')
+    const closed = await this.releaseShared()
+    if (closed) this.logger.logInfo('LevelDB closed')
+  }
+
+  private async ensureOpen() {
+    const shared = this.shared
+    if (!shared || shared.opened) return
+    if (shared.opening) {
+      await shared.opening
+      return
+    }
+    const opening = shared.db.open().then(() => {
+      shared.opened = true
+    })
+    shared.opening = opening
+    try {
+      await opening
+    } finally {
+      shared.opening = undefined
+    }
+  }
+
+  private async releaseShared(): Promise<boolean> {
+    const shared = this.shared
+    this.shared = undefined
+    if (shared) return releaseSharedDatabase(shared)
+    return false
   }
 
   async clearAll() {

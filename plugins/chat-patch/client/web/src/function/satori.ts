@@ -4,6 +4,7 @@ export interface SatoriBootstrap {
   endpoint: string
   token: string
   basePath: string
+  logins?: SatoriLogin[]
   blockedPlatforms: Array<{
     platformName: string
     exactMatch: boolean
@@ -115,9 +116,15 @@ function receiveBootstrap(data: Record<string, unknown>) {
     endpoint: getString(payload.endpoint) || '/satori',
     token: getString(payload.token),
     basePath: getString(payload.basePath) || '/chat-patch',
+    logins: Array.isArray(payload.logins)
+      ? payload.logins as SatoriLogin[]
+      : [],
     blockedPlatforms: Array.isArray(payload.blockedPlatforms)
       ? payload.blockedPlatforms as SatoriBootstrap['blockedPlatforms']
       : [],
+  }
+  if (Array.isArray(payload.logins)) {
+    logins = payload.logins as SatoriLogin[]
   }
   window.clearTimeout(bootstrapTimeout)
   resolveBootstrapCallback?.(bootstrap)
@@ -222,6 +229,63 @@ export function handleConsoleResponse(data: Record<string, unknown>) {
     pending.reject(new Error(getString(data.error) || 'console 请求失败'))
   } else {
     pending.resolve(data.payload)
+  }
+}
+
+export function connectBackend(
+  onEvent: (event: SatoriEvent) => void,
+  onReady: (logins: SatoriLogin[]) => void,
+  onStatus: (online: boolean) => void,
+): () => void {
+  let disposed = false
+
+  const handleMessage = (event: MessageEvent) => {
+    const data = getObject(event.data)
+    if (getString(data.source) !== 'chat-patch-event') return
+    const payload = getObject(data.payload)
+    const kind = getString(payload.kind)
+    if (kind === 'ready') {
+      const next = Array.isArray(payload.logins) ? payload.logins as SatoriLogin[] : []
+      logins = next
+      onReady(next)
+      onStatus(true)
+      return
+    }
+    if (kind === 'status') {
+      onStatus(payload.online === true)
+      return
+    }
+    if (kind !== 'event') return
+    const raw = getObject(payload.event)
+    sequence = Number(raw.sn ?? sequence)
+    localStorage.setItem('chat-patch:sn', String(sequence))
+    onEvent({
+      type: getString(raw.type),
+      platform: getString(raw.platform),
+      selfId: getString(raw.selfId),
+      timestamp: Number(raw.timestamp ?? Date.now()),
+      sn: sequence,
+      body: getObject(raw.body),
+    })
+  }
+
+  window.addEventListener('message', handleMessage)
+
+  void resolveBootstrap().then((info) => {
+    if (disposed) return
+    const initial = info.logins ?? []
+    if (initial.length) {
+      logins = initial
+      onReady(initial)
+      onStatus(true)
+    }
+  }).catch(() => {
+    if (!disposed) onStatus(false)
+  })
+
+  return () => {
+    disposed = true
+    window.removeEventListener('message', handleMessage)
   }
 }
 

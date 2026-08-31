@@ -5,10 +5,29 @@ export interface SatoriBootstrap {
   endpoint: string
   token: string
   basePath: string
+  logins: SatoriLoginInfo[]
   blockedPlatforms: Array<{
     platformName: string
     exactMatch: boolean
   }>
+}
+
+export interface SatoriLoginInfo {
+  platform: string
+  selfId: string
+  name: string
+  avatar?: string
+  status: number
+  features?: string[]
+}
+
+export interface SatoriEventPayload {
+  type: string
+  platform: string
+  selfId: string
+  timestamp: number
+  sn: number
+  body: Record<string, unknown>
 }
 
 export interface MessageRecord {

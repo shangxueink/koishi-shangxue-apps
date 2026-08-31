@@ -6,31 +6,26 @@ import {} from '@satorijs/plugin-server'
 import { Config } from './config'
 import { ChatDatabase } from './database'
 import { PluginLogger } from './logger'
+import { resolveSatoriEndpoint } from './satori'
 import { ContactCacheQuery, ContactCacheResult, HistoryQuery, HistoryResult, PluginConfigPayload, SatoriBootstrap } from './types'
-
-function resolveEndpoint(ctx: Context, config: Config): string {
-  const url = ctx.satori?.server?.url ?? '/satori'
-  const clean = url.startsWith('undefined') ? url.slice(9) : url
-  if (/^https?:\/\//i.test(clean)) return clean
-  const base = ctx.server?.selfUrl ?? ctx.server?.config?.selfUrl ?? ''
-  return `${base}${clean.startsWith('/') ? clean : `/${clean}`}`
-}
 
 export function registerBootstrap(
   ctx: Context,
   config: Config,
   database: ChatDatabase,
   logger: PluginLogger,
+  getLogins: () => SatoriBootstrap['logins'],
 ) {
   ctx.console.addListener('chat-patch/bootstrap', (): SatoriBootstrap => {
     logger.logInfo('返回 Satori bootstrap:', {
-      endpoint: resolveEndpoint(ctx, config),
+      endpoint: resolveSatoriEndpoint(ctx),
       basePath: config.basePath,
     })
     return {
-      endpoint: resolveEndpoint(ctx, config),
+      endpoint: resolveSatoriEndpoint(ctx),
       token: ctx.satori?.server?.config?.token ?? '',
       basePath: config.basePath,
+      logins: getLogins(),
       blockedPlatforms: config.blockedPlatforms ?? [],
     }
   }, { authority: 4 })
