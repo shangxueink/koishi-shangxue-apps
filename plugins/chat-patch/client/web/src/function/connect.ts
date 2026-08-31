@@ -1622,9 +1622,18 @@ async function appendContactCache(
 function buildFriendItem(raw: unknown, data: unknown): Record<string, unknown> {
   const root = getObject(data)
   const user = getObject(root.user) || getObject(root)
-  const name = String(user.name ?? user.nick ?? user.username ?? '')
+  const rawItem = getObject(raw)
+  const name = getString(
+    user.name
+    ?? user.nick
+    ?? user.username
+    ?? rawItem.name
+    ?? rawItem.nickname
+    ?? rawItem.remark
+    ?? '',
+  )
   const avatar = hasUsableAvatar(user.avatar) ? getString(user.avatar) : ''
-  const item: Record<string, unknown> = { ...getObject(raw) }
+  const item: Record<string, unknown> = { ...rawItem }
   if (!item.channel_id && item.channelId) item.channel_id = item.channelId
   if (!item.guild_id && item.guildId) item.guild_id = item.guildId
   if (getString(item.guild_id) || getString(item.guildId)) item._groupMember = true
@@ -1698,7 +1707,101 @@ function buildGroupItem(
   return item
 }
 
-// 刷新群组时逐个请求 guild.get / channel.get，并把结果写回缓存和界面
+// 刷新联系人时只替换平台返回的 id/name/avatar，保留消息 session 抄录字段
+function applyFriendIdentity(raw: unknown, data: unknown): Record<string, unknown> {
+  const cached = getObject(raw)
+  const item: Record<string, unknown> = JSON.parse(JSON.stringify(cached)) as Record<string, unknown>
+  const rawObj = getObject(item.raw) || cached
+  const root = getObject(data)
+  const user = getObject(root.user) || root
+  const id = getString(user.id)
+    || getString(item.id)
+    || getString(rawObj.user_id)
+    || getString(rawObj.id)
+    || ''
+  const name = getString(user.name)
+    || getString(user.nick)
+    || getString(user.nickname)
+    || getString(item.name)
+    || getString(rawObj.name)
+    || getString(rawObj.nickname)
+    || getString(rawObj.remark)
+    || id
+  const avatar = hasUsableAvatar(user.avatar)
+    ? getString(user.avatar)
+    : hasUsableAvatar(item.avatar)
+      ? getString(item.avatar)
+      : hasUsableAvatar(rawObj.avatar)
+        ? getString(rawObj.avatar)
+        : ''
+  item.id = id
+  item.name = name
+  if (avatar) item.avatar = avatar
+  else if (item.avatar && !hasUsableAvatar(item.avatar)) delete item.avatar
+
+  const nextRaw: Record<string, unknown> = { ...rawObj }
+  nextRaw.id = id
+  nextRaw.user_id = id
+  if (name) nextRaw.name = name
+  if (avatar) nextRaw.avatar = avatar
+  item.raw = nextRaw
+  return item
+}
+
+// 刷新群组时只替换平台返回的 id/name/avatar，保留频道/群 ID 等 session 字段
+function applyGroupIdentity(
+  raw: unknown,
+  data: unknown,
+  platform: string,
+): Record<string, unknown> {
+  const cached = getObject(raw)
+  const item: Record<string, unknown> = JSON.parse(JSON.stringify(cached)) as Record<string, unknown>
+  const rawObj = getObject(item.raw) || cached
+  const root = getObject(data)
+  const channel = getObject(root.channel) || root
+  const guild = getObject(root.guild)
+  const id = normalizeGroupId(
+    getString(guild.id)
+    || getString(channel.id)
+    || getString(item.id)
+    || getString(rawObj.group_id)
+    || getString(rawObj.id)
+    || getString(rawObj.guild_id)
+    || '',
+  )
+  const name = getString(guild.name)
+    || getString(channel.name)
+    || getString(item.name)
+    || getString(rawObj.group_name)
+    || getString(rawObj.name)
+    || id
+  const avatar = hasUsableAvatar(guild.avatar)
+    ? getString(guild.avatar)
+    : hasUsableAvatar(channel.avatar)
+      ? getString(channel.avatar)
+      : hasUsableAvatar(item.avatar)
+        ? getString(item.avatar)
+        : hasUsableAvatar(rawObj.avatar)
+          ? getString(rawObj.avatar)
+          : buildQqGroupAvatar(platform, id)
+  item.id = id
+  item.name = name
+  if (avatar) item.avatar = avatar
+  else if (item.avatar && !hasUsableAvatar(item.avatar)) delete item.avatar
+
+  const nextRaw: Record<string, unknown> = { ...rawObj }
+  nextRaw.id = id
+  nextRaw.group_id = id
+  if (name) {
+    nextRaw.name = name
+    nextRaw.group_name = name
+  }
+  if (avatar) nextRaw.avatar = avatar
+  item.raw = nextRaw
+  return item
+}
+
+// 刷新群组时逐个请求 channel.get，并把结果写回缓存和界面
 async function fetchGroupProfiles(
   active: { platform: string; selfId: string },
   groups: unknown[],
@@ -1713,30 +1816,32 @@ async function fetchGroupProfiles(
     const rawObj = getObject(raw)
     const guildId = getString(rawObj.guild_id) || getString(rawObj.guildId) || id
     const channelId = getString(rawObj.channel_id) || getString(rawObj.channelId) || id
-    const [guildData, channelData] = await Promise.all([
-      withTimeout(
-        request('guild.get', { guild_id: guildId }, active).catch(() => null),
-        5000,
-      ),
-      withTimeout(
-        request('channel.get', { channel_id: channelId, guild_id: guildId }, active).catch(() => null),
-        5000,
-      ),
-    ])
-    const item = buildGroupItem(raw, { guild: guildData, channel: channelData }, active.platform)
+    const channelData = await withTimeout(
+      request('channel.get', { channel_id: channelId, guild_id: guildId }, active).catch(() => null),
+      5000,
+    )
+    const item = applyGroupIdentity(raw, channelData ?? {}, active.platform)
     processedItems.push(item)
+    const itemRaw = getObject(item.raw) ?? item
+    identityInfoCache.set(identityCacheKey('group', active.platform, active.selfId, id), {
+      name: getString(item.name),
+      avatar: hasUsableAvatar(item.avatar) ? getString(item.avatar) : '',
+      raw: itemRaw,
+    })
 
     if (updateUi && contactStore) {
       const existing = contactStore.userList.find((contact) => {
         return String(contact.group_id) === id
       })
       if (existing) {
-        if (item.group_name) existing.group_name = String(item.group_name)
-        if (item.avatar) existing.avatar = String(item.avatar)
+        if (getString(itemRaw.group_name) || getString(itemRaw.name)) {
+          existing.group_name = getString(itemRaw.group_name) || getString(itemRaw.name)
+        }
+        if (hasUsableAvatar(item.avatar)) existing.avatar = getString(item.avatar)
         else if (existing.avatar && !hasUsableAvatar(existing.avatar)) delete existing.avatar
         contactStore.userList = [...contactStore.userList]
       } else {
-        dispatch({ retcode: 0, data: [item] }, 'getGroupList')
+        dispatch({ retcode: 0, data: [itemRaw] }, 'getGroupList')
       }
     }
 
@@ -1772,8 +1877,47 @@ async function cacheBotContacts(_bot: { platform: string; selfId: string }) {
 }
 
 export async function refreshAllBots() {
-  useContactStore().botStates.clear()
-  await loadContactsFromCache()
+  const contactStore = useContactStore()
+  try {
+    const result = await requestAllBotsCache()
+    const bots = Array.isArray(getObject(result).bots) ? getObject(result).bots as unknown[] : []
+    for (const rawBot of bots) {
+      const bot = getObject(rawBot)
+      const platform = getString(bot.platform)
+      const selfId = getString(bot.selfId)
+      if (!platform || !selfId) continue
+      const active = { platform, selfId }
+      try {
+        const groups = Array.isArray(bot.groups) ? bot.groups as unknown[] : []
+        const friends = Array.isArray(bot.friends) ? bot.friends as unknown[] : []
+        const groupItems = await fetchGroupProfiles(active, groups, false)
+        const friendItems = await fetchFriendProfiles(active, friends, false)
+        const groupRaws = groupItems.map((item) => getObject(item).raw ?? item)
+        const friendRaws = friendItems.map((item) => cachedFriendRaw(getObject(item), item))
+        const userList = [...groupRaws, ...friendRaws] as unknown as (UserFriendElem & UserGroupElem)[]
+        const key = botKey(platform, selfId)
+        const state = contactStore.botStates.get(key)
+        contactStore.botStates.set(key, {
+          userList,
+          baseList: state?.baseList ?? [],
+          onMsgList: state?.onMsgList ?? [],
+        })
+        if (isActiveBot(active)) {
+          contactStore.userList = userList
+          if (groupRaws.length > 0) {
+            dispatch({ retcode: 0, data: groupRaws }, 'getGroupList')
+          }
+          if (friendRaws.length > 0) {
+            dispatch({ retcode: 0, data: friendRaws }, 'getFriendList')
+          }
+        }
+      } catch (error: unknown) {
+        logger.add(LogType.ERR, `刷新机器人 ${platform}/${selfId} 联系人失败: ${String(error)}`)
+      }
+    }
+  } catch (error: unknown) {
+    logger.add(LogType.ERR, `刷新联系人失败: ${String(error)}`)
+  }
 }
 
 async function fetchFriendProfiles(
@@ -1792,10 +1936,10 @@ async function fetchFriendProfiles(
     let data: unknown = {}
     if (!userGetBlocked) {
       try {
-        data = await Promise.race([
-          request('user.get', { user_id: id }, active),
-          new Promise<null>((resolve) => setTimeout(() => resolve(null), 5000)),
-        ]) ?? {}
+        data = await withTimeout(
+          request('user.get', { user_id: id }, active).catch(() => null),
+          5000,
+        ) ?? {}
       } catch (error: unknown) {
         const message = error instanceof Error ? error.message : String(error)
         if (/is not a function|Satori API 返回 500/i.test(message)) {
@@ -1814,21 +1958,28 @@ async function fetchFriendProfiles(
         }
       }
     }
-    const item = buildFriendItem(raw, data)
+    const item = applyFriendIdentity(raw, data)
     processedItems.push(item)
+    const itemRaw = getObject(item.raw) ?? item
+    identityInfoCache.set(identityCacheKey('user', active.platform, active.selfId, id), {
+      name: getString(item.name),
+      avatar: hasUsableAvatar(item.avatar) ? getString(item.avatar) : '',
+      raw: itemRaw,
+    })
     if (updateUi && contactStore) {
       const existing = contactStore.userList.find((contact) => {
         return String(contact.user_id) === id
       })
       if (existing) {
-        if (item.nickname) existing.nickname = String(item.nickname)
-        if (item.remark) existing.remark = String(item.remark)
-        if (item.avatar) existing.avatar = String(item.avatar)
-        if (item.class_id !== undefined) existing.class_id = Number(item.class_id)
-        if (item.class_name) existing.class_name = String(item.class_name)
+        const displayName = getString(item.name)
+        if (displayName) {
+          existing.nickname = displayName
+          existing.remark = displayName
+        }
+        if (hasUsableAvatar(item.avatar)) existing.avatar = getString(item.avatar)
         contactStore.userList = [...contactStore.userList]
       } else {
-        dispatch({ retcode: 0, data: [item] }, 'getFriendList')
+        dispatch({ retcode: 0, data: [cachedFriendRaw(item, item)] }, 'getFriendList')
         contactStore.friendLoadedCount += 1
       }
     }

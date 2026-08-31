@@ -348,6 +348,8 @@
     }
 
     function toggleRobot(bot: { platform: string; selfId: string; name: string; avatar?: string; features?: string[] }) {
+        // 展开/折叠前清掉残留弹窗遮罩，避免点击被遮挡
+        uiStore.popBoxList = []
         if (activeBotId.value === botKey(bot.platform, bot.selfId)) {
             backToRobots()
         } else {

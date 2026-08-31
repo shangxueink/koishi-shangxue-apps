@@ -408,7 +408,7 @@
         }
         isSearch.value = false
         searchInfo.value = ''
-        contactStore.showList = [] as any[]
+        contactStore.showList = []
 
         const back = {
             type: data.group_id ? 'group' : 'user',
@@ -449,19 +449,19 @@
             isSearch.value = true
             contactStore.showList = allContacts.value.filter(
                 (item: ContactWithBot) => {
-                    const name = (
-                        item.user_id? item.nickname + item.remark: item.group_name
-                    ).toLowerCase()
+                    const name = String(getShowName(item) ?? '').toLowerCase()
                     if (name.includes(value)) return true
-                    const id = item.user_id? item.user_id: item.group_id
-                    if (id.toString() === value) return true
+                    const id = String(item.user_id ?? item.group_id ?? '')
+                    if (id.includes(value)) return true
+                    const channelId = String(item.channel_id ?? item.channelId ?? '')
+                    if (channelId && channelId.includes(value)) return true
                     if (item.py_name && matchPinyin(item.py_name, value)) return true
                     return false
                 },
             )
         } else {
             isSearch.value = false
-            contactStore.showList = [] as any[]
+            contactStore.showList = []
         }
         // macOS: 刷新 TouchBar
         if(backend.isDesktop()) {

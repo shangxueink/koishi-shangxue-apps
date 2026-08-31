@@ -485,6 +485,8 @@ function deleteHistoryConnection(index: number, event?: Event) {
  * @param show 是否显示聊天面板
  */
 function changeTab(_: string, view: string, show: boolean) {
+    // 导航时清掉可能残留的弹窗遮罩，避免挡住页面点击
+    uiStore.popBoxList = []
     // UM：发送页面路由分析
     if (
         !Option.get('close_ga') &&
@@ -505,6 +507,11 @@ function changeTab(_: string, view: string, show: boolean) {
                 optTab.style.opacity = '1'
             }
             break
+        }
+        default: {
+            if (optTab) {
+                optTab.style.opacity = '0'
+            }
         }
     }
 }

@@ -1833,9 +1833,9 @@ div.tiny-session-body {
     border-radius: 7px;
     cursor: pointer;
     margin: 3px 0;
-    padding: 10px;
+    padding: 8px 10px;
     display: flex;
-    height: 40px;
+    height: 52px;
     width: 100%;
 }
 div.tiny-session-body > div:nth-child(1) {
@@ -1885,13 +1885,15 @@ div.tiny-session-body > div p {
 }
 div.tiny-session-body > div:nth-child(3) {
     display: flex;
+    justify-content: center;
     flex-direction: column;
     height: 100%;
     width: 100%;
 }
 div.tiny-session-body > div:nth-child(3) > p {
-    min-height: 1rem;
-    height: 1rem;
+    min-height: 1.4rem;
+    height: 1.4rem;
+    line-height: 1.4;
 }
 div.tiny-session-body > div:nth-child(3) > div {
     display: flex;
