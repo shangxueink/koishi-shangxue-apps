@@ -29,23 +29,6 @@
                 </div>
             </div>
             <div class="opt-item">
-                <div :class="checkDefault('debug_msg')" />
-                <font-awesome-icon :icon="['fas', 'robot']" />
-                <div>
-                    <label for="opt-dev-debug-msg">{{ $t('禁用消息渲染') }}</label>
-                    <span>
-                        <a style="cursor: pointer" @click="sendAbab">{{ $t('点击进行 CAPTCHA 验证') }}</a>
-                    </span>
-                </div>
-                <label class="ss-switch">
-                    <input id="opt-dev-debug-msg" v-model="settingsStore.sysConfig.debug_msg"
-                        type="checkbox" name="debug_msg" @change="save">
-                    <div>
-                        <div />
-                    </div>
-                </label>
-            </div>
-            <div class="opt-item">
                 <font-awesome-icon :icon="['fas', 'rotate-left']" />
                 <div>
                     <span>{{ $t('恢复 WebUI 所有默认配置项') }}</span>
@@ -232,13 +215,6 @@ import packageInfo from '../../../package.json'
             },
             full: true,
         })
-    }
-
-    function sendAbab() {
-        new PopInfo().add(
-            PopType.INFO,
-            $t('你不是人（逃'),
-        )
     }
 
     function printRuntime() {

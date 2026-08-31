@@ -92,7 +92,6 @@
                         :key="data.message_id + '-m-' + index"
                         :class="View.isMsgInline(item.type) ? 'msg-inline' : ''">
                         <div v-if="item.type === undefined" />
-                        <span v-else-if="isDebugMsg" class="msg-text">{{ item }}</span>
                         <span v-else-if="item.type == 'i18n'" class="msg-text">{{ item.path ? $t(item.path, item.params ?? {}) : '[i18n]' }}</span>
                         <template v-else-if="item.type == 'text'">
                             <div v-if="hasMarkdown()" class="msg-md-title" />
@@ -290,7 +289,7 @@
                     <XmlSegComp v-else :id="data.message_id" :item="data.message.at(0)!.data" />
                 </template>
                 <!-- 链接预览框 -->
-                <div v-if="!isDebugMsg && pageViewInfo && Object.keys(pageViewInfo).length > 0"
+                <div v-if="pageViewInfo && Object.keys(pageViewInfo).length > 0"
                     :class="'msg-link-view ' + linkViewStyle">
                     <template v-if="pageViewInfo.type == undefined">
                         <div :class="'bar' + (isMe ? ' me' : '')" />
@@ -396,7 +395,6 @@
 </template>
 
 <script setup lang="ts">
-import Option from '../function/option'
 import markdownit from 'markdown-it'
 
 import { MsgBodyFuns as ViewFuns } from '../function/model/msg-body'
@@ -533,7 +531,6 @@ const isMe = computed(() => {
 })
 const isDev = import.meta.env.DEV
 const msgBodyClass = ref('message-body')
-const isDebugMsg = Option.get('debug_msg')
 const linkViewStyle = ref('')
 const pageViewInfo = ref(undefined as { [key: string]: any } | undefined)
 const gotLink = ref(false)
@@ -819,7 +816,7 @@ async function parseText(index: number) {
     const reg = /(http|https):\/\/[\w\-_]+(\.[\w\-_]+)+([\w\-.,@?^=%&:/~+#]*[\w\-@?^=%&/~+#])?/gi
     text = text.replaceAll(reg, '<a href="" data-link="$&" onclick="return false">$&</a>')
     const linkList = text.match(reg)
-    if (linkList !== null && !gotLink.value && !isDebugMsg) {
+    if (linkList !== null && !gotLink.value) {
         queueMicrotask(async() => {
             gotLink.value = true
             const fistLink = linkList[0]

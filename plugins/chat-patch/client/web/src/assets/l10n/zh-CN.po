@@ -222,12 +222,6 @@ msgstr ""
 msgid "这儿是兼容性相关的高级选项，这些选项通常会自动识别，如果出现了不正确的情况你也可以手动调整。"
 msgstr ""
 
-msgid "禁用消息渲染"
-msgstr ""
-
-msgid "点击进行 CAPTCHA 验证"
-msgstr ""
-
 msgid "开发者选项"
 msgstr ""
 
