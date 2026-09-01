@@ -1,5 +1,4 @@
 import { Context } from 'koishi'
-import BetterSqlite3 from 'better-sqlite3'
 import { mkdirSync } from 'node:fs'
 import path from 'node:path'
 import { createHash } from 'node:crypto'
@@ -89,9 +88,48 @@ interface KvIteratorOptions {
   limit?: number
 }
 
+interface LevelIteratorOptions {
+  gte?: string
+  lte?: string
+  lt?: string
+  reverse?: boolean
+  limit?: number
+}
+
+interface LevelDatabase {
+  open(): Promise<void>
+  close(): Promise<void>
+  put(key: string, value: string): Promise<void>
+  get(key: string): Promise<string>
+  del(key: string): Promise<void>
+  batch(operations: KvWriteOperation[]): Promise<void>
+  clear(): Promise<void>
+  iterator<K, V>(options?: LevelIteratorOptions): AsyncIterable<[K, V]>
+  compactRange(start: string, end: string): Promise<void>
+}
+
+interface LevelConstructor {
+  new (
+    location: string,
+    options?: { keyEncoding?: string; valueEncoding?: string },
+  ): LevelDatabase
+}
+
+interface LevelModule {
+  Level: LevelConstructor
+}
+
+interface WNodeService {
+  import<T>(packageName: string, options?: {
+    allowInstall?: boolean
+    useRequire?: boolean
+    version?: string
+  }): Promise<T>
+}
+
 interface KvStore {
   readonly path: string
-  readonly driver: 'better-sqlite3'
+  readonly driver: 'level'
   readonly isOpen: boolean
   put(key: string, value: string): Promise<void>
   get(key: string): Promise<string>
@@ -103,88 +141,58 @@ interface KvStore {
   close(): Promise<void> | void
 }
 
-class BetterSqliteKV implements KvStore {
-  readonly driver = 'better-sqlite3' as const
+// LevelDB 的读写性能适合这种消息缓存，恢复为之前的存储后端
+class LevelKV implements KvStore {
+  readonly driver = 'level' as const
+  private opened = false
 
   constructor(
     readonly path: string,
-    private readonly sqlite: BetterSqlite3.Database,
+    private readonly level: LevelDatabase,
   ) {}
 
   get isOpen(): boolean {
-    return this.sqlite.open
+    return this.opened
   }
 
-  close() {
-    this.sqlite.close()
+  async open() {
+    await this.level.open()
+    this.opened = true
+  }
+
+  async close() {
+    if (!this.opened) return
+    await this.level.close()
+    this.opened = false
   }
 
   async put(key: string, value: string) {
-    this.sqlite.prepare(`
-      INSERT INTO kv (key, value) VALUES (?, ?)
-      ON CONFLICT(key) DO UPDATE SET value = excluded.value
-    `).run(key, value)
+    await this.level.put(key, value)
   }
 
   async get(key: string): Promise<string> {
-    const row = this.sqlite.prepare('SELECT key, value FROM kv WHERE key = ?')
-      .get(key) as Record<string, unknown> | undefined
-    if (!row) throw new Error('Key not found')
-    return String(row.value)
+    return await this.level.get(key)
   }
 
   async del(key: string) {
-    this.sqlite.prepare('DELETE FROM kv WHERE key = ?').run(key)
+    await this.level.del(key)
   }
 
   async batch(operations: KvWriteOperation[]) {
-    const run = this.sqlite.transaction((items: KvWriteOperation[]) => {
-      for (const operation of items) {
-        if (operation.type === 'put') {
-          this.sqlite.prepare(`
-            INSERT INTO kv (key, value) VALUES (?, ?)
-            ON CONFLICT(key) DO UPDATE SET value = excluded.value
-          `).run(operation.key, operation.value)
-        } else {
-          this.sqlite.prepare('DELETE FROM kv WHERE key = ?').run(operation.key)
-        }
-      }
-    })
-    run(operations)
+    await this.level.batch(operations)
   }
 
   async clear() {
-    this.sqlite.exec('DELETE FROM kv')
+    await this.level.clear()
   }
 
   async vacuum() {
-    this.sqlite.exec('VACUUM')
+    await this.level.compactRange('', '\uffff')
   }
 
   async *iterator(options: KvIteratorOptions = {}): AsyncGenerator<[string, string]> {
-    let sql = 'SELECT key, value FROM kv WHERE 1 = 1'
-    const params: Array<string | number> = []
-    if (options.gte !== undefined) {
-      sql += ' AND key >= ?'
-      params.push(options.gte)
-    }
-    if (options.lte !== undefined) {
-      sql += ' AND key <= ?'
-      params.push(options.lte)
-    }
-    if (options.lt !== undefined) {
-      sql += ' AND key < ?'
-      params.push(options.lt)
-    }
-    sql += options.reverse ? ' ORDER BY key DESC' : ' ORDER BY key ASC'
-    if (options.limit !== undefined && options.limit > 0) {
-      sql += ' LIMIT ?'
-      params.push(options.limit)
-    }
-    const statement = this.sqlite.prepare(sql)
-    for (const raw of statement.iterate(...params)) {
-      const row = raw as Record<string, unknown>
-      yield [String(row.key), String(row.value)]
+    for await (const [key, value] of this.level.iterator<string, string>(options)) {
+      yield [key, value]
     }
   }
 }
@@ -198,8 +206,8 @@ interface SharedDatabase {
 
 const sharedDatabases = new Map<string, SharedDatabase>()
 
-// 同文件复用同一个 SQLite 连接，避免 HMR 卸载/重载期间互相持有旧句柄
-async function acquireSharedDatabase(filePath: string): Promise<SharedDatabase> {
+// 同文件复用同一个 LevelDB 连接，避免 HMR 卸载/重载期间互相持有旧句柄
+async function acquireSharedDatabase(filePath: string, Level: LevelConstructor): Promise<SharedDatabase> {
   let shared = sharedDatabases.get(filePath)
   if (shared?.closing) {
     await shared.closing.catch(() => undefined)
@@ -207,16 +215,12 @@ async function acquireSharedDatabase(filePath: string): Promise<SharedDatabase> 
   }
   if (!shared) {
     mkdirSync(path.dirname(filePath), { recursive: true })
-    const sqlite = new BetterSqlite3(filePath)
-    sqlite.pragma('journal_mode = WAL')
-    sqlite.pragma('busy_timeout = 5000')
-    sqlite.exec(`
-      CREATE TABLE IF NOT EXISTS kv (
-        key TEXT PRIMARY KEY,
-        value TEXT NOT NULL
-      )
-    `)
-    const db = new BetterSqliteKV(filePath, sqlite)
+    const level = new Level(filePath, {
+      keyEncoding: 'utf8',
+      valueEncoding: 'utf8',
+    })
+    const db = new LevelKV(filePath, level)
+    await db.open()
     shared = {
       path: filePath,
       db,
@@ -254,7 +258,7 @@ export class ChatDatabase {
     private config: Config,
     private logger: PluginLogger,
   ) {
-    this.dir = path.resolve(ctx.baseDir, 'data', 'chat-patch', 'store.sqlite')
+    this.dir = path.resolve(ctx.baseDir, 'data', 'chat-patch', 'db')
   }
 
   private get db(): KvStore {
@@ -263,8 +267,25 @@ export class ChatDatabase {
   }
 
   async initialize() {
-    this.shared = await acquireSharedDatabase(this.dir)
-    this.logger.logInfo('存储已打开:', this.shared.db.driver, this.shared.path)
+    const levelModule = await this.loadLevelModule()
+    this.shared = await acquireSharedDatabase(this.dir, levelModule.Level)
+    this.logger.logInfo('LevelDB 已打开:', this.shared.db.driver, this.shared.path)
+  }
+
+  // 通过 w-node 服务动态安装并加载 level，原生 .node 不会进入插件依赖目录
+  private async loadLevelModule(): Promise<LevelModule> {
+    const nodeService = this.ctx.node
+    if (!nodeService) {
+      throw new Error('未检测到 w-node 服务，请先安装 koishi-plugin-w-node')
+    }
+    const levelModule = await nodeService.import<LevelModule>('level', {
+      version: '^10.0.0',
+      useRequire: true,
+    })
+    if (!levelModule?.Level) {
+      throw new Error('w-node 动态加载 level 失败')
+    }
+    return levelModule
   }
 
   async dispose() {

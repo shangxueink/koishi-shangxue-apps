@@ -17,7 +17,7 @@ export const name = 'chat-patch'
 export const reusable = false
 export const filter = false
 export const inject = {
-  required: ['console', 'server', 'http', 'satori.server'],
+  required: ['console', 'server', 'http', 'satori.server', 'node'],
 }
 
 declare module 'koishi' {
@@ -31,6 +31,10 @@ export const usage = `
 
 基于 Satori 协议的 Koishi 后台聊天室。
 需要在 Koishi 中启用 server-satori，并在插件内构建 web 应用。
+
+---
+
+需要安装 w-node 插件，并开启 w-node、market、server-satori 插件。
 
 ---
 `

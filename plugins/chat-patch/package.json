@@ -36,7 +36,8 @@
   "koishi": {
     "service": {
       "required": [
-        "console"
+        "console",
+        "node"
       ]
     }
   },
@@ -44,14 +45,14 @@
     "@koishijs/plugin-console": "^5.11.0",
     "@koishijs/plugin-server": "^3.2.9",
     "@koishijs/plugin-server-satori": "^2.9.1",
-    "koishi": "^4.16.0"
+    "koishi": "^4.16.0",
+    "koishi-plugin-w-node": "^2.1.0"
   },
   "devDependencies": {
     "@element-plus/icons-vue": "^2.3.2",
     "@koishijs/client": "^5.11.0",
     "@satorijs/element": "^3.1.8",
     "@satorijs/protocol": "^1.6.1",
-    "@types/better-sqlite3": "^9.6.0",
     "@types/mime-types": "^3.0.1",
     "autoprefixer": "^10.4.23",
     "cosmokit": "^1.0.0",
@@ -78,8 +79,5 @@
     "tailwindcss": "^3.4.17",
     "toidentifier": "1.0.1",
     "token-types": "^4.2.1"
-  },
-  "dependencies": {
-    "better-sqlite3": "^12.11.1"
   }
 }
