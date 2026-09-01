@@ -7,6 +7,7 @@ declare module '@satorijs/core' {
     server: {
       url: string
       config: {
+        path: string
         token?: string
       }
     }

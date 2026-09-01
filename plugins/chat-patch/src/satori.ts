@@ -2,12 +2,15 @@ import { Context } from 'koishi'
 import {} from '@koishijs/plugin-server'
 import {} from '@satorijs/plugin-server'
 
+function getSatoriPath(ctx: Context): string {
+  const path = ctx.satori?.server?.config?.path ?? '/satori'
+  return path.startsWith('/') ? path : `/${path}`
+}
+
 export function resolveSatoriEndpoint(ctx: Context): string {
-  const url = ctx.satori?.server?.url ?? '/satori'
-  const clean = url.startsWith('undefined') ? url.slice(9) : url
-  if (/^https?:\/\//i.test(clean)) return clean
-  const base = ctx.server?.selfUrl ?? ctx.server?.config?.selfUrl ?? ''
-  return `${base}${clean.startsWith('/') ? clean : `/${clean}`}`
+  const port = ctx.server?.port ?? ctx.server?.config?.port
+  const base = `http://localhost${port ? `:${port}` : ''}`
+  return `${base}${getSatoriPath(ctx)}`
 }
 
 export function toSatoriEventUrl(endpoint: string): string {
