@@ -57,17 +57,6 @@ function getObject(value: unknown): Record<string, unknown> {
   return typeof value === 'object' && value !== null ? value as Record<string, unknown> : {}
 }
 
-function isBlockedPlatform(
-  platform: string,
-  blockedPlatforms: SatoriBootstrap['blockedPlatforms'],
-): boolean {
-  return (blockedPlatforms ?? []).some((item) => {
-    return item.exactMatch
-      ? platform === item.platformName
-      : platform.includes(item.platformName)
-  })
-}
-
 async function parseJsonResponse(response: Response): Promise<unknown> {
   const text = await response.text()
   if (!response.ok) {
@@ -299,6 +288,7 @@ export function connect(
   let reconnectTimer = 0
   let retry = 0
   let disposed = false
+  let lastPongAt = 0
 
   const handleMessage = (event: MessageEvent) => {
     if (getString(event.data.source) === 'chat-patch-response') {
@@ -325,6 +315,7 @@ export function connect(
       socket = new WebSocket(wsUrl())
       socket.addEventListener('open', () => {
         retry = 0
+        lastPongAt = Date.now()
         socket?.send(JSON.stringify({
           op: 3,
           body: {
@@ -333,6 +324,10 @@ export function connect(
           },
         }))
         pingTimer = window.setInterval(() => {
+          if (Date.now() - lastPongAt > 30000) {
+            socket?.close()
+            return
+          }
           socket?.send(JSON.stringify({ op: 1, body: {} }))
         }, 10000)
         onStatus(true)
@@ -344,6 +339,7 @@ export function connect(
           const op = Number(raw.op)
           const body = getObject(raw.body)
           if (op === 4) {
+            lastPongAt = Date.now()
             const loginList = Array.isArray(body.logins) ? body.logins : []
             const seen = new Set<string>()
             const nextLogins: SatoriLogin[] = []
@@ -353,7 +349,7 @@ export function connect(
               const platform = getString(login.platform) || getString(user.platform)
               const selfId = getString(user.id) || getString(login.selfId)
               const key = [platform, selfId].map((value) => encodeURIComponent(value)).join(':')
-              if (!platform || !selfId || seen.has(key) || isBlockedPlatform(platform, bootstrap?.blockedPlatforms ?? [])) continue
+              if (!platform || !selfId || seen.has(key)) continue
               seen.add(key)
               nextLogins.push({
                 platform: getString(login.platform) || getString(user.platform),
@@ -371,8 +367,18 @@ export function connect(
             onReady(logins)
             return
           }
+          if (op === 1) {
+            lastPongAt = Date.now()
+            socket?.send(JSON.stringify({ op: 2, body: {} }))
+            return
+          }
+          if (op === 2) {
+            lastPongAt = Date.now()
+            return
+          }
           if (op === 5) return
           if (op === 0) {
+            lastPongAt = Date.now()
             sequence = Number(getObject(body).sn ?? sequence)
             localStorage.setItem('chat-patch:sn', String(sequence))
             onEvent({

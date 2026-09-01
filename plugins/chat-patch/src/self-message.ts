@@ -1,7 +1,6 @@
 import { Bot, Context, h, Session } from 'koishi'
 import { createHash, randomUUID } from 'node:crypto'
 
-import { Config } from './config'
 import { ChatDatabase } from './database'
 import { MediaManager } from './media'
 import { PluginLogger } from './logger'
@@ -213,7 +212,6 @@ export class SelfMessageRecorder {
 
   constructor(
     private ctx: Context,
-    private config: Config,
     private database: ChatDatabase,
     private media: MediaManager,
     private logger: PluginLogger,
@@ -234,14 +232,6 @@ export class SelfMessageRecorder {
     for (const bot of [...this.wrapped.keys()]) {
       this.unwrapBot(bot)
     }
-  }
-
-  private isBlocked(platform: string): boolean {
-    return (this.config.blockedPlatforms ?? []).some((item) => {
-      return item.exactMatch
-        ? platform === item.platformName
-        : platform.includes(item.platformName)
-    })
   }
 
   // 包装三个发送入口，覆盖 Satori message.create 和插件直接发送
@@ -337,7 +327,7 @@ export class SelfMessageRecorder {
     mode: 'create' | 'send' | 'private',
     localId: string,
   ) {
-    if (!channelId || this.isBlocked(bot.platform ?? '')) return
+    if (!channelId) return
     if (!ids.length) {
       this.logger.warn('发送未返回消息 ID，判定为发送失败:', bot.platform, channelId)
       return
@@ -362,7 +352,7 @@ export class SelfMessageRecorder {
   }
 
   private async markSelfMessageRevoked(bot: Bot, channelId: string, messageId: string) {
-    if (!messageId || !channelId || this.isBlocked(bot.platform ?? '')) return
+    if (!messageId || !channelId) return
     const updated = await this.database.updateSelfMessageByMessageId(
       bot.platform ?? '',
       bot.selfId,
@@ -384,7 +374,7 @@ export class SelfMessageRecorder {
     const eventChannel = getObject(event.channel)
     const eventMessage = getObject(event.message)
     const channelId = session.channelId || getString(eventChannel.id)
-    if (this.isBlocked(platform) || !platform || !selfId || !channelId) return
+    if (!platform || !selfId || !channelId) return
 
     const messageId = session.messageId || getMessageId(eventMessage)
     if (messageId) {

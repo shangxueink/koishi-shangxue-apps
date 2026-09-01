@@ -42,19 +42,20 @@ export async function apply(ctx: Context, config: Config) {
 
   const database = new ChatDatabase(ctx, config, pluginLogger)
   await database.initialize()
+  await database.cleanupExcess()
   const contactCache = new ContactCacheService(ctx, database, pluginLogger)
 
   const media = new MediaManager(ctx, config, database, pluginLogger)
   media.start()
 
-  const recorder = new Recorder(config, database, media, contactCache, pluginLogger)
-  const gateway = new SatoriGateway(ctx, config, database, recorder, pluginLogger, (payload) => {
+  const recorder = new Recorder(database, media, contactCache, pluginLogger)
+  const gateway = new SatoriGateway(ctx, database, recorder, pluginLogger, (payload) => {
     void ctx.console.broadcast('chat-patch/event', payload).catch((error) => {
       pluginLogger.warn('推送前端事件失败:', error)
     })
   })
 
-  const selfMessages = new SelfMessageRecorder(ctx, config, database, media, pluginLogger)
+  const selfMessages = new SelfMessageRecorder(ctx, database, media, pluginLogger)
   selfMessages.start()
 
   void gateway.start().catch((error) => {

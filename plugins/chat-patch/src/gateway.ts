@@ -4,7 +4,6 @@ import {} from '@koishijs/plugin-http'
 import {} from '@koishijs/plugin-server'
 import {} from '@satorijs/plugin-server'
 
-import { Config } from './config'
 import { ChatDatabase } from './database'
 import { PluginLogger } from './logger'
 import { Recorder } from './recorder'
@@ -45,10 +44,10 @@ export class SatoriGateway {
   private sequence = 0
   private logins: SatoriLoginInfo[] = []
   private online = false
+  private lastPongAt = 0
 
   constructor(
     private ctx: Context,
-    private config: Config,
     private database: ChatDatabase,
     private recorder: Recorder,
     private logger: PluginLogger,
@@ -99,6 +98,7 @@ export class SatoriGateway {
       }
       this.retry = 0
       this.setOnline(true)
+      this.lastPongAt = Date.now()
       socket.send(JSON.stringify({
         op: Opcode.IDENTIFY,
         body: {
@@ -109,6 +109,11 @@ export class SatoriGateway {
       if (!this.pingDispose) {
         this.pingDispose = this.ctx.setInterval(() => {
           if (this.socket?.readyState === WS_OPEN) {
+            if (Date.now() - this.lastPongAt > 30000) {
+              this.logger.logInfo('Satori 心跳超时，主动重连')
+              this.socket.close()
+              return
+            }
             this.socket.send(JSON.stringify({ op: Opcode.PING, body: {} }))
           }
         }, 10000)
@@ -160,14 +165,27 @@ export class SatoriGateway {
 
     if (payload.op === Opcode.READY) {
       const body = getObject(payload.body)
+      this.lastPongAt = Date.now()
       this.logins = this.normalizeLogins(body.logins)
       this.onPayload({ kind: 'ready', logins: this.getLogins() })
       return
     }
 
+    if (payload.op === Opcode.PING) {
+      this.lastPongAt = Date.now()
+      if (this.socket?.readyState === WS_OPEN) {
+        this.socket.send(JSON.stringify({ op: Opcode.PONG, body: {} }))
+      }
+      return
+    }
+    if (payload.op === Opcode.PONG) {
+      this.lastPongAt = Date.now()
+      return
+    }
     if (payload.op !== Opcode.EVENT) return
 
     const body = getObject(payload.body)
+    this.lastPongAt = Date.now()
     const sn = getNumber(body.sn)
     if (sn) {
       this.sequence = sn
@@ -212,8 +230,6 @@ export class SatoriGateway {
       sn,
       body,
     }
-    if (this.isBlocked(platform)) return
-
     try {
       await this.recorder.handleEvent(body)
     } catch (error) {
@@ -230,7 +246,7 @@ export class SatoriGateway {
       const user = getObject(login.user)
       const platform = getString(login.platform) || getString(user.platform)
       const selfId = getString(login.self_id) || getString(login.selfId) || getString(user.id)
-      if (!platform || !selfId || this.isBlocked(platform)) continue
+      if (!platform || !selfId) continue
       result.push({
         platform,
         selfId,
@@ -241,14 +257,6 @@ export class SatoriGateway {
       })
     }
     return result
-  }
-
-  private isBlocked(platform: string): boolean {
-    return (this.config.blockedPlatforms ?? []).some((item) => {
-      return item.exactMatch
-        ? platform === item.platformName
-        : platform.includes(item.platformName)
-    })
   }
 
   private setOnline(online: boolean) {

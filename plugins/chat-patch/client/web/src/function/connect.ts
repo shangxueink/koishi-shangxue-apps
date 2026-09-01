@@ -6,7 +6,6 @@ import {
   botKey,
   connectBackend,
   getActiveBot,
-  getBlockedPlatforms,
   getBootstrap,
   getLogins,
   request,
@@ -38,19 +37,12 @@ import type { ConnectionHistoryItem, LoginCacheElem } from './elements/system'
 import type { UserFriendElem, UserGroupElem } from './elements/information'
 
 const HISTORY_KEY = 'chat-patch:connection-history'
+const CLIENT_MESSAGE_CACHE_LIMIT = 500
 const logger = new Logger()
 const unsupportedMethods = new Set<string>()
 
 function encodeKeyPart(value: string): string {
   return encodeURIComponent(value)
-}
-
-function isBlockedPlatform(platform: string): boolean {
-  return getBlockedPlatforms().some((item) => {
-    return item.exactMatch
-      ? platform === item.platformName
-      : platform.includes(item.platformName)
-  })
 }
 
 function getChannelKind(value: unknown): 'group' | 'direct' | 'unknown' {
@@ -730,6 +722,9 @@ function recordBotMessage(platform: string, selfId: string, msg: Record<string, 
   const messageId = String(msg.message_id ?? '')
   if (messageId && !messages.some((item) => String(item.message_id) === messageId)) {
     messages.push(msg)
+    if (messages.length > CLIENT_MESSAGE_CACHE_LIMIT) {
+      messages.splice(0, messages.length - CLIENT_MESSAGE_CACHE_LIMIT)
+    }
     chatStore.sessionMessageCache.set(cacheKey, messages)
   }
   const currentShowId = String(chatStore.chatInfo.show.id ?? '')
@@ -900,7 +895,6 @@ export function restoreBotStateFromMessageCache(platform: string, selfId: string
 }
 
 function onSatoriEvent(event: SatoriEvent) {
-  if (isBlockedPlatform(event.platform)) return
   const oneBot = satoriEventToOneBot(event.body, String(event.platform || ''))
   if (oneBot) {
     oneBot._rawSatori = {
@@ -949,7 +943,6 @@ export function flushPendingBotEvents(platform: string, selfId: string) {
   if (!events?.length) return
   pendingBotEvents.delete(key)
   for (const event of events) {
-    if (isBlockedPlatform(event.platform)) continue
     const oneBot = satoriEventToOneBot(event.body, String(event.platform || ''))
     if (oneBot) {
       oneBot._rawSatori = {
@@ -978,7 +971,7 @@ function onSatoriReady(logins: Array<{ platform: string; selfId: string; name: s
   login.creating = false
   login.status = true
   const authStore = useAuthStore()
-  const visibleLogins = logins.filter((item) => !isBlockedPlatform(item.platform))
+  const visibleLogins = logins
   for (const item of visibleLogins) {
     if (!item.platform || !item.selfId) continue
     identityInfoCache.set(identityCacheKey('user', item.platform, item.selfId, item.selfId), {

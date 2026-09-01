@@ -1,7 +1,7 @@
 {
   "name": "koishi-plugin-chat-patch",
   "description": "[<ruby>chat-patch<rp>（</rp><rt>点我预览效果</rt><rp>）</rp></ruby>](https://i0.hdslb.com/bfs/openplatform/71074dfc9e5256fc3333d8bd8478bec1af874046.png) 视奸小插件((bushi( (低性能警告)。手机端适配。灵感来自 chat 插件。",
-  "version": "5.6.1",
+  "version": "6.0.0",
   "scripts": {
     "build:web": "npm --prefix client/web run build",
     "prepack": "npm run build:web",
@@ -51,6 +51,7 @@
     "@koishijs/client": "^5.11.0",
     "@satorijs/element": "^3.1.8",
     "@satorijs/protocol": "^1.6.1",
+    "@types/better-sqlite3": "^9.6.0",
     "@types/mime-types": "^3.0.1",
     "autoprefixer": "^10.4.23",
     "cosmokit": "^1.0.0",
@@ -79,6 +80,6 @@
     "token-types": "^4.2.1"
   },
   "dependencies": {
-    "level": "^10.0.0"
+    "better-sqlite3": "^12.11.1"
   }
 }

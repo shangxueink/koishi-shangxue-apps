@@ -1,6 +1,6 @@
 import { Context } from 'koishi'
 import {} from '@koishijs/plugin-server'
-import { createReadStream, existsSync, promises as fs, statSync } from 'node:fs'
+import { createReadStream, createWriteStream, existsSync, promises as fs, statSync } from 'node:fs'
 import { createHash } from 'node:crypto'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
@@ -13,7 +13,7 @@ import { ContactCacheService } from './cache'
 import { ChatDatabase } from './database'
 import { MediaManager } from './media'
 import { PluginLogger } from './logger'
-import { ContactCacheItem, SelfMessagePayload, SelfMessageRecord } from './types'
+import { ContactCacheItem, MessageRecord, SelfMessagePayload, SelfMessageRecord } from './types'
 
 interface ViteConsoleServer {
   config?: {
@@ -140,6 +140,11 @@ export function registerWeb(
     let name = String(body.name ?? '')
     let mime = ''
     let buffer: Buffer | null = null
+    let tempPath = ''
+    const rawHash = createHash('md5')
+    const cleanupTemp = async () => {
+      if (tempPath) await fs.unlink(tempPath).catch(() => undefined)
+    }
     if (source) {
       if (source.startsWith('base64://')) source = source.slice(9)
       const comma = source.indexOf('base64,')
@@ -156,11 +161,25 @@ export function registerWeb(
         ? source.slice(5, source.indexOf(';')).toLowerCase()
         : ''
     } else {
-      const chunks: Buffer[] = []
-      for await (const chunk of koa.req as AsyncIterable<Buffer | string>) {
-        chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk))
+      tempPath = path.join(uploadDir, `.upload-${Date.now()}-${Math.random().toString(36).slice(2)}.tmp`)
+      const write = createWriteStream(tempPath)
+      try {
+        for await (const chunk of koa.req as AsyncIterable<Buffer | string>) {
+          const part = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)
+          rawHash.update(part)
+          if (!write.write(part)) {
+            await new Promise<void>((resolve) => write.once('drain', resolve))
+          }
+        }
+        await new Promise<void>((resolve, reject) => {
+          write.once('error', reject)
+          write.end(() => resolve())
+        })
+      } catch (error) {
+        write.destroy()
+        await cleanupTemp()
+        throw error
       }
-      buffer = Buffer.concat(chunks)
       name = String(koa.query.name ?? koa.get('x-file-name') ?? '')
       try {
         name = decodeURIComponent(name)
@@ -169,26 +188,26 @@ export function registerWeb(
       }
       mime = String(koa.get('content-type') ?? '').split(';')[0].trim().toLowerCase()
     }
-    if (!buffer || !buffer.length) {
+    const fileSize = buffer ? buffer.length : existsSync(tempPath) ? statSync(tempPath).size : 0
+    if (!fileSize) {
+      await cleanupTemp()
       koa.status = 400
       koa.body = { error: 'missing media data' }
       return
     }
-    if (buffer.length > MAX_UPLOAD_BYTES) {
+    if (fileSize > MAX_UPLOAD_BYTES) {
+      await cleanupTemp()
       koa.status = 413
       koa.body = { error: 'media file too large' }
-      return
-    }
-    if (!buffer.length) {
-      koa.status = 400
-      koa.body = { error: 'invalid media data' }
       return
     }
 
     await fs.mkdir(uploadDir, { recursive: true })
     let detected: { ext?: string } | undefined
     try {
-      const result = await FileType.fromBuffer(buffer)
+      const result = buffer
+        ? await FileType.fromBuffer(buffer)
+        : await FileType.fromStream(createReadStream(tempPath))
       detected = result ?? undefined
     } catch {
       // 部分音频/文件无法识别时继续用 MIME 或文件名兜底
@@ -199,11 +218,23 @@ export function registerWeb(
     const ext = detected?.ext
       ? toExtension(detected.ext)
       : mimeExt || nameExt || '.bin'
-    const filename = `${createHash('md5').update(buffer).digest('hex')}${ext}`
+    const digest = buffer ? createHash('md5').update(buffer).digest('hex') : rawHash.digest('hex')
+    const filename = `${digest}${ext}`
     const filePath = path.join(uploadDir, filename)
-    if (!existsSync(filePath)) {
-      await fs.writeFile(filePath, buffer)
+    try {
+      if (!existsSync(filePath)) {
+        if (buffer) {
+          await fs.writeFile(filePath, buffer)
+        } else {
+          await fs.rename(tempPath, filePath)
+          tempPath = ''
+        }
+      }
+    } catch (error) {
+      await cleanupTemp()
+      throw error
     }
+    await cleanupTemp()
     koa.body = {
       path: pathToFileURL(filePath).href,
       localPath: filePath,
@@ -303,8 +334,12 @@ export function registerWeb(
       koa.body = { error: 'missing history params' }
       return
     }
-    const parsedLimit = Number(koa.query.limit ?? config.maxMessagesPerChannel)
-    const limit = Number.isFinite(parsedLimit) && parsedLimit > 0 ? parsedLimit : config.maxMessagesPerChannel
+    const defaultLimit = Math.min(config.maxMessagesPerChannel, 100)
+    const parsedLimit = Number(koa.query.limit ?? defaultLimit)
+    const limit = Math.min(
+      Math.max(1, Number.isFinite(parsedLimit) && parsedLimit > 0 ? Math.floor(parsedLimit) : defaultLimit),
+      config.maxMessagesPerChannel,
+    )
     const beforeTime = Number(koa.query.beforeTime ?? 0)
     const queryMessages = async (cid: string) => {
       return Number.isFinite(beforeTime) && beforeTime > 0
@@ -333,7 +368,32 @@ export function registerWeb(
       return timeA - timeB
     })
     selfMessages.sort((a, b) => a.sentAt - b.sentAt)
-    koa.body = { messages, selfMessages }
+    // 合并两条记录流后只返回 limit 条，保证前端分页/结束判断不会因自消息被放大
+    const combined: Array<{
+      kind: 'message' | 'self'
+      time: number
+      record: MessageRecord | SelfMessageRecord
+    }> = []
+    for (const item of messages) {
+      combined.push({
+        kind: 'message',
+        time: Number(item?.receivedAt ?? item?.timestampMs ?? item?.timestamp ?? 0),
+        record: item,
+      })
+    }
+    for (const item of selfMessages) {
+      combined.push({ kind: 'self', time: item.sentAt, record: item })
+    }
+    combined.sort((a, b) => a.time - b.time)
+    const capped = combined.slice(-limit)
+    koa.body = {
+      messages: capped
+        .filter((item) => item.kind === 'message')
+        .map((item) => item.record as MessageRecord),
+      selfMessages: capped
+        .filter((item) => item.kind === 'self')
+        .map((item) => item.record as SelfMessageRecord),
+    }
   })
 
   ctx.server.get(`${config.basePath}/api/self-messages`, async (koa) => {

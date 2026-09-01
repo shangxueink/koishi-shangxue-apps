@@ -1,5 +1,6 @@
-import { Level } from 'level'
 import { Context } from 'koishi'
+import BetterSqlite3 from 'better-sqlite3'
+import { mkdirSync } from 'node:fs'
 import path from 'node:path'
 import { createHash } from 'node:crypto'
 
@@ -28,7 +29,10 @@ function legacyMessagePrefix(platform: string, selfId: string, channelId: string
 }
 
 function messageKey(record: MessageRecord): string {
-  const time = String(record.timestamp).padStart(16, '0')
+  // 统一用毫秒排序，前端 beforeTime 也传毫秒，避免按秒存储时分页取到同一批消息
+  const time = String(
+    record.receivedAt ?? record.timestampMs ?? Number(record.timestamp) * 1000,
+  ).padStart(16, '0')
   return `${messagePrefix(record.platform, record.selfId, record.channelId || '')}${time}:${encodeKeyPart(record.id || 'unknown')}`
 }
 
@@ -73,36 +77,152 @@ function isUsableGroupContact(item: ContactCacheItem): boolean {
   return true
 }
 
-type CompactableLevel = Level<string, string> & {
-  compactRange(start: string, end: string): Promise<void>
+type KvWriteOperation =
+  | { type: 'put'; key: string; value: string }
+  | { type: 'del'; key: string }
+
+interface KvIteratorOptions {
+  gte?: string
+  lte?: string
+  lt?: string
+  reverse?: boolean
+  limit?: number
+}
+
+interface KvStore {
+  readonly path: string
+  readonly driver: 'better-sqlite3'
+  readonly isOpen: boolean
+  put(key: string, value: string): Promise<void>
+  get(key: string): Promise<string>
+  del(key: string): Promise<void>
+  batch(operations: KvWriteOperation[]): Promise<void>
+  clear(): Promise<void>
+  vacuum(): Promise<void>
+  iterator(options?: KvIteratorOptions): AsyncGenerator<[string, string]>
+  close(): Promise<void> | void
+}
+
+class BetterSqliteKV implements KvStore {
+  readonly driver = 'better-sqlite3' as const
+
+  constructor(
+    readonly path: string,
+    private readonly sqlite: BetterSqlite3.Database,
+  ) {}
+
+  get isOpen(): boolean {
+    return this.sqlite.open
+  }
+
+  close() {
+    this.sqlite.close()
+  }
+
+  async put(key: string, value: string) {
+    this.sqlite.prepare(`
+      INSERT INTO kv (key, value) VALUES (?, ?)
+      ON CONFLICT(key) DO UPDATE SET value = excluded.value
+    `).run(key, value)
+  }
+
+  async get(key: string): Promise<string> {
+    const row = this.sqlite.prepare('SELECT key, value FROM kv WHERE key = ?')
+      .get(key) as Record<string, unknown> | undefined
+    if (!row) throw new Error('Key not found')
+    return String(row.value)
+  }
+
+  async del(key: string) {
+    this.sqlite.prepare('DELETE FROM kv WHERE key = ?').run(key)
+  }
+
+  async batch(operations: KvWriteOperation[]) {
+    const run = this.sqlite.transaction((items: KvWriteOperation[]) => {
+      for (const operation of items) {
+        if (operation.type === 'put') {
+          this.sqlite.prepare(`
+            INSERT INTO kv (key, value) VALUES (?, ?)
+            ON CONFLICT(key) DO UPDATE SET value = excluded.value
+          `).run(operation.key, operation.value)
+        } else {
+          this.sqlite.prepare('DELETE FROM kv WHERE key = ?').run(operation.key)
+        }
+      }
+    })
+    run(operations)
+  }
+
+  async clear() {
+    this.sqlite.exec('DELETE FROM kv')
+  }
+
+  async vacuum() {
+    this.sqlite.exec('VACUUM')
+  }
+
+  async *iterator(options: KvIteratorOptions = {}): AsyncGenerator<[string, string]> {
+    let sql = 'SELECT key, value FROM kv WHERE 1 = 1'
+    const params: Array<string | number> = []
+    if (options.gte !== undefined) {
+      sql += ' AND key >= ?'
+      params.push(options.gte)
+    }
+    if (options.lte !== undefined) {
+      sql += ' AND key <= ?'
+      params.push(options.lte)
+    }
+    if (options.lt !== undefined) {
+      sql += ' AND key < ?'
+      params.push(options.lt)
+    }
+    sql += options.reverse ? ' ORDER BY key DESC' : ' ORDER BY key ASC'
+    if (options.limit !== undefined && options.limit > 0) {
+      sql += ' LIMIT ?'
+      params.push(options.limit)
+    }
+    const statement = this.sqlite.prepare(sql)
+    for (const raw of statement.iterate(...params)) {
+      const row = raw as Record<string, unknown>
+      yield [String(row.key), String(row.value)]
+    }
+  }
 }
 
 interface SharedDatabase {
-  dir: string
-  db: Level<string, string>
+  path: string
+  db: KvStore
   refs: number
-  opened: boolean
-  opening?: Promise<void>
   closing?: Promise<void>
 }
 
 const sharedDatabases = new Map<string, SharedDatabase>()
 
-// 同目录复用同一个 LevelDB 实例，避免 HMR 卸载/重载期间新旧插件抢占 LOCK
-async function acquireSharedDatabase(dir: string): Promise<SharedDatabase> {
-  let shared = sharedDatabases.get(dir)
+// 同文件复用同一个 SQLite 连接，避免 HMR 卸载/重载期间互相持有旧句柄
+async function acquireSharedDatabase(filePath: string): Promise<SharedDatabase> {
+  let shared = sharedDatabases.get(filePath)
   if (shared?.closing) {
     await shared.closing.catch(() => undefined)
-    shared = sharedDatabases.get(dir)
+    shared = sharedDatabases.get(filePath)
   }
   if (!shared) {
+    mkdirSync(path.dirname(filePath), { recursive: true })
+    const sqlite = new BetterSqlite3(filePath)
+    sqlite.pragma('journal_mode = WAL')
+    sqlite.pragma('busy_timeout = 5000')
+    sqlite.exec(`
+      CREATE TABLE IF NOT EXISTS kv (
+        key TEXT PRIMARY KEY,
+        value TEXT NOT NULL
+      )
+    `)
+    const db = new BetterSqliteKV(filePath, sqlite)
     shared = {
-      dir,
-      db: new Level<string, string>(dir, { keyEncoding: 'utf8', valueEncoding: 'utf8' }),
+      path: filePath,
+      db,
       refs: 0,
-      opened: false,
     }
-    sharedDatabases.set(dir, shared)
+    sharedDatabases.set(filePath, shared)
   }
   shared.refs += 1
   return shared
@@ -115,13 +235,10 @@ async function releaseSharedDatabase(shared: SharedDatabase): Promise<boolean> {
     await shared.closing
     return true
   }
-  if (!shared.opened) {
-    if (sharedDatabases.get(shared.dir) === shared) sharedDatabases.delete(shared.dir)
-    return true
-  }
-  const closing = shared.db.close().catch(() => undefined).finally(() => {
-    shared.opened = false
-    if (sharedDatabases.get(shared.dir) === shared) sharedDatabases.delete(shared.dir)
+  const closing = Promise.resolve().then(() => {
+    if (shared.db.isOpen) return shared.db.close()
+  }).catch(() => undefined).finally(() => {
+    if (sharedDatabases.get(shared.path) === shared) sharedDatabases.delete(shared.path)
   })
   shared.closing = closing
   await closing
@@ -137,46 +254,22 @@ export class ChatDatabase {
     private config: Config,
     private logger: PluginLogger,
   ) {
-    this.dir = path.resolve(ctx.baseDir, 'data', 'chat-patch', 'db')
+    this.dir = path.resolve(ctx.baseDir, 'data', 'chat-patch', 'store.sqlite')
   }
 
-  private get db(): Level<string, string> {
-    if (!this.shared) throw new Error('LevelDB is not initialized')
+  private get db(): KvStore {
+    if (!this.shared) throw new Error('Store is not initialized')
     return this.shared.db
   }
 
   async initialize() {
     this.shared = await acquireSharedDatabase(this.dir)
-    try {
-      await this.ensureOpen()
-      this.logger.logInfo('LevelDB 已打开:', this.shared.db.location)
-    } catch (error) {
-      await this.releaseShared()
-      throw error
-    }
+    this.logger.logInfo('存储已打开:', this.shared.db.driver, this.shared.path)
   }
 
   async dispose() {
     const closed = await this.releaseShared()
-    if (closed) this.logger.logInfo('LevelDB closed')
-  }
-
-  private async ensureOpen() {
-    const shared = this.shared
-    if (!shared || shared.opened) return
-    if (shared.opening) {
-      await shared.opening
-      return
-    }
-    const opening = shared.db.open().then(() => {
-      shared.opened = true
-    })
-    shared.opening = opening
-    try {
-      await opening
-    } finally {
-      shared.opening = undefined
-    }
+    if (closed) this.logger.logInfo('存储已关闭')
   }
 
   private async releaseShared(): Promise<boolean> {
@@ -187,16 +280,15 @@ export class ChatDatabase {
   }
 
   async clearAll() {
-    // 先清空记录，再强制压缩，让旧 .ldb 文件也能被回收
+    // 先清空记录，再强制压缩，让旧页也能被回收
     await this.db.clear()
-    const db = this.db as unknown as CompactableLevel
-    await db.compactRange('', '\uffff')
+    await this.db.vacuum()
     this.logger.logInfo('数据库缓存已全部清空并完成压缩')
   }
 
   async appendMessage(record: MessageRecord) {
     await this.db.put(messageKey(record), JSON.stringify(record))
-    await this.trimMessages(record.platform, record.selfId, record.channelId || '')
+    await this.trimChannel(record.platform, record.selfId, record.channelId || '')
   }
 
   async upsertSelfMessage(record: SelfMessageRecord) {
@@ -210,7 +302,7 @@ export class ChatDatabase {
       )
     }
     await this.db.put(selfMessageKey(record), JSON.stringify(record))
-    await this.trimSelfMessages(record.platform, record.selfId, record.channelId)
+    await this.trimChannel(record.platform, record.selfId, record.channelId)
   }
 
   async listSelfMessages(
@@ -221,7 +313,7 @@ export class ChatDatabase {
   ): Promise<SelfMessageRecord[]> {
     const result: SelfMessageRecord[] = []
     const prefix = selfMessagePrefix(platform, selfId, channelId)
-    for await (const [, value] of this.db.iterator<string, string>({
+    for await (const [, value] of this.db.iterator({
       gte: prefix,
       lte: `${prefix}\uffff`,
       reverse: true,
@@ -243,7 +335,7 @@ export class ChatDatabase {
     const result: SelfMessageRecord[] = []
     const prefix = selfMessagePrefix(platform, selfId, channelId)
     const before = `${prefix}${String(beforeTime).padStart(16, '0')}`
-    for await (const [, value] of this.db.iterator<string, string>({
+    for await (const [, value] of this.db.iterator({
       gte: prefix,
       lt: before,
       reverse: true,
@@ -263,7 +355,7 @@ export class ChatDatabase {
     patch: Partial<SelfMessageRecord>,
   ): Promise<boolean> {
     const prefix = `sm:${encodeKeyPart(platform)}:${encodeKeyPart(selfId)}:`
-    for await (const [key, value] of this.db.iterator<string, string>({
+    for await (const [key, value] of this.db.iterator({
       gte: prefix,
       lte: `${prefix}\uffff`,
     })) {
@@ -290,7 +382,7 @@ export class ChatDatabase {
   ): Promise<boolean> {
     const operations: Array<{ type: 'put'; key: string; value: string }> = []
     for (const prefix of [messagePrefix(platform, selfId, channelId), legacyMessagePrefix(platform, selfId, channelId)]) {
-      for await (const [key, value] of this.db.iterator<string, string>({
+      for await (const [key, value] of this.db.iterator({
         gte: prefix,
         lte: `${prefix}\uffff`,
       })) {
@@ -330,7 +422,7 @@ export class ChatDatabase {
       ? [selfMessagePrefix(platform, selfId, channelId)]
       : [`sm:${encodeKeyPart(platform)}:${encodeKeyPart(selfId)}:`]
     for (const prefix of prefixes) {
-      for await (const [, value] of this.db.iterator<string, string>({
+      for await (const [, value] of this.db.iterator({
         gte: prefix,
         lte: `${prefix}\uffff`,
       })) {
@@ -355,7 +447,7 @@ export class ChatDatabase {
   ) {
     const prefix = `sm:${encodeKeyPart(platform)}:${encodeKeyPart(selfId)}:`
     const toDelete: string[] = []
-    for await (const [key, value] of this.db.iterator<string, string>({
+    for await (const [key, value] of this.db.iterator({
       gte: prefix,
       lte: `${prefix}\uffff`,
     })) {
@@ -396,7 +488,7 @@ export class ChatDatabase {
   ): Promise<MessageRecord[]> {
     const result: MessageRecord[] = []
     for (const prefix of [messagePrefix(platform, selfId, channelId), legacyMessagePrefix(platform, selfId, channelId)]) {
-      for await (const [, value] of this.db.iterator<string, string>({
+      for await (const [, value] of this.db.iterator({
         gte: prefix,
         lte: `${prefix}\uffff`,
         reverse: true,
@@ -426,7 +518,7 @@ export class ChatDatabase {
     const result: MessageRecord[] = []
     for (const prefix of [messagePrefix(platform, selfId, channelId), legacyMessagePrefix(platform, selfId, channelId)]) {
       const before = `${prefix}${String(beforeTime).padStart(16, '0')}`
-      for await (const [, value] of this.db.iterator<string, string>({
+      for await (const [, value] of this.db.iterator({
         gte: prefix,
         lt: before,
         reverse: true,
@@ -449,7 +541,7 @@ export class ChatDatabase {
   async clearChannel(platform: string, selfId: string, channelId: string) {
     const operations: Array<{ type: 'del'; key: string }> = []
     for (const prefix of [messagePrefix(platform, selfId, channelId), legacyMessagePrefix(platform, selfId, channelId)]) {
-      for await (const [key] of this.db.iterator<string, string>({
+      for await (const [key] of this.db.iterator({
         gte: prefix,
         lte: `${prefix}\uffff`,
       })) {
@@ -457,7 +549,7 @@ export class ChatDatabase {
       }
     }
     const selfPrefix = selfMessagePrefix(platform, selfId, channelId)
-    for await (const [key] of this.db.iterator<string, string>({
+    for await (const [key] of this.db.iterator({
       gte: selfPrefix,
       lte: `${selfPrefix}\uffff`,
     })) {
@@ -521,7 +613,7 @@ export class ChatDatabase {
 
   async getAllMedia(): Promise<Array<{ filePath: string; channelId: string }>> {
     const result: Array<{ filePath: string; channelId: string }> = []
-    for await (const [, value] of this.db.iterator<string, string>({
+    for await (const [, value] of this.db.iterator({
       gte: 'media:',
       lte: 'media:\uffff',
     })) {
@@ -548,7 +640,7 @@ export class ChatDatabase {
   async removeMediaByPath(filePath: string) {
     const normalized = path.normalize(filePath)
     const toDelete: string[] = []
-    for await (const [key, value] of this.db.iterator<string, string>({
+    for await (const [key, value] of this.db.iterator({
       gte: 'media:',
       lte: 'media:\uffff',
     })) {
@@ -690,7 +782,7 @@ export class ChatDatabase {
       kind: 'new' | 'legacy'
       entry: ContactEntry
     }>()
-    for await (const [key, value] of this.db.iterator<string, string>({
+    for await (const [key, value] of this.db.iterator({
       gte: 'c:',
       lte: 'c:\uffff',
     })) {
@@ -742,36 +834,89 @@ export class ChatDatabase {
     return result
   }
 
-  private async trimMessages(platform: string, selfId: string, channelId: string) {
-    let count = 0
-    const toDelete: string[] = []
-    for (const prefix of [messagePrefix(platform, selfId, channelId), legacyMessagePrefix(platform, selfId, channelId)]) {
-      for await (const [key] of this.db.iterator<string, string>({
+  // 收到消息或机器人发送消息后统一裁剪，m 和 sm 合起来按时间保留上限
+  private async trimChannel(platform: string, selfId: string, channelId: string) {
+    const rows: Array<{ key: string; time: number }> = []
+    const prefixes = [
+      messagePrefix(platform, selfId, channelId),
+      legacyMessagePrefix(platform, selfId, channelId),
+      selfMessagePrefix(platform, selfId, channelId),
+    ]
+    for (const prefix of prefixes) {
+      for await (const [key, value] of this.db.iterator({
         gte: prefix,
         lte: `${prefix}\uffff`,
       })) {
-        count += 1
-        if (count > this.config.maxMessagesPerChannel) toDelete.push(key)
+        rows.push({ key, time: this.extractRecordTime(value) })
       }
     }
-    if (!toDelete.length) return
-    await this.db.batch(toDelete.map((key) => ({ type: 'del', key })))
-    this.logger.logInfo(`频道历史已裁剪 ${toDelete.length} 条`)
+    await this.trimRows(rows)
   }
 
-  private async trimSelfMessages(platform: string, selfId: string, channelId: string) {
-    let count = 0
-    const toDelete: string[] = []
-    const prefix = selfMessagePrefix(platform, selfId, channelId)
-    for await (const [key] of this.db.iterator<string, string>({
-      gte: prefix,
-      lte: `${prefix}\uffff`,
-    })) {
-      count += 1
-      if (count > this.config.maxMessagesPerChannel) toDelete.push(key)
+  // 启动时清理历史遗留的超量消息，避免配置项只在写入时才生效
+  async cleanupExcess() {
+    const groups = new Map<string, {
+      platform: string
+      selfId: string
+      channelId: string
+      rows: Array<{ key: string; time: number }>
+    }>()
+    const collect = async (prefix: string) => {
+      for await (const [key, value] of this.db.iterator({
+        gte: prefix,
+        lte: `${prefix}\uffff`,
+      })) {
+        let parsed: Record<string, unknown>
+        try {
+          parsed = JSON.parse(value) as Record<string, unknown>
+        } catch {
+          continue
+        }
+        const platform = typeof parsed.platform === 'string' ? parsed.platform : ''
+        const selfId = typeof parsed.selfId === 'string' ? parsed.selfId : ''
+        const channelId = typeof parsed.channelId === 'string' ? parsed.channelId : ''
+        if (!platform || !selfId) continue
+        const groupKey = JSON.stringify([platform, selfId, channelId])
+        let group = groups.get(groupKey)
+        if (!group) {
+          group = { platform, selfId, channelId, rows: [] }
+          groups.set(groupKey, group)
+        }
+        group.rows.push({ key, time: this.extractRecordTime(value) })
+      }
     }
-    if (!toDelete.length) return
-    await this.db.batch(toDelete.map((key) => ({ type: 'del', key })))
-    this.logger.logInfo(`机器人消息已裁剪 ${toDelete.length} 条`)
+    await collect('m:')
+    await collect('sm:')
+
+    let removed = 0
+    for (const group of groups.values()) {
+      const excess = group.rows.length - this.config.maxMessagesPerChannel
+      if (excess <= 0) continue
+      group.rows.sort((a, b) => a.time - b.time || (a.key < b.key ? -1 : 1))
+      const keys = group.rows.slice(0, excess).map((item) => item.key)
+      await this.db.batch(keys.map((key) => ({ type: 'del', key })))
+      removed += keys.length
+    }
+    if (removed) {
+      this.logger.logInfo(`启动时已裁剪 ${removed} 条超出上限的历史消息`)
+    }
+  }
+
+  private async trimRows(rows: Array<{ key: string; time: number }>) {
+    const excess = rows.length - this.config.maxMessagesPerChannel
+    if (excess <= 0) return
+    rows.sort((a, b) => a.time - b.time || (a.key < b.key ? -1 : 1))
+    const keys = rows.slice(0, excess).map((item) => item.key)
+    await this.db.batch(keys.map((key) => ({ type: 'del', key })))
+    this.logger.logInfo(`频道历史已裁剪 ${keys.length} 条`)
+  }
+
+  private extractRecordTime(value: string): number {
+    try {
+      const parsed = JSON.parse(value) as Record<string, unknown>
+      return Number(parsed.receivedAt ?? parsed.timestampMs ?? parsed.timestamp ?? parsed.sentAt ?? 0) || 0
+    } catch {
+      return 0
+    }
   }
 }

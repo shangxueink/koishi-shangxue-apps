@@ -26,7 +26,8 @@ export function registerBootstrap(
       token: ctx.satori?.server?.config?.token ?? '',
       basePath: config.basePath,
       logins: getLogins(),
-      blockedPlatforms: config.blockedPlatforms ?? [],
+      // 旧配置里默认屏蔽 qq/qqguild，容易造成漏消息；这里不再下发屏蔽规则
+      blockedPlatforms: [],
     }
   }, { authority: 4 })
 
@@ -46,7 +47,7 @@ export function registerBootstrap(
       maxMessagesPerChannel: config.maxMessagesPerChannel,
       historyPageSize: config.historyPageSize,
       maxMediaFiles: config.maxMediaFiles,
-      blockedPlatforms: config.blockedPlatforms ?? [],
+      blockedPlatforms: [],
       loggerinfo: config.loggerinfo,
     }
   }, { authority: 4 })

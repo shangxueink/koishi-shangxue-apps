@@ -25,11 +25,7 @@ export const Config: Schema<Config> = Schema.intersect([
     blockedPlatforms: Schema.array(Schema.object({
       platformName: Schema.string(),
       exactMatch: Schema.boolean().default(true),
-    })).role('table').description('屏蔽消息接收的平台').default([
-      { platformName: 'qq', exactMatch: true },
-      { platformName: 'qqguild', exactMatch: true },
-      { platformName: 'sandbox', exactMatch: false },
-    ]),
+    })).role('table').description('屏蔽消息接收的平台').default([]),
     loggerinfo: Schema.boolean().default(false).description('调试日志开关').hidden().experimental(),
   }).description('高级设置'),
 ])

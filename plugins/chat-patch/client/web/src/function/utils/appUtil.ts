@@ -53,6 +53,13 @@ function encodeKeyPart(value: unknown): string {
     return encodeURIComponent(String(value ?? ''))
 }
 
+const HISTORY_INITIAL_LIMIT = 100
+let historyRequestId = 0
+
+function chatTargetKey(type: unknown, id: unknown, channelId: unknown): string {
+    return `${String(type ?? '')}:${String(id ?? '')}:${String(channelId ?? '')}`
+}
+
 /**
  * 滚动到目标消息（不自动加载）
  * @param seqName DOM 名（chat-xx）
@@ -113,14 +120,26 @@ export async function loadHistory(info: BaseChatInfoElem) {
     const chatStore = useChatStore()
     const settingsStore = useSettingsStore()
     const uiStore = useUIStore()
+    const requestId = ++historyRequestId
+    const targetKey = chatTargetKey(info.type, info.id, info.channel_id)
+    const isStale = () => {
+        return requestId !== historyRequestId
+            || targetKey !== chatTargetKey(
+                chatStore.chatInfo.show.type,
+                chatStore.chatInfo.show.id,
+                chatStore.chatInfo.show.channel_id,
+            )
+    }
     uiStore.nowGetHistory = false
     uiStore.historyBeforeTime = undefined
+    uiStore.canLoadHistory = true
+    uiStore.loadHistoryFail = false
     chatStore.messageList = []
     const channelId = String(info.channel_id ?? info.id ?? '')
     const cacheKey = [authStore.loginInfo.platform, authStore.loginInfo.uin, channelId].map(encodeKeyPart).join(':')
-    const cachedMessages = chatStore.sessionMessageCache.get(cacheKey)
-    if (cachedMessages?.length) {
-        chatStore.messageList = [...cachedMessages]
+    const sessionCached = chatStore.sessionMessageCache.get(cacheKey)
+    if (sessionCached?.length && !isStale()) {
+        chatStore.messageList = [...sessionCached]
     }
     // 本地有数据时立即显示，同时仍发网络请求以获取最新消息（避免遗漏）
     if (
@@ -132,17 +151,19 @@ export async function loadHistory(info: BaseChatInfoElem) {
             channelId,
             20,
         )
-        if (localMsgs.length > 0) {
+        if (localMsgs.length > 0 && !isStale()) {
             chatStore.messageList = localMsgs
         }
     }
+    if (isStale()) return
     try {
         const cachedMessages = await loadChatHistoryFromCache({
             platform: String(authStore.loginInfo.platform ?? ''),
             selfId: String(authStore.loginInfo.uin ?? ''),
             channelId,
-            limit: 500,
+            limit: HISTORY_INITIAL_LIMIT,
         })
+        if (isStale()) return
         if (cachedMessages.length > 0) {
             const mergedMap = new Map<string, any>()
             for (const msg of chatStore.messageList) {
@@ -167,7 +188,7 @@ export async function loadHistory(info: BaseChatInfoElem) {
                 }
                 return 0
             })
-            chatStore.messageList = merged.slice(-500)
+            chatStore.messageList = merged.slice(-HISTORY_INITIAL_LIMIT)
         }
     } catch (error) {
         logger.error(error as Error, '[LocalHistory] 加载聊天记录缓存失败')

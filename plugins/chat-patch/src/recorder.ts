@@ -1,4 +1,3 @@
-import { Config } from './config'
 import { ContactCacheService } from './cache'
 import { ChatDatabase } from './database'
 import { MediaManager } from './media'
@@ -35,7 +34,6 @@ function isPrivateChannelType(value: unknown): boolean {
 
 export class Recorder {
   constructor(
-    private config: Config,
     private database: ChatDatabase,
     private media: MediaManager,
     private contactCache: ContactCacheService,
@@ -47,7 +45,6 @@ export class Recorder {
     const type = getString(body.type)
     const login = getObject(body.login)
     const platform = getString(body.platform) || getString(login.platform)
-    if (this.isBlocked(platform)) return false
     if (type === 'message-deleted') {
       await this.handleMessageDeleted(body)
       return true
@@ -55,14 +52,6 @@ export class Recorder {
     if (!MESSAGE_TYPES.has(type)) return false
     await this.handleMessageCreated(body)
     return true
-  }
-
-  private isBlocked(platform: string): boolean {
-    return (this.config.blockedPlatforms ?? []).some((item) => {
-      return item.exactMatch
-        ? platform === item.platformName
-        : platform.includes(item.platformName)
-    })
   }
 
   private async handleMessageCreated(body: Record<string, unknown>) {

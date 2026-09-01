@@ -1,8 +1,10 @@
 import { Context } from 'koishi'
 import {} from '@koishijs/plugin-server'
 import { createHash } from 'node:crypto'
-import { createReadStream, promises as fs } from 'node:fs'
+import { createReadStream, createWriteStream, promises as fs } from 'node:fs'
 import path from 'node:path'
+import { Readable } from 'node:stream'
+import { pipeline } from 'node:stream/promises'
 import { fileURLToPath } from 'node:url'
 import FileType from 'file-type'
 
@@ -101,6 +103,23 @@ function collectMediaUrls(source: unknown, result: Set<string>) {
   for (const key of ['elements', 'children', 'content', 'data', 'html', 'message'] as const) {
     collectMediaUrls(attrs[key] ?? record[key], result)
   }
+}
+
+// 限制同时下载的媒体数量，避免一条含大量图片/视频的消息一次性吃满内存和连接
+async function forEachConcurrent<T>(
+  items: readonly T[],
+  limit: number,
+  task: (item: T) => Promise<unknown>,
+) {
+  let cursor = 0
+  const workers = Array.from({ length: Math.min(limit, items.length) }, async () => {
+    while (cursor < items.length) {
+      const current = cursor
+      cursor += 1
+      await task(items[current]).catch(() => undefined)
+    }
+  })
+  await Promise.all(workers)
 }
 
 export class MediaManager {
@@ -212,7 +231,7 @@ export class MediaManager {
   async cacheMessageMedia(source: unknown, channelId = ''): Promise<string[]> {
     const urls = new Set<string>()
     collectMediaUrls(source, urls)
-    await Promise.allSettled([...urls].map((url) => this.cacheUrl(url, channelId)))
+    await forEachConcurrent([...urls], 4, (url) => this.cacheUrl(url, channelId))
     if (urls.size) {
       this.logger.logInfo('消息媒体已预缓存:', urls.size, '个 URL')
     }
@@ -256,33 +275,45 @@ export class MediaManager {
       if (!response.ok) {
         return null
       }
-      const buffer = Buffer.from(await response.arrayBuffer())
-      const ext = await this.detectExtension(url, buffer)
+      if (!response.body) return null
+      const detected = await FileType.stream(Readable.fromWeb(response.body))
+      const ext = detected.fileType?.ext
+        ? toExtension(detected.fileType.ext)
+        : (urlExt || '.bin')
       const filename = `${hash}${ext}`
       const filePath = path.join(this.mediaDir, filename)
-      await fs.writeFile(filePath, buffer)
-      this.logger.logInfo('媒体已缓存:', filename, buffer.length)
+      if (await this.exists(filePath)) {
+        return this.migrateCachedMedia(url, filePath, channelId)
+      }
+      const tempPath = path.join(this.mediaDir, `${hash}.${Date.now()}.${Math.random().toString(36).slice(2)}.tmp`)
+      try {
+        await pipeline(detected, createWriteStream(tempPath))
+        await fs.rename(tempPath, filePath)
+      } catch (error) {
+        await fs.unlink(tempPath).catch(() => undefined)
+        throw error
+      }
+      this.logger.logInfo('媒体已缓存:', filename)
       return filePath
     } catch (error) {
       return null
     }
   }
 
-  private async detectExtension(url: string, buffer: Buffer): Promise<string> {
+  private async detectExtensionFromFile(filePath: string): Promise<string> {
     try {
-      const detected = await FileType.fromBuffer(buffer)
+      const detected = await FileType.fromStream(createReadStream(filePath))
       if (detected?.ext) return toExtension(detected.ext)
     } catch (error) {
-      this.logger.logInfo('媒体类型识别失败，回退 URL 后缀:', url, error)
+      this.logger.logInfo('媒体类型识别失败，回退文件后缀:', filePath, error)
     }
-    const ext = path.extname(new URL(url).pathname)
+    const ext = path.extname(filePath).toLowerCase()
     return ext && ext !== '.bin' ? ext.toLowerCase() : '.bin'
   }
 
   private async migrateCachedMedia(url: string, filePath: string, channelId: string): Promise<string> {
     try {
-      const buffer = await fs.readFile(filePath)
-      const ext = await this.detectExtension(url, buffer)
+      const ext = await this.detectExtensionFromFile(filePath)
       const currentExt = path.extname(filePath).toLowerCase()
       if (ext === '.bin' || ext === currentExt) return filePath
 

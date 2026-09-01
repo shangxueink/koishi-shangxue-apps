@@ -588,7 +588,6 @@ import { v4 as uuid } from 'uuid'
 import {
 	scrollToMsg,
     downloadFile,
-    loadHistory as loadHistoryFirst,
     shouldAutoFocus,
 	vMenu,
 	vMove,
@@ -612,7 +611,6 @@ import {
 import { Logger, LogType, PopInfo, PopType } from '../function/base'
 import { Connector, loadChatHistoryFromCache, saveSentSelfMessage, sendForwardMessage } from '../function/connect'
 import {
-    BaseChatInfoElem,
     MsgItemElem,
     SQCodeElem,
     GroupMemberInfoElem,
@@ -735,6 +733,14 @@ const forwardList = ref(contactStore.userList)
 const chatImg = ref<any>(undefined)
 const trueLang = getTrueLang()
 
+const HISTORY_PAGE_SIZE = 50
+const HISTORY_INITIAL_LIMIT = 100
+
+function currentChatTargetKey(): string {
+    const show = chatStore.chatInfo.show
+    return `${String(show.type ?? '')}:${String(show.id ?? '')}:${String(show.channel_id ?? '')}`
+}
+
 function messageLocalTimeMs(item: any): number {
     const local = Number(item?.local_time ?? item?.timestamp_ms ?? item?.time_ms ?? 0)
     if (local) return local
@@ -745,6 +751,7 @@ function messageLocalTimeMs(item: any): number {
 async function refreshSelfHistory() {
     const id = chat.show.id
     if (!id || id === 0 || details.value[3].open || tags.value.showForwardPan) return
+    const targetKey = currentChatTargetKey()
     const channelId = chat.show.type === 'group'
         ? String(chat.show.channel_id ?? id)
         : String(chat.show.channel_id ?? id)
@@ -754,12 +761,12 @@ async function refreshSelfHistory() {
             platform: String(authStore.loginInfo.platform ?? ''),
             selfId: String(authStore.loginInfo.uin ?? ''),
             channelId,
-            limit: 30,
+            limit: HISTORY_INITIAL_LIMIT,
         })
     } catch {
         return
     }
-    if (!cached.length || String(chat.show.id) !== String(id)) return
+    if (!cached.length || String(chat.show.id) !== String(id) || targetKey !== currentChatTargetKey()) return
 
     const seen = new Set<string>()
     const addSeen = (item: any) => {
@@ -1178,6 +1185,8 @@ async function loadMoreHistory() {
         const firstMsg = list[0]
         const firstMsgId = firstMsg.message_id
         const firstMsgTime = Number(firstMsg?.time)
+        const targetKey = currentChatTargetKey()
+        const isStale = () => targetKey !== currentChatTargetKey()
         const cacheBeforeTime = Number(
             firstMsg?.local_time ?? firstMsg?.timestamp_ms ?? firstMsg?.time_ms ?? 0
         ) || (Number.isFinite(firstMsgTime) ? firstMsgTime * 1000 : 0)
@@ -1191,6 +1200,10 @@ async function loadMoreHistory() {
             uiStore.historyBeforeTime = undefined
         }
         uiStore.loadHistoryFail = false
+        if (isStale()) {
+            uiStore.nowGetHistory = false
+            return
+        }
 
         const channelId = String(
             chatStore.chatInfo.show.channel_id
@@ -1214,6 +1227,10 @@ async function loadMoreHistory() {
                     20,
                 )
             }
+            if (isStale()) {
+                uiStore.nowGetHistory = false
+                return
+            }
             if (localMsgs.length > 0) {
                 const existingIds = new Set(chatStore.messageList.map((m) => String(m.message_id ?? '')))
                 const addList = localMsgs.filter((m) => {
@@ -1230,14 +1247,22 @@ async function loadMoreHistory() {
                 }
             }
         }
+        if (isStale()) {
+            uiStore.nowGetHistory = false
+            return
+        }
 
         const cached = await loadChatHistoryFromCache({
             platform: String(authStore.loginInfo.platform ?? ''),
             selfId: String(authStore.loginInfo.uin ?? ''),
             channelId,
-            limit: 20,
+            limit: HISTORY_PAGE_SIZE,
             beforeTimeMs: cacheBeforeTime > 0 ? cacheBeforeTime : undefined,
         })
+        if (isStale()) {
+            uiStore.nowGetHistory = false
+            return
+        }
         const existingIds = new Set(chatStore.messageList.map((m) => String(m.message_id ?? '')))
         const addList = cached.filter((m) => {
             const msgId = String(m.message_id ?? '')
@@ -1246,7 +1271,7 @@ async function loadMoreHistory() {
         if (addList.length > 0) {
             chatStore.messageList.splice(0, 0, ...addList)
         }
-        if (cached.length < 20) {
+        if (cached.length < HISTORY_PAGE_SIZE) {
             uiStore.canLoadHistory = false
         }
         uiStore.nowGetHistory = false
@@ -2938,23 +2963,6 @@ function updateList(newLength: number, oldLength: number) {
             NewMsgNum.value = Math.abs(newLength - oldLength)
         }
     }
-    if (
-        list.length > 200 &&
-        !uiStore.nowGetHistory &&
-        !tags.value.showBottomButton
-    ) {
-        chatStore.messageList = []
-        const info = {
-            type: chat.show.type,
-            id: chat.show.id,
-            name: chat.show.name,
-            avatar: chat.show.avatar,
-            jump: chat.show.jump,
-        } as BaseChatInfoElem
-        loadHistoryFirst(info)
-        uiStore.nowGetHistory = true
-    }
-
     const pan = document.getElementById('msgPan')
     if (pan !== null) {
         const height = pan.scrollHeight
@@ -2968,7 +2976,7 @@ function updateList(newLength: number, oldLength: number) {
                     )
                 }
                 if (!uiStore.nowGetHistory) {
-                    if (!tags.value.showBottomButton) {
+                    if (shouldKeepChatAtBottom || oldLength <= 0) {
                         scrollTo(newPan.scrollHeight)
                     }
                     if (oldLength <= 0) {
