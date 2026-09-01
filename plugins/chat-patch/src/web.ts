@@ -5,6 +5,7 @@ import { createHash } from 'node:crypto'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 import send from 'koa-send'
+import type Router from '@koa/router'
 import type { DefaultContext, DefaultState, ParameterizedContext } from 'koa'
 import FileType from 'file-type'
 
@@ -42,7 +43,7 @@ export function registerWeb(
   const webIndex = path.resolve(__dirname, '..', 'client', 'web', 'index.html')
   const uploadDir = path.resolve(ctx.baseDir, 'data', 'chat-patch', 'upload-media')
 
-  type WebContext = ParameterizedContext<DefaultState, DefaultContext>
+  type WebContext = Router.RouterContext<DefaultState, DefaultContext>
   const cacheType = (type: string) => type === 'user' ? 'friend' : type
 
   const getVite = (): ViteConsoleServer | undefined => {
@@ -747,12 +748,17 @@ export function registerWeb(
   const serveFile = async (koa: WebContext, fileName: string) => {
     const fullPath = path.join(webRoot, fileName)
     if (existsSync(fullPath) && statSync(fullPath).isFile()) {
-      await send(koa, path.relative(webRoot, fullPath), { root: webRoot })
+      const rootContext = koa as unknown as ParameterizedContext<DefaultState, DefaultContext>
+      await send(rootContext, path.relative(webRoot, fullPath), { root: webRoot })
       return
     }
     koa.status = 200
     koa.body = ''
-    await send(koa, 'index.html', { root: webRoot })
+    await send(
+      koa as unknown as ParameterizedContext<DefaultState, DefaultContext>,
+      'index.html',
+      { root: webRoot },
+    )
   }
 
   const serveDevWeb = async (koa: WebContext): Promise<boolean> => {
