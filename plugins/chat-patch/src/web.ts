@@ -107,6 +107,22 @@ export function registerWeb(
     return channelId ? [channelId] : []
   }
 
+  const messageSortTime = (item: MessageRecord): number => {
+    const timestampMs = Number(item.timestampMs ?? 0)
+    if (timestampMs > 0) return timestampMs > 1e12 ? timestampMs : timestampMs * 1000
+    const timestamp = Number(item.timestamp ?? 0)
+    if (timestamp > 0) return timestamp * 1000
+    return Number(item.receivedAt ?? 0)
+  }
+
+  const selfMessageSortTime = (item: SelfMessageRecord): number => {
+    const timestampMs = Number(item.timestampMs ?? item.sentAt ?? 0)
+    if (timestampMs > 0) return timestampMs > 1e12 ? timestampMs : timestampMs * 1000
+    const timestamp = Number(item.timestamp ?? 0)
+    if (timestamp > 0) return timestamp * 1000
+    return item.sentAt
+  }
+
   const mimeToExt: Record<string, string> = {
     'audio/mpeg': '.mp3',
     'audio/mp3': '.mp3',
@@ -364,11 +380,11 @@ export function registerWeb(
     }
     // 统一按本地收到时间排序，避免平台时间不准导致顺序颠倒
     messages.sort((a, b) => {
-      const timeA = Number(a?.receivedAt ?? a?.timestampMs ?? a?.timestamp ?? 0)
-      const timeB = Number(b?.receivedAt ?? b?.timestampMs ?? b?.timestamp ?? 0)
+      const timeA = messageSortTime(a)
+      const timeB = messageSortTime(b)
       return timeA - timeB
     })
-    selfMessages.sort((a, b) => a.sentAt - b.sentAt)
+    selfMessages.sort((a, b) => selfMessageSortTime(a) - selfMessageSortTime(b))
     // 合并两条记录流后只返回 limit 条，保证前端分页/结束判断不会因自消息被放大
     const combined: Array<{
       kind: 'message' | 'self'
@@ -378,12 +394,12 @@ export function registerWeb(
     for (const item of messages) {
       combined.push({
         kind: 'message',
-        time: Number(item?.receivedAt ?? item?.timestampMs ?? item?.timestamp ?? 0),
+        time: messageSortTime(item),
         record: item,
       })
     }
     for (const item of selfMessages) {
-      combined.push({ kind: 'self', time: item.sentAt, record: item })
+      combined.push({ kind: 'self', time: selfMessageSortTime(item), record: item })
     }
     combined.sort((a, b) => a.time - b.time)
     const capped = combined.slice(-limit)
@@ -416,7 +432,7 @@ export function registerWeb(
         : await database.listSelfMessages(platform, selfId, candidate, limit)
       if (messages.length) break
     }
-    messages.sort((a, b) => a.sentAt - b.sentAt)
+    messages.sort((a, b) => selfMessageSortTime(a) - selfMessageSortTime(b))
     koa.body = { messages }
   })
 
@@ -441,6 +457,12 @@ export function registerWeb(
       sentAt: typeof body.sentAt === 'number' && Number.isFinite(body.sentAt)
         ? body.sentAt
         : Date.now(),
+      timestamp: typeof body.timestamp === 'number' && Number.isFinite(body.timestamp)
+        ? body.timestamp
+        : undefined,
+      timestampMs: typeof body.timestampMs === 'number' && Number.isFinite(body.timestampMs)
+        ? body.timestampMs
+        : undefined,
       sequence: typeof body.sequence === 'number' && Number.isFinite(body.sequence)
         ? body.sequence
         : 0,
@@ -456,6 +478,7 @@ export function registerWeb(
       koa.body = { error: 'missing self-message params' }
       return
     }
+    const sentAt = payload.sentAt ?? Date.now()
     const record: SelfMessageRecord = {
       id: payload.id || `web-${Date.now()}-${Math.random().toString(36).slice(2)}`,
       platform: payload.platform,
@@ -469,7 +492,9 @@ export function registerWeb(
       message: payload.message,
       forwardId: payload.forwardId,
       forwardContent: payload.forwardContent,
-      sentAt: payload.sentAt ?? Date.now(),
+      sentAt,
+      timestamp: payload.timestamp ?? Math.floor(sentAt / 1000),
+      timestampMs: payload.timestampMs ?? sentAt,
       sequence: payload.sequence ?? 0,
       source: payload.source ?? 'webui',
       kind: payload.kind ?? 'text',

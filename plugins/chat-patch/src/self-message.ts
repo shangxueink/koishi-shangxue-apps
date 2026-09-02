@@ -442,6 +442,7 @@ export class SelfMessageRecorder {
     const contentText = typeof content === 'string'
       ? content
       : h.toElementArray(content).join('')
+    const sentAt = Date.now()
     const fingerprint = createHash('sha256')
       .update([
         platform,
@@ -463,7 +464,9 @@ export class SelfMessageRecorder {
       message: toSegments(elements, (attrs) => this.resolveI18nElement(attrs)),
       forwardId: forwardId(elements),
       forwardContent: toForwardNodes(elements, (attrs) => this.resolveI18nElement(attrs)),
-      sentAt: Date.now(),
+      sentAt,
+      timestamp: Math.floor(sentAt / 1000),
+      timestampMs: sentAt,
       sequence: ++this.sequence,
       source,
       kind: detectKind(elements),

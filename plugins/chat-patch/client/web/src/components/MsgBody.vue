@@ -103,17 +103,17 @@
                             class="msg-md" />
                         <img v-else-if="item.type == 'image' && item.file == 'marketface'"
                             :class=" imgStyle(data.message.length, Number(index), true) + ' msg-mface'"
-                            :src="item.url"
+                            :src="getImageUrl(item)"
                             :alt="item.summary"
                             @load="imageLoaded"
-                            @click="preImgClick(item.url || item.file)"
+                            @click="preImgClick(getImageUrl(item))"
                             @error="imgLoadFail">
                         <img v-else-if="item.type == 'mface'"
                             :class=" imgStyle(data.message.length, Number(index), true) + ' msg-mface'"
-                            :src="item.url"
+                            :src="getImageUrl(item)"
                             :alt="item.summary"
                             @load="imageLoaded"
-                            @click="preImgClick(item.url || item.file)"
+                            @click="preImgClick(getImageUrl(item))"
                             @error="imgLoadFail">
                         <template v-else-if="item.type == 'image'">
                             <div v-show="shouldShowImagePlaceholder(item, Number(index))"
@@ -121,21 +121,21 @@
                                 :class="imgStyle(data.message.length, Number(index), isFace(item)) + ' msg-img-placeholder'"
                                 @click="loadImage(item, Number(index), $event)">
                                 <font-awesome-icon
-                                    :icon="['fas', imageLoading(getImageKey(Number(index), item.url)) ? 'spinner' : 'image']"
-                                    :spin="imageLoading(getImageKey(Number(index), item.url))" />
+                                    :icon="['fas', imageLoading(getImageKey(Number(index), getImageUrl(item))) ? 'spinner' : 'image']"
+                                    :spin="imageLoading(getImageKey(Number(index), getImageUrl(item)))" />
                                 <span>
-                                    {{ imageLoading(getImageKey(Number(index), item.url)) ? $t('加载中') : $t('点击加载图片') }}
+                                    {{ imageLoading(getImageKey(Number(index), getImageUrl(item))) ? $t('加载中') : $t('点击加载图片') }}
                                 </span>
                             </div>
                             <img v-show="!shouldShowImagePlaceholder(item, Number(index))"
                                 :title="(!item.summary || item.summary == '') ? $t('预览图片') : item.summary"
                                 :alt="$t('图片')"
                                 :class=" imgStyle(data.message.length, Number(index), isFace(item))"
-                                :src="getImgSrc(item.url)"
+                                :src="getImgSrc(getImageUrl(item))"
                                 data-type="image"
                                 @load="imageLoaded"
                                 @error="imgLoadFail"
-                                @click="imgClick(item.url || item.file, $event)">
+                                @click="imgClick(getImageUrl(item), $event)">
                         </template>
                         <template v-else-if="item.type == 'face'">
                             <EmojiFace :emoji="Emoji.get(Number(item.id))" class="msg-face" />
@@ -173,7 +173,8 @@
                             <div v-if="data.fileView && Object.keys(data.fileView).length > 0"
                                 class="file-view">
                                 <img v-if="['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'].includes(data.fileView.ext)"
-                                    :src="getMediaSrc(data.fileView.url)">
+                                    :src="getMediaSrc(data.fileView.url)"
+                                    @click="preImgClick(getMediaSrc(data.fileView.url))">
                                 <video v-else-if="['mp4', 'avi', 'mkv', 'flv'].includes(data.fileView.ext)"
                                     playsinline controls muted
                                     autoplay>
@@ -570,9 +571,14 @@ async function loadCachedImages() {
     const selfId = authStore.loginInfo?.uin
     if (!selfId) return
     for (const seg of data.message) {
-        if (seg.type !== 'image' || !seg.url) continue
-        await loadCachedImage(seg.url)
+        const url = getImageUrl(seg)
+        if (seg.type !== 'image' || !url) continue
+        await loadCachedImage(url)
     }
+}
+
+function getImageUrl(item: { url?: string; file?: string }): string {
+    return String(item?.url || item?.file || '')
 }
 
 async function loadCachedImage(url: string) {
@@ -593,6 +599,7 @@ async function loadCachedImage(url: string) {
 }
 
 function getImgSrc(url: string): string {
+    if (!url) return ''
     if (url.startsWith('base64://')) {
         return `data:image/png;base64,${url.slice(9)}`
     }
@@ -617,11 +624,11 @@ function imageLoading(key: string) {
     return pendingImageLoads.value[key] === true
 }
 
-function shouldShowImagePlaceholder(item: { type: string, url: string }, index: number) {
+function shouldShowImagePlaceholder(item: { type: string, url?: string, file?: string }, index: number) {
     if (item.type !== 'image') return false
     if (settingsStore.sysConfig.opt_no_auto_load_image !== true) return false
 
-    return manualImageLoads.value[getImageKey(index, item.url)] !== true
+    return manualImageLoads.value[getImageKey(index, getImageUrl(item))] !== true
 }
 
 function getAtClass(who: number | string) {
@@ -717,8 +724,9 @@ function buildMessageImageList(): Img | undefined {
     const collect = (msg: any) => {
         if (!Array.isArray(msg?.message)) return
         for (const item of msg.message) {
-            if (item?.type === 'image' && item?.file !== 'marketface' && item?.url) {
-                urls.push(String(item.url))
+            if (item?.type === 'image' && item?.file !== 'marketface') {
+                const url = getImageUrl(item)
+                if (url) urls.push(url)
             }
         }
     }
@@ -729,15 +737,16 @@ function buildMessageImageList(): Img | undefined {
     return Img.fromList([...new Set(urls)])
 }
 
-async function loadImage(item: { url: string }, index: number, _event?: MouseEvent) {
+async function loadImage(item: { url?: string; file?: string }, index: number, _event?: MouseEvent) {
     if (props.selecting) return
-    const key = getImageKey(index, item.url)
+    const url = getImageUrl(item)
+    const key = getImageKey(index, url)
     if (manualImageLoads.value[key] || pendingImageLoads.value[key]) return
 
     pendingImageLoads.value[key] = true
     try {
         if (data._from_local_db) {
-            await loadCachedImage(item.url)
+            await loadCachedImage(url)
         }
         manualImageLoads.value[key] = true
     } finally {
@@ -1252,7 +1261,7 @@ async function openMerge(event?: MouseEvent) {
                 imgList.push({
                     index: index,
                     message_id: item.message_id,
-                    img_url: msg.url,
+                    img_url: msg.url || msg.file,
                 })
                 index++
             }

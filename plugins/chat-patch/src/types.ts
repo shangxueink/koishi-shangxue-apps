@@ -66,6 +66,8 @@ export interface SelfMessageRecord {
   forwardId?: string
   forwardContent?: unknown[]
   sentAt: number
+  timestamp?: number
+  timestampMs?: number
   sequence: number
   source: SelfMessageSource
   kind: string
@@ -88,6 +90,8 @@ export interface SelfMessagePayload {
   forwardId?: string
   forwardContent?: unknown[]
   sentAt?: number
+  timestamp?: number
+  timestampMs?: number
   sequence?: number
   source?: SelfMessageSource
   kind?: string

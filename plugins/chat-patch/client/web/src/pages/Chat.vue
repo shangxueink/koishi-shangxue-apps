@@ -2089,6 +2089,8 @@ function forwardMsg(data: UserFriendElem & UserGroupElem) {
                                     forwardContent: msgBody,
                                     source: 'webui',
                                     sentAt: sentTime,
+                                    timestamp: Math.floor(sentTime / 1000),
+                                    timestampMs: sentTime,
                                     kind: 'forward',
                                 })
                             }
@@ -2996,7 +2998,7 @@ function updateList(newLength: number, oldLength: number) {
                                 msgItem.type === 'image' &&
                                 msgItem.file != 'marketface'
                             ) {
-                                getImgList.push(msgItem.url)
+                                getImgList.push(msgItem.url || msgItem.file)
                             }
                         }
                     }

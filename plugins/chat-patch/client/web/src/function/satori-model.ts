@@ -456,6 +456,7 @@ export function satoriEventToOneBot(
     self_id: selfId,
     platform,
     sn: getNumber(event.sn),
+    timestamp: Math.floor(normalizeTimestampMs(event.timestamp) / 1000),
     timestamp_ms: getNumber(event.timestamp) ? normalizeTimestampMs(event.timestamp) : 0,
     time: Math.floor(normalizeTimestampMs(event.timestamp) / 1000),
     message_seq: getNumber(event.sn),
@@ -733,6 +734,7 @@ function messageListFromResponse(data: unknown): unknown[] {
     return {
       message_id: getString(message.id),
       sn: getNumber(message.sn),
+      timestamp: Math.floor(normalizeTimestampMs(message.timestamp) / 1000),
       timestamp_ms: getNumber(message.timestamp) ? normalizeTimestampMs(message.timestamp) : 0,
       time: Math.floor(normalizeTimestampMs(message.timestamp) / 1000),
       message_seq: getNumber(message.sn) || getNumber(message.seq),

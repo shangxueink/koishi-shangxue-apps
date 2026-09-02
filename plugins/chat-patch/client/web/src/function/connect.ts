@@ -1303,6 +1303,8 @@ export interface SaveSelfMessagePayload {
   forwardId?: string
   forwardContent?: unknown[]
   sentAt?: number
+  timestamp?: number
+  timestampMs?: number
   source?: 'webui' | 'bot' | 'plugin'
   kind?: string
 }
@@ -1330,6 +1332,8 @@ function selfMessageToOneBot(record: unknown): Record<string, unknown> | null {
   const selfId = getString(obj.selfId)
   const channelId = getString(obj.channelId)
   const sentAt = Number(obj.sentAt ?? Date.now())
+  const timestamp = Number(obj.timestamp) || Math.floor(sentAt / 1000)
+  const timestampMs = Number(obj.timestampMs ?? sentAt)
   const messageId = getString(obj.messageId)
   const localId = getString(obj.id) || `self-${sentAt}`
   // 只按记录里的显式 channelType 判断，不根据频道 ID 前缀推断
@@ -1399,10 +1403,11 @@ function selfMessageToOneBot(record: unknown): Record<string, unknown> | null {
     channel_id: channelId,
     guild_id: guildId || undefined,
     target_id: selfId,
-    time: Math.floor(sentAt / 1000) || Math.floor(Date.now() / 1000),
-    local_time: sentAt,
-    timestamp_ms: sentAt,
-    time_ms: sentAt,
+    timestamp,
+    time: timestamp,
+    local_time: timestampMs,
+    timestamp_ms: timestampMs,
+    time_ms: timestampMs,
     sender: {
       user_id: selfId,
       nickname: getString(login?.name) || selfId,
@@ -1469,8 +1474,9 @@ export async function loadChatHistoryFromCache(params: {
     const raw = getObject(recordObj.raw)
     const msg = satoriEventToOneBot(raw, params.platform)
     if (!msg || !msg.message_id) continue
-    const localTime = Number(recordObj.receivedAt ?? recordObj.timestampMs ?? recordObj.timestamp ?? 0)
-    if (localTime) {
+    const rawTime = Number(recordObj.timestampMs ?? recordObj.timestamp ?? recordObj.receivedAt ?? 0)
+    const localTime = rawTime > 1e12 ? rawTime : rawTime * 1000
+    if (localTime > 0) {
       msg.local_time = localTime
       msg.timestamp_ms = localTime
       msg.time_ms = localTime

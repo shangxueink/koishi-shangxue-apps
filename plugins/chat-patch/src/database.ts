@@ -11,6 +11,12 @@ function encodeKeyPart(value: string): string {
   return encodeURIComponent(value)
 }
 
+function normalizeTimestampMs(value: unknown): number {
+  const num = Number(value ?? 0)
+  if (!Number.isFinite(num) || num <= 0) return 0
+  return num > 1e12 ? num : num * 1000
+}
+
 function decodeKeyPart(value: string): string {
   try {
     return decodeURIComponent(value)
@@ -30,7 +36,7 @@ function legacyMessagePrefix(platform: string, selfId: string, channelId: string
 function messageKey(record: MessageRecord): string {
   // 统一用毫秒排序，前端 beforeTime 也传毫秒，避免按秒存储时分页取到同一批消息
   const time = String(
-    record.receivedAt ?? record.timestampMs ?? Number(record.timestamp) * 1000,
+    normalizeTimestampMs(record.timestampMs ?? record.timestamp ?? record.receivedAt),
   ).padStart(16, '0')
   return `${messagePrefix(record.platform, record.selfId, record.channelId || '')}${time}:${encodeKeyPart(record.id || 'unknown')}`
 }
@@ -41,7 +47,9 @@ function selfMessagePrefix(platform: string, selfId: string, channelId: string):
 }
 
 function selfMessageKey(record: SelfMessageRecord): string {
-  const time = String(record.sentAt).padStart(16, '0')
+  const time = String(
+    normalizeTimestampMs(record.timestampMs ?? record.timestamp ?? record.sentAt),
+  ).padStart(16, '0')
   return `${selfMessagePrefix(record.platform, record.selfId, record.channelId)}${time}:${encodeKeyPart(record.id || 'unknown')}`
 }
 
@@ -935,7 +943,7 @@ export class ChatDatabase {
   private extractRecordTime(value: string): number {
     try {
       const parsed = JSON.parse(value) as Record<string, unknown>
-      return Number(parsed.receivedAt ?? parsed.timestampMs ?? parsed.timestamp ?? parsed.sentAt ?? 0) || 0
+      return normalizeTimestampMs(parsed.timestampMs ?? parsed.timestamp ?? parsed.sentAt ?? parsed.receivedAt)
     } catch {
       return 0
     }

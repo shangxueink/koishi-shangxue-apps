@@ -65,6 +65,7 @@ export class Recorder {
     const user = getObject(body.user)
     const sn = getNumber(body.sn)
     const timestamp = getNumber(body.timestamp) || Date.now()
+    const timestampMs = timestamp > 1e12 ? timestamp : timestamp * 1000
     const record: MessageRecord = {
       id: getString(message.id) || `satori-${sn}`,
       sequence: sn,
@@ -75,7 +76,7 @@ export class Recorder {
       guildId: getString(guild.id) || undefined,
       userId: getString(user.id) || undefined,
       timestamp,
-      timestampMs: timestamp,
+      timestampMs,
       receivedAt: Date.now(),
       content: getString(message.content) || getString(message.raw_message) || undefined,
       elements: Array.isArray(message.elements) ? message.elements as unknown[] : undefined,

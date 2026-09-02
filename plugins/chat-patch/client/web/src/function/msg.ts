@@ -1039,6 +1039,8 @@ const msgFunctions = {
                     message: Array.isArray(sentItem?.message) ? sentItem.message : [],
                     source: 'webui',
                     sentAt: Number(sentItem?.local_time ?? sentItem?.timestamp_ms ?? Date.now()),
+                    timestamp: Number(sentItem?.time) || Math.floor(Date.now() / 1000),
+                    timestampMs: Number(sentItem?.local_time ?? sentItem?.timestamp_ms ?? Date.now()),
                     kind: String(sentItem?.message?.[0]?.type ?? 'text'),
                 })
             }
