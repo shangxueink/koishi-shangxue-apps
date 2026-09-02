@@ -502,13 +502,6 @@
                         <div><font-awesome-icon :icon="['fas', 'trash-can']" /></div>
                         <a>{{ $t('移出群聊') }}</a>
                     </div>
-                    <div v-show="tags.menuDisplay.config"
-                        @click="openChatInfoPan();
-                                ($refs.infoRef as any).openMoreConfig(selectedMsg?.sender.user_id);
-                                closeMsgMenu();">
-                        <div><font-awesome-icon :icon="['fas', 'cog']" /></div>
-                        <a>{{ $t('成员设置') }}</a>
-                    </div>
                     <div v-show="tags.menuDisplay.jumpToMsg" @click="jumpSearchMsg">
                         <div><font-awesome-icon :icon="['fas', 'arrow-up-right-from-square']" /></div>
                         <a>{{ $t('跳转到消息') }}</a>

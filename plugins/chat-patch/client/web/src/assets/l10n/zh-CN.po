@@ -1047,9 +1047,6 @@ msgstr ""
 msgid "应用内通知和系统通知"
 msgstr ""
 
-msgid "成员设置"
-msgstr ""
-
 msgid "成员信息"
 msgstr ""
 
