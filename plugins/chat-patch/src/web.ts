@@ -42,6 +42,7 @@ export function registerWeb(
   const webPublic = path.resolve(__dirname, '..', 'client', 'web', 'public')
   const webIndex = path.resolve(__dirname, '..', 'client', 'web', 'index.html')
   const uploadDir = path.resolve(ctx.baseDir, 'data', 'chat-patch', 'upload-media')
+  const mediaDir = path.resolve(ctx.baseDir, 'data', 'chat-patch', 'media')
 
   type WebContext = Router.RouterContext<DefaultState, DefaultContext>
   const cacheType = (type: string) => type === 'user' ? 'friend' : type
@@ -258,26 +259,9 @@ export function registerWeb(
     }
   })
 
-  ctx.server.get(`${config.basePath}/api/media`, async (koa) => {
-    const fileName = path.basename(String(koa.query.file ?? koa.query.name ?? ''))
-    if (!fileName || fileName === '.' || fileName === '..') {
-      koa.status = 400
-      koa.body = { error: 'missing media file' }
-      return
-    }
-    const filePath = path.resolve(uploadDir, fileName)
-    const root = path.resolve(uploadDir)
-    if (filePath !== root && !filePath.startsWith(`${root}${path.sep}`)) {
-      koa.status = 400
-      koa.body = { error: 'invalid media file' }
-      return
-    }
-    if (!existsSync(filePath) || !statSync(filePath).isFile()) {
-      koa.status = 404
-      koa.body = { error: 'media file not found' }
-      return
-    }
+  const sendLocalFile = async (koa: WebContext, filePath: string) => {
     const size = statSync(filePath).size
+    const fileName = path.basename(filePath)
     koa.set('Accept-Ranges', 'bytes')
     if (fileName.toLowerCase().endsWith('.webm')) {
       koa.type = 'audio/webm'
@@ -317,6 +301,25 @@ export function registerWeb(
     }
     koa.set('Content-Length', String(size))
     koa.body = createReadStream(filePath)
+  }
+
+  ctx.server.get(`${config.basePath}/api/media`, async (koa) => {
+    const fileName = path.basename(String(koa.query.file ?? koa.query.name ?? ''))
+    if (!fileName || fileName === '.' || fileName === '..') {
+      koa.status = 400
+      koa.body = { error: 'missing media file' }
+      return
+    }
+    for (const root of [uploadDir, mediaDir]) {
+      const filePath = path.resolve(root, fileName)
+      if (filePath !== root && filePath.startsWith(`${root}${path.sep}`)
+        && existsSync(filePath) && statSync(filePath).isFile()) {
+        await sendLocalFile(koa, filePath)
+        return
+      }
+    }
+    koa.status = 404
+    koa.body = { error: 'media file not found' }
   })
 
   ctx.server.get(`${config.basePath}/api/cache/all`, async (koa) => {

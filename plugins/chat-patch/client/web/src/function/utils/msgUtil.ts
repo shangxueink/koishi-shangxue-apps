@@ -522,6 +522,17 @@ function isBase64Source(source: string): boolean {
     return source.startsWith('base64://') || source.startsWith('data:')
 }
 
+function toPreviewImageSrc(item: any): string {
+    const source = String(item?.url ?? item?.file ?? '')
+    if (source.startsWith('base64://')) {
+        return `data:image/png;base64,${source.slice(9)}`
+    }
+    if (source.startsWith('data:') || source.startsWith('http:') || source.startsWith('https:')) {
+        return source
+    }
+    return getLocalMediaUrl(source)
+}
+
 export function getLocalMediaUrl(value: string): string {
     if (!value) return value
     const isLocalPath = value.startsWith('file:') ||
@@ -640,14 +651,9 @@ export async function sendMsgRaw(
         preShowMsg.forEach((item: any) => {
             // 对 base64 图片做特殊处理
             if (item.type == 'image') {
-                if (item.file.startsWith('base64://')) {
-                    const b64Str = (item.file as string).substring(9)
-                    item.url = 'data:image/png;base64,' + b64Str
-                } else {
-                    item.url = item.file
-                }
+                item.url = toPreviewImageSrc(item)
             }
-            if (item.type == 'record' && item.file.startsWith('base64://')) {
+            if (item.type == 'record' && String(item?.file ?? '').startsWith('base64://')) {
                 const b64Str = (item.file as string).substring(9)
                 item.url = 'data:audio/webm;base64,' + b64Str
             }
