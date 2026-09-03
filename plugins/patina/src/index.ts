@@ -210,30 +210,22 @@ export function apply(ctx: Context, config: PatinaConfig) {
 
   async function extractImageUrl(session: Session, input: string): Promise<string> {
     const parsedElements = h.parse(input);
-    // 遍历解析后的元素
-    for (const element of parsedElements) {
-      // 检查是否为 'at' 类型
-      if (element.type === 'at') {
-        const { id } = element.attrs;
-        if (id) {
-          // 返回 QQ 头像 URL
-          if (typeof session.bot.getUser === 'function') {
-            const getUserdata = await session.bot.getUser(id)
-            loggerinfo(getUserdata)
-            return getUserdata.avatar
-          } else {
-            return `暂不支持通过at获取用户头像哦`;
-          }
-        }
-      }
 
-      // 检查是否为 'img' 类型
-      if (element.type === 'img') {
-        const { src } = element.attrs;
-        if (src) {
-          // 返回图片的 src 属性
-          return src;
-        }
+    // 先解析 @用户，返回 QQ 头像 URL
+    for (const element of h.select(parsedElements, 'at')) {
+      const { id } = element.attrs;
+      if (id && typeof session.bot.getUser === 'function') {
+        const getUserdata = await session.bot.getUser(id);
+        loggerinfo(getUserdata);
+        return getUserdata.avatar;
+      }
+    }
+
+    // 兼容图片、普通表情和 QQ 大表情，部分表情以 mface 携带 url
+    for (const selector of ['img', 'image', 'mface', 'face', 'bface']) {
+      for (const element of h.select(parsedElements, selector)) {
+        const url = element.attrs.src || element.attrs.url || element.attrs.file;
+        if (url) return url;
       }
     }
 
@@ -242,7 +234,10 @@ export function apply(ctx: Context, config: PatinaConfig) {
       return `http://q.qlogo.cn/headimg_dl?dst_uin=${input}&spec=640`;
     }
 
-    // 如果未找到有效的图片 URL，返回原始输入
+    // 纯文本可能是用户直接输入的图片 URL；如果是无法识别的消息元素，则不再返回原始标记文本
+    if (parsedElements.some((element) => element.type !== 'text')) {
+      return '';
+    }
     return input;
   }
 

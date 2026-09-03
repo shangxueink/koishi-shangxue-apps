@@ -1,11 +1,18 @@
 import { Schema, h, Context } from "koishi";
-import { writeFile, rm } from "fs/promises";
+import { writeFile, rm, readFile } from "fs/promises";
 import { join } from "path";
 import { pathToFileURL } from "node:url";
 import { createTempDirectory, prepareStaticImage } from "./media";
 import { Command5Config, ExtractImageUrl, LoggerInfo } from "./types";
 import { } from 'koishi-plugin-ffmpeg'
 import { } from 'koishi-plugin-canvas'
+
+interface CanvasImageSize {
+  width?: number
+  height?: number
+  naturalWidth?: number
+  naturalHeight?: number
+}
 
 export const command5Config = Schema.union([
   Schema.object({
@@ -20,6 +27,41 @@ export const command5Config = Schema.union([
   }),
 ]);
 
+// ffmpeg 默认不会让不透明首帧在第二帧前清屏，
+// 这里把首帧 disposal 改为 2，避免透明第二帧透出首帧内容
+function findFirstGifGce(buffer: Buffer): number {
+  if (buffer.subarray(0, 6).toString('latin1') !== 'GIF89a') return -1
+  const hasGlobalTable = (buffer[10] & 0x80) !== 0
+  const tableSize = hasGlobalTable ? 3 * (1 << ((buffer[10] & 0x07) + 1)) : 0
+  let offset = 6 + 7 + tableSize
+  while (offset + 2 < buffer.length) {
+    if (buffer[offset] !== 0x21) return -1
+    if (buffer[offset + 1] === 0xf9) {
+      return buffer[offset + 2] === 0x04 ? offset : -1
+    }
+    offset += 2
+    while (offset < buffer.length && buffer[offset] !== 0) {
+      offset += buffer[offset] + 1
+    }
+    offset += 1
+  }
+  return -1
+}
+
+function clearFirstFrameBeforeSecond(buffer: Buffer): void {
+  const gceIndex = findFirstGifGce(buffer)
+  if (gceIndex < 0) return;
+  const flagIndex = gceIndex + 3
+  buffer[flagIndex] = (buffer[flagIndex] & ~0x1c) | (2 << 2);
+}
+
+// canvas 插件对本地路径支持不稳定，这里统一转成 base64 data URL 再交给它读取尺寸
+async function loadImageSize(ctx: Context, image: { path: string; mime: string }): Promise<CanvasImageSize> {
+  const data = await readFile(image.path)
+  const loaded = await ctx.canvas.loadImage(`data:${image.mime};base64,${data.toString('base64')}`)
+  return loaded as CanvasImageSize
+}
+
 export function applyCommand5(ctx: Context, config: Command5Config, loggerinfo: LoggerInfo, extractImageUrl: ExtractImageUrl) {
   if (!config.enablecommand5) return;
 
@@ -29,11 +71,6 @@ export function applyCommand5(ctx: Context, config: Command5Config, loggerinfo: 
     .example(`${config.enablecommand5Name || '原图坦克'} [图片] [图片]`)
     .action(async ({ session }, img1?: string, img2?: string) => {
       if (!session) return;
-
-      if (session.platform !== 'onebot') {
-        await session.send("暂时仅支持onebot平台使用此功能。");
-        return;
-      }
 
       if (!ctx.ffmpeg) {
         await session.send("没有开启ffmpeg服务");
@@ -83,15 +120,20 @@ export function applyCommand5(ctx: Context, config: Command5Config, loggerinfo: 
           return;
         }
 
-        const canvasImage1 = await ctx.canvas.loadImage(pathToFileURL(image1.path).href);
-        const canvasImage2 = await ctx.canvas.loadImage(pathToFileURL(image2.path).href);
+        const [image1Size, image2Size] = await Promise.all([
+          loadImageSize(ctx, image1),
+          loadImageSize(ctx, image2),
+        ]);
 
-        const image1Width = canvasImage1.naturalWidth;
-        const image1Height = canvasImage1.naturalHeight;
-        const image2Width = canvasImage2.naturalWidth;
-        const image2Height = canvasImage2.naturalHeight;
+        const image1Width = image1Size.width ?? image1Size.naturalWidth ?? 0;
+        const image1Height = image1Size.height ?? image1Size.naturalHeight ?? 0;
+        const image2Width = image2Size.width ?? image2Size.naturalWidth ?? 0;
+        const image2Height = image2Size.height ?? image2Size.naturalHeight ?? 0;
 
-        await Promise.all([canvasImage1.dispose(), canvasImage2.dispose()]);
+        if (!image1Width || !image1Height || !image2Width || !image2Height) {
+          await session.send("无法读取图片尺寸，请重试。");
+          return;
+        }
 
         loggerinfo(`第一张图片尺寸: ${image1Width}x${image1Height}`);
         loggerinfo(`第二张图片尺寸: ${image2Width}x${image2Height}`);
@@ -107,10 +149,12 @@ export function applyCommand5(ctx: Context, config: Command5Config, loggerinfo: 
         builder.input(image1.path);
         builder.inputOption('-i', image2.path);
         builder.outputOption('-filter_complex', filterComplex);
+        // 禁止差异裁剪，确保第二帧会整幅重绘
+        builder.outputOption('-gifflags', 'none');
         builder.outputOption('-f', 'gif');
         builder.outputOption('-loop', (config.loopCount || 1).toString());
         builder.outputOption('-final_delay', (config.finalDelay || 5000).toString());
-        const ffmpegCommand = `ffmpeg -i ${image1.path} -i ${image2.path} -filter_complex "${filterComplex}" -loop ${config.loopCount || 1} -final_delay ${config.finalDelay || 5000} ${outputPath}`;
+        const ffmpegCommand = `ffmpeg -i ${image1.path} -i ${image2.path} -filter_complex "${filterComplex}" -gifflags none -loop ${config.loopCount || 1} -final_delay ${config.finalDelay || 5000} ${outputPath}`;
         loggerinfo(`完整的FFmpeg命令: ${ffmpegCommand}`);
 
         const buffer = await builder.run('buffer');
@@ -127,10 +171,13 @@ export function applyCommand5(ctx: Context, config: Command5Config, loggerinfo: 
           return;
         }
 
+        // 修正 GIF 帧清理方式后再发送，避免透明区域残留上一帧
+        clearFirstFrameBeforeSecond(buffer);
+
         if (config.sendAsFile) {
           await writeFile(outputPath, buffer);
           loggerinfo(`以文件形式发送GIF: ${outputPath}`);
-          await session.bot.internal.uploadGroupFile(session.channelId, outputPath, "output.JPG");
+          await session.send(h.file(pathToFileURL(outputPath).href));
         } else {
           loggerinfo(`以图片形式发送GIF`);
           await session.send(h.image(buffer, 'image/gif'));

@@ -555,7 +555,7 @@
       return data
     }
 
-    function frameControlData(sequence, width, height, delayNum, delayDen) {
+    function frameControlData(sequence, width, height, delayNum, delayDen, disposeOp = 0) {
       const data = new Uint8Array(26)
       const view = new DataView(data.buffer)
       view.setUint32(0, sequence)
@@ -565,7 +565,7 @@
       view.setUint32(16, 0)
       view.setUint16(20, delayNum)
       view.setUint16(22, delayDen)
-      data[24] = 0
+      data[24] = disposeOp
       data[25] = 0
       return data
     }
@@ -628,7 +628,8 @@
         PNG_SIGNATURE,
         pngChunk('IHDR', ihdrData(width, height)),
         pngChunk('acTL', acTL),
-        pngChunk('fcTL', frameControlData(0, width, height, firstDelay[0], firstDelay[1])),
+        // 首帧显示后恢复背景，避免透明第二帧透出首帧内容
+        pngChunk('fcTL', frameControlData(0, width, height, firstDelay[0], firstDelay[1], 2)),
         ...splitIdat(coverStream),
         pngChunk('fcTL', frameControlData(1, width, height, secondDelay[0], secondDelay[1])),
         ...splitFdat(innerStream, 2),

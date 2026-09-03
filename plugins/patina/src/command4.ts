@@ -68,13 +68,14 @@ export function applyCommand4(ctx: Context, config: Command4Config, loggerinfo: 
         return
       }
 
+      // 和其他坦克指令保持一致：第一张为表图，第二张为里图
       if (!img1) {
-        await session.send("请发送一张图片作为【里图】：")
+        await session.send("请发送一张图片作为【表图】：")
         img1 = await session.prompt(30000)
       }
 
       if (!img2) {
-        await session.send("请发送一张图片作为【表图】：")
+        await session.send("请发送一张图片作为【里图】：")
         img2 = await session.prompt(30000)
       }
 
@@ -84,26 +85,26 @@ export function applyCommand4(ctx: Context, config: Command4Config, loggerinfo: 
       }
 
       // 两张图都收到后再提取链接，交互阶段不下载图片
-      const [innerUrl, coverUrl] = await Promise.all([
+      const [coverUrl, innerUrl] = await Promise.all([
         extractImageUrl(session, img1),
         extractImageUrl(session, img2),
       ])
-      if (!innerUrl || !coverUrl) {
+      if (!coverUrl || !innerUrl) {
         await session.send("未检测到有效的图片，请重试。")
         return
       }
-      loggerinfo(`里图URL: ${img1}`)
-      loggerinfo(`表图URL: ${img2}`)
+      loggerinfo(`表图URL: ${coverUrl}`)
+      loggerinfo(`里图URL: ${innerUrl}`)
 
       // 交互阶段只收集链接，等两张图都拿到后再统一下载
       const tempDir = await createTempDirectory('patina-prism')
       try {
-        const [innerImage, coverImage] = await Promise.all([
-          prepareStaticImage(ctx, innerUrl, tempDir),
+        const [coverImage, innerImage] = await Promise.all([
           prepareStaticImage(ctx, coverUrl, tempDir),
+          prepareStaticImage(ctx, innerUrl, tempDir),
         ])
-        loggerinfo(`里图 MIME: ${innerImage.mime}${innerImage.isGif ? ' (GIF首帧)' : ''}`)
         loggerinfo(`表图 MIME: ${coverImage.mime}${coverImage.isGif ? ' (GIF首帧)' : ''}`)
+        loggerinfo(`里图 MIME: ${innerImage.mime}${innerImage.isGif ? ' (GIF首帧)' : ''}`)
 
         const page = await createPage(ctx, browserTimeout)
         try {
@@ -115,17 +116,17 @@ export function applyCommand4(ctx: Context, config: Command4Config, loggerinfo: 
           await page.waitForSelector('#innerSourceFileInput')
           await page.waitForSelector('#coverSourceFileInput')
 
-          const [innerFileChooser] = await Promise.all([
-            page.waitForFileChooser(),
-            page.click('label[for="innerSourceFileInput"]'),
-          ])
-          await innerFileChooser.accept([innerImage.path])
-
           const [coverFileChooser] = await Promise.all([
             page.waitForFileChooser(),
             page.click('label[for="coverSourceFileInput"]'),
           ])
           await coverFileChooser.accept([coverImage.path])
+
+          const [innerFileChooser] = await Promise.all([
+            page.waitForFileChooser(),
+            page.click('label[for="innerSourceFileInput"]'),
+          ])
+          await innerFileChooser.accept([innerImage.path])
 
           await sleep(2000)
 
