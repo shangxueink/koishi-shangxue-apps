@@ -85,8 +85,7 @@ export function registerCommands(ctx: Context, config: Config, log: AppLogger): 
       directOnlyGenerations: "当前视频模式不能直接生成。",
       noImagesInPrompt: "未检测到图片或文字，请稍后重新交互。",
       videoTaskIdMissing: "未能获取到视频任务 ID，请稍后重试。",
-      videoNoUrl: "视频生成完成，但未返回视频地址，请稍后重试。",
-      videoTaskTimeout: "等待视频生成超时，请稍后重试或调大视频等待时间。",
+      videoNoUrl: "视频任务未返回有效结果地址，请稍后重试。",
       videoTooManyImages: "当前视频模型最多支持 5 张参考图片。",
     }
 

@@ -11,7 +11,10 @@ import { prepareImageForApi } from "./media"
 export const AGENT_VIDEO_COMMAND = "Agent视频生成"
 
 const MAX_FLASH_REFERENCE_IMAGES = 5
-const VIDEO_POLL_INTERVAL_MS = 2000
+// 状态接口存在查询限流，轮询保持低频，并在 429/rate limit 时继续退避
+const VIDEO_POLL_INTERVAL_MS = 10_000
+const VIDEO_RATE_LIMIT_BASE_DELAY_MS = 20_000
+const VIDEO_MAX_RATE_LIMIT_DELAY_MS = 60_000
 const ASSETS_TRANSFORM_TIMEOUT_MS = 30_000
 
 interface AssetsLike {
@@ -22,6 +25,7 @@ interface VideoTaskResponse {
   id?: string
   task_id?: string
   video_id?: string
+  url?: string
   status?: string
   progress?: number
   metadata?: {
@@ -40,6 +44,18 @@ class VideoCommandError extends Error {
   constructor(readonly code: string) {
     super(code)
     this.name = "VideoCommandError"
+  }
+}
+
+class VideoRequestError extends Error {
+  readonly status?: number
+  readonly retryAfterMs?: number
+
+  constructor(message: string, status?: number, retryAfterMs?: number) {
+    super(message)
+    this.name = "VideoRequestError"
+    this.status = status
+    this.retryAfterMs = retryAfterMs
   }
 }
 
@@ -105,7 +121,7 @@ export async function generateVideo(
       throw new Error(taskErrorMessage(result))
     }
 
-    const videoUrl = result.metadata?.url
+    const videoUrl = result.url || result.metadata?.url
     if (!videoUrl) throw new VideoCommandError("videoNoUrl")
 
     await deleteProcessingMessage(session, processingMessageId, log)
@@ -254,10 +270,11 @@ async function pollVideoTask(
   log: AppLogger,
   useVideoIdQuery: boolean,
 ): Promise<VideoTaskResponse> {
-  const waitMs = Math.max(60_000, config.agnesVideoWaitTimeout * 1000)
-  const deadline = Date.now() + waitMs
+  let nextDelayMs = VIDEO_POLL_INTERVAL_MS
+  let rateLimitBackoffMs = 0
+  let lastLogKey = ""
 
-  while (Date.now() < deadline) {
+  while (true) {
     try {
       const query = buildPollUrl(agnes, videoId, model, useVideoIdQuery)
       const data = await requestJson(ctx, query, {
@@ -266,20 +283,62 @@ async function pollVideoTask(
       }, config.apiTimeout * 1000)
       const status = (data.status || "").toLowerCase()
 
-      if (status === "completed" || status === "failed") return data
-      if (log.enabled) {
+      if (status === "failed") return data
+      if (isVideoResultReady(data)) return data
+      const logKey = `${status}|${data.progress ?? ""}`
+      if (log.enabled && logKey !== lastLogKey) {
+        lastLogKey = logKey
         log.info(`视频生成进度: ${status || "unknown"}${data.progress !== undefined ? ` ${data.progress}%` : ""}`)
       }
+      nextDelayMs = VIDEO_POLL_INTERVAL_MS
+      rateLimitBackoffMs = 0
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
       if (/(^|\D)404(\D|$)/.test(message) || /not found/i.test(message)) throw error
-      log.warn("查询视频任务失败，稍后重试:", message)
+
+      const isRateLimited = error instanceof VideoRequestError
+        ? error.status === 429 || isRateLimitError(message)
+        : isRateLimitError(message)
+
+      if (isRateLimited) {
+        const retryAfterMs = error instanceof VideoRequestError && error.retryAfterMs !== undefined
+          ? error.retryAfterMs
+          : 0
+        rateLimitBackoffMs = Math.min(
+          Math.max(
+            rateLimitBackoffMs === 0
+              ? VIDEO_RATE_LIMIT_BASE_DELAY_MS
+              : rateLimitBackoffMs * 2,
+            retryAfterMs,
+          ),
+          VIDEO_MAX_RATE_LIMIT_DELAY_MS,
+        )
+        nextDelayMs = rateLimitBackoffMs
+        log.warn("查询视频任务触发限流，已延长轮询间隔:", message)
+      } else {
+        nextDelayMs = Math.min(
+          Math.max(nextDelayMs + VIDEO_POLL_INTERVAL_MS, VIDEO_POLL_INTERVAL_MS),
+          VIDEO_MAX_RATE_LIMIT_DELAY_MS,
+        )
+        log.warn("查询视频任务失败，稍后重试:", message)
+      }
     }
 
-    await delay(ctx, VIDEO_POLL_INTERVAL_MS)
+    await delay(ctx, nextDelayMs)
   }
+}
 
-  throw new VideoCommandError("videoTaskTimeout")
+function isVideoResultReady(data: VideoTaskResponse): boolean {
+  const progress = data.progress
+  return (data.status || "").toLowerCase() === "completed"
+    && Boolean(data.url || data.metadata?.url)
+    && (progress === undefined || progress === null || progress >= 100)
+}
+
+function isRateLimitError(message: string): boolean {
+  return /(^|\D)429(\D|$)/.test(message)
+    || /rate\s*limit/i.test(message)
+    || /too\s*many\s*requests/i.test(message)
 }
 
 function buildPollUrl(
@@ -305,8 +364,30 @@ async function requestJson(
   timeoutMs: number,
 ): Promise<VideoTaskResponse> {
   const response = await fetchWithTimeout(ctx, url, init, timeoutMs)
-  if (!response.ok) throw new Error(await parseErrorMessage(response))
+  if (!response.ok) {
+    throw new VideoRequestError(
+      await parseErrorMessage(response),
+      response.status,
+      parseRetryAfter(response.headers.get("retry-after")),
+    )
+  }
   return await response.json() as VideoTaskResponse
+}
+
+function parseRetryAfter(value: string | null): number | undefined {
+  if (!value) return undefined
+
+  const seconds = Number(value)
+  if (Number.isFinite(seconds)) {
+    return Math.max(0, seconds * 1000)
+  }
+
+  const date = Date.parse(value)
+  if (Number.isFinite(date)) {
+    return Math.max(0, date - Date.now())
+  }
+
+  return undefined
 }
 
 async function parseErrorMessage(response: Response): Promise<string> {
