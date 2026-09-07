@@ -6,11 +6,7 @@ import type { PluginLogger } from './logger'
 import type { BilibiliTarget, ResolvedVideoTarget } from './link-parser'
 import { targetFromResolvedUrl } from './link-parser'
 import type { BlockReason, VideoRateLimiter } from './rate-limiter'
-import {
-  buildDurationMessage,
-  buildVideoMessage,
-  checkDuration,
-} from './video-formatter'
+import { buildVideoMessages } from './video-formatter'
 
 interface SessionTask {
   session: Session
@@ -193,28 +189,18 @@ export class VideoParseService {
       return false
     }
 
-    if (this.config.videoParseComponents.includes('log')) {
-      this.logger.debug(`解析结果：${view.title} ${view.bvid} p=${target.page}`)
-    }
+    this.logger.debug(`解析结果：${view.title} ${view.bvid} p=${target.page}`)
 
-    const pages = view.pages ?? []
-    const selectedPage = pages.find((page) => page.page === target.page) ?? pages[0]
-    const duration = selectedPage?.duration ?? view.duration
-    const decision = checkDuration(this.config, duration)
-    const quoteMessageId = this.config.isfigure ? null : session.messageId
-
-    const message = decision.allowed
-      ? buildVideoMessage(this.config, view, target.page, quoteMessageId)
-      : decision.tip === 'return'
-        ? []
-        : buildDurationMessage(this.config, view, target.page, decision, quoteMessageId)
-
-    if (message.length === 0) return false
+    const messages = buildVideoMessages(this.config, view, target.page)
+    if (messages.length === 0) return false
     if (this.disposed) return false
     if (this.config.loggerinfofulljson) {
-      this.logger.debug(message.map((element) => element.toString()).join(''))
+      this.logger.debug(messages.map((message) => message.map((element) => element.toString()).join('')).join('\n'))
     }
-    await session.send(message)
+    for (const message of messages) {
+      if (this.disposed) return false
+      await session.send(message)
+    }
     this.logger.debug(`发送完成：${view.bvid}`)
     return true
   }

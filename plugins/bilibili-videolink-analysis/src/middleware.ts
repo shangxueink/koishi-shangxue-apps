@@ -27,7 +27,8 @@ export function registerLinkMiddleware(
       ? session.elements
       : h.parse(content)
     const cardText = collectJsonCardText(elements)
-    const targets = parseBilibiliContent(`${content}\n${cardText}`, config.BVnumberParsing)
+    // 独立 BV / AV 号始终允许解析
+    const targets = parseBilibiliContent(`${content}\n${cardText}`, true)
     if (targets.length === 0) return next()
 
     const limited = targets.slice(0, config.parseLimit)
@@ -38,4 +39,3 @@ export function registerLinkMiddleware(
     return next()
   }, config.middleware)
 }
-
