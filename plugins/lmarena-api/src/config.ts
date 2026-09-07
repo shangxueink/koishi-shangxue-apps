@@ -1,6 +1,7 @@
 import { Schema } from "koishi"
 import { readFileSync } from "node:fs"
 import { resolve } from "node:path"
+import { AGNES_VIDEO_MODELS, type AgnesVideoModel } from "./agnes"
 import { DEFAULT_EDITS_PARAMS, DEFAULT_GENERATIONS_PARAMS } from "./params"
 
 export interface Command {
@@ -28,6 +29,9 @@ export interface Config {
   agnesRegion: "cn" | "intl"
   agnesModel: "agnes-image-2.0-flash" | "agnes-image-2.1-flash"
   agnesAPIkey: string | null
+  agnesVideoEnabled: boolean
+  agnesVideoModel: AgnesVideoModel
+  agnesVideoWaitTimeout: number
   disableWaitingTips: boolean
   gifUpscaleEnabled: boolean
   gifUpscaleMinSize: number
@@ -83,6 +87,12 @@ export const Config: Schema<Config> = Schema.intersect([
     ]).default("intl").role("radio").description("agnes 站点地区"),
     agnesModel: Schema.union(["agnes-image-2.0-flash", "agnes-image-2.1-flash"] as const).default("agnes-image-2.1-flash").role("radio").description("agnes 模型版本"),
   }).description("Agnes站点设置"),
+
+  Schema.object({
+    agnesVideoEnabled: Schema.boolean().default(false).description("是否注册这个站点的视频功能"),
+    agnesVideoModel: Schema.union([...AGNES_VIDEO_MODELS]).default("agnes-video-2.5-flash").role("radio").description("agnes 视频模型版本"),
+    agnesVideoWaitTimeout: Schema.number().default(300).min(10).max(1800).step(10).description("等待视频生成完成的最大时间（秒）"),
+  }).description("Agnes站点设置-视频"),
 
   Schema.object({
     gifUpscaleEnabled: Schema.boolean().default(true).description("GIF 首帧分辨率不足时，使用 puppeteer 放大后再上传"),

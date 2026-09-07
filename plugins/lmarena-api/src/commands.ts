@@ -4,6 +4,7 @@ import type { AppLogger } from "./logger"
 import { collectDirectPrompt, collectImages, collectParentInput } from "./interaction"
 import { checkCurrency, generateImage } from "./generator"
 import { resolveApiModeForInput } from "./mode"
+import { AGENT_VIDEO_COMMAND, generateVideo } from "./video"
 
 // 父级自定义绘图与“自定义”子指令共用的流程
 async function runCustomDrawing(
@@ -47,33 +48,67 @@ function resolveImagesNumber(value: string | number | undefined): number | undef
 // 注册父级交互绘图、预设子命令与 i18n
 export function registerCommands(ctx: Context, config: Config, log: AppLogger): void {
   ctx.on("ready", () => {
-    ctx.i18n.define("zh-CN", {
-      commands: {
-        [config.basename]: {
-          description: "AI 交互绘图",
-          messages: {
-            invalidimage: "未检测到有效的图片，请重新发送带图片的消息。",
-            processing: "正在处理图片，请稍候...",
-            failed: "图片生成失败，请稍后重试。",
-            error: "处理过程中发生错误: {0}",
-            needimages: "请发送图片：",
-            needimagesOptional: "请发送图片（输入纯文本则直接文生图）：",
-            editsNeedImage: "当前接口为 edits 图片编辑模式，必须发送参考图片才能生成。",
-            generationsNoImage: "当前配置为 generations 文生图节点，不能传入参考图片；如需图生图，请把 apiUrl 改为基础地址并使用 auto 模式。",
-            needPrompt: "请发送画图提示词：",
-            noPrompt: "未检测到有效提示词，请重新输入。",
-            apiModeHint: "接口地址或接口协议可能配置错误，请检查 apiUrl 是否为完整 API 地址，或改为基础地址自动选择图生图/文生图。",
-            invalidApiUrl: "apiUrl 可能填成了网页地址，请填写 API 接口地址（例如 https://.../v1/images/edits 或 https://.../v1/images/generations）。",
-            apiTimeout: "API 请求超时，请稍后重试或调大 apiTimeout 配置。",
-            directOnlyGenerations: "当前接口不是 generations 文生图模式，不能使用 -d 直接生成。",
-            insufficientCurrency: "余额不足！当前余额: {0} {1}，需要: {2} {1}",
-            currencyDeducted: "成功扣除 {0} {1}，当前余额: {2} {1}",
-            noImagesInPrompt: "未检测到图片，请稍后重新交互。",
-            promptTimeout: "等待输入超时，请稍后重试。",
-            promptError: "交互式输入发生错误，请稍后重试。",
-          },
-        },
+    const imageMessages = {
+      invalidimage: "未检测到有效的图片，请重新发送带图片的消息。",
+      processing: "正在处理图片，请稍候...",
+      failed: "图片生成失败，请稍后重试。",
+      error: "处理过程中发生错误: {0}",
+      needimages: "请发送图片：",
+      needimagesOptional: "请发送图片（输入纯文本则直接文生图）：",
+      editsNeedImage: "当前接口为 edits 图片编辑模式，必须发送参考图片才能生成。",
+      generationsNoImage: "当前配置为 generations 文生图节点，不能传入参考图片；如需图生图，请把 apiUrl 改为基础地址并使用 auto 模式。",
+      needPrompt: "请发送画图提示词：",
+      noPrompt: "未检测到有效提示词，请重新输入。",
+      apiModeHint: "接口地址或接口协议可能配置错误，请检查 apiUrl 是否为完整 API 地址，或改为基础地址自动选择图生图/文生图。",
+      invalidApiUrl: "apiUrl 可能填成了网页地址，请填写 API 接口地址（例如 https://.../v1/images/edits 或 https://.../v1/images/generations）。",
+      apiTimeout: "API 请求超时，请稍后重试或调大 apiTimeout 配置。",
+      directOnlyGenerations: "当前接口不是 generations 文生图模式，不能使用 -d 直接生成。",
+      insufficientCurrency: "余额不足！当前余额: {0} {1}，需要: {2} {1}",
+      currencyDeducted: "成功扣除 {0} {1}，当前余额: {2} {1}",
+      noImagesInPrompt: "未检测到图片，请稍后重新交互。",
+      promptTimeout: "等待输入超时，请稍后重试。",
+      promptError: "交互式输入发生错误，请稍后重试。",
+    }
+
+    const videoMessages = {
+      ...imageMessages,
+      invalidimage: "参考图片处理失败，请重新发送图片。",
+      processing: "正在生成视频，请稍候...",
+      failed: "视频生成失败，请稍后重试。",
+      error: "视频生成过程中发生错误: {0}",
+      needimagesOptional: "请发送图片（输入纯文本则直接文生视频）：",
+      editsNeedImage: "当前视频模型需要参考图片。",
+      generationsNoImage: "当前视频功能不需要传入图片。",
+      needPrompt: "请发送视频提示词：",
+      noPrompt: "未检测到有效视频提示词，请重新输入。",
+      apiTimeout: "视频生成请求超时，请稍后重试或调大 apiTimeout 配置。",
+      directOnlyGenerations: "当前视频模式不能直接生成。",
+      noImagesInPrompt: "未检测到图片或文字，请稍后重新交互。",
+      videoTaskIdMissing: "未能获取到视频任务 ID，请稍后重试。",
+      videoNoUrl: "视频生成完成，但未返回视频地址，请稍后重试。",
+      videoTaskTimeout: "等待视频生成超时，请稍后重试或调大视频等待时间。",
+      videoTooManyImages: "当前视频模型最多支持 5 张参考图片。",
+    }
+
+    const commandLocales: Record<string, {
+      description: string
+      messages: Record<string, string>
+    }> = {
+      [config.basename]: {
+        description: "AI 交互绘图",
+        messages: imageMessages,
       },
+    }
+
+    if (config.agnesVideoEnabled) {
+      commandLocales[AGENT_VIDEO_COMMAND] = {
+        description: "AI 视频生成",
+        messages: videoMessages,
+      }
+    }
+
+    ctx.i18n.define("zh-CN", {
+      commands: commandLocales,
     })
 
     const parent = ctx.command(config.basename, "AI 交互绘图", {
@@ -125,6 +160,38 @@ export function registerCommands(ctx: Context, config: Config, log: AppLogger): 
 
           // 子命令固定使用配置里的预设提示词
           await generateImage(ctx, session, images.images, cmdConfig.prompt, config, log, imagesNumber)
+        })
+    }
+
+    if (config.agnesVideoEnabled) {
+      // 复用绘图指令的提示词/图片收集流程，只替换文案和 Agnes 图片模式开关
+      const videoConfig = {
+        ...config,
+        agnesMode: true,
+        basename: AGENT_VIDEO_COMMAND,
+      }
+
+      ctx.command(`${AGENT_VIDEO_COMMAND} [...args]`, "AI 视频生成", {
+        authority: config.commandAuthority,
+      })
+        .usage("生成视频：使用 -d 可直接输入提示词；也可以附带参考图片后输入动作提示词")
+        .option("d", "-d 直接按文字提示词生成，跳过图片输入")
+        .userFields(["id"])
+        .action(async ({ session, options }, ...args: string[]) => {
+          if (!session) return
+          if (!(await checkCurrency(ctx, session, config, log))) return
+
+          const extraContent = args.join(" ")
+          if (options.d) {
+            const prompt = await collectDirectPrompt(session, extraContent, videoConfig, log)
+            if (!prompt) return
+            await generateVideo(ctx, session, [], prompt, config, log)
+            return
+          }
+
+          const input = await collectParentInput(session, extraContent, videoConfig, log)
+          if (!input) return
+          await generateVideo(ctx, session, input.images, input.prompt, config, log)
         })
     }
   })

@@ -10,13 +10,13 @@ export const reusable = true
 export const filter = true
 export const inject = {
   required: ["http", "logger", "i18n"],
-  optional: ["database", "monetary", "puppeteer", "ffmpeg"],
+  optional: ["database", "monetary", "puppeteer", "ffmpeg", "assets"],
 }
 
 export const usage = `
 ---
 
-通过调用API实现文生图、图生图的功能。
+通过调用API实现文生图、图生图、文生视频、图生视频的功能。
 
 推荐模型：\`gpt-image-2\`
 
@@ -44,6 +44,8 @@ export const usage = `
 ---
 
 一键配置？开启最下方 agnesMode 配置项即可~~~
+
+如需视频功能，请在“Agnes站点设置-视频”中开启，并注册独立指令【Agent视频生成】。
 
 ---
 `
